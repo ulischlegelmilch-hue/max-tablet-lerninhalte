@@ -1,0 +1,340 @@
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+html, body {
+  margin: 0; padding: 0; width: 100%; height: 100%;
+  font-family: 'Comic Sans MS', 'Trebuchet MS', Verdana, sans-serif;
+  background: #EAF4FF;
+  overflow: hidden;
+}
+
+#topbar {
+  height: 64px;
+  background: linear-gradient(90deg, #4A90D9, #6BB1E8);
+  display: flex; align-items: center;
+  padding: 0 16px;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.topbar-btn {
+  font-size: 28px;
+  width: 48px; height: 48px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  cursor: pointer;
+}
+#topbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 26px;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+}
+#topbar-stats {
+  display: flex; gap: 14px;
+  font-size: 18px;
+  font-weight: bold;
+}
+#stat-akku, #stat-sterne, #stat-level {
+  background: rgba(255,255,255,0.25);
+  padding: 6px 12px;
+  border-radius: 20px;
+}
+
+#app-root {
+  height: calc(100% - 64px);
+  width: 100%;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Hauptmenü */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  max-width: 1300px;
+  margin: 20px auto;
+}
+.menu-card {
+  border-radius: 24px;
+  padding: 26px 12px;
+  text-align: center;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.15);
+  transition: transform 0.08s;
+}
+.menu-card:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+.menu-card .emoji { font-size: 54px; display: block; margin-bottom: 10px; }
+.card-mathe { background: linear-gradient(160deg, #5CC8FF, #3B9FE0); }
+.card-deutsch { background: linear-gradient(160deg, #FF9E7D, #F0704A); }
+.card-heimat { background: linear-gradient(160deg, #FFC94A, #E8971F); }
+.card-geschichten { background: linear-gradient(160deg, #B784E8, #8E5AC9); }
+
+/* Geschichten-Bibliothek */
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 900px;
+  margin: 10px auto;
+}
+.story-card {
+  position: relative;
+  border-radius: 20px;
+  padding: 22px 14px;
+  background: white;
+  border: 3px solid #e3d3f5;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+}
+.story-card:active { transform: translateY(3px); box-shadow: none; }
+.story-card .emoji { font-size: 46px; display: block; margin-bottom: 8px; }
+.story-card .story-titel { font-size: 19px; font-weight: bold; color: #6a3ea1; }
+.story-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 14px;
+  color: white;
+}
+.badge-fertig { background: #4CAE4C; }
+.badge-weiter { background: #F0A84A; }
+
+/* Lese-Ansicht für ganze Geschichten */
+.story-reader {
+  max-width: 760px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 24px;
+  padding: 34px;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.08);
+}
+.story-reader h2 {
+  color: #6a3ea1;
+  font-size: 30px;
+  text-align: center;
+  margin-top: 0;
+}
+.story-reader .story-absatz {
+  font-size: 21px;
+  line-height: 1.7;
+  color: #234;
+  margin-bottom: 16px;
+  text-align: left;
+}
+.story-reader .kapitel-titel {
+  color: #8E5AC9;
+  font-size: 23px;
+  margin: 26px 0 12px 0;
+  text-align: left;
+  border-left: 5px solid #B784E8;
+  padding-left: 12px;
+}
+.story-reader .kapitel-titel:first-of-type {
+  margin-top: 6px;
+}
+
+/* Verkehrszeichen-Lernkarten */
+.sign-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  max-width: 1100px;
+  margin: 10px auto 20px auto;
+}
+.sign-card {
+  background: white;
+  border: 3px solid #ffe3b0;
+  border-radius: 18px;
+  padding: 14px;
+  text-align: center;
+}
+.sign-name {
+  font-size: 17px;
+  font-weight: bold;
+  color: #b5720a;
+  margin-top: 6px;
+}
+.sign-bedeutung {
+  font-size: 14px;
+  color: #555;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+.sign-img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+}
+.story-reader .weiter-row {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.welcome {
+  text-align: center;
+  font-size: 22px;
+  color: #35618f;
+  margin-bottom: 10px;
+}
+
+/* Untermenüs */
+.sub-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  max-width: 800px;
+  margin: 10px auto;
+}
+.sub-card {
+  border-radius: 20px;
+  padding: 24px;
+  background: white;
+  border: 3px solid #cfe4f8;
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  color: #2E6DA4;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+}
+.sub-card:active { transform: translateY(3px); box-shadow: none; }
+.sub-card .emoji { font-size: 44px; display: block; margin-bottom: 8px; }
+
+.back-row { max-width: 800px; margin: 0 auto 10px auto; }
+.back-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 16px;
+  background: #dbe9f7;
+  color: #2E6DA4;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Frage-Karte */
+.quiz-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.progress-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; font-weight: bold; color: #35618f; font-size: 18px;
+}
+.frage-card {
+  background: white;
+  border-radius: 24px;
+  padding: 30px;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.08);
+  text-align: center;
+}
+.frage-text {
+  font-size: 30px;
+  font-weight: bold;
+  color: #234;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+.lese-text {
+  font-size: 20px;
+  text-align: left;
+  background: #f7fbff;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 20px;
+  line-height: 1.6;
+  color: #234;
+}
+
+.optionen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.option-btn {
+  padding: 20px;
+  border-radius: 18px;
+  background: #eef6ff;
+  border: 3px solid #bfe0ff;
+  font-size: 22px;
+  font-weight: bold;
+  color: #234;
+  cursor: pointer;
+}
+.option-btn:active { background: #d5ecff; }
+.option-btn.richtig { background: #b6f0b6; border-color: #6bcf6b; }
+.option-btn.falsch { background: #f7b9b9; border-color: #e46666; }
+
+/* Numerische Eingabe für Mathe */
+.zahl-anzeige {
+  font-size: 40px;
+  font-weight: bold;
+  background: #f0f6fc;
+  border-radius: 16px;
+  padding: 16px;
+  min-height: 64px;
+  margin-bottom: 18px;
+  color: #234;
+  letter-spacing: 2px;
+}
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.key-btn {
+  padding: 18px 0;
+  font-size: 26px;
+  font-weight: bold;
+  border-radius: 14px;
+  background: #eef6ff;
+  border: 3px solid #bfe0ff;
+  color: #234;
+  cursor: pointer;
+}
+.key-btn:active { background: #d5ecff; }
+.key-btn.ok { background: #b6f0b6; border-color: #6bcf6b; grid-column: span 2; }
+.key-btn.del { background: #ffe0b3; border-color: #ffb74d; }
+
+.feedback {
+  margin-top: 16px;
+  font-size: 24px;
+  font-weight: bold;
+  min-height: 34px;
+}
+.feedback.ok { color: #3a9d3a; }
+.feedback.nok { color: #d9534f; }
+
+/* Ergebnis-Screen */
+.result-card {
+  max-width: 600px;
+  margin: 40px auto;
+  background: white;
+  border-radius: 24px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.08);
+}
+.result-emoji { font-size: 80px; }
+.result-title { font-size: 30px; font-weight: bold; color: #2E6DA4; margin: 10px 0; }
+.result-sterne { font-size: 24px; color: #e0a300; margin-bottom: 24px; }
+.btn-primary {
+  display: inline-block;
+  padding: 16px 32px;
+  border-radius: 18px;
+  background: #4A90D9;
+  color: white;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 10px;
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Max lernt</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="topbar">
+  <div id="topbar-home" class="topbar-btn" onclick="App.gotoHome()">🏠</div>
+  <div id="topbar-title">Max lernt</div>
+  <div id="topbar-stats">
+    <span id="stat-akku" style="display:none;">🔋 --%</span>
+    <span id="stat-sterne">⭐ 0</span>
+    <span id="stat-level">Level 1</span>
+  </div>
+</div>
+
+<div id="app-root"></div>
+
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+<script src="js/mathe.js"></script>
+<script src="js/deutsch.js"></script>
+<script src="js/geschichten.js"></script>
+<script src="js/heimatkunde.js"></script>
+<script>
+  App.init();
+</script>
+</body>
+</html>

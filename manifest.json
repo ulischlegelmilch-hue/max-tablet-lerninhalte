@@ -1,0 +1,24 @@
+{
+  "version": "2026-08-06-2226",
+  "files": [
+    "css/style.css",
+    "images/verkehrszeichen/101_gefahrstelle.svg",
+    "images/verkehrszeichen/136_kinder.svg",
+    "images/verkehrszeichen/205_vorfahrt_gewaehren.svg",
+    "images/verkehrszeichen/206_stop.svg",
+    "images/verkehrszeichen/215_kreisverkehr.svg",
+    "images/verkehrszeichen/237_radweg.svg",
+    "images/verkehrszeichen/267_verbot_einfahrt.svg",
+    "images/verkehrszeichen/274_tempo30.svg",
+    "images/verkehrszeichen/283_halteverbot.svg",
+    "images/verkehrszeichen/306_vorfahrtstrasse.svg",
+    "images/verkehrszeichen/350_fussgaengerueberweg.svg",
+    "index.html",
+    "js/app.js",
+    "js/deutsch.js",
+    "js/geschichten.js",
+    "js/heimatkunde.js",
+    "js/mathe.js",
+    "js/storage.js"
+  ]
+}
