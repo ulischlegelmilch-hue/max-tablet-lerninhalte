@@ -254,6 +254,61 @@ const Mathe = (function () {
     return fragen;
   }
 
+  // ---- Malfolgen üben: Karteikarten-Prinzip. Falsch beantwortete Aufgaben
+  // kommen (dank App.startQuizSession-Option wiederholeFalsche) noch in
+  // derselben Sitzung wieder dran; ueber Storage.getMalfolgenStats() merkt
+  // sich die App zusaetzlich ueber Tage hinweg, welche Fakten oft falsch waren,
+  // und legt genau die in kuenftigen Sitzungen haeufiger vor. ----
+  function malfolgenAlleFakten() {
+    const fakten = [];
+    for (let a = 1; a <= 10; a++) {
+      for (let b = 1; b <= 10; b++) fakten.push(`${a}x${b}`);
+    }
+    return fakten;
+  }
+
+  function malfolgenGewicht(stat) {
+    if (!stat) return 3;
+    const serieBonus = Math.min(stat.serie || 0, 4);
+    return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
+  }
+
+  function waehleGewichtet(pool, anzahl) {
+    const kopie = pool.slice();
+    const ausgewaehlt = [];
+    for (let i = 0; i < anzahl && kopie.length > 0; i++) {
+      const gesamtgewicht = kopie.reduce((s, x) => s + x.gewicht, 0);
+      let ziel = Math.random() * gesamtgewicht;
+      let idx = 0;
+      for (; idx < kopie.length - 1; idx++) {
+        ziel -= kopie[idx].gewicht;
+        if (ziel <= 0) break;
+      }
+      ausgewaehlt.push(kopie[idx]);
+      kopie.splice(idx, 1);
+    }
+    return ausgewaehlt;
+  }
+
+  function genMalfolgenSession(anzahl) {
+    const stats = Storage.getMalfolgenStats();
+    const pool = malfolgenAlleFakten().map(fakt => ({ fakt, gewicht: malfolgenGewicht(stats[fakt]) }));
+    return waehleGewichtet(pool, anzahl).map(({ fakt }) => {
+      const [a, b] = fakt.split('x').map(Number);
+      return {
+        typ: 'numeric',
+        frage: `${a} × ${b} = ?`,
+        antwort: a * b,
+        aufAntwort: (korrekt) => Storage.meldeMalfolgenErgebnis(fakt, korrekt)
+      };
+    });
+  }
+
+  function starteMalfolgen() {
+    const starter = () => App.startQuizSession('mathe', genMalfolgenSession(15), { wiederholeFalsche: true });
+    App.setLastStarter(starter); starter();
+  }
+
   // ---- Tagespensum: fester Mix aus allen Aufgabentypen, keine Sparten-Auswahl.
   // Ist er durch, generiert "Nochmal üben" per Zufall ein frisches Pensum -
   // dadurch unterscheidet sich auch das Pensum von einem Tag zum naechsten. ----
@@ -289,5 +344,5 @@ const Mathe = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { starteTagesaufgabe };
+  return { starteTagesaufgabe, starteMalfolgen };
 })();

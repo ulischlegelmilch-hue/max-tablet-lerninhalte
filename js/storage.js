@@ -12,7 +12,8 @@ const Storage = (function () {
         lesen: { richtig: 0, falsch: 0 },
         heimat: { richtig: 0, falsch: 0 }
       },
-      leseFortschritt: {}
+      leseFortschritt: {},
+      malfolgen: {}
     };
   }
 
@@ -77,5 +78,29 @@ const Storage = (function () {
     save(state);
   }
 
-  return { addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig };
+  /** Karteikarten-Statistik pro Malfolge (z. B. "3x7"): wie oft falsch beantwortet
+   *  und wie viele Male in Folge zuletzt richtig - dient dazu, schwache Fakten
+   *  in kuenftigen Malfolgen-Sitzungen haeufiger vorzulegen. */
+  function getMalfolgenStats() {
+    if (!state.malfolgen) state.malfolgen = {};
+    return state.malfolgen;
+  }
+
+  function meldeMalfolgenErgebnis(fakt, korrekt) {
+    if (!state.malfolgen) state.malfolgen = {};
+    const stat = state.malfolgen[fakt] || { falsch: 0, serie: 0 };
+    if (korrekt) {
+      stat.serie = (stat.serie || 0) + 1;
+    } else {
+      stat.falsch = (stat.falsch || 0) + 1;
+      stat.serie = 0;
+    }
+    state.malfolgen[fakt] = stat;
+    save(state);
+  }
+
+  return {
+    addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
+    getMalfolgenStats, meldeMalfolgenErgebnis
+  };
 })();

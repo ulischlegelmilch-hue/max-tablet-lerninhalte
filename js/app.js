@@ -47,6 +47,9 @@ const App = (function () {
         <div class="menu-card card-heimat" onclick="Heimatkunde.renderMenu()">
           <span class="emoji">🚦</span> Heimat & Sachkunde
         </div>
+        <div class="menu-card card-malfolgen" onclick="Mathe.starteMalfolgen()">
+          <span class="emoji">✖️</span> Malfolgen üben
+        </div>
       </div>
     `);
   }
@@ -70,7 +73,10 @@ const App = (function () {
   function startQuizSession(fach, fragen, config) {
     session = {
       fach, fragen, index: 0, sessionSterne: 0, richtigCount: 0,
-      onFinish: config && config.onFinish
+      onFinish: config && config.onFinish,
+      // Wenn true: falsch beantwortete Fragen werden ein paar Fragen spaeter
+      // erneut eingereiht (Karteikarten-Prinzip), statt einfach zu verschwinden.
+      wiederholeFalsche: !!(config && config.wiederholeFalsche)
     };
     renderQuestion();
   }
@@ -166,6 +172,13 @@ const App = (function () {
     if (korrekt) session.richtigCount++;
     session.sessionSterne += gained;
     updateTopbar();
+
+    const f = session.fragen[session.index];
+    if (typeof f.aufAntwort === 'function') f.aufAntwort(korrekt);
+    if (!korrekt && session.wiederholeFalsche) {
+      const neuePosition = Math.min(session.fragen.length, session.index + 4);
+      session.fragen.splice(neuePosition, 0, f);
+    }
 
     const fb = document.getElementById('feedback');
     if (korrekt) {
