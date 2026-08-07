@@ -35,7 +35,7 @@ const App = (function () {
     render(`
       <div class="welcome">Hallo Max! Was möchtest du heute lernen?</div>
       <div class="menu-grid">
-        <div class="menu-card card-mathe" onclick="Mathe.renderMenu()">
+        <div class="menu-card card-mathe" onclick="Mathe.starteTagesaufgabe()">
           <span class="emoji">🔢</span> Mathe
         </div>
         <div class="menu-card card-deutsch" onclick="Deutsch.renderMenu()">

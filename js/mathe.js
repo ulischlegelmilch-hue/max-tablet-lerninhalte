@@ -9,19 +9,6 @@ const Mathe = (function () {
     return arr;
   }
 
-  function renderMenu() {
-    App.render(App.subMenuHtml('🔢 Mathe – was übst du?', [
-      { emoji: '➕', titel: 'Plus & Minus', onclick: 'Mathe.startePlusMinus()' },
-      { emoji: '✖️', titel: 'Einmaleins', onclick: 'Mathe.starteEinmaleins()' },
-      { emoji: '➗', titel: 'Geteilt', onclick: 'Mathe.starteGeteilt()' },
-      { emoji: '📝', titel: 'Textaufgaben', onclick: 'Mathe.starteTextaufgaben()' },
-      { emoji: '📐', titel: 'Schriftlich Rechnen', onclick: 'Mathe.starteSchriftlichRechnen()' },
-      { emoji: '🔟', titel: '10er & 100er', onclick: 'Mathe.starteZehnHundert()' },
-      { emoji: '🎯', titel: 'Teiler & Vielfache', onclick: 'Mathe.starteTeilerVielfache()' },
-      { emoji: '📊', titel: 'Diagramme lesen', onclick: 'Mathe.starteDiagramme()' }
-    ]));
-  }
-
   function generierePlusMinus(anzahl) {
     const fragen = [];
     for (let i = 0; i < anzahl; i++) {
@@ -149,15 +136,6 @@ const Mathe = (function () {
     };
   }
 
-  function genSchriftlichRechnenSession(anzahl) {
-    const generatoren = [genAddSubFrage, genAddSubFrage, genRechenketteFrage, genFehlendeZifferFrage, genStimmtDasFrage];
-    const fragen = [];
-    for (let i = 0; i < anzahl; i++) {
-      fragen.push(generatoren[rnd(0, generatoren.length - 1)]());
-    }
-    return fragen;
-  }
-
   // ---- 10er & 100er: ×10/×100/:10/:100 und Zehnerzahlen ----
   function genZehnHundertFrage() {
     const typ = rnd(1, 4);
@@ -184,14 +162,6 @@ const Mathe = (function () {
     }
     const b = rnd(2, 9) * 10, erg = rnd(2, 9);
     return { typ: 'numeric', frage: `${b * erg} : ${b} = ?`, antwort: erg };
-  }
-
-  function genZehnHundertSession(anzahl) {
-    const fragen = [];
-    for (let i = 0; i < anzahl; i++) {
-      fragen.push(Math.random() < 0.5 ? genZehnHundertFrage() : genZehnerzahlenFrage());
-    }
-    return fragen;
   }
 
   // ---- Teiler & Vielfache ----
@@ -222,14 +192,6 @@ const Mathe = (function () {
     }
     const alle = shuffle([richtig, ...falsche]);
     return { typ: 'mc', frage: `Welche Zahl ist ein Teiler von ${ziel}?`, optionen: alle, richtigIndex: alle.indexOf(richtig) };
-  }
-
-  function genTeilerVielfache(anzahl) {
-    const fragen = [];
-    for (let i = 0; i < anzahl; i++) {
-      fragen.push(Math.random() < 0.5 ? genVielfachesFrage() : genTeilerFrage());
-    }
-    return fragen;
   }
 
   // ---- Diagramme lesen: generiertes Balkendiagramm + Fragen dazu ----
@@ -292,41 +254,40 @@ const Mathe = (function () {
     return fragen;
   }
 
-  function startePlusMinus() {
-    const starter = () => App.startQuizSession('mathe', generierePlusMinus(10));
-    App.setLastStarter(starter); starter();
+  // ---- Tagespensum: fester Mix aus allen Aufgabentypen, keine Sparten-Auswahl.
+  // Ist er durch, generiert "Nochmal üben" per Zufall ein frisches Pensum -
+  // dadurch unterscheidet sich auch das Pensum von einem Tag zum naechsten. ----
+  const einzelGeneratoren = [
+    () => generierePlusMinus(1)[0],
+    () => genEinmaleins(1)[0],
+    () => genGeteilt(1)[0],
+    () => genTextaufgaben(1)[0],
+    genAddSubFrage,
+    genRechenketteFrage,
+    genFehlendeZifferFrage,
+    genStimmtDasFrage,
+    genZehnHundertFrage,
+    genZehnerzahlenFrage,
+    genVielfachesFrage,
+    genTeilerFrage
+  ];
+
+  function genTagesaufgabe(anzahl) {
+    const fragen = [];
+    while (fragen.length < anzahl) {
+      if (Math.random() < 0.12 && fragen.length <= anzahl - 2) {
+        fragen.push(...genDiagrammFragen(1));
+      } else {
+        fragen.push(einzelGeneratoren[rnd(0, einzelGeneratoren.length - 1)]());
+      }
+    }
+    return fragen;
   }
-  function starteEinmaleins() {
-    const starter = () => App.startQuizSession('mathe', genEinmaleins(10));
-    App.setLastStarter(starter); starter();
-  }
-  function starteGeteilt() {
-    const starter = () => App.startQuizSession('mathe', genGeteilt(10));
-    App.setLastStarter(starter); starter();
-  }
-  function starteTextaufgaben() {
-    const starter = () => App.startQuizSession('mathe', genTextaufgaben(8));
-    App.setLastStarter(starter); starter();
-  }
-  function starteSchriftlichRechnen() {
-    const starter = () => App.startQuizSession('mathe', genSchriftlichRechnenSession(10));
-    App.setLastStarter(starter); starter();
-  }
-  function starteZehnHundert() {
-    const starter = () => App.startQuizSession('mathe', genZehnHundertSession(10));
-    App.setLastStarter(starter); starter();
-  }
-  function starteTeilerVielfache() {
-    const starter = () => App.startQuizSession('mathe', genTeilerVielfache(8));
-    App.setLastStarter(starter); starter();
-  }
-  function starteDiagramme() {
-    const starter = () => App.startQuizSession('mathe', genDiagrammFragen(4));
+
+  function starteTagesaufgabe() {
+    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20));
     App.setLastStarter(starter); starter();
   }
 
-  return {
-    renderMenu, startePlusMinus, starteEinmaleins, starteGeteilt, starteTextaufgaben,
-    starteSchriftlichRechnen, starteZehnHundert, starteTeilerVielfache, starteDiagramme
-  };
+  return { starteTagesaufgabe };
 })();
