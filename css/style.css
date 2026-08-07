@@ -253,6 +253,47 @@ html, body {
   color: #234;
 }
 
+/* Balkendiagramm (Mathe: Diagramme lesen) */
+.balken-titel {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #35618f;
+  font-size: 19px;
+}
+.balken-zeile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.balken-label {
+  width: 90px;
+  flex-shrink: 0;
+  font-size: 15px;
+  font-weight: bold;
+  color: #234;
+}
+.balken-spur {
+  flex: 1;
+  background: #dbe9f7;
+  border-radius: 8px;
+  height: 26px;
+  overflow: hidden;
+}
+.balken-fuellung {
+  height: 100%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #5CC8FF, #3B9FE0);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
 .optionen {
   display: grid;
   grid-template-columns: 1fr 1fr;
