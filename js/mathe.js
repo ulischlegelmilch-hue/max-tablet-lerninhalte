@@ -9,6 +9,13 @@ const Mathe = (function () {
     return arr;
   }
 
+  function renderMenu() {
+    App.render(App.subMenuHtml('🔢 Mathe', [
+      { emoji: '📅', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
+      { emoji: '✖️', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' }
+    ]));
+  }
+
   function generierePlusMinus(anzahl) {
     const fragen = [];
     for (let i = 0; i < anzahl; i++) {
@@ -344,5 +351,5 @@ const Mathe = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { starteTagesaufgabe, starteMalfolgen };
+  return { renderMenu, starteTagesaufgabe, starteMalfolgen };
 })();

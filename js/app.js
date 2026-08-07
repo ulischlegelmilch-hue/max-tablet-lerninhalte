@@ -35,7 +35,7 @@ const App = (function () {
     render(`
       <div class="welcome">Hallo Max! Was möchtest du heute lernen?</div>
       <div class="menu-grid">
-        <div class="menu-card card-mathe" onclick="Mathe.starteTagesaufgabe()">
+        <div class="menu-card card-mathe" onclick="Mathe.renderMenu()">
           <span class="emoji">🔢</span> Mathe
         </div>
         <div class="menu-card card-deutsch" onclick="Deutsch.renderMenu()">
@@ -46,9 +46,6 @@ const App = (function () {
         </div>
         <div class="menu-card card-heimat" onclick="Heimatkunde.renderMenu()">
           <span class="emoji">🚦</span> Heimat & Sachkunde
-        </div>
-        <div class="menu-card card-malfolgen" onclick="Mathe.starteMalfolgen()">
-          <span class="emoji">✖️</span> Malfolgen üben
         </div>
       </div>
     `);

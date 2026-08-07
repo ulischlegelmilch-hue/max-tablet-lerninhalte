@@ -72,7 +72,6 @@ html, body {
 .card-deutsch { background: linear-gradient(160deg, #FF9E7D, #F0704A); }
 .card-heimat { background: linear-gradient(160deg, #FFC94A, #E8971F); }
 .card-geschichten { background: linear-gradient(160deg, #B784E8, #8E5AC9); }
-.card-malfolgen { background: linear-gradient(160deg, #6FE0C8, #35B79B); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
