@@ -13,7 +13,8 @@ const Storage = (function () {
         heimat: { richtig: 0, falsch: 0 }
       },
       leseFortschritt: {},
-      malfolgen: {}
+      malfolgen: {},
+      schach: { stufe: 0, siege: 0 }
     };
   }
 
@@ -106,8 +107,30 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Fortschritt auf der Schach-Schwierigkeitsleiter: aktuelle Stufe (Index)
+   *  und Siege auf dieser Stufe seit dem letzten Aufstieg. */
+  function getSchachFortschritt() {
+    if (!state.schach) state.schach = { stufe: 0, siege: 0 };
+    return state.schach;
+  }
+
+  function meldeSchachSieg() {
+    if (!state.schach) state.schach = { stufe: 0, siege: 0 };
+    state.schach.siege++;
+    save(state);
+    return state.schach;
+  }
+
+  function schachStufeAufsteigen() {
+    if (!state.schach) state.schach = { stufe: 0, siege: 0 };
+    state.schach.stufe++;
+    state.schach.siege = 0;
+    save(state);
+  }
+
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
-    getMalfolgenStats, meldeMalfolgenErgebnis, addSterne
+    getMalfolgenStats, meldeMalfolgenErgebnis, addSterne,
+    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen
   };
 })();

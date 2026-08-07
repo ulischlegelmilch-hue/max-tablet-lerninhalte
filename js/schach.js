@@ -1,21 +1,40 @@
 // Schach-Oberflaeche: bindet SchachEngine an App.render() an. Spielzustand lebt
 // nur hier im Modul (kein Speichern/Fortsetzen zwischen Sitzungen - "Neue Partie"
-// jedes Mal beim Reinklicken).
+// jedes Mal beim Reinklicken). Die Schwierigkeit steigt automatisch mit
+// gewonnenen Partien ueber eine feste Stufenleiter (siehe STUFEN).
 const Schach = (function () {
   let zustand = null;
   let spielerFarbe = 'w';
   let ausgewaehltesFeld = null;
   let legaleZiele = [];
   let spielLaeuft = false;
-  const KI_TIEFE = 3;
+  let letzterAufstiegsHinweis = '';
+
+  // Jede Stufe: KI-Suchtiefe + Chance, statt des besten Zugs einen zufaelligen
+  // (schlechten) Zug zu spielen - simuliert Anfaenger-Fehler auf niedrigen
+  // Stufen. Nach `siegeZumAufstieg` gewonnenen Partien geht's eine Stufe hoch.
+  const STUFEN = [
+    { name: 'Stufe 1 – Erste Schritte', tiefe: 1, zufallsChance: 0.6, siegeZumAufstieg: 2 },
+    { name: 'Stufe 2 – Vorsichtig üben', tiefe: 1, zufallsChance: 0.35, siegeZumAufstieg: 2 },
+    { name: 'Stufe 3 – Wird ernster', tiefe: 2, zufallsChance: 0.2, siegeZumAufstieg: 2 },
+    { name: 'Stufe 4 – Ordentlicher Gegner', tiefe: 2, zufallsChance: 0, siegeZumAufstieg: 2 },
+    { name: 'Stufe 5 – Taktisch stark', tiefe: 3, zufallsChance: 0.1, siegeZumAufstieg: 3 },
+    { name: 'Stufe 6 – Papa in echt schlagen!', tiefe: 3, zufallsChance: 0, siegeZumAufstieg: Infinity }
+  ];
 
   const FIGUR_SYMBOL = {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
 
+  function aktuelleStufe() {
+    const fortschritt = Storage.getSchachFortschritt();
+    return STUFEN[Math.min(fortschritt.stufe, STUFEN.length - 1)];
+  }
+
   function renderMenu() {
-    App.render(App.subMenuHtml('♟️ Schach gegen den Computer', [
+    const stufe = aktuelleStufe();
+    App.render(App.subMenuHtml(`♟️ Schach – ${stufe.name}`, [
       { emoji: '⚪', titel: 'Als Weiß spielen', onclick: "Schach.starteSpiel('w')" },
       { emoji: '⚫', titel: 'Als Schwarz spielen', onclick: "Schach.starteSpiel('b')" }
     ]));
@@ -27,8 +46,9 @@ const Schach = (function () {
     ausgewaehltesFeld = null;
     legaleZiele = [];
     spielLaeuft = true;
+    letzterAufstiegsHinweis = '';
     renderBrett();
-    if (spielerFarbe !== zustand.amZug) setTimeout(kiZugAusfuehren, 500);
+    if (spielerFarbe !== zustand.amZug) setTimeout(kiZugAusfuehren, 1000);
   }
 
   function findeKoenigFeld(zust, farbe) {
@@ -58,7 +78,7 @@ const Schach = (function () {
     if (status === 'matt') {
       const spielerHatGewonnen = zustand.amZug !== spielerFarbe;
       statusHtml = spielerHatGewonnen
-        ? '<div class="schach-status schach-status-sieg">🏆 Schachmatt! Du hast gewonnen!</div>'
+        ? `<div class="schach-status schach-status-sieg">🏆 Schachmatt! Du hast gewonnen!${letzterAufstiegsHinweis}</div>`
         : '<div class="schach-status schach-status-niederlage">Schachmatt! Der Computer hat gewonnen.</div>';
     } else if (status === 'patt') {
       statusHtml = '<div class="schach-status">Patt – unentschieden.</div>';
@@ -71,6 +91,7 @@ const Schach = (function () {
 
     const infoText = !spielLaeuft ? '' : (zustand.amZug === spielerFarbe ? 'Du bist am Zug' : 'Computer denkt nach…');
     const schachKoenigFeld = (status === 'schach' || status === 'matt') ? findeKoenigFeld(zustand, zustand.amZug) : null;
+    const letzterZug = zustand.letzterZug;
 
     const zellenHtml = visuelleFelder().map(feld => {
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
@@ -80,6 +101,7 @@ const Schach = (function () {
       if (ausgewaehltesFeld === feld) klassen += ' schach-feld-ausgewaehlt';
       if (legaleZiele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
+      if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
       return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
@@ -87,6 +109,7 @@ const Schach = (function () {
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">⬅ Zurück</span></div>
       <div class="schach-wrap">
+        <div class="schach-stufe">${aktuelleStufe().name}</div>
         <div class="schach-info">${infoText}</div>
         ${statusHtml}
         <div class="schach-brett">${zellenHtml}</div>
@@ -107,12 +130,11 @@ const Schach = (function () {
         legaleZiele = [];
         const status = SchachEngine.spielstatus(zustand);
         if (status === 'matt' && zustand.amZug !== spielerFarbe) {
-          Storage.addSterne(30);
-          App.updateTopbar();
+          behandleSieg();
         }
         renderBrett();
         if (status !== 'matt' && status !== 'patt' && status !== 'remis') {
-          setTimeout(kiZugAusfuehren, 500);
+          setTimeout(kiZugAusfuehren, 1000);
         }
         return;
       }
@@ -128,9 +150,24 @@ const Schach = (function () {
     renderBrett();
   }
 
+  function behandleSieg() {
+    const stufeVorher = Storage.getSchachFortschritt().stufe;
+    const fortschritt = Storage.meldeSchachSieg();
+    const stufe = STUFEN[Math.min(stufeVorher, STUFEN.length - 1)];
+    letzterAufstiegsHinweis = '';
+    if (fortschritt.siege >= stufe.siegeZumAufstieg && stufeVorher < STUFEN.length - 1) {
+      Storage.schachStufeAufsteigen();
+      const neueStufe = STUFEN[stufeVorher + 1];
+      letzterAufstiegsHinweis = ` Du steigst auf: „${neueStufe.name}"! 🎉`;
+    }
+    Storage.addSterne(30);
+    App.updateTopbar();
+  }
+
   function kiZugAusfuehren() {
     if (!spielLaeuft) return;
-    const zug = SchachEngine.waehleKiZug(zustand, KI_TIEFE);
+    const stufe = aktuelleStufe();
+    const zug = SchachEngine.waehleKiZugMitSchwierigkeit(zustand, stufe.tiefe, stufe.zufallsChance);
     if (!zug) { renderBrett(); return; }
     zustand = SchachEngine.zugAusfuehren(zustand, zug);
     renderBrett();

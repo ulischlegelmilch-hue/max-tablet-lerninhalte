@@ -331,6 +331,18 @@ const SchachEngine = (function () {
     return kandidaten[Math.floor(Math.random() * kandidaten.length)];
   }
 
+  /** Wie waehleKiZug, aber mit einer Chance, statt des besten Zugs einen
+   *  zufaelligen legalen Zug zu spielen - simuliert Anfaenger-Fehler fuer
+   *  niedrige Schwierigkeitsstufen. zufallsChance 0..1. */
+  function waehleKiZugMitSchwierigkeit(zustand, tiefe, zufallsChance) {
+    const zuege = alleLegalenZuege(zustand, zustand.amZug);
+    if (zuege.length === 0) return null;
+    if (zufallsChance && Math.random() < zufallsChance) {
+      return zuege[Math.floor(Math.random() * zuege.length)];
+    }
+    return waehleKiZug(zustand, tiefe);
+  }
+
   return {
     idx, rankOf, fileOf,
     anfangsstellung,
@@ -339,6 +351,7 @@ const SchachEngine = (function () {
     zugAusfuehren,
     istImSchach,
     spielstatus,
-    waehleKiZug
+    waehleKiZug,
+    waehleKiZugMitSchwierigkeit
   };
 })();
