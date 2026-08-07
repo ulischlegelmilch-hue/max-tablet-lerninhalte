@@ -16,8 +16,8 @@ const Schach = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('♟️ Schach gegen den Computer', [
-      { emoji: '⚪', titel: 'Als Weiß spielen', onclick: 'Schach.starteSpiel("w")' },
-      { emoji: '⚫', titel: 'Als Schwarz spielen', onclick: 'Schach.starteSpiel("b")' }
+      { emoji: '⚪', titel: 'Als Weiß spielen', onclick: "Schach.starteSpiel('w')" },
+      { emoji: '⚫', titel: 'Als Schwarz spielen', onclick: "Schach.starteSpiel('b')" }
     ]));
   }
 
