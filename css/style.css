@@ -72,6 +72,7 @@ html, body {
 .card-deutsch { background: linear-gradient(160deg, #FF9E7D, #F0704A); }
 .card-heimat { background: linear-gradient(160deg, #FFC94A, #E8971F); }
 .card-geschichten { background: linear-gradient(160deg, #B784E8, #8E5AC9); }
+.card-schach { background: linear-gradient(160deg, #7D8CA3, #4E5D73); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
@@ -354,6 +355,63 @@ html, body {
 }
 .feedback.ok { color: #3a9d3a; }
 .feedback.nok { color: #d9534f; }
+
+/* Schach */
+.schach-wrap {
+  max-width: 620px;
+  margin: 0 auto;
+  text-align: center;
+}
+.schach-info {
+  font-size: 20px;
+  font-weight: bold;
+  color: #35618f;
+  margin-bottom: 10px;
+  min-height: 26px;
+}
+.schach-status {
+  font-size: 21px;
+  font-weight: bold;
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #eef6ff;
+  color: #234;
+}
+.schach-status-sieg { background: #cdf2cd; color: #2b7a2b; }
+.schach-status-niederlage { background: #fbdada; color: #a33; }
+.schach-status-schach { background: #fff3cd; color: #8a6300; }
+.schach-brett {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 0 rgba(0,0,0,0.08);
+}
+.schach-feld {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  cursor: pointer;
+  position: relative;
+}
+.schach-feld-hell { background: #f0dab5; }
+.schach-feld-dunkel { background: #b5875a; }
+.schach-feld-ausgewaehlt { outline: 4px solid #4A90D9; outline-offset: -4px; }
+.schach-feld-ziel::after {
+  content: '';
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(74, 144, 217, 0.6);
+}
+.schach-feld-schach { background: #f28b82 !important; }
 
 /* Ergebnis-Screen */
 .result-card {

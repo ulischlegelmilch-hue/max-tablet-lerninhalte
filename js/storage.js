@@ -99,8 +99,15 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Generische Sternevergabe fuer Erfolge außerhalb des Quiz-Systems (z. B. eine
+   *  gewonnene Schachpartie). */
+  function addSterne(betrag) {
+    state.sterne += betrag;
+    save(state);
+  }
+
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
-    getMalfolgenStats, meldeMalfolgenErgebnis
+    getMalfolgenStats, meldeMalfolgenErgebnis, addSterne
   };
 })();

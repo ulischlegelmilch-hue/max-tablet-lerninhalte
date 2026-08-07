@@ -47,6 +47,9 @@ const App = (function () {
         <div class="menu-card card-heimat" onclick="Heimatkunde.renderMenu()">
           <span class="emoji">🚦</span> Heimat & Sachkunde
         </div>
+        <div class="menu-card card-schach" onclick="Schach.renderMenu()">
+          <span class="emoji">♟️</span> Schach
+        </div>
       </div>
     `);
   }
