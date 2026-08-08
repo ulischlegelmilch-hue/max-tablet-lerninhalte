@@ -1,15 +1,23 @@
+/* Design-Tokens angelehnt an shadcn/ui (Standard-"Zinc"-Theme) - neutrale
+   Grau/Schwarz/Weiß-Basis statt bunter Pastelltöne, EIN durchgängiger Akzent
+   (Blau) statt einer Farbe pro Fach. Das ist bewusst die andere Richtung als
+   vorher: kein "jedes Icon hat seine eigene Farbe" mehr, sondern die
+   zurückhaltende Neutralität, die professionelle SaaS-Produkte auszeichnet. */
 :root {
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --bg: #F4F6FA;
-  --ink: #26313D;
-  --ink-soft: #5B6B7A;
+  --bg: #F4F4F5;
   --card-bg: #FFFFFF;
-  --border: #E1E7EF;
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 14px rgba(15, 23, 42, 0.10);
+  --ink: #09090B;
+  --ink-soft: #71717A;
+  --border: #E4E4E7;
+  --muted: #F4F4F5;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.06);
   --accent: #2F6FE0;
-  --accent-dark: #23509E;
-  --accent-soft: #E7EFFC;
+  --accent-dark: #1D4ED8;
+  --accent-soft: #EFF6FF;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -21,51 +29,54 @@ html, body {
 }
 
 #topbar {
-  height: 64px;
-  background: var(--accent);
+  height: 60px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
   display: flex; align-items: center;
   padding: 0 16px;
-  color: white;
-  box-shadow: var(--shadow-sm);
+  color: var(--ink);
 }
 .topbar-btn {
-  width: 44px; height: 44px;
+  width: 40px; height: 40px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.18);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--ink);
   cursor: pointer;
 }
-.topbar-btn svg { width: 21px; height: 21px; }
+.topbar-btn svg { width: 19px; height: 19px; }
 #topbar-title {
   flex: 1;
   text-align: center;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
 }
 #topbar-stats {
-  display: flex; gap: 12px;
-  font-size: 16px;
+  display: flex; gap: 10px;
+  font-size: 14px;
   font-weight: 600;
 }
 #stat-akku, #stat-sterne, #stat-level {
-  background: rgba(255,255,255,0.2);
-  padding: 6px 12px;
-  border-radius: 14px;
+  background: var(--muted);
+  color: var(--ink);
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
 }
 
 #app-root {
-  height: calc(100% - 64px);
+  height: calc(100% - 60px);
   width: 100%;
   overflow-y: auto;
   padding: 28px;
 }
 
-/* Hauptmenü - weiße Karten mit kleinem farbigem Icon-Badge statt vollflächiger
-   Farbe, angelehnt an Things 3/Notion/iOS-Settings statt Kinder-App-Kacheln. */
+/* Hauptmenü - neutrale weiße Karten, ein einheitliches Icon-Badge (grau/schwarz,
+   kein Regenbogen aus Fach-Farben) - shadcn-artige Zurückhaltung statt Kinder-App. */
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 16px;
+  gap: 14px;
   max-width: 1300px;
   margin: 8px auto 24px;
 }
@@ -73,7 +84,7 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 22px 12px;
   text-align: center;
   background: var(--card-bg);
@@ -82,57 +93,55 @@ html, body {
   box-shadow: var(--shadow-sm);
   transition: transform 0.08s, box-shadow 0.08s, border-color 0.08s;
 }
-.menu-card:active { transform: translateY(1px); box-shadow: none; }
-.menu-icon {
-  width: 46px; height: 46px;
+.menu-card:active { transform: translateY(1px); border-color: var(--accent); }
+.menu-icon,
+.icon-mathe, .icon-deutsch, .icon-heimat, .icon-geschichten, .icon-schach {
+  width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
+  background: var(--muted);
+  color: var(--ink);
 }
-.menu-icon svg { width: 22px; height: 22px; }
-.menu-label { font-size: 15px; font-weight: 600; color: var(--ink); }
-.icon-mathe { background: #E7EFFC; color: #2F6FE0; }
-.icon-deutsch { background: #FBE8DE; color: #C25A28; }
-.icon-heimat { background: #FBF0D2; color: #A97B0C; }
-.icon-geschichten { background: #EFE7FA; color: #6D4CB8; }
-.icon-schach { background: #E7E9ED; color: #45566B; }
+.menu-icon svg { width: 21px; height: 21px; }
+.menu-label { font-size: 14px; font-weight: 600; color: var(--ink); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  gap: 14px;
   max-width: 900px;
   margin: 10px auto;
 }
 .story-card {
   position: relative;
-  border-radius: 14px;
-  padding: 20px 14px;
+  border-radius: var(--radius);
+  padding: 18px 14px;
   background: var(--card-bg);
   border: 1px solid var(--border);
   text-align: center;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
-.story-card:active { transform: translateY(1px); box-shadow: none; }
+.story-card:active { transform: translateY(1px); border-color: var(--accent); }
 .story-icon {
-  width: 44px; height: 44px;
+  width: 42px; height: 42px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 12px;
-  font-size: 20px;
+  border-radius: var(--radius-sm);
+  font-size: 19px;
   margin: 0 auto 10px;
-  background: #EFE7FA;
+  background: var(--muted);
 }
-.story-card .story-titel { font-size: 16px; font-weight: 600; color: var(--ink); }
+.story-card .story-titel { font-size: 15px; font-weight: 600; color: var(--ink); }
 .story-badge {
   position: absolute;
   top: -8px;
   right: -8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   padding: 4px 9px;
-  border-radius: 12px;
+  border-radius: 999px;
   color: white;
 }
 .badge-fertig { background: #3C9D5C; }
@@ -143,29 +152,30 @@ html, body {
   max-width: 760px;
   margin: 0 auto;
   background: var(--card-bg);
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 34px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
 .story-reader h2 {
-  color: #6B4FA8;
-  font-size: 28px;
+  color: var(--ink);
+  font-size: 26px;
   text-align: center;
   margin-top: 0;
 }
 .story-reader .story-absatz {
-  font-size: 20px;
+  font-size: 19px;
   line-height: 1.7;
   color: var(--ink);
   margin-bottom: 16px;
   text-align: left;
 }
 .story-reader .kapitel-titel {
-  color: #7A56C4;
-  font-size: 21px;
+  color: var(--accent-dark);
+  font-size: 20px;
   margin: 26px 0 12px 0;
   text-align: left;
-  border-left: 4px solid #B3A0E0;
+  border-left: 3px solid var(--accent);
   padding-left: 12px;
 }
 .story-reader .kapitel-titel:first-of-type {
@@ -176,26 +186,26 @@ html, body {
 .sign-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 14px;
   max-width: 1100px;
   margin: 10px auto 20px auto;
 }
 .sign-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius);
   padding: 14px;
   text-align: center;
   box-shadow: var(--shadow-sm);
 }
 .sign-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #A3690C;
+  color: var(--ink);
   margin-top: 6px;
 }
 .sign-bedeutung {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--ink-soft);
   margin-top: 4px;
   line-height: 1.3;
@@ -212,8 +222,8 @@ html, body {
 
 .welcome {
   text-align: center;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   letter-spacing: -0.2px;
   color: var(--ink);
   margin-bottom: 16px;
@@ -223,7 +233,7 @@ html, body {
 .sub-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 12px;
   max-width: 800px;
   margin: 10px auto;
 }
@@ -231,66 +241,68 @@ html, body {
   display: flex;
   align-items: center;
   gap: 14px;
-  border-radius: 14px;
-  padding: 16px 20px;
+  border-radius: var(--radius);
+  padding: 15px 18px;
   background: var(--card-bg);
   border: 1px solid var(--border);
   text-align: left;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.08s, box-shadow 0.08s;
+  transition: transform 0.08s, border-color 0.08s;
 }
-.sub-card:active { transform: translateY(1px); box-shadow: none; }
+.sub-card:active { transform: translateY(1px); border-color: var(--accent); }
 .sub-icon {
   flex-shrink: 0;
-  width: 40px; height: 40px;
+  width: 38px; height: 38px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 11px;
-  background: var(--accent-soft);
-  color: var(--accent-dark);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--ink);
 }
-.sub-icon svg { width: 19px; height: 19px; }
-.sub-label { font-size: 17px; font-weight: 600; color: var(--ink); }
+.sub-icon svg { width: 18px; height: 18px; }
+.sub-label { font-size: 16px; font-weight: 600; color: var(--ink); }
 
 .farbe-kreis { border-radius: 50%; }
 .farbe-weiss { background: #fff !important; border: 2px solid var(--border); }
-.farbe-schwarz { background: #2A2E33 !important; }
+.farbe-schwarz { background: var(--ink) !important; }
 
 /* Schach-Stufenwahl */
 .stufen-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 12px;
   max-width: 900px;
   margin: 10px auto;
 }
 .stufen-card {
-  border-radius: 14px;
-  padding: 18px 16px;
+  border-radius: var(--radius);
+  padding: 16px 16px;
   background: var(--card-bg);
   border: 1px solid var(--border);
   text-align: center;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
-.stufen-card:active { transform: translateY(2px); box-shadow: none; }
+.stufen-card:active { transform: translateY(1px); }
 .stufen-card-aktiv { border-color: var(--accent); background: var(--accent-soft); }
-.stufen-name { font-size: 17px; font-weight: 600; color: var(--accent-dark); margin-bottom: 6px; }
-.stufen-beschreibung { font-size: 14px; color: var(--ink-soft); }
+.stufen-name { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.stufen-beschreibung { font-size: 13px; color: var(--ink-soft); }
 
 .back-row { max-width: 800px; margin: 0 auto 10px auto; }
 .back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 18px 9px 14px;
-  border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--accent-dark);
+  padding: 8px 16px 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--ink);
   font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
 }
-.back-btn svg { width: 17px; height: 17px; }
+.back-btn svg { width: 16px; height: 16px; }
 
 /* Frage-Karte */
 .quiz-wrap {
@@ -299,27 +311,28 @@ html, body {
 }
 .progress-row {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 14px; font-weight: 600; color: var(--ink-soft); font-size: 16px;
+  margin-bottom: 14px; font-weight: 600; color: var(--ink-soft); font-size: 14px;
 }
 .frage-card {
   background: var(--card-bg);
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 28px;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   text-align: center;
 }
 .frage-text {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 22px;
   line-height: 1.4;
 }
 .lese-text {
-  font-size: 19px;
+  font-size: 18px;
   text-align: left;
-  background: #F5F8FC;
-  border-radius: 12px;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
   padding: 16px 18px;
   margin-bottom: 18px;
   line-height: 1.6;
@@ -331,7 +344,7 @@ html, body {
   font-weight: 700;
   margin-bottom: 10px;
   color: var(--ink-soft);
-  font-size: 18px;
+  font-size: 17px;
 }
 .balken-zeile {
   display: flex;
@@ -342,20 +355,20 @@ html, body {
 .balken-label {
   width: 90px;
   flex-shrink: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
 }
 .balken-spur {
   flex: 1;
-  background: var(--accent-soft);
-  border-radius: 6px;
-  height: 24px;
+  background: var(--muted);
+  border-radius: 5px;
+  height: 22px;
   overflow: hidden;
 }
 .balken-fuellung {
   height: 100%;
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--accent);
   display: flex;
   align-items: center;
@@ -363,37 +376,37 @@ html, body {
   padding-right: 8px;
   color: white;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .optionen {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 12px;
 }
 .option-btn {
-  padding: 18px;
-  border-radius: 12px;
-  background: #F5F8FC;
-  border: 2px solid var(--border);
-  font-size: 20px;
+  padding: 17px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  font-size: 19px;
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
 }
-.option-btn:active { background: var(--accent-soft); }
-.option-btn.richtig { background: #DFF3E4; border-color: #5DB876; }
-.option-btn.falsch { background: #FBE3E1; border-color: #DB6E63; }
+.option-btn:active { border-color: var(--accent); }
+.option-btn.richtig { background: #EAF7ED; border-color: #5DB876; color: #1D6B36; }
+.option-btn.falsch { background: #FCECEA; border-color: #DB6E63; color: #A3392F; }
 
 /* Numerische Eingabe für Mathe */
 .zahl-anzeige {
-  font-size: 36px;
+  font-size: 34px;
   font-weight: 700;
-  background: #F5F8FC;
-  border-radius: 12px;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
   padding: 14px;
-  min-height: 58px;
+  min-height: 56px;
   margin-bottom: 16px;
   color: var(--ink);
   letter-spacing: 2px;
@@ -401,32 +414,32 @@ html, body {
 .keypad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 9px;
   max-width: 340px;
   margin: 0 auto;
 }
 .key-btn {
-  padding: 16px 0;
-  font-size: 24px;
+  padding: 15px 0;
+  font-size: 22px;
   font-weight: 600;
-  border-radius: 10px;
-  background: #F5F8FC;
-  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  border: 1px solid var(--border);
   color: var(--ink);
   cursor: pointer;
 }
-.key-btn:active { background: var(--accent-soft); }
-.key-btn.ok { background: #DFF3E4; border-color: #5DB876; grid-column: span 2; }
-.key-btn.del { background: #FBE9D4; border-color: #E0A552; }
+.key-btn:active { border-color: var(--accent); }
+.key-btn.ok { background: #EAF7ED; border-color: #5DB876; color: #1D6B36; grid-column: span 2; }
+.key-btn.del { background: #FCEFE1; border-color: #E0A552; color: #94590E; }
 
 .feedback {
   margin-top: 14px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  min-height: 30px;
+  min-height: 28px;
 }
-.feedback.ok { color: #2E8B4E; }
-.feedback.nok { color: #C6493E; }
+.feedback.ok { color: #1D6B36; }
+.feedback.nok { color: #A3392F; }
 
 /* Schach */
 .schach-wrap {
@@ -435,7 +448,7 @@ html, body {
   text-align: center;
 }
 .schach-stufe {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--ink-soft);
   margin-bottom: 4px;
@@ -443,23 +456,23 @@ html, body {
   letter-spacing: 0.5px;
 }
 .schach-info {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--ink);
   margin-bottom: 10px;
   min-height: 24px;
 }
 .schach-status {
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 700;
   margin-bottom: 12px;
   padding: 11px;
-  border-radius: 12px;
-  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
   color: var(--ink);
 }
-.schach-status-sieg { background: #DFF3E4; color: #2E8B4E; }
-.schach-status-niederlage { background: #FBE3E1; color: #A3392F; }
+.schach-status-sieg { background: #EAF7ED; color: #1D6B36; }
+.schach-status-niederlage { background: #FCECEA; color: #A3392F; }
 .schach-status-schach { background: #FBF0D2; color: #93711A; }
 /* Brettgröße richtet sich nach der kleineren Bildschirmseite (Breite/Höhe des
    Fensters minus Platz für Topbar/Statuszeilen), damit es auf jedem Display -
@@ -471,9 +484,10 @@ html, body {
   width: min(94vw, 60vh, 820px);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
 }
 .schach-feld {
   display: flex;
@@ -502,21 +516,22 @@ html, body {
   max-width: 600px;
   margin: 40px auto;
   background: var(--card-bg);
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 36px;
   text-align: center;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
-.result-emoji { font-size: 56px; }
-.result-title { font-size: 26px; font-weight: 700; color: var(--accent-dark); margin: 10px 0; }
-.result-sterne { font-size: 20px; color: #B8790C; margin-bottom: 22px; }
+.result-emoji { font-size: 52px; }
+.result-title { font-size: 24px; font-weight: 700; color: var(--ink); margin: 10px 0; }
+.result-sterne { font-size: 18px; color: #B8790C; margin-bottom: 22px; }
 .btn-primary {
   display: inline-block;
-  padding: 14px 28px;
-  border-radius: 12px;
+  padding: 13px 26px;
+  border-radius: var(--radius-sm);
   background: var(--accent);
   color: white;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   margin-top: 10px;
