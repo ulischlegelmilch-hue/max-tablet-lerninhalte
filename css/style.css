@@ -684,3 +684,21 @@ html, body {
   font-family: var(--font);
   min-height: 44px;
 }
+
+/* Nur Browser-Vorschau (siehe App.initDevElternSimulation) - Nachbau der
+   nativen 🔒/📅-Buttons, damit der Eltern-Bereich auch ohne Tablet testbar
+   ist. Erscheint auf dem echten Tablet nie. */
+.dev-sim-btn {
+  position: fixed;
+  bottom: 14px;
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: white;
+  font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+}
+.dev-sim-lock { right: 14px; }
+.dev-sim-tagesplan { right: 80px; }

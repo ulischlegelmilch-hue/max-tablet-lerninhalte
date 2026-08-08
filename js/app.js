@@ -18,6 +18,33 @@ const App = (function () {
     el.style.display = '';
   }
 
+  /** Nachbau der nativen 🔒/📅-Bedienung aus MainActivity.kt, NUR fuer die
+   *  Browser-Vorschau ohne echtes Tablet (erkannt am fehlenden AndroidBridge-
+   *  JS-Interface, das es nur in der echten Kiosk-WebView gibt) - auf dem
+   *  echten Tablet erscheint das hier nie, dort gilt der native Button. Dient
+   *  einzig dazu, App.oeffneEinstellungen() auch ohne Gerät testen zu können. */
+  function initDevElternSimulation() {
+    if (typeof AndroidBridge !== 'undefined') return;
+    let entsperrt = false;
+    const lockBtn = document.createElement('div');
+    lockBtn.className = 'dev-sim-btn dev-sim-lock';
+    lockBtn.textContent = '🔒';
+    lockBtn.title = 'Nur Browser-Vorschau des nativen Eltern-Bereichs';
+    const tagesplanBtn = document.createElement('div');
+    tagesplanBtn.className = 'dev-sim-btn dev-sim-tagesplan';
+    tagesplanBtn.textContent = '📅';
+    tagesplanBtn.title = 'Tagesplan-Regeln (Vorschau)';
+    tagesplanBtn.style.display = 'none';
+    tagesplanBtn.onclick = () => oeffneEinstellungen();
+    lockBtn.onclick = () => {
+      entsperrt = !entsperrt;
+      lockBtn.textContent = entsperrt ? '🔓' : '🔒';
+      tagesplanBtn.style.display = entsperrt ? 'flex' : 'none';
+    };
+    document.body.appendChild(lockBtn);
+    document.body.appendChild(tagesplanBtn);
+  }
+
   let onLeaveScreen = null;
   function setOnLeaveScreen(fn) { onLeaveScreen = fn; }
 
@@ -70,7 +97,7 @@ const App = (function () {
         <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
         <span class="tagesplan-chip-text">
           <span class="tagesplan-chip-titel">${t.titel}</span>
-          <span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}">${t.badge}</span>
+          ${t.badge ? `<span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}">${t.badge}</span>` : ''}
         </span>
       </div>
     `).join('');
@@ -386,6 +413,7 @@ const App = (function () {
     gotoHome();
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 60000);
+    initDevElternSimulation();
   }
 
   return {
