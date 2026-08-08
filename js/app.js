@@ -37,7 +37,7 @@ const App = (function () {
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
     return [
-      { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
+      { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
       { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', onclick: 'Deutsch.starteRechtschreibung()' },
       {
         fach: 'geschichten', icon: 'geschichten',
@@ -56,7 +56,7 @@ const App = (function () {
     const geschichtenFortschritt = Storage.getGeschichtenFortschritt();
 
     const tagesplanHtml = baueTagesplan().map(t => `
-      <div class="tagesplan-chip" onclick="${t.onclick}">
+      <div class="tagesplan-chip accent-${t.fach}" onclick="${t.onclick}">
         <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
         <span class="tagesplan-chip-titel">${t.titel}</span>
       </div>
@@ -77,23 +77,23 @@ const App = (function () {
       </div>
 
       <div class="menu-grid">
-        <div class="menu-card" onclick="Mathe.renderMenu()">
+        <div class="menu-card accent-mathe" onclick="Mathe.renderMenu()">
           <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span>
           <span class="menu-text"><span class="menu-label">Mathe</span><span class="menu-progress">${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst</span></span>
         </div>
-        <div class="menu-card" onclick="Deutsch.renderMenu()">
+        <div class="menu-card accent-deutsch" onclick="Deutsch.renderMenu()">
           <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span>
           <span class="menu-text"><span class="menu-label">Deutsch</span><span class="menu-progress">${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst</span></span>
         </div>
-        <div class="menu-card" onclick="Geschichten.renderMenu()">
+        <div class="menu-card accent-geschichten" onclick="Geschichten.renderMenu()">
           <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span>
           <span class="menu-text"><span class="menu-label">Geschichten</span><span class="menu-progress">${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen</span></span>
         </div>
-        <div class="menu-card" onclick="Heimatkunde.renderMenu()">
+        <div class="menu-card accent-heimat" onclick="Heimatkunde.renderMenu()">
           <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span>
           <span class="menu-text"><span class="menu-label">Heimat &amp; Sachkunde</span><span class="menu-progress">${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst</span></span>
         </div>
-        <div class="menu-card" onclick="Schach.renderMenu()">
+        <div class="menu-card accent-schach" onclick="Schach.renderMenu()">
           <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
           <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
         </div>

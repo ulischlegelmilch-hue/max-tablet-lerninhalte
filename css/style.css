@@ -26,13 +26,15 @@
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 32px; --space-7: 48px;
 
-  /* Fach-Farben: gedeckt, je Fach klar unterscheidbar, nur fuer Icon-Badges
-     und duenne Akzente (nie als grossflaechiger Hintergrund). */
-  --mathe: #3D6FA8;        --mathe-soft: #EAF1F9;
-  --deutsch: #B5643E;      --deutsch-soft: #F7EEE7;
-  --geschichten: #7A5FA0;  --geschichten-soft: #F1EDF6;
-  --heimat: #5C8A66;       --heimat-soft: #EEF4EE;
-  --schach: #43485A;       --schach-soft: #ECEDF0;
+  /* Fach-Farben: gedeckt (nicht grell), aber deutlich sichtbar - kraeftiger
+     als ein Hauch von Pastell, damit die Farbcodierung auch tatsaechlich als
+     Farbe wahrgenommen wird. Genutzt fuer Icon-Badges + duennen Akzentrand an
+     Karten, nie als grossflaechiger Hintergrund. */
+  --mathe: #2E5F99;        --mathe-soft: #D6E6F5;
+  --deutsch: #A8562E;      --deutsch-soft: #F3DDCC;
+  --geschichten: #6B4A92;  --geschichten-soft: #E4D8F0;
+  --heimat: #47795A;       --heimat-soft: #D9EBDD;
+  --schach: #363B4A;       --schach-soft: #DCDEE4;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -186,6 +188,14 @@ html, body {
 .icon-geschichten { background: var(--geschichten-soft); color: var(--geschichten); }
 .icon-heimat { background: var(--heimat-soft); color: var(--heimat); }
 .icon-schach { background: var(--schach-soft); color: var(--schach); }
+
+/* Farbiger Akzentrand an Menu-Card/Tagesplan-Chip - Farbe zieht sich damit
+   sichtbar durch die ganze Karte, nicht nur durchs kleine Icon-Badge. */
+.accent-mathe { border-left: 3px solid var(--mathe); }
+.accent-deutsch { border-left: 3px solid var(--deutsch); }
+.accent-geschichten { border-left: 3px solid var(--geschichten); }
+.accent-heimat { border-left: 3px solid var(--heimat); }
+.accent-schach { border-left: 3px solid var(--schach); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
