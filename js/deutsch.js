@@ -10,9 +10,9 @@ const Deutsch = (function () {
   function pickN(arr, n) { return shuffle(arr).slice(0, n); }
 
   function renderMenu() {
-    App.render(App.subMenuHtml('📖 Deutsch – was übst du?', [
-      { emoji: '✏️', titel: 'Rechtschreibung', onclick: 'Deutsch.starteRechtschreibung()' },
-      { emoji: '📚', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }
+    App.render(App.subMenuHtml('Deutsch – was übst du?', [
+      { icon: 'rechtschreibung', titel: 'Rechtschreibung', onclick: 'Deutsch.starteRechtschreibung()' },
+      { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }
     ]));
   }
 

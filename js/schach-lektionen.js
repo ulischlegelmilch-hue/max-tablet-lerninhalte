@@ -1,11 +1,14 @@
 // Schachlektionen: getrennt vom eigentlichen Spiel (schach.js), damit Max nicht
-// nur gegen die KI spielt, sondern gezielt besser wird. Vier Bereiche:
+// nur gegen die KI spielt, sondern gezielt darauf vorbereitet wird, gegen einen
+// Menschen (Papa) zu bestehen. Bereiche:
 // 1) Figuren-ABC - interaktive Zugregel-Erklaerung ohne Punktedruck.
-// 2/3/4) Schlagen/Schach geben/Matt in 1 - kurze Aufgabenserien mit sofortigem
-// Feedback, wie die Mathe-Quizzes, aber mit Brett-Tap statt Tastatur/MC.
-// Alle Aufgaben werden zur Laufzeit erzeugt und dabei mit der echten Engine
-// verifiziert (z. B. spielstatus === 'matt'), es gibt also keine "kaputten"
-// Aufgaben - siehe generiereSchlagAufgabe/generiereSchachAufgabe/generiereMattAufgabe.
+// 2) Eröffnung - geführte Partie (Italienische Eröffnung) mit Prinzipien-Erklärung,
+//    fester Zugskript statt freier Aufgabe (siehe ERWOEFFNUNG_SCHRITTE).
+// 3-7) Schlagen/Schach geben/Matt in 1/Nicht hängen lassen/Fallen erkennen - kurze
+// Aufgabenserien mit sofortigem Feedback, wie die Mathe-Quizzes, aber mit
+// Brett-Tap statt Tastatur/MC. Alle Aufgaben werden zur Laufzeit erzeugt und
+// dabei mit der echten Engine verifiziert (z. B. spielstatus === 'matt'), es
+// gibt also keine "kaputten" Aufgaben - siehe generiereSchlagAufgabe usw.
 const SchachLektionen = (function () {
   const FIGUR_SYMBOL = {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
@@ -24,13 +27,16 @@ const SchachLektionen = (function () {
   // ---------------------------------------------------------------------
   function renderMenu() {
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">⬅ Zurück</span></div>
-      <div class="welcome">📘 Schachlektionen</div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Schachlektionen</div>
       <div class="sub-grid">
-        <div class="sub-card" onclick="SchachLektionen.starteFigurenABC()"><span class="emoji">♟️</span>Wie ziehen die Figuren?</div>
-        <div class="sub-card" onclick="SchachLektionen.starteUebung('schlagen')"><span class="emoji">⚔️</span>Schlagen üben</div>
-        <div class="sub-card" onclick="SchachLektionen.starteUebung('schach')"><span class="emoji">🛡️</span>Schach geben</div>
-        <div class="sub-card" onclick="SchachLektionen.starteUebung('matt')"><span class="emoji">🏆</span>Matt in 1</div>
+        <div class="sub-card" onclick="SchachLektionen.starteFigurenABC()"><span class="sub-icon">${Icons.svg('figuren')}</span><span class="sub-label">Wie ziehen die Figuren?</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteEroeffnung()"><span class="sub-icon">${Icons.svg('eroeffnung')}</span><span class="sub-label">Eröffnung</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteUebung('schlagen')"><span class="sub-icon">${Icons.svg('schlagen')}</span><span class="sub-label">Schlagen üben</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteUebung('schach')"><span class="sub-icon">${Icons.svg('schutz')}</span><span class="sub-label">Schach geben</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteUebung('matt')"><span class="sub-icon">${Icons.svg('matt')}</span><span class="sub-label">Matt in 1</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteUebung('haengt')"><span class="sub-icon">${Icons.svg('warnung')}</span><span class="sub-label">Nicht hängen lassen</span></div>
+        <div class="sub-card" onclick="SchachLektionen.starteUebung('fallen')"><span class="sub-icon">${Icons.svg('falle')}</span><span class="sub-label">Fallen erkennen</span></div>
       </div>
     `);
   }
@@ -104,7 +110,7 @@ const SchachLektionen = (function () {
     const zellenHtml = weisseSicht(figurZustand, figurAusgewaehlt, figurZiele, 'SchachLektionen.figurFeldGeklickt');
     const letzte = figurIndex === FIGUREN_LEKTIONEN.length - 1;
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">⬅ Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schach-wrap">
         <div class="schach-info">${lekt.titel} (${figurIndex + 1}/${FIGUREN_LEKTIONEN.length})</div>
         <div class="lese-text">${lekt.text}<br><br><b>Tipp:</b> Tippe die Figur an - dann siehst du, wohin sie ziehen darf.</div>
@@ -145,6 +151,119 @@ const SchachLektionen = (function () {
       Storage.addSterne(15);
       App.updateTopbar();
       renderMenu();
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Eröffnung: geführte Partie statt freier Aufgabe - Max spielt Zug für Zug
+  // die Italienische Eröffnung nach, jeder Schritt erklärt WARUM (Zentrum,
+  // Entwicklung, Königssicherheit). Der Gegner antwortet automatisch mit dem
+  // hinterlegten Gegenzug. Die komplette Zugfolge ist per Skript in
+  // scratchpad/verify_eroeffnung.js gegen die Engine geprüft.
+  // ---------------------------------------------------------------------
+  const EROEFFNUNG_SCHRITTE = [
+    {
+      erklaerung: 'Besetze zuerst die Mitte! Ein Bauer in der Mitte kontrolliert viele Felder und öffnet Dame und Läufer den Weg.',
+      von: SchachEngine.idx(1, 4), nach: SchachEngine.idx(3, 4),
+      gegenzug: { von: SchachEngine.idx(6, 4), nach: SchachEngine.idx(4, 4) }
+    },
+    {
+      erklaerung: 'Entwickle zuerst deine Springer und Läufer, bevor du die Dame rausholst - sie sind schnell einsatzbereit und stehen sicher.',
+      von: SchachEngine.idx(0, 6), nach: SchachEngine.idx(2, 5),
+      gegenzug: { von: SchachEngine.idx(7, 1), nach: SchachEngine.idx(5, 2) }
+    },
+    {
+      erklaerung: 'Der Läufer zielt aufs f7-Feld - direkt neben dem gegnerischen König. Das ist von Anfang an eine Schwachstelle, weil nur der König es beschützt.',
+      von: SchachEngine.idx(0, 5), nach: SchachEngine.idx(3, 2),
+      gegenzug: { von: SchachEngine.idx(7, 5), nach: SchachEngine.idx(4, 2) }
+    },
+    {
+      erklaerung: 'Jetzt kannst du rochieren! Dein König geht in Sicherheit hinter die Bauern, und der Turm kommt gleich mit ins Spiel. Tippe den König an und ziehe ihn zwei Felder zur Seite.',
+      von: SchachEngine.idx(0, 4), nach: SchachEngine.idx(0, 6), rochade: 'K',
+      gegenzug: null
+    }
+  ];
+
+  let eroeffnungIndex = 0;
+  let eroeffnungZustand = null;
+  let eroeffnungAusgewaehlt = null;
+  let eroeffnungZiele = [];
+  let eroeffnungHinweis = '';
+
+  function starteEroeffnung() {
+    eroeffnungIndex = 0;
+    eroeffnungZustand = SchachEngine.anfangsstellung();
+    eroeffnungAusgewaehlt = null;
+    eroeffnungZiele = [];
+    eroeffnungHinweis = '';
+    zeichneEroeffnung();
+  }
+
+  function zeichneEroeffnung() {
+    const schritt = EROEFFNUNG_SCHRITTE[eroeffnungIndex];
+    const zellenHtml = weisseSicht(eroeffnungZustand, eroeffnungAusgewaehlt, eroeffnungZiele, 'SchachLektionen.eroeffnungFeldGeklickt');
+    const hinweisHtml = eroeffnungHinweis ? `<div class="schach-status">${eroeffnungHinweis}</div>` : '';
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="schach-wrap">
+        <div class="schach-info">Eröffnung – Zug ${eroeffnungIndex + 1} / ${EROEFFNUNG_SCHRITTE.length}</div>
+        <div class="lese-text">${schritt.erklaerung}</div>
+        ${hinweisHtml}
+        <div class="schach-brett">${zellenHtml}</div>
+      </div>
+    `);
+  }
+
+  function eroeffnungFeldGeklickt(feld) {
+    const schritt = EROEFFNUNG_SCHRITTE[eroeffnungIndex];
+    const stein = eroeffnungZustand.board[feld];
+
+    if (eroeffnungAusgewaehlt !== null) {
+      const zug = eroeffnungZiele.find(z => z.nach === feld);
+      eroeffnungAusgewaehlt = null;
+      eroeffnungZiele = [];
+      if (zug && feld === schritt.nach && (!schritt.rochade || zug.rochade === schritt.rochade)) {
+        eroeffnungZustand = SchachEngine.zugAusfuehren(eroeffnungZustand, zug);
+        eroeffnungHinweis = '';
+        if (schritt.gegenzug) {
+          setTimeout(() => {
+            const gegnerZuege = SchachEngine.generiereLegaleZuege(eroeffnungZustand, schritt.gegenzug.von);
+            const gegnerZug = gegnerZuege.find(z => z.nach === schritt.gegenzug.nach);
+            eroeffnungZustand = SchachEngine.zugAusfuehren(eroeffnungZustand, gegnerZug);
+            naechsterEroeffnungSchritt();
+          }, 900);
+          zeichneEroeffnung();
+          return;
+        }
+        naechsterEroeffnungSchritt();
+        return;
+      } else if (zug) {
+        eroeffnungHinweis = 'Guter legaler Zug, aber probier den vorgeschlagenen Zug aus dieser Lektion.';
+      }
+    } else if (stein && stein.farbe === 'w') {
+      eroeffnungAusgewaehlt = feld;
+      eroeffnungZiele = SchachEngine.generiereLegaleZuege(eroeffnungZustand, feld);
+    }
+    zeichneEroeffnung();
+  }
+
+  function naechsterEroeffnungSchritt() {
+    if (eroeffnungIndex < EROEFFNUNG_SCHRITTE.length - 1) {
+      eroeffnungIndex++;
+      zeichneEroeffnung();
+    } else {
+      Storage.addSterne(20);
+      App.updateTopbar();
+      App.render(`
+        <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+        <div class="result-card">
+          <div class="result-emoji">🚀</div>
+          <div class="result-title">Eröffnung geschafft!</div>
+          <div class="lese-text" style="text-align:left;">Merk dir die drei Regeln: Mitte besetzen, Springer &amp; Läufer zuerst entwickeln, früh rochieren. Damit bist du für jede Partie gegen Papa gut vorbereitet!</div>
+          <div class="btn-primary" onclick="SchachLektionen.starteEroeffnung()">Nochmal üben</div>
+          <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="SchachLektionen.renderMenu()">Zurück zu den Lektionen</div>
+        </div>
+      `);
     }
   }
 
@@ -310,8 +429,112 @@ const SchachLektionen = (function () {
     };
   }
 
-  const GENERATOREN = { schlagen: generiereSchlagAufgabe, schach: generiereSchachAufgabe, matt: generiereMattAufgabe };
-  const ANZAHL_AUFGABEN = 6;
+  // Prüft, ob Weiß im gegebenen Zustand (Weiß am Zug) eine Stellung erzwingen
+  // kann, die spielstatus === 'matt' ist - Basis für die Fallen-Erkennung
+  // ("droht der Gegner gerade Matt in 1?").
+  function hatWeissMattIn1(zustand) {
+    for (let f = 0; f < 64; f++) {
+      if (!zustand.board[f] || zustand.board[f].farbe !== 'w') continue;
+      const zuege = SchachEngine.generiereLegaleZuege(zustand, f);
+      for (const zug of zuege) {
+        if (SchachEngine.spielstatus(SchachEngine.zugAusfuehren(zustand, zug)) === 'matt') return true;
+      }
+    }
+    return false;
+  }
+
+  // Nicht hängen lassen: eine weiße Figur wird von einer schwarzen bedroht,
+  // Max muss sie retten (wegziehen) oder den Angreifer schlagen. Generisch
+  // geprüft: Danach darf Schwarz nirgendwo mehr schlagen können.
+  function generiereHaengtAufgabe() {
+    const typen = ['n', 'b', 'r', 'q'];
+    for (let versuch = 0; versuch < 40; versuch++) {
+      const meinTyp = typen[rnd(0, typen.length - 1)];
+      const meinFeld = zufallsFeld();
+      let angreiferFeld = -1, angreiferTyp = '';
+      for (let t = 0; t < 20; t++) {
+        const kandidatTyp = typen[rnd(0, typen.length - 1)];
+        const kandidatFeld = zufallsFeld();
+        if (kandidatFeld === meinFeld) continue;
+        const testBoard = new Array(64).fill(null);
+        testBoard[kandidatFeld] = { typ: kandidatTyp, farbe: 'b' };
+        const zuege = SchachEngine.generiereLegaleZuege(neuerZustand(testBoard, 'b'), kandidatFeld);
+        if (zuege.some(z => z.nach === meinFeld)) {
+          angreiferFeld = kandidatFeld; angreiferTyp = kandidatTyp;
+          break;
+        }
+      }
+      if (angreiferFeld === -1) continue;
+
+      const board = new Array(64).fill(null);
+      board[meinFeld] = { typ: meinTyp, farbe: 'w' };
+      board[angreiferFeld] = { typ: angreiferTyp, farbe: 'b' };
+      const zustand = neuerZustand(board, 'w');
+
+      let loesbar = false;
+      for (let f = 0; f < 64 && !loesbar; f++) {
+        if (!zustand.board[f] || zustand.board[f].farbe !== 'w') continue;
+        const zuege = SchachEngine.generiereLegaleZuege(zustand, f);
+        for (const zug of zuege) {
+          const nachher = SchachEngine.zugAusfuehren(zustand, zug);
+          if (!SchachEngine.alleLegalenZuege(nachher, 'b').some(zz => zz.schlag)) { loesbar = true; break; }
+        }
+      }
+      if (!loesbar) continue;
+
+      return {
+        zustand,
+        anweisung: 'Deine Figur wird bedroht! Rette sie, oder schlage den Angreifer zuerst.',
+        pruefung: (vorher, zug, nachher) => !SchachEngine.alleLegalenZuege(nachher, 'b').some(z => z.schlag),
+        loesungFalsch: 'Deine Figur steht immer noch im Schlagfeld. Zieh sie in Sicherheit oder schlage den Angreifer.'
+      };
+    }
+    const board = new Array(64).fill(null);
+    board[SchachEngine.idx(3, 3)] = { typ: 'n', farbe: 'w' };
+    board[SchachEngine.idx(1, 1)] = { typ: 'b', farbe: 'b' };
+    return {
+      zustand: neuerZustand(board, 'w'),
+      anweisung: 'Deine Figur wird bedroht! Rette sie, oder schlage den Angreifer zuerst.',
+      pruefung: (vorher, zug, nachher) => !SchachEngine.alleLegalenZuege(nachher, 'b').some(z => z.schlag),
+      loesungFalsch: 'Deine Figur steht immer noch im Schlagfeld. Zieh sie in Sicherheit oder schlage den Angreifer.'
+    };
+  }
+
+  // Fallen erkennen: die klassische "Schäfermatt"-Drohung nach 1.e4 e5 2.Dh5 Sc6
+  // 3.Lc4 - Dame und Läufer zielen gemeinsam aufs f7-Feld. Max spielt hier
+  // Schwarz (spielerFarbe: 'b') und muss die Matt-in-1-Drohung abwenden - jede
+  // Verteidigung zählt (per Engine geprüft: mehrere Züge funktionieren
+  // tatsächlich, siehe scratchpad/verify_falle.js).
+  function generiereFalleAufgabe() {
+    // Stellung durch echte Zugausfuehrung aufbauen (1.e4 e5 2.Dh5 Sc6 3.Lc4) statt
+    // per Hand zusammengesetztem Board - das schliesst Tippfehler beim manuellen
+    // Board-Aufbau aus (siehe scratchpad/vergleiche_falle.js zur Gegenprobe).
+    let zustand = SchachEngine.anfangsstellung();
+    const zugfolge = [
+      [SchachEngine.idx(1, 4), SchachEngine.idx(3, 4)], // 1. e4
+      [SchachEngine.idx(6, 4), SchachEngine.idx(4, 4)], // 1... e5
+      [SchachEngine.idx(0, 3), SchachEngine.idx(4, 7)], // 2. Dh5
+      [SchachEngine.idx(7, 1), SchachEngine.idx(5, 2)], // 2... Sc6
+      [SchachEngine.idx(0, 5), SchachEngine.idx(3, 2)]  // 3. Lc4
+    ];
+    for (const [von, nach] of zugfolge) {
+      const zug = SchachEngine.generiereLegaleZuege(zustand, von).find(z => z.nach === nach);
+      zustand = SchachEngine.zugAusfuehren(zustand, zug);
+    }
+    return {
+      zustand,
+      spielerFarbe: 'b',
+      anweisung: 'Weiß droht Dxf7 - Matt in einem Zug! Du spielst Schwarz: Wie verteidigst du dich?',
+      pruefung: (vorher, zug, nachher) => !hatWeissMattIn1(nachher),
+      loesungFalsch: 'Die Drohung Dxf7# besteht immer noch. Verteidige das f7-Feld oder vertreibe die Dame.'
+    };
+  }
+
+  const GENERATOREN = {
+    schlagen: generiereSchlagAufgabe, schach: generiereSchachAufgabe, matt: generiereMattAufgabe,
+    haengt: generiereHaengtAufgabe, fallen: generiereFalleAufgabe
+  };
+  const ANZAHL_PRO_KATEGORIE = { schlagen: 6, schach: 6, matt: 6, haengt: 6, fallen: 3 };
 
   let puzzleSession = null;
   let puzzleZustand = null;
@@ -321,7 +544,7 @@ const SchachLektionen = (function () {
 
   function starteUebung(kategorie) {
     const aufgaben = [];
-    for (let i = 0; i < ANZAHL_AUFGABEN; i++) aufgaben.push(GENERATOREN[kategorie]());
+    for (let i = 0; i < ANZAHL_PRO_KATEGORIE[kategorie]; i++) aufgaben.push(GENERATOREN[kategorie]());
     puzzleSession = { kategorie, aufgaben, index: 0, richtigCount: 0, sterneGesamt: 0 };
     renderAufgabe();
   }
@@ -342,7 +565,7 @@ const SchachLektionen = (function () {
       ? `<div class="schach-status ${puzzleFeedback.korrekt ? 'schach-status-sieg' : 'schach-status-niederlage'}">${puzzleFeedback.text}</div>`
       : '';
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">⬅ Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schach-wrap">
         <div class="schach-info">Aufgabe ${nr} / ${total}</div>
         <div class="lese-text">${a.anweisung}</div>
@@ -381,7 +604,7 @@ const SchachLektionen = (function () {
       }
     }
 
-    if (stein && stein.farbe === 'w') {
+    if (stein && stein.farbe === (a.spielerFarbe || 'w')) {
       puzzleAusgewaehlt = feld;
       puzzleZiele = SchachEngine.generiereLegaleZuege(puzzleZustand, feld);
     } else {
@@ -410,7 +633,7 @@ const SchachLektionen = (function () {
         <div class="result-title">${puzzleSession.richtigCount} von ${total} richtig!</div>
         <div class="result-sterne">Du hast ${puzzleSession.sterneGesamt} ⭐ verdient</div>
         <div class="btn-primary" onclick="SchachLektionen.starteUebung('${puzzleSession.kategorie}')">Nochmal üben</div>
-        <div class="btn-primary" style="background:#dbe9f7;color:#2E6DA4;" onclick="SchachLektionen.renderMenu()">Zurück zu den Lektionen</div>
+        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="SchachLektionen.renderMenu()">Zurück zu den Lektionen</div>
       </div>
     `);
   }
@@ -418,6 +641,7 @@ const SchachLektionen = (function () {
   return {
     renderMenu,
     starteFigurenABC, figurFeldGeklickt, naechsteFigurLektion,
+    starteEroeffnung, eroeffnungFeldGeklickt,
     starteUebung, aufgabeFeldGeklickt
   };
 })();

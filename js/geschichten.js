@@ -273,14 +273,14 @@ const Geschichten = (function () {
       }
       return `<div class="story-card" onclick="Geschichten.leseGeschichte(${i})">
          ${badge}
-         <span class="emoji">${g.emoji}</span>
+         <span class="story-icon">${g.emoji}</span>
          <div class="story-titel">${g.titel}</div>
        </div>`;
     }).join('');
 
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">⬅ Zurück</span></div>
-      <div class="welcome">📚 Wähle eine Geschichte zum Lesen</div>
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Wähle eine Geschichte zum Lesen</div>
       <div class="story-grid">${cards}</div>
     `);
   }
@@ -297,7 +297,7 @@ const Geschichten = (function () {
 
     App.render(`
       <div class="story-reader">
-        <div class="back-row"><span class="back-btn" onclick="Geschichten.renderMenu()">⬅ Zur Bücherei</span></div>
+        <div class="back-row"><span class="back-btn" onclick="Geschichten.renderMenu()">${Icons.svg('zurueck')} Zur Bücherei</span></div>
         <h2>${g.emoji} ${g.titel}</h2>
         ${kapitelHtml}
         <div class="weiter-row">

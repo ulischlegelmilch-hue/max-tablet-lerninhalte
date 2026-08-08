@@ -34,16 +34,16 @@ const Schach = (function () {
   }
 
   function renderMenu() {
-    App.render(App.subMenuHtml('♟️ Schach', [
-      { emoji: '🎮', titel: 'Spielen', onclick: 'Schach.renderStufenwahl()' },
-      { emoji: '📘', titel: 'Lektionen', onclick: 'SchachLektionen.renderMenu()' }
+    App.render(App.subMenuHtml('Schach', [
+      { icon: 'spielen', titel: 'Spielen', onclick: 'Schach.renderStufenwahl()' },
+      { icon: 'lektionen', titel: 'Lektionen', onclick: 'SchachLektionen.renderMenu()' }
     ]));
   }
 
   function renderStufenwahl() {
     const aktuelleIdx = Storage.getSchachFortschritt().stufe;
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">⬅ Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Welche Stufe möchtest du spielen?</div>
       <div class="stufen-grid">
         ${STUFEN.map((s, i) => `
@@ -64,11 +64,11 @@ const Schach = (function () {
   function renderFarbwahl() {
     const stufe = aktuelleStufe();
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">⬅ Andere Stufe</span></div>
-      <div class="welcome">♟️ ${stufe.name}</div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">${Icons.svg('zurueck')} Andere Stufe</span></div>
+      <div class="welcome">${stufe.name}</div>
       <div class="sub-grid">
-        <div class="sub-card" onclick="Schach.starteSpiel('w')"><span class="emoji">⚪</span>Als Weiß spielen</div>
-        <div class="sub-card" onclick="Schach.starteSpiel('b')"><span class="emoji">⚫</span>Als Schwarz spielen</div>
+        <div class="sub-card" onclick="Schach.starteSpiel('w')"><span class="sub-icon farbe-kreis farbe-weiss"></span><span class="sub-label">Als Weiß spielen</span></div>
+        <div class="sub-card" onclick="Schach.starteSpiel('b')"><span class="sub-icon farbe-kreis farbe-schwarz"></span><span class="sub-label">Als Schwarz spielen</span></div>
       </div>
     `);
   }
@@ -140,7 +140,7 @@ const Schach = (function () {
     }).join('');
 
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">⬅ Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schach-wrap">
         <div class="schach-stufe">${aktuelleStufe().name}</div>
         <div class="schach-info">${infoText}</div>

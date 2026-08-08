@@ -35,32 +35,32 @@ const App = (function () {
     render(`
       <div class="welcome">Hallo Max! Was möchtest du heute lernen?</div>
       <div class="menu-grid">
-        <div class="menu-card card-mathe" onclick="Mathe.renderMenu()">
-          <span class="emoji">🔢</span> Mathe
+        <div class="menu-card" onclick="Mathe.renderMenu()">
+          <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span><span class="menu-label">Mathe</span>
         </div>
-        <div class="menu-card card-deutsch" onclick="Deutsch.renderMenu()">
-          <span class="emoji">📖</span> Deutsch
+        <div class="menu-card" onclick="Deutsch.renderMenu()">
+          <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span><span class="menu-label">Deutsch</span>
         </div>
-        <div class="menu-card card-geschichten" onclick="Geschichten.renderMenu()">
-          <span class="emoji">📚</span> Geschichten
+        <div class="menu-card" onclick="Geschichten.renderMenu()">
+          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span><span class="menu-label">Geschichten</span>
         </div>
-        <div class="menu-card card-heimat" onclick="Heimatkunde.renderMenu()">
-          <span class="emoji">🚦</span> Heimat & Sachkunde
+        <div class="menu-card" onclick="Heimatkunde.renderMenu()">
+          <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span><span class="menu-label">Heimat &amp; Sachkunde</span>
         </div>
-        <div class="menu-card card-schach" onclick="Schach.renderMenu()">
-          <span class="emoji">♟️</span> Schach
+        <div class="menu-card" onclick="Schach.renderMenu()">
+          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span><span class="menu-label">Schach</span>
         </div>
       </div>
     `);
   }
 
   function subMenuHtml(titel, karten) {
-    // karten: [{emoji, titel, onclick}]
+    // karten: [{icon, titel, onclick}] - icon ist ein Name aus Icons.svg()
     const cardsHtml = karten.map(k =>
-      `<div class="sub-card" onclick="${k.onclick}"><span class="emoji">${k.emoji}</span>${k.titel}</div>`
+      `<div class="sub-card" onclick="${k.onclick}"><span class="sub-icon">${Icons.svg(k.icon)}</span><span class="sub-label">${k.titel}</span></div>`
     ).join('');
     return `
-      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">⬅ Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">${titel}</div>
       <div class="sub-grid">${cardsHtml}</div>
     `;
@@ -215,7 +215,7 @@ const App = (function () {
         <div class="result-title">${session.richtigCount} von ${total} richtig!</div>
         <div class="result-sterne">Du hast ${session.sessionSterne} ⭐ verdient</div>
         <div class="btn-primary" onclick="App.restartLast()">Nochmal üben</div>
-        <div class="btn-primary" style="background:#dbe9f7;color:#2E6DA4;" onclick="App.gotoHome()">Zum Hauptmenü</div>
+        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>
     `);
 
@@ -227,6 +227,7 @@ const App = (function () {
   function restartLast() { if (lastStarter) lastStarter(); else gotoHome(); }
 
   function init() {
+    document.getElementById('topbar-home').innerHTML = Icons.svg('home');
     gotoHome();
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 60000);

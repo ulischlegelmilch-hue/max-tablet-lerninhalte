@@ -10,9 +10,9 @@ const Mathe = (function () {
   }
 
   function renderMenu() {
-    App.render(App.subMenuHtml('🔢 Mathe', [
-      { emoji: '📅', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
-      { emoji: '✖️', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' }
+    App.render(App.subMenuHtml('Mathe', [
+      { icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
+      { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' }
     ]));
   }
 

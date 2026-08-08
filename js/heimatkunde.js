@@ -32,8 +32,8 @@ const Heimatkunde = (function () {
   ];
 
   function renderMenu() {
-    App.render(App.subMenuHtml('🚦 Heimat & Sachkunde', [
-      { emoji: '🚦', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' }
+    App.render(App.subMenuHtml('Heimat & Sachkunde', [
+      { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' }
     ]));
   }
 
@@ -47,8 +47,8 @@ const Heimatkunde = (function () {
     ).join('');
 
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">⬅ Zurück</span></div>
-      <div class="welcome">🚦 Schau dir die Verkehrszeichen gut an</div>
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Schau dir die Verkehrszeichen gut an</div>
       <div class="sign-grid">${cards}</div>
       <div class="weiter-row"><span class="btn-primary" onclick="Heimatkunde.starteQuiz()">Zum Quiz ➜</span></div>
     `);
