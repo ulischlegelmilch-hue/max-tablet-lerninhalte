@@ -41,7 +41,9 @@
 html, body {
   margin: 0; padding: 0; width: 100%; height: 100%;
   font-family: var(--font);
-  background: var(--bg);
+  /* Sanfter Verlauf statt platter Einheitsflaeche - etwas Tiefe, ohne laut zu werden. */
+  background: linear-gradient(180deg, #FAFAFC 0%, #EEF0F4 100%);
+  background-attachment: fixed;
   overflow: hidden;
 }
 
@@ -183,19 +185,22 @@ html, body {
 .menu-label { font-size: 15px; font-weight: 600; color: var(--ink); }
 .menu-progress { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
 
-.icon-mathe { background: var(--mathe-soft); color: var(--mathe); }
-.icon-deutsch { background: var(--deutsch-soft); color: var(--deutsch); }
-.icon-geschichten { background: var(--geschichten-soft); color: var(--geschichten); }
-.icon-heimat { background: var(--heimat-soft); color: var(--heimat); }
-.icon-schach { background: var(--schach-soft); color: var(--schach); }
+/* Icon-Badge: volle, kraeftige Fach-Farbe mit weißem Icon (statt hellem Tint) -
+   das ist der Farbpunkt mit dem staerksten Kontrast auf der Karte. */
+.icon-mathe { background: var(--mathe); color: #fff; }
+.icon-deutsch { background: var(--deutsch); color: #fff; }
+.icon-geschichten { background: var(--geschichten); color: #fff; }
+.icon-heimat { background: var(--heimat); color: #fff; }
+.icon-schach { background: var(--schach); color: #fff; }
 
-/* Farbiger Akzentrand an Menu-Card/Tagesplan-Chip - Farbe zieht sich damit
-   sichtbar durch die ganze Karte, nicht nur durchs kleine Icon-Badge. */
-.accent-mathe { border-left: 3px solid var(--mathe); }
-.accent-deutsch { border-left: 3px solid var(--deutsch); }
-.accent-geschichten { border-left: 3px solid var(--geschichten); }
-.accent-heimat { border-left: 3px solid var(--heimat); }
-.accent-schach { border-left: 3px solid var(--schach); }
+/* Menu-Card/Tagesplan-Chip bekommen den hellen Fach-Tint als Kartenhintergrund
+   (nicht nur einen duennen Rand) - Farbe traegt jetzt sichtbar die ganze
+   Kachel, wie im Design-Brief gefordert ("Akzent auf Icon/Kachel-Hintergrund"). */
+.accent-mathe { background: var(--mathe-soft); border-color: var(--mathe); }
+.accent-deutsch { background: var(--deutsch-soft); border-color: var(--deutsch); }
+.accent-geschichten { background: var(--geschichten-soft); border-color: var(--geschichten); }
+.accent-heimat { background: var(--heimat-soft); border-color: var(--heimat); }
+.accent-schach { background: var(--schach-soft); border-color: var(--schach); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
