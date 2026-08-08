@@ -30,7 +30,8 @@ const Icons = (function () {
     malfolgen: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
     rechtschreibung: '<path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19z"/><line x1="13" y1="7" x2="17" y2="11"/>',
     home: '<path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-9"/>',
-    streak: '<path d="M12 2c1 3-3 4-3 7.5a3 3 0 0 0 6 0c0-1.2-.7-2-1.2-2.7.9.2 3.2 1.7 3.2 5.2a5 5 0 0 1-10 0c0-4.5 3.5-6.5 5-10z"/>'
+    streak: '<path d="M12 2c1 3-3 4-3 7.5a3 3 0 0 0 6 0c0-1.2-.7-2-1.2-2.7.9.2 3.2 1.7 3.2 5.2a5 5 0 0 1-10 0c0-4.5 3.5-6.5 5-10z"/>',
+    loeschen: '<path d="M4 7h16"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'
   };
   PATHS.lesen = PATHS.deutsch;
   PATHS.verkehrszeichen = PATHS.heimat;

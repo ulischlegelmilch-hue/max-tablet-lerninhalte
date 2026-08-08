@@ -34,11 +34,21 @@ const App = (function () {
   // Vier feste Einstiege quer durchs Programm (Schach bewusst ausgenommen -
   // eine Partie ist kein kurzer Zwischendurch-Shortcut). Ruft ausschließlich
   // bereits bestehende Fach-Funktionen auf, keine eigene Aufgabenlogik.
+  // Mathe/Deutsch wechseln sich taeglich als "Heute dran" ab (Storage.getTagesFach,
+  // per Regeln in App.oeffneEinstellungen einstellbar) - das jeweils andere Fach
+  // bleibt trotzdem im Tagesplan, nur als "Extra" markiert, damit Max jederzeit
+  // mehr üben kann, ohne dass ihm etwas gesperrt wird.
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
+    const heuteFach = Storage.getTagesFach();
+    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' };
+    const deutsch = { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', onclick: 'Deutsch.starteRechtschreibung()' };
+    const [heute, extra] = heuteFach === 'mathe' ? [mathe, deutsch] : [deutsch, mathe];
+    heute.badge = 'Heute dran';
+    extra.badge = 'Extra';
+    extra.extra = true;
     return [
-      { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
-      { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', onclick: 'Deutsch.starteRechtschreibung()' },
+      heute, extra,
       {
         fach: 'geschichten', icon: 'geschichten',
         titel: (offen.nochmal ? 'Nochmal lesen: ' : 'Weiterlesen: ') + offen.titel,
@@ -58,7 +68,10 @@ const App = (function () {
     const tagesplanHtml = baueTagesplan().map(t => `
       <div class="tagesplan-chip accent-${t.fach}" onclick="${t.onclick}">
         <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
-        <span class="tagesplan-chip-titel">${t.titel}</span>
+        <span class="tagesplan-chip-text">
+          <span class="tagesplan-chip-titel">${t.titel}</span>
+          <span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}">${t.badge}</span>
+        </span>
       </div>
     `).join('');
 
@@ -99,6 +112,115 @@ const App = (function () {
         </div>
       </div>
     `);
+  }
+
+  // ---------------------------------------------------------------------
+  // Eltern-Regel-Editor: 5x auf den Titel "Max lernt" tippen öffnet diese
+  // Seite (siehe tippTitel/init). Bewusst kein PIN-Schutz - hier steht nichts
+  // Sicherheitsrelevantes, nur Tagesplan-Regeln, die Uli selbst einrichten
+  // will, ohne jedes Mal ein App-Update bauen zu müssen (reines Web-Feature,
+  // kein natives Kotlin nötig).
+  // ---------------------------------------------------------------------
+  let titelTaps = 0;
+  let titelTapTimer = null;
+  function tippTitel() {
+    titelTaps++;
+    clearTimeout(titelTapTimer);
+    titelTapTimer = setTimeout(() => { titelTaps = 0; }, 2000);
+    if (titelTaps >= 5) {
+      titelTaps = 0;
+      oeffneEinstellungen();
+    }
+  }
+
+  function formatDatum(iso) {
+    const [j, m, t] = iso.split('-');
+    return `${t}.${m}.${j}`;
+  }
+
+  function regelText(r) {
+    const fachName = r.fach === 'mathe' ? 'Mathe' : 'Deutsch';
+    if (r.typ === 'einzeltag') return `${formatDatum(r.datum)}: ${fachName}`;
+    if (r.typ === 'zeitraum') return `${formatDatum(r.von)} – ${formatDatum(r.bis)}: ${fachName}`;
+    return `Jedes Wochenende: ${fachName}`;
+  }
+
+  function oeffneEinstellungen() {
+    const regeln = Storage.getTagesplanRegeln();
+    const regelnHtml = regeln.length
+      ? regeln.map((r, i) => `
+          <div class="regel-zeile">
+            <span>${regelText(r)}</span>
+            <span class="regel-loeschen" onclick="App.loescheRegel(${i})">${Icons.svg('loeschen')}</span>
+          </div>
+        `).join('')
+      : '<div class="regel-leer">Noch keine Regeln – wechselt automatisch jeden Tag zwischen Mathe und Deutsch.</div>';
+
+    render(`
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Tagesplan-Regeln</div>
+      <div class="lese-text">Bestimme, an welchen Tagen Mathe oder Deutsch im Tagesplan als "Heute dran" hervorgehoben wird. Ohne Regeln wechselt es automatisch jeden Kalendertag ab. Das andere Fach bleibt für Max immer zusätzlich als "Extra" antippbar – nichts wird gesperrt.</div>
+
+      <div class="regel-karte">
+        <div class="regel-liste">${regelnHtml}</div>
+
+        <div class="regel-formular">
+          <select id="regel-typ" class="regel-input" onchange="App.aktualisiereRegelFormular()">
+            <option value="einzeltag">Einzelner Tag</option>
+            <option value="zeitraum">Zeitraum</option>
+            <option value="wochenende">Jedes Wochenende</option>
+          </select>
+          <select id="regel-fach" class="regel-input">
+            <option value="mathe">Mathe</option>
+            <option value="deutsch">Deutsch</option>
+          </select>
+          <div id="regel-daten" class="regel-daten"><input type="date" id="regel-datum" class="regel-input"></div>
+          <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
+        </div>
+      </div>
+    `);
+  }
+
+  function aktualisiereRegelFormular() {
+    const typ = document.getElementById('regel-typ').value;
+    const container = document.getElementById('regel-daten');
+    if (typ === 'einzeltag') {
+      container.innerHTML = '<input type="date" id="regel-datum" class="regel-input">';
+    } else if (typ === 'zeitraum') {
+      container.innerHTML =
+        '<input type="date" id="regel-von" class="regel-input"> <input type="date" id="regel-bis" class="regel-input">';
+    } else {
+      container.innerHTML = '';
+    }
+  }
+
+  function fuegeRegelHinzu() {
+    const typ = document.getElementById('regel-typ').value;
+    const fach = document.getElementById('regel-fach').value;
+    let regel;
+    if (typ === 'einzeltag') {
+      const datum = document.getElementById('regel-datum').value;
+      if (!datum) return;
+      regel = { typ, datum, fach };
+    } else if (typ === 'zeitraum') {
+      const von = document.getElementById('regel-von').value;
+      const bis = document.getElementById('regel-bis').value;
+      if (!von || !bis) return;
+      regel = { typ, von, bis, fach };
+    } else {
+      regel = { typ: 'wochenende', fach };
+    }
+    const regeln = Storage.getTagesplanRegeln();
+    regeln.push(regel);
+    Storage.setTagesplanRegeln(regeln);
+    oeffneEinstellungen();
+  }
+
+  function loescheRegel(i) {
+    const regeln = Storage.getTagesplanRegeln();
+    regeln.splice(i, 1);
+    Storage.setTagesplanRegeln(regeln);
+    oeffneEinstellungen();
   }
 
   function subMenuHtml(titel, karten) {
@@ -275,6 +397,7 @@ const App = (function () {
 
   function init() {
     document.getElementById('topbar-home').innerHTML = Icons.svg('home');
+    document.getElementById('topbar-title').addEventListener('click', tippTitel);
     gotoHome();
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 60000);
@@ -282,6 +405,7 @@ const App = (function () {
 
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar,
-    startQuizSession, setLastStarter, restartLast, setOnLeaveScreen
+    startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
+    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel
   };
 })();

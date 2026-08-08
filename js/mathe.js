@@ -171,6 +171,20 @@ const Mathe = (function () {
     return { typ: 'numeric', frage: `${b * erg} : ${b} = ?`, antwort: erg };
   }
 
+  // ---- Aufgabenfamilien: aus einer bekannten Malaufgabe (z. B. 60 · 9 = 540)
+  // eine der drei verwandten Aufgaben ableiten (Tauschaufgabe oder Umkehraufgabe) ----
+  function genAufgabenfamilieFrage() {
+    const a = rnd(2, 9), b = rnd(2, 9) * 10, produkt = a * b;
+    const variante = rnd(1, 3);
+    if (variante === 1) {
+      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Tauschaufgabe? ${b} · ${a} = ?`, antwort: produkt };
+    }
+    if (variante === 2) {
+      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${a} = ?`, antwort: b };
+    }
+    return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${b} = ?`, antwort: a };
+  }
+
   // ---- Teiler & Vielfache ----
   function genVielfachesFrage() {
     const n = rnd(3, 9);
@@ -344,7 +358,8 @@ const Mathe = (function () {
     { kategorie: 'zehnhundert', gen: genZehnerzahlenFrage },
     { kategorie: 'teilervielfache', gen: genVielfachesFrage },
     { kategorie: 'teilervielfache', gen: genTeilerFrage },
-    { kategorie: 'diagramme', gen: genDiagrammFrage }
+    { kategorie: 'diagramme', gen: genDiagrammFrage },
+    { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage }
   ];
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {

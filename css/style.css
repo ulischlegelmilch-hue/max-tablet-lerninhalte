@@ -147,7 +147,15 @@ html, body {
   display: flex; align-items: center; justify-content: center;
 }
 .tagesplan-chip-icon svg { width: 16px; height: 16px; }
+.tagesplan-chip-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .tagesplan-chip-titel { font-size: 15px; font-weight: 600; color: var(--ink); }
+.tagesplan-chip-badge {
+  align-self: flex-start;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.3px;
+  color: var(--accent-dark);
+}
+.tagesplan-chip-badge-extra { color: var(--ink-soft); }
 
 /* Hauptmenü - neutrale weiße Karten, Icon-Badge in gedeckter Fach-Farbe (siehe
    --mathe/--deutsch/... Tokens oben), zwei feste Spalten wie gewünscht. */
@@ -631,4 +639,48 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   margin-top: 10px;
+}
+
+/* Eltern-Regel-Editor (Tagesplan-Regeln) */
+.regel-karte {
+  max-width: 700px;
+  margin: 0 auto;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+.regel-liste { margin-bottom: var(--space-5); }
+.regel-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--ink);
+}
+.regel-zeile:last-child { border-bottom: none; }
+.regel-leer { color: var(--ink-soft); font-size: 15px; padding: var(--space-2) 0; }
+.regel-loeschen {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  color: #A3392F;
+  cursor: pointer;
+}
+.regel-loeschen svg { width: 16px; height: 16px; }
+.regel-loeschen:active { background: #FCECEA; }
+.regel-formular { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.regel-daten { display: flex; gap: var(--space-3); }
+.regel-input {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--muted);
+  color: var(--ink);
+  font-size: 15px;
+  font-family: var(--font);
+  min-height: 44px;
 }

@@ -19,7 +19,13 @@ const Storage = (function () {
       // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
       // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
       // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
-      tagesStreak: { anzahl: 0, letzterAktivTag: null }
+      tagesStreak: { anzahl: 0, letzterAktivTag: null },
+      // Von Uli manuell gesetzte Ausnahmen fuer "welches Fach ist heute die
+      // Tagesaufgabe" (siehe getTagesFach) - jeder Eintrag:
+      // { typ: 'einzeltag', datum: 'YYYY-MM-DD', fach } |
+      // { typ: 'zeitraum', von: 'YYYY-MM-DD', bis: 'YYYY-MM-DD', fach } |
+      // { typ: 'wochenende', fach }
+      tagesplanRegeln: []
     };
   }
 
@@ -67,6 +73,45 @@ const Storage = (function () {
   function getTagesStreak() {
     if (!state.tagesStreak) state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
     return state.tagesStreak;
+  }
+
+  function getTagesplanRegeln() {
+    if (!state.tagesplanRegeln) state.tagesplanRegeln = [];
+    return state.tagesplanRegeln;
+  }
+
+  function setTagesplanRegeln(regeln) {
+    state.tagesplanRegeln = regeln;
+    save(state);
+  }
+
+  /** Welches Fach (mathe/deutsch) ist heute als Tagesaufgabe im Tagesplan
+   *  hervorgehoben? Prueft zuerst Ulis manuell gesetzte Regeln - Einzeltag vor
+   *  Zeitraum vor Wochenende - und faellt sonst auf eine feste taegliche
+   *  Abwechslung zurueck (gerader Tag im Jahr = Mathe, ungerader = Deutsch),
+   *  damit ohne jede Regel trotzdem taeglich gewechselt wird. Das andere Fach
+   *  bleibt im Tagesplan immer zusaetzlich als "Extra" antippbar - diese
+   *  Funktion sperrt nichts, sie entscheidet nur, was hervorgehoben wird. */
+  function getTagesFach() {
+    const heute = new Date();
+    const heuteIso = heutigesDatum();
+    const regeln = getTagesplanRegeln();
+
+    const einzeltag = regeln.find(r => r.typ === 'einzeltag' && r.datum === heuteIso);
+    if (einzeltag) return einzeltag.fach;
+
+    const zeitraum = regeln.find(r => r.typ === 'zeitraum' && r.von <= heuteIso && heuteIso <= r.bis);
+    if (zeitraum) return zeitraum.fach;
+
+    const istWochenende = heute.getDay() === 0 || heute.getDay() === 6;
+    if (istWochenende) {
+      const wochenendeRegel = regeln.find(r => r.typ === 'wochenende');
+      if (wochenendeRegel) return wochenendeRegel.fach;
+    }
+
+    const jahresanfang = new Date(heute.getFullYear(), 0, 1);
+    const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
+    return tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
   }
 
   function addAntwort(fach, korrekt) {
@@ -212,6 +257,7 @@ const Storage = (function () {
     getMalfolgenStats, meldeMalfolgenErgebnis,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
-    getTagesStreak, getFachFortschritt, getGeschichtenFortschritt
+    getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
+    getTagesplanRegeln, setTagesplanRegeln, getTagesFach
   };
 })();
