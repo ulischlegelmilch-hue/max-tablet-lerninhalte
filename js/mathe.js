@@ -285,8 +285,9 @@ const Mathe = (function () {
   // sich die App zusaetzlich ueber Tage hinweg, welche Fakten oft falsch waren,
   // und legt genau die in kuenftigen Sitzungen haeufiger vor. ----
   function malfolgenAlleFakten() {
+    const reihen = Storage.getMalfolgenReihen();
     const fakten = [];
-    for (let a = 1; a <= 10; a++) {
+    for (const a of reihen) {
       for (let b = 1; b <= 10; b++) fakten.push(`${a}x${b}`);
     }
     return fakten;

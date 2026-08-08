@@ -25,7 +25,12 @@ const Storage = (function () {
       // { typ: 'einzeltag', datum: 'YYYY-MM-DD', fach } |
       // { typ: 'zeitraum', von: 'YYYY-MM-DD', bis: 'YYYY-MM-DD', fach } |
       // { typ: 'wochenende', fach }
-      tagesplanRegeln: []
+      tagesplanRegeln: [],
+      // Welche 1er-10er-Reihen bei den Malfolgen abgefragt werden (Uli kann
+      // das im Eltern-Bereich einschränken, damit Max klein anfangen kann) -
+      // standardmäßig alle, damit sich am Verhalten nichts ändert, solange
+      // niemand etwas einstellt.
+      malfolgenReihen: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     };
   }
 
@@ -176,6 +181,22 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Welche 1er-10er-Reihen bei den Malfolgen abgefragt werden - siehe
+   *  defaultState fuer den Hintergrund. Mindestens eine Reihe bleibt immer
+   *  aktiv (leeres Array wuerde die Malfolgen-Uebung funktionslos machen). */
+  function getMalfolgenReihen() {
+    if (!state.malfolgenReihen || state.malfolgenReihen.length === 0) {
+      state.malfolgenReihen = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    }
+    return state.malfolgenReihen;
+  }
+
+  function setMalfolgenReihen(reihen) {
+    if (!reihen || reihen.length === 0) return;
+    state.malfolgenReihen = reihen;
+    save(state);
+  }
+
   /** Wie getMalfolgenStats/meldeMalfolgenErgebnis, nur pro Aufgaben-Bereich der
    *  Tagesaufgabe (z. B. "einmaleins", "textaufgaben") statt pro Einzelfakt -
    *  damit sich die taegliche Mischung automatisch an Max' Schwaechen anpasst. */
@@ -254,7 +275,7 @@ const Storage = (function () {
 
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
-    getMalfolgenStats, meldeMalfolgenErgebnis,
+    getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,

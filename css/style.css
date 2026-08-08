@@ -702,3 +702,50 @@ html, body {
 }
 .dev-sim-lock { right: 14px; }
 .dev-sim-tagesplan { right: 80px; }
+
+/* Eltern-Bereich: Malfolgen-Reihen-Auswahl */
+.reihen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.reihen-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  font-size: 15px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.reihen-check input { width: 18px; height: 18px; cursor: pointer; }
+.reihen-hinweis { color: #A3392F; font-size: 14px; min-height: 20px; }
+
+/* Eltern-Bereich: Fortschritts-Übersicht */
+.fortschritt-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.fortschritt-fach { font-size: 16px; font-weight: 700; color: var(--ink); }
+.fortschritt-werte { font-size: 14px; color: var(--ink-soft); }
+.fortschritt-unterueberschrift {
+  font-size: 13px; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.3px;
+  margin: var(--space-4) 0 var(--space-2);
+}
+.kategorie-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--ink);
+}

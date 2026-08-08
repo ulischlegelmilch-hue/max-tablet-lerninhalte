@@ -28,8 +28,21 @@ const Heimatkunde = (function () {
     { name: 'Radweg', bedeutung: 'Hier musst du mit dem Fahrrad fahren.', datei: '237_radweg.svg' },
     { name: 'Kreisverkehr', bedeutung: 'Hier beginnt ein Kreisverkehr.', datei: '215_kreisverkehr.svg' },
     { name: 'Tempo 30', bedeutung: 'Du darfst hier höchstens 30 km/h fahren.', datei: '274_tempo30.svg' },
-    { name: 'Halteverbot', bedeutung: 'Hier darfst du nicht halten oder parken.', datei: '283_halteverbot.svg' }
+    { name: 'Halteverbot', bedeutung: 'Hier darfst du nicht halten oder parken.', datei: '283_halteverbot.svg' },
+    { name: 'Bahnübergang', bedeutung: 'Hier kreuzt eine Bahnstrecke die Straße. Achtung, es könnte ein Zug kommen!', datei: '201_bahnuebergang.svg' },
+    { name: 'Verkehrsberuhigter Bereich', bedeutung: 'Eine Spielstraße: Autos dürfen nur Schrittgeschwindigkeit fahren, du darfst sogar auf der Straße spielen.', datei: '325_verkehrsberuhigt_beginn.svg' },
+    { name: 'Ende: Verkehrsberuhigter Bereich', bedeutung: 'Die Spielstraße ist hier zu Ende, jetzt gelten wieder die normalen Regeln.', datei: '325_verkehrsberuhigt_ende.svg' },
+    { name: 'Einbahnstraße', bedeutung: 'Diese Straße darfst du nur in eine Richtung befahren.', datei: '220_einbahnstrasse.svg' },
+    { name: 'Fußgängerzone', bedeutung: 'Hier dürfen nur Fußgänger gehen, mit dem Rad musst du absteigen und schieben.', datei: '242_fussgaengerzone.svg' },
+    { name: 'Gemeinsamer Geh- und Radweg', bedeutung: 'Fußgänger und Radfahrer teilen sich hier denselben Weg - nimm Rücksicht.', datei: '240_geh_radweg.svg' },
+    { name: 'Sackgasse', bedeutung: 'Diese Straße hat kein anderes Ende - hier kommst du nicht durch.', datei: '357_sackgasse.svg' },
+    { name: 'Vorgeschriebene Fahrtrichtung: geradeaus', bedeutung: 'Hier darfst du nur geradeaus weiterfahren, nicht abbiegen.', datei: '209_geradeaus.svg' },
+    { name: 'Vorfahrt von rechts', bedeutung: 'Achtung, hier gilt "rechts vor links" - Fahrzeuge von rechts haben Vorfahrt.', datei: '102_kreuzung_rechts.svg' }
   ];
+
+  // Nicht alle Zeichen auf einmal abfragen (mittlerweile 20 Stück) - 10 pro
+  // Runde ist überschaubar für ein Kind, "Nochmal üben" mischt danach neu.
+  function anzahlProQuiz() { return Math.min(10, zeichen.length); }
 
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
@@ -54,9 +67,9 @@ const Heimatkunde = (function () {
     `);
   }
 
-  function starteQuiz() {
-    const ausgewaehlt = pickN(zeichen, Math.min(8, zeichen.length));
-    const fragen = ausgewaehlt.map(z => {
+  function genVerkehrszeichenFragen() {
+    const ausgewaehlt = pickN(zeichen, Math.min(anzahlProQuiz(), zeichen.length));
+    return ausgewaehlt.map(z => {
       const falscheNamen = zeichen.filter(x => x.name !== z.name).map(x => x.name);
       const distraktoren = pickN(falscheNamen, 2);
       const optionen = shuffle([z.name, ...distraktoren]);
@@ -67,7 +80,13 @@ const Heimatkunde = (function () {
         richtigIndex: optionen.indexOf(z.name)
       };
     });
-    const starter = () => App.startQuizSession('heimat', fragen);
+  }
+
+  function starteQuiz() {
+    // Fragen-Generierung MUSS innerhalb des Closures passieren, nicht davor -
+    // sonst wuerde "Nochmal ueben" (App.restartLast) immer dieselbe bereits
+    // berechnete Auswahl/Reihenfolge erneut abspielen statt neu zu mischen.
+    const starter = () => App.startQuizSession('heimat', genVerkehrszeichenFragen());
     App.setLastStarter(starter);
     starter();
   }

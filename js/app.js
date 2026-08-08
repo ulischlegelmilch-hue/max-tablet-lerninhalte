@@ -158,6 +158,34 @@ const App = (function () {
     return `Jedes Wochenende: ${fachName}`;
   }
 
+  function fortschrittZeile(fach, label) {
+    const s = Storage.getState().stats[fach] || { richtig: 0, falsch: 0 };
+    const gesamt = s.richtig + s.falsch;
+    const quote = gesamt > 0 ? Math.round((s.richtig / gesamt) * 100) : null;
+    const werte = quote !== null ? `${s.richtig} richtig · ${s.falsch} falsch · ${quote}%` : 'noch nichts geübt';
+    return `<div class="fortschritt-zeile"><span class="fortschritt-fach">${label}</span><span class="fortschritt-werte">${werte}</span></div>`;
+  }
+
+  const MATHE_KATEGORIE_NAMEN = {
+    plusminus: 'Plus/Minus', einmaleins: 'Einmaleins', geteilt: 'Geteilt',
+    textaufgaben: 'Textaufgaben', schriftlich: 'Schriftlich rechnen',
+    zehnhundert: '10er/100er', teilervielfache: 'Teiler & Vielfache',
+    diagramme: 'Diagramme lesen', aufgabenfamilien: 'Aufgabenfamilien'
+  };
+
+  function matheKategorienHtml() {
+    const stats = Storage.getMatheKategorienStats();
+    return Object.keys(MATHE_KATEGORIE_NAMEN)
+      .map(k => ({ k, falsch: (stats[k] && stats[k].falsch) || 0 }))
+      .sort((a, b) => b.falsch - a.falsch)
+      .map(({ k, falsch }) => `
+        <div class="kategorie-zeile">
+          <span>${MATHE_KATEGORIE_NAMEN[k]}</span>
+          <span>${falsch > 0 ? falsch + '× falsch' : 'noch keine Fehler'}</span>
+        </div>
+      `).join('');
+  }
+
   function oeffneEinstellungen() {
     const regeln = Storage.getTagesplanRegeln();
     const regelnHtml = regeln.length
@@ -171,7 +199,16 @@ const App = (function () {
 
     render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Tagesplan-Regeln</div>
+
+      <div class="welcome">Fortschritt</div>
+      <div class="regel-karte">
+        ${fortschrittZeile('mathe', 'Mathe')}
+        ${fortschrittZeile('deutsch', 'Deutsch')}
+        <div class="fortschritt-unterueberschrift">Mathe nach Bereich (öfter falsch steht oben)</div>
+        ${matheKategorienHtml()}
+      </div>
+
+      <div class="welcome" style="margin-top:32px;">Tagesplan-Regeln</div>
       <div class="lese-text">Bestimme, an welchen Tagen Mathe oder Deutsch im Tagesplan als "Heute dran" hervorgehoben wird. Ohne Regeln wechselt es automatisch jeden Kalendertag ab. Das andere Fach bleibt für Max immer zusätzlich als "Extra" antippbar – nichts wird gesperrt.</div>
 
       <div class="regel-karte">
@@ -191,7 +228,33 @@ const App = (function () {
           <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
         </div>
       </div>
+
+      <div class="welcome" style="margin-top:32px;">Malfolgen-Reihen</div>
+      <div class="lese-text">Welche 1×1-Reihen soll Max bei "Malfolgen üben" trainieren? So kann er klein anfangen (z. B. nur die 2er- und 5er-Reihe) und die Auswahl später erweitern.</div>
+      <div class="regel-karte">
+        <div class="reihen-grid">
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
+            <label class="reihen-check">
+              <input type="checkbox" class="reihen-checkbox" value="${n}"${Storage.getMalfolgenReihen().includes(n) ? ' checked' : ''}>
+              ${n}er-Reihe
+            </label>
+          `).join('')}
+        </div>
+        <div id="reihen-hinweis" class="reihen-hinweis"></div>
+        <div class="btn-primary" onclick="App.speichereMalfolgenReihen()">Speichern</div>
+      </div>
     `);
+  }
+
+  function speichereMalfolgenReihen() {
+    const boxen = document.querySelectorAll('.reihen-checkbox:checked');
+    const reihen = Array.from(boxen).map(b => parseInt(b.value, 10));
+    if (reihen.length === 0) {
+      document.getElementById('reihen-hinweis').textContent = 'Bitte mindestens eine Reihe auswählen.';
+      return;
+    }
+    Storage.setMalfolgenReihen(reihen);
+    oeffneEinstellungen();
   }
 
   function aktualisiereRegelFormular() {
@@ -419,6 +482,7 @@ const App = (function () {
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
-    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel
+    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
+    speichereMalfolgenReihen
   };
 })();
