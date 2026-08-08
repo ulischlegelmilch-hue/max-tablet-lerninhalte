@@ -115,24 +115,10 @@ const App = (function () {
   }
 
   // ---------------------------------------------------------------------
-  // Eltern-Regel-Editor: 5x auf den Titel "Max lernt" tippen öffnet diese
-  // Seite (siehe tippTitel/init). Bewusst kein PIN-Schutz - hier steht nichts
-  // Sicherheitsrelevantes, nur Tagesplan-Regeln, die Uli selbst einrichten
-  // will, ohne jedes Mal ein App-Update bauen zu müssen (reines Web-Feature,
-  // kein natives Kotlin nötig).
+  // Eltern-Regel-Editor: PIN-geschützt über den nativen Eltern-Bereich
+  // erreichbar (🔒 entsperren → 📅-Button ruft App.oeffneEinstellungen()
+  // per evaluateJavascript auf, siehe MainActivity.kt tagesplanButton).
   // ---------------------------------------------------------------------
-  let titelTaps = 0;
-  let titelTapTimer = null;
-  function tippTitel() {
-    titelTaps++;
-    clearTimeout(titelTapTimer);
-    titelTapTimer = setTimeout(() => { titelTaps = 0; }, 2000);
-    if (titelTaps >= 5) {
-      titelTaps = 0;
-      oeffneEinstellungen();
-    }
-  }
-
   function formatDatum(iso) {
     const [j, m, t] = iso.split('-');
     return `${t}.${m}.${j}`;
@@ -397,7 +383,6 @@ const App = (function () {
 
   function init() {
     document.getElementById('topbar-home').innerHTML = Icons.svg('home');
-    document.getElementById('topbar-title').addEventListener('click', tippTitel);
     gotoHome();
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 60000);
