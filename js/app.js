@@ -31,24 +31,71 @@ const App = (function () {
     updateTopbar();
   }
 
+  // Vier feste Einstiege quer durchs Programm (Schach bewusst ausgenommen -
+  // eine Partie ist kein kurzer Zwischendurch-Shortcut). Ruft ausschließlich
+  // bereits bestehende Fach-Funktionen auf, keine eigene Aufgabenlogik.
+  function baueTagesplan() {
+    const offen = Geschichten.naechsteOffene();
+    return [
+      { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
+      { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', onclick: 'Deutsch.starteRechtschreibung()' },
+      {
+        fach: 'geschichten', icon: 'geschichten',
+        titel: (offen.nochmal ? 'Nochmal lesen: ' : 'Weiterlesen: ') + offen.titel,
+        onclick: `Geschichten.leseGeschichte(${offen.index})`
+      },
+      { fach: 'heimat', icon: 'verkehrszeichen', titel: 'Verkehrszeichen-Quiz', onclick: 'Heimatkunde.starteQuiz()' }
+    ];
+  }
+
   function gotoHome() {
+    const streak = Storage.getTagesStreak();
+    const streakText = streak.anzahl > 0
+      ? `${streak.anzahl} ${streak.anzahl === 1 ? 'Tag' : 'Tage'} in Folge`
+      : 'Leg heute los!';
+    const geschichtenFortschritt = Storage.getGeschichtenFortschritt();
+
+    const tagesplanHtml = baueTagesplan().map(t => `
+      <div class="tagesplan-chip" onclick="${t.onclick}">
+        <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
+        <span class="tagesplan-chip-titel">${t.titel}</span>
+      </div>
+    `).join('');
+
     render(`
-      <div class="welcome">Hallo Max! Was möchtest du heute lernen?</div>
+      <div class="home-greeting">
+        <div class="home-avatar">M</div>
+        <div>
+          <div class="home-greeting-hallo">Hallo Max!</div>
+          <div class="home-streak">${Icons.svg('streak')} ${streakText}</div>
+        </div>
+      </div>
+
+      <div class="tagesplan-banner">
+        <div class="tagesplan-titel">Dein Tagesplan</div>
+        <div class="tagesplan-liste">${tagesplanHtml}</div>
+      </div>
+
       <div class="menu-grid">
         <div class="menu-card" onclick="Mathe.renderMenu()">
-          <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span><span class="menu-label">Mathe</span>
+          <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span>
+          <span class="menu-text"><span class="menu-label">Mathe</span><span class="menu-progress">${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst</span></span>
         </div>
         <div class="menu-card" onclick="Deutsch.renderMenu()">
-          <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span><span class="menu-label">Deutsch</span>
+          <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span>
+          <span class="menu-text"><span class="menu-label">Deutsch</span><span class="menu-progress">${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst</span></span>
         </div>
         <div class="menu-card" onclick="Geschichten.renderMenu()">
-          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span><span class="menu-label">Geschichten</span>
+          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span>
+          <span class="menu-text"><span class="menu-label">Geschichten</span><span class="menu-progress">${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen</span></span>
         </div>
         <div class="menu-card" onclick="Heimatkunde.renderMenu()">
-          <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span><span class="menu-label">Heimat &amp; Sachkunde</span>
+          <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span>
+          <span class="menu-text"><span class="menu-label">Heimat &amp; Sachkunde</span><span class="menu-progress">${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst</span></span>
         </div>
         <div class="menu-card" onclick="Schach.renderMenu()">
-          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span><span class="menu-label">Schach</span>
+          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
+          <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
         </div>
       </div>
     `);

@@ -206,5 +206,8 @@ const Schach = (function () {
     renderBrett();
   }
 
-  return { renderMenu, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt };
+  // Fuer die Fortschrittsanzeige auf der Home-Kachel (siehe App.gotoHome).
+  function aktuelleStufeName() { return aktuelleStufe().name; }
+
+  return { renderMenu, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aktuelleStufeName };
 })();

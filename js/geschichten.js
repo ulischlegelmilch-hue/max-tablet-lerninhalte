@@ -262,6 +262,19 @@ const Geschichten = (function () {
     }, 300);
   });
 
+  /** Liefert die erste noch nicht fertig gelesene Geschichte (fuer den
+   *  Tagesplan-Banner auf dem Startbildschirm) - oder Geschichte 0 mit
+   *  "Nochmal lesen", falls schon alle fertig sind. */
+  function naechsteOffene() {
+    for (let i = 0; i < bank.length; i++) {
+      const fortschritt = Storage.getLeseFortschritt(i);
+      if (!fortschritt || !fortschritt.fertig) {
+        return { index: i, titel: bank[i].titel, nochmal: false };
+      }
+    }
+    return { index: 0, titel: bank[0].titel, nochmal: true };
+  }
+
   function renderMenu() {
     const cards = bank.map((g, i) => {
       const fortschritt = Storage.getLeseFortschritt(i);
@@ -328,5 +341,5 @@ const Geschichten = (function () {
     starter();
   }
 
-  return { renderMenu, leseGeschichte, starteFragen };
+  return { renderMenu, leseGeschichte, starteFragen, naechsteOffene };
 })();

@@ -15,7 +15,11 @@ const Storage = (function () {
       leseFortschritt: {},
       malfolgen: {},
       matheKategorien: {},
-      schach: { stufe: 0, siege: 0 }
+      schach: { stufe: 0, siege: 0 },
+      // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
+      // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
+      // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
+      tagesStreak: { anzahl: 0, letzterAktivTag: null }
     };
   }
 
@@ -40,7 +44,33 @@ const Storage = (function () {
     return Math.floor(state.sterne / 100) + 1;
   }
 
+  function heutigesDatum(versatzTage) {
+    const d = new Date();
+    if (versatzTage) d.setDate(d.getDate() + versatzTage);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  /** Zaehlt den heutigen Kalendertag als "aktiv" fuer den Tages-Streak - wird
+   *  bewusst erst bei einer ECHTEN Lernaktion aufgerufen (erste beantwortete
+   *  Frage oder erster Schachsieg des Tages), nicht schon beim bloßen Oeffnen
+   *  der App, damit der Streak wirklich "gelernt" statt nur "Tablet an" misst. */
+  function registriereAktivenTag() {
+    if (!state.tagesStreak) state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
+    const heute = heutigesDatum();
+    if (state.tagesStreak.letzterAktivTag === heute) return;
+    const gestern = heutigesDatum(-1);
+    state.tagesStreak.anzahl = state.tagesStreak.letzterAktivTag === gestern ? state.tagesStreak.anzahl + 1 : 1;
+    state.tagesStreak.letzterAktivTag = heute;
+    save(state);
+  }
+
+  function getTagesStreak() {
+    if (!state.tagesStreak) state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
+    return state.tagesStreak;
+  }
+
   function addAntwort(fach, korrekt) {
+    registriereAktivenTag();
     if (!state.stats[fach]) state.stats[fach] = { richtig: 0, falsch: 0 };
     if (korrekt) {
       state.streak++;
@@ -137,10 +167,28 @@ const Storage = (function () {
   }
 
   function meldeSchachSieg() {
+    registriereAktivenTag();
     if (!state.schach) state.schach = { stufe: 0, siege: 0 };
     state.schach.siege++;
     save(state);
     return state.schach;
+  }
+
+  /** Fortschritt fuer eine einfache Fach-Kachel (Mathe/Deutsch/Heimat): Anzahl
+   *  richtig geloester Aufgaben. Geschichten und Schach haben eigene Anzeigen
+   *  (siehe getGeschichtenFortschritt/getSchachFortschritt), da dort "Aufgaben
+   *  geloest" nicht die passende Kennzahl ist. */
+  function getFachFortschritt(fach) {
+    return { geloest: (state.stats[fach] && state.stats[fach].richtig) || 0 };
+  }
+
+  /** Anzahl fertig gelesener Geschichten von insgesamt 7 - die 7 ist an die
+   *  Anzahl der Geschichten in geschichten.js gekoppelt und muss synchron
+   *  gehalten werden, bis es dafuer eine gemeinsame Konstante gibt. */
+  function getGeschichtenFortschritt() {
+    const eintraege = state.leseFortschritt ? Object.values(state.leseFortschritt) : [];
+    const fertig = eintraege.filter(e => e.fertig).length;
+    return { fertig, gesamt: 7 };
   }
 
   function schachStufeAufsteigen() {
@@ -163,6 +211,7 @@ const Storage = (function () {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
     getMalfolgenStats, meldeMalfolgenErgebnis,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
-    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe
+    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
+    getTagesStreak, getFachFortschritt, getGeschichtenFortschritt
   };
 })();
