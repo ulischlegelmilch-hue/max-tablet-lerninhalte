@@ -209,6 +209,28 @@ html, body {
 .sub-card:active { transform: translateY(3px); box-shadow: none; }
 .sub-card .emoji { font-size: 44px; display: block; margin-bottom: 8px; }
 
+/* Schach-Stufenwahl */
+.stufen-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  max-width: 900px;
+  margin: 10px auto;
+}
+.stufen-card {
+  border-radius: 20px;
+  padding: 20px 16px;
+  background: white;
+  border: 3px solid #cfe4f8;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.08);
+}
+.stufen-card:active { transform: translateY(3px); box-shadow: none; }
+.stufen-card-aktiv { border-color: #4A90D9; background: #eef6ff; }
+.stufen-name { font-size: 18px; font-weight: bold; color: #2E6DA4; margin-bottom: 6px; }
+.stufen-beschreibung { font-size: 14px; color: #567; }
+
 .back-row { max-width: 800px; margin: 0 auto 10px auto; }
 .back-btn {
   display: inline-block;
@@ -389,11 +411,13 @@ html, body {
 .schach-status-sieg { background: #cdf2cd; color: #2b7a2b; }
 .schach-status-niederlage { background: #fbdada; color: #a33; }
 .schach-status-schach { background: #fff3cd; color: #8a6300; }
+/* Brettgröße richtet sich nach der kleineren Bildschirmseite (Breite/Höhe des
+   Fensters minus Platz für Topbar/Statuszeilen), damit es auf jedem Display -
+   egal ob Hoch- oder Querformat - so groß wie möglich, aber ohne Scrollen passt. */
 .schach-brett {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  width: 100%;
-  max-width: 760px;
+  width: min(94vw, 60vh, 820px);
   aspect-ratio: 1 / 1;
   margin: 0 auto;
   border-radius: 14px;
@@ -404,7 +428,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48px;
+  font-size: calc(min(94vw, 60vh, 820px) / 8 * 0.72);
   cursor: pointer;
   position: relative;
 }

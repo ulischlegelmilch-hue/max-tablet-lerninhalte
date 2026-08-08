@@ -230,35 +230,39 @@ const Mathe = (function () {
     return `<div class="balken-chart"><div class="balken-titel">${d.titel}</div>${zeilen}</div>`;
   }
 
-  function genDiagrammFragen(anzahlRunden) {
-    const fragen = [];
-    for (let r = 0; r < anzahlRunden; r++) {
-      const d = genRegentageDiagramm();
-      const chartHtml = htmlBalkenDiagramm(d);
+  function genSummenFrage(d, chartHtml) {
+    const idxA = rnd(0, d.kategorien.length - 1);
+    let idxB = rnd(0, d.kategorien.length - 1);
+    while (idxB === idxA) idxB = rnd(0, d.kategorien.length - 1);
+    return {
+      typ: 'numeric',
+      lesetext: chartHtml,
+      frage: `Wie viele ${d.einheitMehrzahl} gab es in ${d.kategorien[idxA]} und ${d.kategorien[idxB]} zusammen?`,
+      antwort: d.werte[idxA] + d.werte[idxB]
+    };
+  }
 
-      const idxA = rnd(0, d.kategorien.length - 1);
-      let idxB = rnd(0, d.kategorien.length - 1);
-      while (idxB === idxA) idxB = rnd(0, d.kategorien.length - 1);
-      fragen.push({
-        typ: 'numeric',
-        lesetext: chartHtml,
-        frage: `Wie viele ${d.einheitMehrzahl} gab es in ${d.kategorien[idxA]} und ${d.kategorien[idxB]} zusammen?`,
-        antwort: d.werte[idxA] + d.werte[idxB]
-      });
+  function genMaxMonatFrage(d, chartHtml) {
+    const maxWert = Math.max(...d.werte);
+    const maxIdx = d.werte.indexOf(maxWert);
+    const uebrige = shuffle(d.kategorien.map((_, i) => i).filter(i => i !== maxIdx));
+    const gewaehlt = shuffle([maxIdx, ...uebrige.slice(0, 3)]);
+    return {
+      typ: 'mc',
+      lesetext: chartHtml,
+      frage: `In welchem Monat gab es die meisten ${d.einheitMehrzahl}?`,
+      optionen: gewaehlt.map(i => d.kategorien[i]),
+      richtigIndex: gewaehlt.indexOf(maxIdx)
+    };
+  }
 
-      const maxWert = Math.max(...d.werte);
-      const maxIdx = d.werte.indexOf(maxWert);
-      const uebrige = shuffle(d.kategorien.map((_, i) => i).filter(i => i !== maxIdx));
-      const gewaehlt = shuffle([maxIdx, ...uebrige.slice(0, 3)]);
-      fragen.push({
-        typ: 'mc',
-        lesetext: chartHtml,
-        frage: `In welchem Monat gab es die meisten ${d.einheitMehrzahl}?`,
-        optionen: gewaehlt.map(i => d.kategorien[i]),
-        richtigIndex: gewaehlt.indexOf(maxIdx)
-      });
-    }
-    return fragen;
+  // Eine Frage pro Diagramm (statt fest zusammengehoerendem Paar) - so passt die
+  // Diagramm-Kategorie zum gleichen "eine Frage pro Auswahl"-Schema wie alle
+  // anderen Bereiche der Tagesaufgabe (siehe AUFGABEN_BEREICHE).
+  function genDiagrammFrage() {
+    const d = genRegentageDiagramm();
+    const chartHtml = htmlBalkenDiagramm(d);
+    return Math.random() < 0.5 ? genSummenFrage(d, chartHtml) : genMaxMonatFrage(d, chartHtml);
   }
 
   // ---- Malfolgen üben: Karteikarten-Prinzip. Falsch beantwortete Aufgaben
@@ -274,7 +278,11 @@ const Mathe = (function () {
     return fakten;
   }
 
-  function malfolgenGewicht(stat) {
+  // Je oefter etwas falsch war (und je laenger keine Erfolgsserie danach lief),
+  // desto hoeher das Gewicht - so kommen schwache Fakten/Bereiche haeufiger dran.
+  // Genutzt sowohl fuer einzelne Malfolgen-Fakten als auch fuer die Tagesaufgabe-
+  // Bereiche (siehe waehleKategorieGewichtet).
+  function gewichtFuerStat(stat) {
     if (!stat) return 3;
     const serieBonus = Math.min(stat.serie || 0, 4);
     return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
@@ -299,7 +307,7 @@ const Mathe = (function () {
 
   function genMalfolgenSession(anzahl) {
     const stats = Storage.getMalfolgenStats();
-    const pool = malfolgenAlleFakten().map(fakt => ({ fakt, gewicht: malfolgenGewicht(stats[fakt]) }));
+    const pool = malfolgenAlleFakten().map(fakt => ({ fakt, gewicht: gewichtFuerStat(stats[fakt]) }));
     return waehleGewichtet(pool, anzahl).map(({ fakt }) => {
       const [a, b] = fakt.split('x').map(Number);
       return {
@@ -316,32 +324,54 @@ const Mathe = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  // ---- Tagespensum: fester Mix aus allen Aufgabentypen, keine Sparten-Auswahl.
-  // Ist er durch, generiert "Nochmal üben" per Zufall ein frisches Pensum -
-  // dadurch unterscheidet sich auch das Pensum von einem Tag zum naechsten. ----
-  const einzelGeneratoren = [
-    () => generierePlusMinus(1)[0],
-    () => genEinmaleins(1)[0],
-    () => genGeteilt(1)[0],
-    () => genTextaufgaben(1)[0],
-    genAddSubFrage,
-    genRechenketteFrage,
-    genFehlendeZifferFrage,
-    genStimmtDasFrage,
-    genZehnHundertFrage,
-    genZehnerzahlenFrage,
-    genVielfachesFrage,
-    genTeilerFrage
+  // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
+  // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
+  // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
+  // bekommt Max in kuenftigen Tagesaufgaben automatisch mehr Aufgaben aus seinen
+  // Schwaeche-Bereichen, ohne dass er selbst etwas auswaehlen muss. Innerhalb eines
+  // Bereichs mit mehreren Generatoren (z. B. "schriftlich") wird gleichverteilt
+  // zufaellig einer davon benutzt - nur der Bereich selbst wird gewichtet. ----
+  const AUFGABEN_BEREICHE = [
+    { kategorie: 'plusminus', gen: () => generierePlusMinus(1)[0] },
+    { kategorie: 'einmaleins', gen: () => genEinmaleins(1)[0] },
+    { kategorie: 'geteilt', gen: () => genGeteilt(1)[0] },
+    { kategorie: 'textaufgaben', gen: () => genTextaufgaben(1)[0] },
+    { kategorie: 'schriftlich', gen: genAddSubFrage },
+    { kategorie: 'schriftlich', gen: genRechenketteFrage },
+    { kategorie: 'schriftlich', gen: genFehlendeZifferFrage },
+    { kategorie: 'schriftlich', gen: genStimmtDasFrage },
+    { kategorie: 'zehnhundert', gen: genZehnHundertFrage },
+    { kategorie: 'zehnhundert', gen: genZehnerzahlenFrage },
+    { kategorie: 'teilervielfache', gen: genVielfachesFrage },
+    { kategorie: 'teilervielfache', gen: genTeilerFrage },
+    { kategorie: 'diagramme', gen: genDiagrammFrage }
   ];
 
+  function waehleKategorieGewichtet(bereicheProKategorie, stats) {
+    const kategorien = Object.keys(bereicheProKategorie);
+    const gesamtgewicht = kategorien.reduce((s, k) => s + gewichtFuerStat(stats[k]), 0);
+    let ziel = Math.random() * gesamtgewicht;
+    for (const k of kategorien) {
+      ziel -= gewichtFuerStat(stats[k]);
+      if (ziel <= 0) return k;
+    }
+    return kategorien[kategorien.length - 1];
+  }
+
   function genTagesaufgabe(anzahl) {
+    const stats = Storage.getMatheKategorienStats();
+    const bereicheProKategorie = {};
+    AUFGABEN_BEREICHE.forEach(b => {
+      (bereicheProKategorie[b.kategorie] = bereicheProKategorie[b.kategorie] || []).push(b.gen);
+    });
+
     const fragen = [];
     while (fragen.length < anzahl) {
-      if (Math.random() < 0.12 && fragen.length <= anzahl - 2) {
-        fragen.push(...genDiagrammFragen(1));
-      } else {
-        fragen.push(einzelGeneratoren[rnd(0, einzelGeneratoren.length - 1)]());
-      }
+      const kategorie = waehleKategorieGewichtet(bereicheProKategorie, stats);
+      const generatoren = bereicheProKategorie[kategorie];
+      const frage = generatoren[rnd(0, generatoren.length - 1)]();
+      frage.aufAntwort = (korrekt) => Storage.meldeMatheKategorieErgebnis(kategorie, korrekt);
+      fragen.push(frage);
     }
     return fragen;
   }

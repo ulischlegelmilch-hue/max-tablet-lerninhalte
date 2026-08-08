@@ -14,6 +14,7 @@ const Storage = (function () {
       },
       leseFortschritt: {},
       malfolgen: {},
+      matheKategorien: {},
       schach: { stufe: 0, siege: 0 }
     };
   }
@@ -100,6 +101,27 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Wie getMalfolgenStats/meldeMalfolgenErgebnis, nur pro Aufgaben-Bereich der
+   *  Tagesaufgabe (z. B. "einmaleins", "textaufgaben") statt pro Einzelfakt -
+   *  damit sich die taegliche Mischung automatisch an Max' Schwaechen anpasst. */
+  function getMatheKategorienStats() {
+    if (!state.matheKategorien) state.matheKategorien = {};
+    return state.matheKategorien;
+  }
+
+  function meldeMatheKategorieErgebnis(kategorie, korrekt) {
+    if (!state.matheKategorien) state.matheKategorien = {};
+    const stat = state.matheKategorien[kategorie] || { falsch: 0, serie: 0 };
+    if (korrekt) {
+      stat.serie = (stat.serie || 0) + 1;
+    } else {
+      stat.falsch = (stat.falsch || 0) + 1;
+      stat.serie = 0;
+    }
+    state.matheKategorien[kategorie] = stat;
+    save(state);
+  }
+
   /** Generische Sternevergabe fuer Erfolge außerhalb des Quiz-Systems (z. B. eine
    *  gewonnene Schachpartie). */
   function addSterne(betrag) {
@@ -128,9 +150,19 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Max waehlt die Stufe fuer die naechste Partie selbst - unabhaengig vom
+   *  Sieg-Zaehler, der nur noch fuer den "Stufe geschafft"-Hinweis mitlaeuft. */
+  function setSchachStufe(stufe) {
+    if (!state.schach) state.schach = { stufe: 0, siege: 0 };
+    state.schach.stufe = stufe;
+    state.schach.siege = 0;
+    save(state);
+  }
+
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
-    getMalfolgenStats, meldeMalfolgenErgebnis, addSterne,
-    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen
+    getMalfolgenStats, meldeMalfolgenErgebnis,
+    getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
+    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe
   };
 })();
