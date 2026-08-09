@@ -18,6 +18,7 @@ const SchachTaktik = (function () {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
+  const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   let session = null;
   let rohZustand = null;
@@ -133,7 +134,8 @@ const SchachTaktik = (function () {
     const anzeigeZustand = zustand || rohZustand;
     const letzterZug = anzeigeZustand.letzterZug;
 
-    const zellenHtml = visuelleFelder().map(feld => {
+    const zellenHtml = visuelleFelder().map((feld, i) => {
+      const visRow = Math.floor(i / 8), visCol = i % 8;
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = anzeigeZustand.board[feld];
@@ -142,7 +144,10 @@ const SchachTaktik = (function () {
       if (ziele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      return `<div class="${klassen}" onclick="SchachTaktik.feldGeklickt(${feld})">${symbol}</div>`;
+      let labelHtml = '';
+      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
+      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
+      return `<div class="${klassen}" onclick="SchachTaktik.feldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
     }).join('');
 
     const nr = session.index + 1, total = session.puzzles.length;

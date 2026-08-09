@@ -27,6 +27,7 @@ const Schach = (function () {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
+  const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   function aktuelleStufe() {
     const fortschritt = Storage.getSchachFortschritt();
@@ -176,7 +177,8 @@ const Schach = (function () {
     const schachKoenigFeld = (status === 'schach' || status === 'matt') ? findeKoenigFeld(zustand, zustand.amZug) : null;
     const letzterZug = zustand.letzterZug;
 
-    const zellenHtml = visuelleFelder().map(feld => {
+    const zellenHtml = visuelleFelder().map((feld, i) => {
+      const visRow = Math.floor(i / 8), visCol = i % 8;
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = zustand.board[feld];
@@ -186,7 +188,10 @@ const Schach = (function () {
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}</div>`;
+      let labelHtml = '';
+      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
+      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
+      return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
     }).join('');
 
     App.render(`

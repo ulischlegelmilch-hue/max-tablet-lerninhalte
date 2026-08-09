@@ -11,6 +11,7 @@ const Strategie = (function () {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
+  const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -181,7 +182,8 @@ const Strategie = (function () {
       gmBeendet = true;
     }
     const letzterZug = gmZustand.letzterZug;
-    const zellenHtml = visuelleFelderWeiss().map(feld => {
+    const zellenHtml = visuelleFelderWeiss().map((feld, i) => {
+      const visRow = Math.floor(i / 8), visCol = i % 8;
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = gmZustand.board[feld];
@@ -190,7 +192,10 @@ const Strategie = (function () {
       if (gmZiele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      return `<div class="${klassen}" onclick="Strategie.grundmattFeldGeklickt(${feld})">${symbol}</div>`;
+      let labelHtml = '';
+      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
+      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
+      return `<div class="${klassen}" onclick="Strategie.grundmattFeldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
     }).join('');
 
     App.render(`

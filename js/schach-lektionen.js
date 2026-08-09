@@ -14,6 +14,7 @@ const SchachLektionen = (function () {
     w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
+  const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
   function leereRochade() { return { wK: false, wD: false, bK: false, bD: false }; }
@@ -283,7 +284,10 @@ const SchachLektionen = (function () {
         if (ausgewaehlt === feld) klassen += ' schach-feld-ausgewaehlt';
         if (ziele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
         const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-        zellen.push(`<div class="${klassen}" onclick="${onclickFn}(${feld})">${symbol}</div>`);
+        let labelHtml = '';
+        if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
+        if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
+        zellen.push(`<div class="${klassen}" onclick="${onclickFn}(${feld})">${symbol}${labelHtml}</div>`);
       }
     }
     return zellen.join('');

@@ -258,33 +258,7 @@ const App = (function () {
           <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
         </div>
       </div>
-
-      <div class="welcome" style="margin-top:32px;">Malfolgen-Reihen</div>
-      <div class="lese-text">Welche 1×1-Reihen soll Max bei "Malfolgen üben" trainieren? So kann er klein anfangen (z. B. nur die 2er- und 5er-Reihe) und die Auswahl später erweitern.</div>
-      <div class="regel-karte">
-        <div class="reihen-grid">
-          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
-            <label class="reihen-check">
-              <input type="checkbox" class="reihen-checkbox" value="${n}"${Storage.getMalfolgenReihen().includes(n) ? ' checked' : ''}>
-              ${n}er-Reihe
-            </label>
-          `).join('')}
-        </div>
-        <div id="reihen-hinweis" class="reihen-hinweis"></div>
-        <div class="btn-primary" onclick="App.speichereMalfolgenReihen()">Speichern</div>
-      </div>
     `);
-  }
-
-  function speichereMalfolgenReihen() {
-    const boxen = document.querySelectorAll('.reihen-checkbox:checked');
-    const reihen = Array.from(boxen).map(b => parseInt(b.value, 10));
-    if (reihen.length === 0) {
-      document.getElementById('reihen-hinweis').textContent = 'Bitte mindestens eine Reihe auswählen.';
-      return;
-    }
-    Storage.setMalfolgenReihen(reihen);
-    oeffneEinstellungen();
   }
 
   function aktualisiereRegelFormular() {
@@ -518,7 +492,6 @@ const App = (function () {
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
-    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
-    speichereMalfolgenReihen
+    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel
   };
 })();

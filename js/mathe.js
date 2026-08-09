@@ -12,8 +12,43 @@ const Mathe = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' }
+      { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' },
+      { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
     ]));
+  }
+
+  // Frei zugaenglich (kein Eltern-PIN) - Max soll selbst entscheiden koennen,
+  // welche 1x1-Reihen er bei "Malfolgen üben" trainiert (z.B. klein anfangen
+  // mit nur der 2er- und 5er-Reihe, spaeter erweitern).
+  function renderReihenwahl() {
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Welche Reihen willst du üben?</div>
+      <div class="lese-text">Wähl die 1×1-Reihen aus, die bei "Malfolgen üben" drankommen sollen.</div>
+      <div class="regel-karte">
+        <div class="reihen-grid">
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
+            <label class="reihen-check">
+              <input type="checkbox" class="reihen-checkbox" value="${n}"${Storage.getMalfolgenReihen().includes(n) ? ' checked' : ''}>
+              ${n}er-Reihe
+            </label>
+          `).join('')}
+        </div>
+        <div id="reihen-hinweis" class="reihen-hinweis"></div>
+        <div class="btn-primary" onclick="Mathe.speichereMalfolgenReihen()">Speichern</div>
+      </div>
+    `);
+  }
+
+  function speichereMalfolgenReihen() {
+    const boxen = document.querySelectorAll('.reihen-checkbox:checked');
+    const reihen = Array.from(boxen).map(b => parseInt(b.value, 10));
+    if (reihen.length === 0) {
+      document.getElementById('reihen-hinweis').textContent = 'Bitte mindestens eine Reihe auswählen.';
+      return;
+    }
+    Storage.setMalfolgenReihen(reihen);
+    renderReihenwahl();
   }
 
   function generierePlusMinus(anzahl) {
@@ -397,5 +432,5 @@ const Mathe = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteTagesaufgabe, starteMalfolgen };
+  return { renderMenu, starteTagesaufgabe, starteMalfolgen, renderReihenwahl, speichereMalfolgenReihen };
 })();
