@@ -38,6 +38,7 @@ const Schach = (function () {
     App.render(App.subMenuHtml('Schach', [
       { icon: 'tagesaufgabe', titel: 'Heute üben', onclick: 'Schach.renderTagesplan()' },
       { icon: 'spielen', titel: 'Spielen', onclick: 'Schach.renderStufenwahl()' },
+      { icon: 'online', titel: 'Online gegen Papa', onclick: 'SchachOnline.starteAnsicht()' },
       { icon: 'lektionen', titel: 'Lektionen', onclick: 'SchachLektionen.renderMenu()' },
       { icon: 'taktik', titel: 'Taktik-Training', onclick: 'SchachTaktik.renderMenu()' },
       { icon: 'konzentration', titel: 'Konzentration', onclick: 'Konzentration.renderMenu()' },
