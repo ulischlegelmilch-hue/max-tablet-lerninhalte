@@ -12,6 +12,10 @@ const Strategie = (function () {
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  // Grundmatt-Brett ist immer weiss-unten (nie gedreht) - Rand-Beschriftung
+  // ist deshalb konstant, kein Neuberechnen pro Aufruf noetig.
+  const RANG_LEISTE_WEISS = [8, 7, 6, 5, 4, 3, 2, 1].map(n => `<div>${n}</div>`).join('');
+  const DATEI_LEISTE_WEISS = DATEIEN.map(d => `<div>${d}</div>`).join('');
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -182,8 +186,7 @@ const Strategie = (function () {
       gmBeendet = true;
     }
     const letzterZug = gmZustand.letzterZug;
-    const zellenHtml = visuelleFelderWeiss().map((feld, i) => {
-      const visRow = Math.floor(i / 8), visCol = i % 8;
+    const zellenHtml = visuelleFelderWeiss().map((feld) => {
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = gmZustand.board[feld];
@@ -192,10 +195,7 @@ const Strategie = (function () {
       if (gmZiele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      let labelHtml = '';
-      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
-      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
-      return `<div class="${klassen}" onclick="Strategie.grundmattFeldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
+      return `<div class="${klassen}" onclick="Strategie.grundmattFeldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
 
     App.render(`
@@ -204,7 +204,11 @@ const Strategie = (function () {
         <div class="schach-stufe">Grundmatt: König + ${gmFigurTyp === 'dame' ? 'Dame' : 'Turm'}</div>
         <div class="schach-info">${gmBeendet ? '' : (gmZustand.amZug === 'w' ? 'Du bist am Zug' : 'Der König überlegt…')}</div>
         ${statusHtml}
-        <div class="schach-brett">${zellenHtml}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+          <div class="schach-brett">${zellenHtml}</div>
+          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+        </div>
         <div class="btn-primary" onclick="Strategie.starteGrundmatt('${gmFigurTyp}')" style="margin-top:16px;">Neu starten</div>
       </div>
     `);

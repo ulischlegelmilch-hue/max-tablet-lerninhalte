@@ -4,6 +4,10 @@
 // die spaeter beim vorausschauenden Rechnen von Zuegen helfen.
 const Konzentration = (function () {
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  // Koordinaten-Brett ist immer weiss-unten (nie gedreht) - Rand-Beschriftung
+  // ist deshalb konstant, kein Neuberechnen pro Aufruf noetig.
+  const RANG_LEISTE_WEISS = [8, 7, 6, 5, 4, 3, 2, 1].map(n => `<div>${n}</div>`).join('');
+  const DATEI_LEISTE_WEISS = DATEIEN.map(d => `<div>${d}</div>`).join('');
 
   function feldName(rank, file) { return DATEIEN[file] + (rank + 1); }
 
@@ -39,11 +43,8 @@ const Konzentration = (function () {
       for (let visCol = 0; visCol < 8; visCol++) {
         const rank = 7 - visRow, file = visCol;
         const hell = (rank + file) % 2 === 1;
-        let klassen = 'schach-feld ' + (hell ? 'schach-feld-hell' : 'schach-feld-dunkel');
-        let labelHtml = '';
-        if (file === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
-        if (rank === 0) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
-        zellenHtml.push(`<div class="${klassen}" onclick="Konzentration.koordFeldGeklickt(${rank},${file})">${labelHtml}</div>`);
+        const klassen = 'schach-feld ' + (hell ? 'schach-feld-hell' : 'schach-feld-dunkel');
+        zellenHtml.push(`<div class="${klassen}" onclick="Konzentration.koordFeldGeklickt(${rank},${file})"></div>`);
       }
     }
     App.render(`
@@ -51,7 +52,11 @@ const Konzentration = (function () {
       <div class="schach-wrap">
         <div class="schach-info">Runde ${koordSession.index + 1} / ${koordSession.runden.length}</div>
         <div class="koord-ziel">Finde: <span class="koord-ziel-name">${feldName(ziel.rank, ziel.file)}</span></div>
-        <div class="schach-brett">${zellenHtml.join('')}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+          <div class="schach-brett">${zellenHtml.join('')}</div>
+          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+        </div>
       </div>
     `);
   }

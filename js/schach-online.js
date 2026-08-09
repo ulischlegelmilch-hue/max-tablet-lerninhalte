@@ -25,6 +25,15 @@ const SchachOnline = (function () {
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
+  function koordLeisten(felderOrient) {
+    let rang = '', datei = '';
+    for (let i = 0; i < 8; i++) {
+      rang += `<div>${SchachEngine.rankOf(felderOrient[i * 8]) + 1}</div>`;
+      datei += `<div>${DATEIEN[SchachEngine.fileOf(felderOrient[56 + i])]}</div>`;
+    }
+    return { rang, datei };
+  }
+
   let ws = null;
   let aktiv = false;
   let ersteAnzeige = true;
@@ -112,8 +121,8 @@ const SchachOnline = (function () {
   function brettHtml() {
     const zustand = stand.zustand;
     const letzterZug = zustand.letzterZug;
-    return visuelleFelder().map((feld, i) => {
-      const visRow = Math.floor(i / 8), visCol = i % 8;
+    const felderOrient = visuelleFelder();
+    const zellen = felderOrient.map((feld) => {
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = zustand.board[feld];
@@ -122,11 +131,16 @@ const SchachOnline = (function () {
       if (ziele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      let labelHtml = '';
-      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
-      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
-      return `<div class="${klassen}" onclick="SchachOnline.feldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
+      return `<div class="${klassen}" onclick="SchachOnline.feldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
+    const { rang, datei } = koordLeisten(felderOrient);
+    return `
+      <div class="schach-rahmen">
+        <div class="schach-rang-leiste">${rang}</div>
+        <div class="schach-brett">${zellen}</div>
+        <div class="schach-datei-leiste">${datei}</div>
+      </div>
+    `;
   }
 
   function zeichne() {
@@ -142,11 +156,8 @@ const SchachOnline = (function () {
       html = `
         <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
         <div class="welcome">Online gegen Papa</div>
-        <div class="lese-text">${stand.verbunden.papa ? 'Papa ist gerade online! ' : 'Papa ist gerade nicht online, aber du kannst trotzdem ein Spiel starten - er bekommt eine Benachrichtigung. '}Wähl deine Farbe:</div>
-        <div class="sub-grid">
-          <div class="sub-card" onclick="SchachOnline.starteSpiel('w')"><span class="sub-icon farbe-kreis farbe-weiss"></span><span class="sub-label">Als Weiß spielen</span></div>
-          <div class="sub-card" onclick="SchachOnline.starteSpiel('b')"><span class="sub-icon farbe-kreis farbe-schwarz"></span><span class="sub-label">Als Schwarz spielen</span></div>
-        </div>
+        <div class="lese-text">${stand.verbunden.papa ? 'Papa ist gerade online! ' : 'Papa ist gerade nicht online, aber du kannst trotzdem starten - er bekommt eine Benachrichtigung. '}Wer startet, spielt Weiß und zieht zuerst.</div>
+        <div class="btn-primary" onclick="SchachOnline.starteSpiel()">Neues Spiel starten</div>
       `;
     } else {
       const farbe = meineFarbe();
@@ -175,10 +186,10 @@ const SchachOnline = (function () {
           <div class="schach-stufe">Online gegen Papa</div>
           <div class="schach-info">${infoText}</div>
           ${statusHtml}
-          <div class="schach-brett">${brettHtml()}</div>
+          ${brettHtml()}
           ${stand.status === 'laeuft'
             ? '<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);margin-top:16px;" onclick="SchachOnline.aufgeben()">Aufgeben</div>'
-            : '<div class="btn-primary" style="margin-top:16px;" onclick="SchachOnline.renderFarbwahl()">Neues Spiel</div>'}
+            : '<div class="btn-primary" style="margin-top:16px;" onclick="SchachOnline.starteNeueRunde()">Neues Spiel</div>'}
         </div>
       `;
     }
@@ -189,14 +200,14 @@ const SchachOnline = (function () {
     ersteAnzeige = false;
   }
 
-  function renderFarbwahl() {
+  function starteNeueRunde() {
     stand = Object.assign({}, stand, { status: 'kein_spiel' });
     zeichne();
   }
 
-  function starteSpiel(farbe) {
+  function starteSpiel() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ typ: 'neues_spiel', farbe }));
+    ws.send(JSON.stringify({ typ: 'neues_spiel' }));
   }
 
   function aufgeben() {
@@ -240,5 +251,5 @@ const SchachOnline = (function () {
     zeichne();
   }
 
-  return { starteAnsicht, renderFarbwahl, starteSpiel, aufgeben, feldGeklickt };
+  return { starteAnsicht, starteNeueRunde, starteSpiel, aufgeben, feldGeklickt };
 })();

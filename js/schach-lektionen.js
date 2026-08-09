@@ -15,6 +15,10 @@ const SchachLektionen = (function () {
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  // weisseSicht() ist immer weiss-unten (nie gedreht) - die Rand-Beschriftung
+  // ist deshalb hier immer gleich, kein Neuberechnen pro Aufruf noetig.
+  const RANG_LEISTE_WEISS = [8, 7, 6, 5, 4, 3, 2, 1].map(n => `<div>${n}</div>`).join('');
+  const DATEI_LEISTE_WEISS = DATEIEN.map(d => `<div>${d}</div>`).join('');
 
   function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
   function leereRochade() { return { wK: false, wD: false, bK: false, bD: false }; }
@@ -115,7 +119,11 @@ const SchachLektionen = (function () {
       <div class="schach-wrap">
         <div class="schach-info">${lekt.titel} (${figurIndex + 1}/${FIGUREN_LEKTIONEN.length})</div>
         <div class="lese-text">${lekt.text}<br><br><b>Tipp:</b> Tippe die Figur an - dann siehst du, wohin sie ziehen darf.</div>
-        <div class="schach-brett">${zellenHtml}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+          <div class="schach-brett">${zellenHtml}</div>
+          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+        </div>
         <div class="btn-primary" onclick="SchachLektionen.naechsteFigurLektion()">${letzte ? 'Fertig' : 'Weiter'}</div>
       </div>
     `);
@@ -210,7 +218,11 @@ const SchachLektionen = (function () {
         <div class="schach-info">Eröffnung – Zug ${eroeffnungIndex + 1} / ${EROEFFNUNG_SCHRITTE.length}</div>
         <div class="lese-text">${schritt.erklaerung}</div>
         ${hinweisHtml}
-        <div class="schach-brett">${zellenHtml}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+          <div class="schach-brett">${zellenHtml}</div>
+          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+        </div>
       </div>
     `);
   }
@@ -284,10 +296,7 @@ const SchachLektionen = (function () {
         if (ausgewaehlt === feld) klassen += ' schach-feld-ausgewaehlt';
         if (ziele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
         const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-        let labelHtml = '';
-        if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
-        if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
-        zellen.push(`<div class="${klassen}" onclick="${onclickFn}(${feld})">${symbol}${labelHtml}</div>`);
+        zellen.push(`<div class="${klassen}" onclick="${onclickFn}(${feld})">${symbol}</div>`);
       }
     }
     return zellen.join('');
@@ -578,7 +587,11 @@ const SchachLektionen = (function () {
         <div class="schach-info">Aufgabe ${nr} / ${total}</div>
         <div class="lese-text">${a.anweisung}</div>
         ${feedbackHtml}
-        <div class="schach-brett">${zellenHtml}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+          <div class="schach-brett">${zellenHtml}</div>
+          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+        </div>
       </div>
     `);
   }

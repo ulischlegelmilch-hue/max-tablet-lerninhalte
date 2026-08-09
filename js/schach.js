@@ -29,6 +29,20 @@ const Schach = (function () {
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
+  /** Baut die Rang-/Datei-Beschriftung AUSSERHALB des Bretts (wie bei einem
+   *  echten Schachbrett) aus derselben visuell geordneten Feldliste, die auch
+   *  fuer die Zellen selbst verwendet wird - garantiert automatisch dieselbe
+   *  Ausrichtung (auch bei gedrehtem Brett), ohne die Orientierungslogik ein
+   *  zweites Mal nachzubauen. */
+  function koordLeisten(felderOrient) {
+    let rang = '', datei = '';
+    for (let i = 0; i < 8; i++) {
+      rang += `<div>${SchachEngine.rankOf(felderOrient[i * 8]) + 1}</div>`;
+      datei += `<div>${DATEIEN[SchachEngine.fileOf(felderOrient[56 + i])]}</div>`;
+    }
+    return { rang, datei };
+  }
+
   function aktuelleStufe() {
     const fortschritt = Storage.getSchachFortschritt();
     return STUFEN[Math.min(fortschritt.stufe, STUFEN.length - 1)];
@@ -178,8 +192,8 @@ const Schach = (function () {
     const schachKoenigFeld = (status === 'schach' || status === 'matt') ? findeKoenigFeld(zustand, zustand.amZug) : null;
     const letzterZug = zustand.letzterZug;
 
-    const zellenHtml = visuelleFelder().map((feld, i) => {
-      const visRow = Math.floor(i / 8), visCol = i % 8;
+    const felderOrient = visuelleFelder();
+    const zellenHtml = felderOrient.map((feld) => {
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
       const hell = (rank + file) % 2 === 1;
       const stein = zustand.board[feld];
@@ -189,11 +203,9 @@ const Schach = (function () {
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
-      let labelHtml = '';
-      if (visCol === 0) labelHtml += `<span class="koord-label koord-label-rang">${rank + 1}</span>`;
-      if (visRow === 7) labelHtml += `<span class="koord-label koord-label-datei">${DATEIEN[file]}</span>`;
-      return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}${labelHtml}</div>`;
+      return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
+    const { rang: rangLeisteHtml, datei: dateiLeisteHtml } = koordLeisten(felderOrient);
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -201,7 +213,11 @@ const Schach = (function () {
         <div class="schach-stufe">${aktuelleStufe().name}</div>
         <div class="schach-info">${infoText}</div>
         ${statusHtml}
-        <div class="schach-brett">${zellenHtml}</div>
+        <div class="schach-rahmen">
+          <div class="schach-rang-leiste">${rangLeisteHtml}</div>
+          <div class="schach-brett">${zellenHtml}</div>
+          <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
+        </div>
         <div class="btn-primary" onclick="Schach.starteSpiel('${spielerFarbe}')" style="margin-top:16px;">Neue Partie</div>
       </div>
     `);
