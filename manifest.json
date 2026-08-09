@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-08-2335",
+  "version": "2026-08-09-1146",
   "files": [
     "css/style.css",
     "images/verkehrszeichen/101_gefahrstelle.svg",
@@ -28,10 +28,14 @@
     "js/geschichten.js",
     "js/heimatkunde.js",
     "js/icons.js",
+    "js/konzentration.js",
     "js/mathe.js",
     "js/schach-engine.js",
     "js/schach-lektionen.js",
+    "js/schach-taktik.js",
     "js/schach.js",
-    "js/storage.js"
+    "js/storage.js",
+    "js/strategie.js",
+    "js/taktik-puzzles-data.js"
   ]
 }

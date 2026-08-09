@@ -35,9 +35,59 @@ const Schach = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('Schach', [
+      { icon: 'tagesaufgabe', titel: 'Heute üben', onclick: 'Schach.renderTagesplan()' },
       { icon: 'spielen', titel: 'Spielen', onclick: 'Schach.renderStufenwahl()' },
-      { icon: 'lektionen', titel: 'Lektionen', onclick: 'SchachLektionen.renderMenu()' }
+      { icon: 'lektionen', titel: 'Lektionen', onclick: 'SchachLektionen.renderMenu()' },
+      { icon: 'taktik', titel: 'Taktik-Training', onclick: 'SchachTaktik.renderMenu()' },
+      { icon: 'konzentration', titel: 'Konzentration', onclick: 'Konzentration.renderMenu()' },
+      { icon: 'materialwert', titel: 'Strategie', onclick: 'Strategie.renderMenu()' }
     ]));
+  }
+
+  // -------------------------------------------------------------------
+  // Schach-Tagesplan: verbindet Taktik/Konzentration/Strategie zu einem
+  // kurzen taeglichen Pensum (siehe Storage.getSchachTagesplan). Jeder
+  // Schritt hakt sich selbst ab, sobald das jeweilige Modul eine Runde
+  // abgeschlossen hat (Storage.meldeTagesplanSchrittErledigt) - unabhaengig
+  // davon, ob er hier oder direkt ueber das Modul-Menue gestartet wurde.
+  // -------------------------------------------------------------------
+  const TAKTIK_THEMA_NAMEN = { fork: 'Gabeln', pin: 'Fesselungen', skewer: 'Spieße', discoveredAttack: 'Abzugsangriffe' };
+  const KONZENTRATION_SPIEL_NAMEN = { koordinaten: 'Koordinaten finden', feldfarbe: 'Feldfarbe-Quiz', laeuferweg: 'Läufer-Weg merken' };
+  const STRATEGIE_QUIZ_NAMEN = { eroeffnung: 'Eröffnungsprinzipien', material: 'Materialwerte', bauern: 'Bauernendspiel-Wissen' };
+
+  function schrittLabel(s) {
+    if (s.typ === 'taktik') return 'Taktik: ' + (TAKTIK_THEMA_NAMEN[s.thema] || s.thema);
+    if (s.typ === 'konzentration') return 'Konzentration: ' + (KONZENTRATION_SPIEL_NAMEN[s.spiel] || s.spiel);
+    return 'Strategie: ' + (STRATEGIE_QUIZ_NAMEN[s.quiz] || s.quiz);
+  }
+
+  function schrittOnclick(s) {
+    if (s.typ === 'taktik') return `SchachTaktik.starteSession('${s.thema}')`;
+    if (s.typ === 'konzentration') {
+      if (s.spiel === 'koordinaten') return 'Konzentration.starteKoordinaten()';
+      if (s.spiel === 'feldfarbe') return 'Konzentration.starteFeldfarbe()';
+      return 'Konzentration.starteLaeuferWeg()';
+    }
+    if (s.quiz === 'eroeffnung') return 'Strategie.starteEroeffnungsQuiz()';
+    if (s.quiz === 'material') return 'Strategie.zeigeMaterialwerte()';
+    return 'Strategie.starteBauernQuiz()';
+  }
+
+  function renderTagesplan() {
+    const plan = Storage.getSchachTagesplan();
+    const alleErledigt = plan.schritte.every(s => s.erledigt);
+    const zeilenHtml = plan.schritte.map(s => `
+      <div class="regel-zeile">
+        <span>${s.erledigt ? '✅' : '⬜'} ${schrittLabel(s)}</span>
+        ${s.erledigt ? '' : `<span class="btn-primary" style="padding:8px 16px;" onclick="${schrittOnclick(s)}">Los</span>`}
+      </div>
+    `).join('');
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Dein Schach-Tagesplan</div>
+      <div class="lese-text">${alleErledigt ? 'Alles geschafft für heute – klasse gemacht! ✅' : 'Ein paar kurze Übungen für heute (zusammen etwa 15–20 Minuten).'}</div>
+      <div class="regel-karte"><div class="regel-liste">${zeilenHtml}</div></div>
+    `);
   }
 
   function renderStufenwahl() {
@@ -209,5 +259,5 @@ const Schach = (function () {
   // Fuer die Fortschrittsanzeige auf der Home-Kachel (siehe App.gotoHome).
   function aktuelleStufeName() { return aktuelleStufe().name; }
 
-  return { renderMenu, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aktuelleStufeName };
+  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aktuelleStufeName };
 })();

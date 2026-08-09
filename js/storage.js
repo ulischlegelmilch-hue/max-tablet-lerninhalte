@@ -30,9 +30,36 @@ const Storage = (function () {
       // das im Eltern-Bereich einschränken, damit Max klein anfangen kann) -
       // standardmäßig alle, damit sich am Verhalten nichts ändert, solange
       // niemand etwas einstellt.
-      malfolgenReihen: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+      malfolgenReihen: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      // Fortschritt im Taktik-Puzzletrainer, ein Eintrag pro Thema (siehe
+      // TAKTIK_REIHENFOLGE) - rating steuert die adaptive Puzzle-Auswahl
+      // (naeher am eigenen Rating = passende Schwierigkeit), zuletztGeloest
+      // vermeidet, dass dieselben paar Puzzles direkt wiederholt werden.
+      taktik: {},
+      // Bestzeiten/Statistik fuers Konzentrationstraining (siehe konzentration.js).
+      // koordinatenBestzeitMs: schnellste absolvierte 10er-Runde "Koordinaten
+      // finden" in Millisekunden, null solange keine Runde beendet wurde.
+      konzentration: { koordinatenBestzeitMs: null },
+      // Schach-eigener Tagesplan (Taktik + Konzentration + evtl. Strategie,
+      // siehe generiereSchachTagesplanSchritte) - unabhaengig vom allgemeinen
+      // Tagesplan-Banner auf dem Startbildschirm (tagesplanRegeln oben), der
+      // ist fuer Mathe/Deutsch. datum steuert, wann ein neuer Plan noetig ist.
+      schachTagesplan: { datum: null, schritte: [] }
     };
   }
+
+  // Reihenfolge, in der die Taktik-Themen freigeschaltet werden (siehe
+  // getTaktikFreigeschaltet) - folgt der paedagogischen Empfehlung
+  // Gabel -> Fesselung -> Spieß -> Abzugsangriff (Gabeln sind fuer Kinder am
+  // leichtesten zu erkennen, Abzugsangriffe am schwersten).
+  const TAKTIK_REIHENFOLGE = ['fork', 'pin', 'skewer', 'discoveredAttack'];
+  const TAKTIK_START_RATING = 700;
+  // Ab wie vielen geloesten Aufgaben mit welcher Mindest-Trefferquote ein
+  // Thema als "sitzt gut genug" gilt, um das naechste freizuschalten -
+  // bewusst grosszuegig (70%), da "Genauigkeit vor Geschwindigkeit" das Ziel
+  // ist, nicht Perfektion.
+  const TAKTIK_FREISCHALT_MIN_VERSUCHE = 15;
+  const TAKTIK_FREISCHALT_MIN_QUOTE = 0.7;
 
   function load() {
     try {
@@ -197,6 +224,130 @@ const Storage = (function () {
     save(state);
   }
 
+  function leererTaktikEintrag() {
+    return { rating: TAKTIK_START_RATING, richtig: 0, falsch: 0, zuletztGeloest: [] };
+  }
+
+  /** Fortschritt je Taktik-Thema (fork/pin/skewer/discoveredAttack): Rating
+   *  (steuert die Puzzle-Auswahl im Trainer), Trefferstatistik, zuletzt
+   *  geloeste Puzzle-IDs. */
+  function getTaktikStats() {
+    if (!state.taktik) state.taktik = {};
+    for (const thema of TAKTIK_REIHENFOLGE) {
+      if (!state.taktik[thema]) state.taktik[thema] = leererTaktikEintrag();
+    }
+    return state.taktik;
+  }
+
+  /** Nach jedem geloesten (oder falsch geloesten) Taktik-Puzzle: passt das
+   *  Rating fuers Thema leicht an (naeher an "gerade richtige Schwierigkeit"
+   *  statt hartem Stufensystem) und merkt sich die Puzzle-ID, damit der
+   *  Trainer sie in der naechsten Auswahl meidet. */
+  function meldeTaktikErgebnis(thema, korrekt, puzzleId) {
+    registriereAktivenTag();
+    const stats = getTaktikStats();
+    const stat = stats[thema];
+    if (korrekt) {
+      stat.richtig++;
+      stat.rating = Math.min(1100, stat.rating + 25);
+    } else {
+      stat.falsch++;
+      stat.rating = Math.max(500, stat.rating - 15);
+    }
+    stat.zuletztGeloest.push(puzzleId);
+    if (stat.zuletztGeloest.length > 15) stat.zuletztGeloest.shift();
+    save(state);
+    return stat;
+  }
+
+  /** Welche Taktik-Themen sind schon anklickbar? Immer das erste
+   *  (TAKTIK_REIHENFOLGE[0]), jedes weitere erst wenn das vorherige Thema
+   *  genug (und gut genug) geuebt wurde - siehe TAKTIK_FREISCHALT_*. */
+  function getTaktikFreigeschaltet() {
+    const stats = getTaktikStats();
+    const freigeschaltet = [TAKTIK_REIHENFOLGE[0]];
+    for (let i = 1; i < TAKTIK_REIHENFOLGE.length; i++) {
+      const vorher = stats[TAKTIK_REIHENFOLGE[i - 1]];
+      const versuche = vorher.richtig + vorher.falsch;
+      const quote = versuche > 0 ? vorher.richtig / versuche : 0;
+      if (versuche >= TAKTIK_FREISCHALT_MIN_VERSUCHE && quote >= TAKTIK_FREISCHALT_MIN_QUOTE) {
+        freigeschaltet.push(TAKTIK_REIHENFOLGE[i]);
+      } else {
+        break;
+      }
+    }
+    return freigeschaltet;
+  }
+
+  const KONZENTRATION_SPIELE = ['koordinaten', 'feldfarbe', 'laeuferweg'];
+  const STRATEGIE_QUIZZES = ['eroeffnung', 'material', 'bauern'];
+
+  function tagDesJahres(datum) {
+    return Math.floor((datum - new Date(datum.getFullYear(), 0, 1)) / 86400000);
+  }
+
+  /** Baut die 2-3 Schritte des heutigen Schach-Tagesplans: immer 1 Taktik-Puzzle-
+   *  Runde zum aktuell am weitesten fortgeschrittenen (nicht zwingend gemeisterten)
+   *  Thema, immer 1 Konzentrationsuebung (taeglich rotierend durch alle drei, fuer
+   *  Abwechslung), und nur an jedem dritten Tag zusaetzlich 1 Strategie-Quiz -
+   *  haelt den Plan an den meisten Tagen kurz (15-20 Minuten Zielrahmen). */
+  function generiereSchachTagesplanSchritte() {
+    const heute = new Date();
+    const tag = tagDesJahres(heute);
+    const frei = getTaktikFreigeschaltet();
+    const schritte = [
+      { typ: 'taktik', thema: frei[frei.length - 1], erledigt: false },
+      { typ: 'konzentration', spiel: KONZENTRATION_SPIELE[tag % KONZENTRATION_SPIELE.length], erledigt: false }
+    ];
+    if (tag % 3 === 0) {
+      schritte.push({ typ: 'strategie', quiz: STRATEGIE_QUIZZES[Math.floor(tag / 3) % STRATEGIE_QUIZZES.length], erledigt: false });
+    }
+    return schritte;
+  }
+
+  /** Liefert den Schach-Tagesplan fuer heute - erzeugt automatisch einen neuen,
+   *  sobald sich das Kalenderdatum seit dem letzten Aufruf geaendert hat. */
+  function getSchachTagesplan() {
+    if (!state.schachTagesplan) state.schachTagesplan = { datum: null, schritte: [] };
+    const heute = heutigesDatum();
+    if (state.schachTagesplan.datum !== heute) {
+      state.schachTagesplan = { datum: heute, schritte: generiereSchachTagesplanSchritte() };
+      save(state);
+    }
+    return state.schachTagesplan;
+  }
+
+  /** Hakt den ersten noch offenen Schritt vom Typ `typ` im heutigen Schach-
+   *  Tagesplan ab - wird von JEDER Taktik-/Konzentrations-/Strategie-Uebung beim
+   *  Abschluss aufgerufen, unabhaengig davon ob sie ueber den Tagesplan-Button
+   *  oder direkt ueber das jeweilige Menue gestartet wurde (Hauptsache, geuebt
+   *  wurde). Kein Fehler, wenn kein passender offener Schritt existiert. */
+  function meldeTagesplanSchrittErledigt(typ) {
+    const plan = getSchachTagesplan();
+    const schritt = plan.schritte.find(s => s.typ === typ && !s.erledigt);
+    if (schritt) {
+      schritt.erledigt = true;
+      save(state);
+    }
+  }
+
+  function getKonzentrationBestzeit() {
+    if (!state.konzentration) state.konzentration = { koordinatenBestzeitMs: null };
+    return state.konzentration.koordinatenBestzeitMs;
+  }
+
+  /** Meldet die Zeit einer abgeschlossenen "Koordinaten finden"-Runde (in ms) -
+   *  aktualisiert die Bestzeit nur, wenn die neue Runde schneller war. */
+  function meldeKoordinatenZeit(zeitMs) {
+    registriereAktivenTag();
+    if (!state.konzentration) state.konzentration = { koordinatenBestzeitMs: null };
+    const bisherige = state.konzentration.koordinatenBestzeitMs;
+    const istNeuerRekord = bisherige === null || zeitMs < bisherige;
+    if (istNeuerRekord) state.konzentration.koordinatenBestzeitMs = zeitMs;
+    save(state);
+    return { istNeuerRekord, bestzeitMs: state.konzentration.koordinatenBestzeitMs };
+  }
+
   /** Wie getMalfolgenStats/meldeMalfolgenErgebnis, nur pro Aufgaben-Bereich der
    *  Tagesaufgabe (z. B. "einmaleins", "textaufgaben") statt pro Einzelfakt -
    *  damit sich die taegliche Mischung automatisch an Max' Schwaechen anpasst. */
@@ -279,6 +430,9 @@ const Storage = (function () {
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
-    getTagesplanRegeln, setTagesplanRegeln, getTagesFach
+    getTagesplanRegeln, setTagesplanRegeln, getTagesFach,
+    getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
+    getKonzentrationBestzeit, meldeKoordinatenZeit,
+    getSchachTagesplan, meldeTagesplanSchrittErledigt
   };
 })();

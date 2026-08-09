@@ -31,10 +31,32 @@ const Icons = (function () {
     rechtschreibung: '<path d="M4 20l1-4.5L15.5 5 19 8.5 8.5 19z"/><line x1="13" y1="7" x2="17" y2="11"/>',
     home: '<path d="M4 11.5L12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-9"/>',
     streak: '<path d="M12 2c1 3-3 4-3 7.5a3 3 0 0 0 6 0c0-1.2-.7-2-1.2-2.7.9.2 3.2 1.7 3.2 5.2a5 5 0 0 1-10 0c0-4.5 3.5-6.5 5-10z"/>',
-    loeschen: '<path d="M4 7h16"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'
+    loeschen: '<path d="M4 7h16"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+    taktik: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/><line x1="1" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="23" y2="12"/>',
+    // Gabel (Fork): bewusst als echte Ess-Gabel gezeichnet - passt zum
+    // deutschen Wort doppelt (Springergabel UND Essgabel), leicht zu merken.
+    gabel: '<path d="M7 3v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V3"/><line x1="12" y1="11" x2="12" y2="21"/><line x1="7" y1="3" x2="7" y2="7"/><line x1="17" y1="3" x2="17" y2="7"/>',
+    // Fesselung (Pin): Nadel/Pinnadel - die Figur "steckt fest".
+    fesselung: '<circle cx="12" cy="6" r="3"/><line x1="12" y1="9" x2="12" y2="21"/>',
+    // Spieß (Skewer): Spieß-Stab mit zwei aufgespießten Figuren, wie ein Grillspieß.
+    spiess: '<line x1="4" y1="20" x2="20" y2="4"/><circle cx="8" cy="16" r="2.3"/><circle cx="16" cy="8" r="2.3"/>',
+    // Abzugsangriff (Discovered Attack): eine Figur zieht zur Seite weg, dahinter
+    // wird eine Angriffslinie frei, die ein Ziel trifft.
+    abzug: '<path d="M4 20l6-6"/><path d="M7 20h3v-3"/><line x1="10" y1="14" x2="20" y2="4"/><circle cx="20" cy="4" r="1.3" fill="currentColor" stroke="none"/>',
+    // Konzentration: Auge, steht fuer Wahrnehmung/Fokus.
+    konzentration: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+    // Koordinaten finden: Gitter mit markiertem Feld.
+    koordinaten: '<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
+    // Feldfarbe-Quiz: Schachbrett-Karo (zwei helle, zwei gefuellte Felder).
+    feldfarbe: '<rect x="3" y="3" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/><rect x="13" y="3" width="8" height="8" fill="currentColor" stroke="none"/><rect x="3" y="13" width="8" height="8" fill="currentColor" stroke="none"/>',
+    // Läufer-Weg: gestrichelter Diagonalpfad mit Zielpunkt.
+    laeuferweg: '<line x1="4" y1="20" x2="18" y2="6" stroke-dasharray="3 3"/><circle cx="20" cy="4" r="1.6" fill="currentColor" stroke="none"/>',
+    bauer: '<circle cx="12" cy="6.5" r="2.6"/><path d="M9 10.5h6l1.5 9h-9z"/><line x1="7" y1="19.5" x2="17" y2="19.5"/>',
+    materialwert: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h6M13 7h6"/><path d="M5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/><line x1="8" y1="21" x2="16" y2="21"/>'
   };
   PATHS.lesen = PATHS.deutsch;
   PATHS.verkehrszeichen = PATHS.heimat;
+  PATHS.grundmatt = PATHS.matt;
 
   function svg(name) {
     return OPEN + (PATHS[name] || '') + CLOSE;

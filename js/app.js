@@ -186,6 +186,32 @@ const App = (function () {
       `).join('');
   }
 
+  // Duplizierte Klartext-Namen fuer die Schach-Tagesplan-Anzeige im Eltern-
+  // Bereich - dieselben Schluessel wie in Storage.generiereSchachTagesplanSchritte
+  // (schach.js hat eigene, identische Kopien fuer die "Los"-Buttons dort; hier
+  // reicht reine Anzeige ohne Klick-Ziele).
+  const SCHACH_TAKTIK_NAMEN = { fork: 'Gabeln', pin: 'Fesselungen', skewer: 'Spieße', discoveredAttack: 'Abzugsangriffe' };
+  const SCHACH_KONZENTRATION_NAMEN = { koordinaten: 'Koordinaten finden', feldfarbe: 'Feldfarbe-Quiz', laeuferweg: 'Läufer-Weg merken' };
+  const SCHACH_STRATEGIE_NAMEN = { eroeffnung: 'Eröffnungsprinzipien', material: 'Materialwerte', bauern: 'Bauernendspiel-Wissen' };
+
+  function schachSchrittLabel(s) {
+    if (s.typ === 'taktik') return 'Taktik: ' + (SCHACH_TAKTIK_NAMEN[s.thema] || s.thema);
+    if (s.typ === 'konzentration') return 'Konzentration: ' + (SCHACH_KONZENTRATION_NAMEN[s.spiel] || s.spiel);
+    return 'Strategie: ' + (SCHACH_STRATEGIE_NAMEN[s.quiz] || s.quiz);
+  }
+
+  function schachTagesplanHtml() {
+    const plan = Storage.getSchachTagesplan();
+    const erledigt = plan.schritte.filter(s => s.erledigt).length;
+    const zeilen = plan.schritte.map(s => `
+      <div class="kategorie-zeile"><span>${s.erledigt ? '✅' : '⬜'} ${schachSchrittLabel(s)}</span></div>
+    `).join('');
+    return `
+      <div class="fortschritt-zeile"><span class="fortschritt-fach">Schach-Tagesplan</span><span class="fortschritt-werte">${erledigt} von ${plan.schritte.length} erledigt</span></div>
+      ${zeilen}
+    `;
+  }
+
   function oeffneEinstellungen() {
     const regeln = Storage.getTagesplanRegeln();
     const regelnHtml = regeln.length
@@ -206,6 +232,8 @@ const App = (function () {
         ${fortschrittZeile('deutsch', 'Deutsch')}
         <div class="fortschritt-unterueberschrift">Mathe nach Bereich (öfter falsch steht oben)</div>
         ${matheKategorienHtml()}
+        <div class="fortschritt-unterueberschrift">Schach heute</div>
+        ${schachTagesplanHtml()}
       </div>
 
       <div class="welcome" style="margin-top:32px;">Tagesplan-Regeln</div>

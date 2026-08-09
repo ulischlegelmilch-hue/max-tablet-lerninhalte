@@ -31,6 +31,50 @@ const SchachEngine = (function () {
     };
   }
 
+  /** Baut einen Spielzustand aus einer FEN-Stellung (z.B. aus der Lichess-
+   *  Puzzle-Datenbank) statt der festen Startaufstellung - fuer Taktik-Puzzles,
+   *  die mit einer beliebigen Stellung starten. */
+  function ausFen(fen) {
+    const [platzierung, amZugZeichen, rochadeStr, epStr] = fen.trim().split(/\s+/);
+    const board = new Array(64).fill(null);
+    const fenReihen = platzierung.split('/');
+    for (let r = 0; r < 8; r++) {
+      const boardRank = 7 - r;
+      let file = 0;
+      for (const ch of fenReihen[r]) {
+        if (ch >= '1' && ch <= '8') { file += Number(ch); continue; }
+        const farbe = ch === ch.toUpperCase() ? 'w' : 'b';
+        board[idx(boardRank, file)] = { typ: ch.toLowerCase(), farbe };
+        file++;
+      }
+    }
+    const rochade = {
+      wK: rochadeStr.includes('K'), wD: rochadeStr.includes('Q'),
+      bK: rochadeStr.includes('k'), bD: rochadeStr.includes('q')
+    };
+    let enPassantZiel = null;
+    if (epStr && epStr !== '-') {
+      enPassantZiel = idx(Number(epStr[1]) - 1, epStr.charCodeAt(0) - 97);
+    }
+    return { board, amZug: amZugZeichen === 'b' ? 'b' : 'w', rochade, enPassantZiel, letzterZug: null };
+  }
+
+  /** Loest einen UCI-Zugstring (z.B. "b3d4" oder "e7e8q", Format der Lichess-
+   *  Puzzle-Datenbank) zum passenden legalen Zugobjekt auf - baut dafuer NICHT
+   *  selbst ein Zugobjekt, sondern sucht unter den echten legalen Zuegen, damit
+   *  Rochade-/En-Passant-/Schlag-Flags garantiert korrekt gesetzt sind. Die
+   *  Zuggenerierung erzeugt bei Umwandlung immer Dame (siehe generierePseudoZuege) -
+   *  ein abweichender Umwandlungsbuchstabe aus der UCI-Notation wird deshalb
+   *  nachtraeglich uebernommen. Gibt null zurueck, wenn kein legaler Zug passt. */
+  function zugAusUci(zustand, uci) {
+    const von = idx(Number(uci[1]) - 1, uci.charCodeAt(0) - 97);
+    const nach = idx(Number(uci[3]) - 1, uci.charCodeAt(2) - 97);
+    const zug = generiereLegaleZuege(zustand, von).find(z => z.nach === nach);
+    if (!zug) return null;
+    if (uci.length > 4) return Object.assign({}, zug, { promotion: uci[4] });
+    return zug;
+  }
+
   function angriffsFelder(zustand, von) {
     const stein = zustand.board[von];
     if (!stein) return [];
@@ -346,6 +390,8 @@ const SchachEngine = (function () {
   return {
     idx, rankOf, fileOf,
     anfangsstellung,
+    ausFen,
+    zugAusUci,
     generiereLegaleZuege,
     alleLegalenZuege,
     zugAusfuehren,
