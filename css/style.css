@@ -946,7 +946,7 @@ html, body {
 }
 .chat-eingabe-zeile {
   max-width: 700px;
-  margin: 0 auto;
+  margin: 0 auto var(--space-4);
   display: flex;
   gap: var(--space-2);
 }

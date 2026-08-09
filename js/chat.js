@@ -90,17 +90,22 @@ const Chat = (function () {
       ? (verbindungsStatus === 'verbindet' ? 'Verbinde mit Papa …' : 'Verbindung verloren – verbinde neu …')
       : (verbunden.papa ? 'Papa ist gerade online' : 'Papa ist gerade nicht online, bekommt deine Nachricht aber trotzdem');
 
+    // Eingabezeile bewusst OBEN, nicht unten unter der Nachrichtenliste: die
+    // Bildschirmtastatur der Kiosk-WebView verdeckt den unteren Bereich, ohne
+    // dass die Seite ihre Hoehe zuverlaessig anpasst - oben ist sie garantiert
+    // nie im Weg, egal wie sich die Tastatur verhaelt.
     const html = `
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Chat mit Papa</div>
       <div class="lese-text">${info}</div>
-      <div class="chat-liste" id="chat-liste">${nachrichtenHtml()}</div>
       <div class="chat-eingabe-zeile">
         <input type="text" id="chat-eingabe" class="chat-eingabe" placeholder="Nachricht schreiben …"
                value="${escapeHtml(bisherigerText)}"
-               onkeydown="if(event.key==='Enter'){Chat.sendeNachricht();}">
+               onkeydown="if(event.key==='Enter'){Chat.sendeNachricht();}"
+               onfocus="this.scrollIntoView({block:'center'})">
         <button class="chat-senden-btn" onclick="Chat.sendeNachricht()">Senden</button>
       </div>
+      <div class="chat-liste" id="chat-liste">${nachrichtenHtml()}</div>
     `;
 
     if (!ersteAnzeige) App.setOnLeaveScreen(() => {});

@@ -484,6 +484,26 @@ const App = (function () {
   function setLastStarter(fn) { lastStarter = fn; }
   function restartLast() { if (lastStarter) lastStarter(); else gotoHome(); }
 
+  // #app-root hat eine feste Hoehe (100% minus Topbar) und scrollt selbst -
+  // die Kiosk-WebView passt diese "100%" beim Aufklappen der Bildschirm-
+  // tastatur aber oft NICHT an (kein echtes Resize des Layout-Viewports),
+  // wodurch Eingabefelder im unteren Bereich hinter der Tastatur verschwinden
+  // koennen. window.visualViewport meldet die TATSAECHLICH sichtbare Hoehe
+  // zuverlaessig - darauf reagieren wir, indem #app-root manuell nachgezogen
+  // wird, damit sein Scrollbereich wieder zur echten sichtbaren Flaeche passt.
+  function passeHoeheAnBildschirmtastaturAn() {
+    if (!window.visualViewport) return;
+    const anpassen = () => {
+      const root = document.getElementById('app-root');
+      if (!root) return;
+      const topbar = document.getElementById('topbar');
+      const topbarHoehe = topbar ? topbar.offsetHeight : 60;
+      root.style.height = Math.max(0, window.visualViewport.height - topbarHoehe) + 'px';
+    };
+    window.visualViewport.addEventListener('resize', anpassen);
+    anpassen();
+  }
+
   function init() {
     document.getElementById('topbar-home').innerHTML = Icons.svg('home');
     gotoHome();
@@ -491,6 +511,7 @@ const App = (function () {
     setInterval(updateAkkuAnzeige, 60000);
     initDevElternSimulation();
     FernSync.init();
+    passeHoeheAnBildschirmtastaturAn();
   }
 
   return {
