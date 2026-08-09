@@ -24,6 +24,51 @@ const SchachOnline = (function () {
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const FIGURWERT = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
+  function feldName(feld) {
+    return DATEIEN[SchachEngine.fileOf(feld)] + (SchachEngine.rankOf(feld) + 1);
+  }
+
+  /** Geschlagene Figuren + Materialvorteil aus der aktuellen Brettstellung
+   *  (gleiche Logik wie in schach.js - Module teilen sich hier bewusst keinen
+   *  Code, siehe Projektkonvention: jede Datei ist ein eigenstaendiges IIFE). */
+  function materialUebersicht(zust) {
+    const vorhanden = { w: { p: 0, n: 0, b: 0, r: 0, q: 0 }, b: { p: 0, n: 0, b: 0, r: 0, q: 0 } };
+    for (const stein of zust.board) {
+      if (stein && stein.typ !== 'k') vorhanden[stein.farbe][stein.typ]++;
+    }
+    const GRUNDANZAHL = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+    const geschlagenVon = { w: [], b: [] };
+    let wertW = 0, wertB = 0;
+    for (const typ of ['q', 'r', 'b', 'n', 'p']) {
+      const fehlendSchwarz = GRUNDANZAHL[typ] - vorhanden.b[typ];
+      for (let i = 0; i < fehlendSchwarz; i++) geschlagenVon.w.push(typ);
+      const fehlendWeiss = GRUNDANZAHL[typ] - vorhanden.w[typ];
+      for (let i = 0; i < fehlendWeiss; i++) geschlagenVon.b.push(typ);
+      wertW += vorhanden.w[typ] * FIGURWERT[typ];
+      wertB += vorhanden.b[typ] * FIGURWERT[typ];
+    }
+    return { geschlagenVon, vorteil: wertW - wertB };
+  }
+
+  function geschlagenHtml(figuren, farbeDerFiguren) {
+    return figuren.map(t => FIGUR_SYMBOL[farbeDerFiguren][t]).join('');
+  }
+
+  /** Zugliste aus stand.zugHistorie (Server schickt nur von/nach/farbe, keine
+   *  Figurentypen - daher einfache Koordinatennotation statt Kurzalgebraisch). */
+  function zuglisteHtml(historie) {
+    if (!historie || historie.length === 0) return '<div class="schach-zugliste-leer">Noch keine Züge.</div>';
+    let rows = '';
+    for (let i = 0; i < historie.length; i += 2) {
+      const nr = i / 2 + 1;
+      const weiss = historie[i] ? `${feldName(historie[i].von)}-${feldName(historie[i].nach)}` : '';
+      const schwarz = historie[i + 1] ? `${feldName(historie[i + 1].von)}-${feldName(historie[i + 1].nach)}` : '';
+      rows += `<div class="schach-zugliste-zeile"><span class="schach-zugliste-nr">${nr}.</span><span class="schach-zugliste-zug">${weiss}</span><span class="schach-zugliste-zug">${schwarz}</span></div>`;
+    }
+    return rows;
+  }
 
   function koordLeisten(felderOrient) {
     let rang = '', datei = '';
@@ -128,7 +173,7 @@ const SchachOnline = (function () {
       const stein = zustand.board[feld];
       let klassen = 'schach-feld ' + (hell ? 'schach-feld-hell' : 'schach-feld-dunkel');
       if (ausgewaehlt === feld) klassen += ' schach-feld-ausgewaehlt';
-      if (ziele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
+      if (ziele.some(z => z.nach === feld)) klassen += stein ? ' schach-feld-ziel-schlag' : ' schach-feld-ziel';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
       return `<div class="${klassen}" onclick="SchachOnline.feldGeklickt(${feld})">${symbol}</div>`;
@@ -185,16 +230,33 @@ const SchachOnline = (function () {
         : (stand.zustand.amZug === farbe ? 'Du bist am Zug' : 'Papa ist am Zug …') +
           (stand.verbunden.papa ? '' : ' (Papa ist gerade offline, bekommt aber eine Benachrichtigung)');
 
+      const gegnerFarbe = farbe === 'w' ? 'b' : 'w';
+      const { geschlagenVon, vorteil } = materialUebersicht(stand.zustand);
+      const spielerVorteil = farbe === 'w' ? vorteil : -vorteil;
+      const spielerGeschlagenHtml = geschlagenHtml(geschlagenVon[farbe], gegnerFarbe);
+      const gegnerGeschlagenHtml = geschlagenHtml(geschlagenVon[gegnerFarbe], farbe);
+
       html = `
         <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
         <div class="schach-wrap">
           <div class="schach-stufe">Online gegen Papa</div>
           <div class="schach-info">${infoText}</div>
           ${statusHtml}
+          <div class="schach-spieler-leiste">
+            <span class="schach-spieler-name">📱 Papa</span>
+            <span class="schach-geschlagen">${gegnerGeschlagenHtml}${spielerVorteil < 0 ? `<span class="schach-materialvorteil">+${-spielerVorteil}</span>` : ''}</span>
+          </div>
           ${brettHtml()}
-          ${stand.status === 'laeuft'
-            ? '<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);margin-top:16px;" onclick="SchachOnline.aufgeben()">Aufgeben</div>'
-            : '<div class="btn-primary" style="margin-top:16px;" onclick="SchachOnline.starteNeueRunde()">Neues Spiel</div>'}
+          <div class="schach-spieler-leiste">
+            <span class="schach-spieler-name">🙂 Du</span>
+            <span class="schach-geschlagen">${spielerGeschlagenHtml}${spielerVorteil > 0 ? `<span class="schach-materialvorteil">+${spielerVorteil}</span>` : ''}</span>
+          </div>
+          <div class="schach-aktionsleiste">
+            ${stand.status === 'laeuft'
+              ? '<span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchachOnline.aufgeben()">Aufgeben</span>'
+              : '<span class="schach-aktion-btn" onclick="SchachOnline.starteNeueRunde()">Neues Spiel</span>'}
+          </div>
+          <div class="schach-zugliste">${zuglisteHtml(stand.zugHistorie)}</div>
         </div>
       `;
     }

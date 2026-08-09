@@ -10,6 +10,8 @@ const Schach = (function () {
   let legaleZiele = [];
   let spielLaeuft = false;
   let letzterAufstiegsHinweis = '';
+  let zugHistorie = []; // Kurznotation je ausgefuehrtem Zug, fuer die Zugliste
+  let aufgegeben = false;
 
   // Jede Stufe: KI-Suchtiefe + Chance, statt des besten Zugs einen zufaelligen
   // (schlechten) Zug zu spielen - simuliert Anfaenger-Fehler auf niedrigen
@@ -28,6 +30,51 @@ const Schach = (function () {
     b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
   };
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  const FIGURWERT = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+  const NOTATIONS_BUCHSTABE = { k: 'K', q: 'D', r: 'T', b: 'L', n: 'S', p: '' };
+
+  function feldName(feld) {
+    return DATEIEN[SchachEngine.fileOf(feld)] + (SchachEngine.rankOf(feld) + 1);
+  }
+
+  /** Kurznotation eines bereits ausgefuehrten Zugs (ohne Mehrdeutigkeits-
+   *  Aufloesung bei zwei gleichen Figuren, die dasselbe Ziel erreichen
+   *  koennten - fuer eine Kinder-Zugliste ausreichend genau). */
+  function zugKurzNotation(zug) {
+    if (zug.rochade === 'K') return 'O-O';
+    if (zug.rochade === 'D') return 'O-O-O';
+    const buchstabe = NOTATIONS_BUCHSTABE[zug.stein.typ];
+    const schlag = (zug.schlag || zug.enPassant) ? 'x' : '';
+    const vonSpalte = (zug.stein.typ === 'p' && schlag) ? DATEIEN[SchachEngine.fileOf(zug.von)] : '';
+    const promo = zug.promotion ? '=' + NOTATIONS_BUCHSTABE[zug.promotion] : '';
+    return `${buchstabe}${vonSpalte}${schlag}${feldName(zug.nach)}${promo}`;
+  }
+
+  /** Geschlagene Figuren + Materialvorteil aus der aktuellen Brettstellung
+   *  (Vergleich mit der Grundstellung noetig, da wir keine laufende Liste
+   *  fuehren - so bleibt es robust, egal ob per Klick oder KI geschlagen wurde). */
+  function materialUebersicht(zust) {
+    const vorhanden = { w: { p: 0, n: 0, b: 0, r: 0, q: 0 }, b: { p: 0, n: 0, b: 0, r: 0, q: 0 } };
+    for (const stein of zust.board) {
+      if (stein && stein.typ !== 'k') vorhanden[stein.farbe][stein.typ]++;
+    }
+    const GRUNDANZAHL = { p: 8, n: 2, b: 2, r: 2, q: 1 };
+    const geschlagenVon = { w: [], b: [] }; // geschlagenVon.w = vom weissen Spieler geschlagene (schwarze) Figuren
+    let wertW = 0, wertB = 0;
+    for (const typ of ['q', 'r', 'b', 'n', 'p']) {
+      const fehlendSchwarz = GRUNDANZAHL[typ] - vorhanden.b[typ];
+      for (let i = 0; i < fehlendSchwarz; i++) geschlagenVon.w.push(typ);
+      const fehlendWeiss = GRUNDANZAHL[typ] - vorhanden.w[typ];
+      for (let i = 0; i < fehlendWeiss; i++) geschlagenVon.b.push(typ);
+      wertW += vorhanden.w[typ] * FIGURWERT[typ];
+      wertB += vorhanden.b[typ] * FIGURWERT[typ];
+    }
+    return { geschlagenVon, vorteil: wertW - wertB };
+  }
+
+  function geschlagenHtml(figuren, farbeDerFiguren) {
+    return figuren.map(t => FIGUR_SYMBOL[farbeDerFiguren][t]).join('');
+  }
 
   /** Baut die Rang-/Datei-Beschriftung AUSSERHALB des Bretts (wie bei einem
    *  echten Schachbrett) aus derselben visuell geordneten Feldliste, die auch
@@ -146,6 +193,8 @@ const Schach = (function () {
     legaleZiele = [];
     spielLaeuft = true;
     letzterAufstiegsHinweis = '';
+    zugHistorie = [];
+    aufgegeben = false;
     renderBrett();
     if (spielerFarbe !== zustand.amZug) setTimeout(kiZugAusfuehren, 1000);
   }
@@ -170,11 +219,23 @@ const Schach = (function () {
     return felder;
   }
 
+  function zuglisteHtml() {
+    if (zugHistorie.length === 0) return '<div class="schach-zugliste-leer">Noch keine Züge.</div>';
+    let rows = '';
+    for (let i = 0; i < zugHistorie.length; i += 2) {
+      const nr = i / 2 + 1;
+      rows += `<div class="schach-zugliste-zeile"><span class="schach-zugliste-nr">${nr}.</span><span class="schach-zugliste-zug">${zugHistorie[i] || ''}</span><span class="schach-zugliste-zug">${zugHistorie[i + 1] || ''}</span></div>`;
+    }
+    return rows;
+  }
+
   function renderBrett() {
     const status = SchachEngine.spielstatus(zustand);
 
     let statusHtml = '';
-    if (status === 'matt') {
+    if (aufgegeben) {
+      statusHtml = '<div class="schach-status schach-status-niederlage">Du hast aufgegeben.</div>';
+    } else if (status === 'matt') {
       const spielerHatGewonnen = zustand.amZug !== spielerFarbe;
       statusHtml = spielerHatGewonnen
         ? `<div class="schach-status schach-status-sieg">🏆 Schachmatt! Du hast gewonnen!${letzterAufstiegsHinweis}</div>`
@@ -199,7 +260,7 @@ const Schach = (function () {
       const stein = zustand.board[feld];
       let klassen = 'schach-feld ' + (hell ? 'schach-feld-hell' : 'schach-feld-dunkel');
       if (ausgewaehltesFeld === feld) klassen += ' schach-feld-ausgewaehlt';
-      if (legaleZiele.some(z => z.nach === feld)) klassen += ' schach-feld-ziel';
+      if (legaleZiele.some(z => z.nach === feld)) klassen += zustand.board[feld] ? ' schach-feld-ziel-schlag' : ' schach-feld-ziel';
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
@@ -207,12 +268,22 @@ const Schach = (function () {
     }).join('');
     const { rang: rangLeisteHtml, datei: dateiLeisteHtml } = koordLeisten(felderOrient);
 
+    const gegnerFarbe = spielerFarbe === 'w' ? 'b' : 'w';
+    const { geschlagenVon, vorteil } = materialUebersicht(zustand);
+    const spielerVorteil = spielerFarbe === 'w' ? vorteil : -vorteil;
+    const spielerGeschlagenHtml = geschlagenHtml(geschlagenVon[spielerFarbe], gegnerFarbe);
+    const gegnerGeschlagenHtml = geschlagenHtml(geschlagenVon[gegnerFarbe], spielerFarbe);
+
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Schach.renderStufenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schach-wrap">
         <div class="schach-stufe">${aktuelleStufe().name}</div>
         <div class="schach-info">${infoText}</div>
         ${statusHtml}
+        <div class="schach-spieler-leiste">
+          <span class="schach-spieler-name">🖥️ Computer</span>
+          <span class="schach-geschlagen">${gegnerGeschlagenHtml}${spielerVorteil < 0 ? `<span class="schach-materialvorteil">+${-spielerVorteil}</span>` : ''}</span>
+        </div>
         <div class="schach-rahmen">
           <div class="schach-brett-zeile">
             <div class="schach-rang-leiste">${rangLeisteHtml}</div>
@@ -223,9 +294,25 @@ const Schach = (function () {
             <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
           </div>
         </div>
-        <div class="btn-primary" onclick="Schach.starteSpiel('${spielerFarbe}')" style="margin-top:16px;">Neue Partie</div>
+        <div class="schach-spieler-leiste">
+          <span class="schach-spieler-name">🙂 Du</span>
+          <span class="schach-geschlagen">${spielerGeschlagenHtml}${spielerVorteil > 0 ? `<span class="schach-materialvorteil">+${spielerVorteil}</span>` : ''}</span>
+        </div>
+        <div class="schach-aktionsleiste">
+          ${spielLaeuft
+            ? `<span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="Schach.aufgeben()">Aufgeben</span>`
+            : `<span class="schach-aktion-btn" onclick="Schach.starteSpiel('${spielerFarbe}')">Neue Partie</span>`}
+        </div>
+        <div class="schach-zugliste">${zuglisteHtml()}</div>
       </div>
     `);
+  }
+
+  function aufgeben() {
+    if (!spielLaeuft) return;
+    spielLaeuft = false;
+    aufgegeben = true;
+    renderBrett();
   }
 
   function feldGeklickt(feld) {
@@ -235,6 +322,7 @@ const Schach = (function () {
     if (ausgewaehltesFeld !== null) {
       const zug = legaleZiele.find(z => z.nach === feld);
       if (zug) {
+        zugHistorie.push(zugKurzNotation(zug));
         zustand = SchachEngine.zugAusfuehren(zustand, zug);
         ausgewaehltesFeld = null;
         legaleZiele = [];
@@ -279,6 +367,7 @@ const Schach = (function () {
     const stufe = aktuelleStufe();
     const zug = SchachEngine.waehleKiZugMitSchwierigkeit(zustand, stufe.tiefe, stufe.zufallsChance);
     if (!zug) { renderBrett(); return; }
+    zugHistorie.push(zugKurzNotation(zug));
     zustand = SchachEngine.zugAusfuehren(zustand, zug);
     renderBrett();
   }
@@ -286,5 +375,5 @@ const Schach = (function () {
   // Fuer die Fortschrittsanzeige auf der Home-Kachel (siehe App.gotoHome).
   function aktuelleStufeName() { return aktuelleStufe().name; }
 
-  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aktuelleStufeName };
+  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aufgeben, aktuelleStufeName };
 })();
