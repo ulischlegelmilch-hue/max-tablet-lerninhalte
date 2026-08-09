@@ -111,6 +111,8 @@ const App = (function () {
         </div>
       </div>
 
+      ${FernSync.zusatzaufgabenHtml()}
+
       <div class="tagesplan-banner">
         <div class="tagesplan-titel">Dein Tagesplan</div>
         <div class="tagesplan-liste">${tagesplanHtml}</div>
@@ -505,6 +507,7 @@ const App = (function () {
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 60000);
     initDevElternSimulation();
+    FernSync.init();
   }
 
   return {

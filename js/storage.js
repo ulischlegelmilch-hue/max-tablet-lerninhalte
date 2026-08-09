@@ -44,7 +44,11 @@ const Storage = (function () {
       // siehe generiereSchachTagesplanSchritte) - unabhaengig vom allgemeinen
       // Tagesplan-Banner auf dem Startbildschirm (tagesplanRegeln oben), der
       // ist fuer Mathe/Deutsch. datum steuert, wann ein neuer Plan noetig ist.
-      schachTagesplan: { datum: null, schritte: [] }
+      schachTagesplan: { datum: null, schritte: [] },
+      // Vom Handy aus gesetzter Stand (siehe fernsync.js) - rein clientseitig
+      // gecacht, wird bei jedem erfolgreichen Poll gegen das Max-Tablet-Backend
+      // komplett ersetzt.
+      fernstand: { regeln: [], zusatzaufgaben: [] }
     };
   }
 
@@ -117,33 +121,74 @@ const Storage = (function () {
     save(state);
   }
 
-  /** Welches Fach (mathe/deutsch) ist heute als Tagesaufgabe im Tagesplan
-   *  hervorgehoben? Prueft zuerst Ulis manuell gesetzte Regeln - Einzeltag vor
-   *  Zeitraum vor Wochenende - und faellt sonst auf eine feste taegliche
-   *  Abwechslung zurueck (gerader Tag im Jahr = Mathe, ungerader = Deutsch),
-   *  damit ohne jede Regel trotzdem taeglich gewechselt wird. Das andere Fach
-   *  bleibt im Tagesplan immer zusaetzlich als "Extra" antippbar - diese
-   *  Funktion sperrt nichts, sie entscheidet nur, was hervorgehoben wird. */
-  function getTagesFach() {
-    const heute = new Date();
-    const heuteIso = heutigesDatum();
-    const regeln = getTagesplanRegeln();
-
+  /** Sucht in EINER Regelliste nach einer heute zutreffenden Regel - Einzeltag
+   *  vor Zeitraum vor Wochenende. null, wenn keine passt. Ausgelagert aus
+   *  getTagesFach, damit sowohl die lokalen als auch die vom Handy synchronisierten
+   *  Fern-Regeln (siehe getFernRegeln) mit derselben Logik geprueft werden koennen. */
+  function findeZutreffendeRegel(regeln, heute, heuteIso) {
     const einzeltag = regeln.find(r => r.typ === 'einzeltag' && r.datum === heuteIso);
-    if (einzeltag) return einzeltag.fach;
+    if (einzeltag) return einzeltag;
 
     const zeitraum = regeln.find(r => r.typ === 'zeitraum' && r.von <= heuteIso && heuteIso <= r.bis);
-    if (zeitraum) return zeitraum.fach;
+    if (zeitraum) return zeitraum;
 
     const istWochenende = heute.getDay() === 0 || heute.getDay() === 6;
     if (istWochenende) {
       const wochenendeRegel = regeln.find(r => r.typ === 'wochenende');
-      if (wochenendeRegel) return wochenendeRegel.fach;
+      if (wochenendeRegel) return wochenendeRegel;
     }
+    return null;
+  }
+
+  /** Welches Fach (mathe/deutsch) ist heute als Tagesaufgabe im Tagesplan
+   *  hervorgehoben? Prueft zuerst die vom Handy synchronisierten Fern-Regeln
+   *  (siehe fernsync.js - die sind "frischer", Papa hat sie gerade eben gesetzt),
+   *  dann Ulis lokal am Tablet gesetzte Regeln, und faellt sonst auf eine feste
+   *  taegliche Abwechslung zurueck (gerader Tag im Jahr = Mathe, ungerader =
+   *  Deutsch), damit ohne jede Regel trotzdem taeglich gewechselt wird. Das
+   *  andere Fach bleibt im Tagesplan immer zusaetzlich als "Extra" antippbar -
+   *  diese Funktion sperrt nichts, sie entscheidet nur, was hervorgehoben wird. */
+  function getTagesFach() {
+    const heute = new Date();
+    const heuteIso = heutigesDatum();
+
+    const fernTreffer = findeZutreffendeRegel(getFernRegeln(), heute, heuteIso);
+    if (fernTreffer) return fernTreffer.fach;
+
+    const lokalerTreffer = findeZutreffendeRegel(getTagesplanRegeln(), heute, heuteIso);
+    if (lokalerTreffer) return lokalerTreffer.fach;
 
     const jahresanfang = new Date(heute.getFullYear(), 0, 1);
     const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
     return tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
+  }
+
+  /** Vom Handy aus (ueber das Max-Tablet-Backend) gesetzte Regeln + freie
+   *  Zusatzaufgaben - siehe fernsync.js. Rein clientseitig gecached, wird bei
+   *  jedem erfolgreichen Poll komplett ueberschrieben (Server ist die Quelle
+   *  der Wahrheit); ohne Internet/Backend bleibt einfach der letzte Stand. */
+  function getFernRegeln() {
+    if (!state.fernstand) state.fernstand = { regeln: [], zusatzaufgaben: [] };
+    return state.fernstand.regeln;
+  }
+
+  function getFernZusatzaufgaben() {
+    if (!state.fernstand) state.fernstand = { regeln: [], zusatzaufgaben: [] };
+    return state.fernstand.zusatzaufgaben;
+  }
+
+  function setFernstand(regeln, zusatzaufgaben) {
+    state.fernstand = { regeln: regeln || [], zusatzaufgaben: zusatzaufgaben || [] };
+    save(state);
+  }
+
+  /** Optimistisches lokales Abhaken direkt nach dem Antippen, bevor die
+   *  Server-Bestaetigung (per POST, siehe fernsync.js) zurueck ist - damit sich
+   *  der Haken beim Antippen sofort und nicht erst nach dem naechsten Poll zeigt. */
+  function markiereFernZusatzaufgabeLokalErledigt(id) {
+    if (!state.fernstand) return;
+    const a = state.fernstand.zusatzaufgaben.find(x => x.id === id);
+    if (a) { a.erledigt = true; save(state); }
   }
 
   function addAntwort(fach, korrekt) {
@@ -433,6 +478,7 @@ const Storage = (function () {
     getTagesplanRegeln, setTagesplanRegeln, getTagesFach,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,
-    getSchachTagesplan, meldeTagesplanSchrittErledigt
+    getSchachTagesplan, meldeTagesplanSchrittErledigt,
+    getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt
   };
 })();

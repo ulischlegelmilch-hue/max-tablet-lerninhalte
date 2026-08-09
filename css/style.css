@@ -122,6 +122,27 @@ html, body {
   margin: 0 auto var(--space-6);
 }
 .tagesplan-titel { font-size: 13px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: var(--space-3); }
+
+/* Zusatzaufgaben-Karte "Von Papa" (siehe fernsync.js) */
+.fernaufgaben-banner {
+  max-width: 1300px;
+  margin: 0 auto var(--space-6);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+}
+.fernaufgaben-titel { font-size: 13px; font-weight: 700; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: var(--space-2); }
+.fernaufgabe-zeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+.fernaufgabe-erledigt { color: var(--ink-soft); text-decoration: line-through; }
 .tagesplan-liste {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
