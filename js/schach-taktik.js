@@ -172,9 +172,14 @@ const SchachTaktik = (function () {
         <div class="schach-info">Puzzle ${nr} / ${total} · ${infoText}</div>
         ${feedbackHtml}
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${rangLeisteHtml}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${rangLeisteHtml}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
+          </div>
         </div>
       </div>
     `);

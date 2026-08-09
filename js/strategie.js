@@ -205,9 +205,14 @@ const Strategie = (function () {
         <div class="schach-info">${gmBeendet ? '' : (gmZustand.amZug === 'w' ? 'Du bist am Zug' : 'Der König überlegt…')}</div>
         ${statusHtml}
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          </div>
         </div>
         <div class="btn-primary" onclick="Strategie.starteGrundmatt('${gmFigurTyp}')" style="margin-top:16px;">Neu starten</div>
       </div>

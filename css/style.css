@@ -643,19 +643,38 @@ html, body {
    Fensters minus Platz für Topbar/Statuszeilen), damit es auf jedem Display -
    egal ob Hoch- oder Querformat - so groß wie möglich, aber ohne Scrollen passt.
    Koordinaten sitzen wie bei einem echten Brett AUSSERHALB der Felder: eine
-   schmale Rang-Spalte links + Datei-Zeile unten, per CSS-Grid exakt an die
-   8x8-Feldaufteilung des Bretts angeglichen (kein Verrutschen bei versch.
-   Bildschirmgroessen, da alles von derselben Breitenformel abhaengt). */
+   schmale Rang-Spalte links + Datei-Zeile unten. Bewusst mit Flexbox statt
+   CSS-Grid gebaut: Grid haette die Rang-Spaltenhoehe implizit aus der
+   aspect-ratio des Bretts herleiten muessen (Zeilenhoehe "1fr" neben einem
+   aspect-ratio-Kind) - das ist browserabhaengig unzuverlaessig und hat auf
+   dem echten Tablet zu einem winzigen, kaum lesbaren Brett gefuehrt. Flexbox
+   mit align-items:stretch (Standard) ist dagegen simples, seit Jahren
+   ueberall verlaessliches Verhalten. */
 .schach-rahmen {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  grid-template-rows: 1fr 22px;
   width: min(94vw, 60vh, 820px);
   margin: 0 auto;
 }
+.schach-brett-zeile {
+  display: flex;
+  align-items: stretch;
+}
+.schach-rang-leiste {
+  width: 22px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+.schach-rang-leiste > div {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
 .schach-brett {
-  grid-column: 2;
-  grid-row: 1;
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
@@ -665,33 +684,32 @@ html, body {
   box-shadow: var(--shadow-md);
   border: 1px solid var(--border);
 }
-.schach-rang-leiste {
-  grid-column: 1;
-  grid-row: 1;
-  display: grid;
-  grid-template-rows: repeat(8, 1fr);
-  align-items: center;
-  justify-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-soft);
+.schach-datei-zeile {
+  display: flex;
+}
+.schach-rang-spacer {
+  width: 22px;
+  flex-shrink: 0;
 }
 .schach-datei-leiste {
-  grid-column: 2;
-  grid-row: 2;
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  justify-items: center;
+  padding-top: 4px;
+}
+.schach-datei-leiste > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-soft);
-  padding-top: 4px;
 }
 .schach-feld {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(min(94vw, 60vh, 820px) / 8 * 0.72);
+  font-size: calc((min(94vw, 60vh, 820px) - 22px) / 8 * 0.72);
   cursor: pointer;
   position: relative;
 }

@@ -120,9 +120,14 @@ const SchachLektionen = (function () {
         <div class="schach-info">${lekt.titel} (${figurIndex + 1}/${FIGUREN_LEKTIONEN.length})</div>
         <div class="lese-text">${lekt.text}<br><br><b>Tipp:</b> Tippe die Figur an - dann siehst du, wohin sie ziehen darf.</div>
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          </div>
         </div>
         <div class="btn-primary" onclick="SchachLektionen.naechsteFigurLektion()">${letzte ? 'Fertig' : 'Weiter'}</div>
       </div>
@@ -219,9 +224,14 @@ const SchachLektionen = (function () {
         <div class="lese-text">${schritt.erklaerung}</div>
         ${hinweisHtml}
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          </div>
         </div>
       </div>
     `);
@@ -588,9 +598,14 @@ const SchachLektionen = (function () {
         <div class="lese-text">${a.anweisung}</div>
         ${feedbackHtml}
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          </div>
         </div>
       </div>
     `);

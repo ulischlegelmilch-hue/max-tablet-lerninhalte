@@ -53,9 +53,14 @@ const Konzentration = (function () {
         <div class="schach-info">Runde ${koordSession.index + 1} / ${koordSession.runden.length}</div>
         <div class="koord-ziel">Finde: <span class="koord-ziel-name">${feldName(ziel.rank, ziel.file)}</span></div>
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
-          <div class="schach-brett">${zellenHtml.join('')}</div>
-          <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${RANG_LEISTE_WEISS}</div>
+            <div class="schach-brett">${zellenHtml.join('')}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${DATEI_LEISTE_WEISS}</div>
+          </div>
         </div>
       </div>
     `);

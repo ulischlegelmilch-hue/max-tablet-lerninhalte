@@ -136,9 +136,14 @@ const SchachOnline = (function () {
     const { rang, datei } = koordLeisten(felderOrient);
     return `
       <div class="schach-rahmen">
-        <div class="schach-rang-leiste">${rang}</div>
-        <div class="schach-brett">${zellen}</div>
-        <div class="schach-datei-leiste">${datei}</div>
+        <div class="schach-brett-zeile">
+          <div class="schach-rang-leiste">${rang}</div>
+          <div class="schach-brett">${zellen}</div>
+        </div>
+        <div class="schach-datei-zeile">
+          <div class="schach-rang-spacer"></div>
+          <div class="schach-datei-leiste">${datei}</div>
+        </div>
       </div>
     `;
   }

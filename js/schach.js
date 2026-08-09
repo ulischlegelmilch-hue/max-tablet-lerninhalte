@@ -214,9 +214,14 @@ const Schach = (function () {
         <div class="schach-info">${infoText}</div>
         ${statusHtml}
         <div class="schach-rahmen">
-          <div class="schach-rang-leiste">${rangLeisteHtml}</div>
-          <div class="schach-brett">${zellenHtml}</div>
-          <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
+          <div class="schach-brett-zeile">
+            <div class="schach-rang-leiste">${rangLeisteHtml}</div>
+            <div class="schach-brett">${zellenHtml}</div>
+          </div>
+          <div class="schach-datei-zeile">
+            <div class="schach-rang-spacer"></div>
+            <div class="schach-datei-leiste">${dateiLeisteHtml}</div>
+          </div>
         </div>
         <div class="btn-primary" onclick="Schach.starteSpiel('${spielerFarbe}')" style="margin-top:16px;">Neue Partie</div>
       </div>
