@@ -48,7 +48,11 @@ const Storage = (function () {
       // Vom Handy aus gesetzter Stand (siehe fernsync.js) - rein clientseitig
       // gecacht, wird bei jedem erfolgreichen Poll gegen das Max-Tablet-Backend
       // komplett ersetzt.
-      fernstand: { regeln: [], zusatzaufgaben: [] }
+      fernstand: { regeln: [], zusatzaufgaben: [] },
+      // Fortschritt in bildbasierten Buechern (Lesemodus, siehe lesemodus.js) -
+      // eigenes Feld statt leseFortschritt, weil Buecher seitenbasiert sind
+      // (Seitenzahl statt scrollTop) und keine Verstaendnisfragen haben.
+      buchFortschritt: {}
     };
   }
 
@@ -230,6 +234,28 @@ const Storage = (function () {
     if (!state.leseFortschritt[index]) state.leseFortschritt[index] = { scrollTop: 0 };
     state.leseFortschritt[index].fertig = true;
     save(state);
+  }
+
+  /** Fortschritt in einem Lesemodus-Buch (siehe lesemodus.js) - buchId ist ein
+   *  fester String-Schluessel (z.B. "enzo"), nicht wie bei Geschichten ein Index. */
+  function getBuchFortschritt(buchId) {
+    return (state.buchFortschritt && state.buchFortschritt[buchId]) || null;
+  }
+
+  function saveBuchSeite(buchId, seite) {
+    if (!state.buchFortschritt) state.buchFortschritt = {};
+    const bestehend = state.buchFortschritt[buchId];
+    state.buchFortschritt[buchId] = { seite, fertig: bestehend ? bestehend.fertig : false };
+    save(state);
+  }
+
+  function markBuchFertig(buchId) {
+    if (!state.buchFortschritt) state.buchFortschritt = {};
+    if (!state.buchFortschritt[buchId]) state.buchFortschritt[buchId] = { seite: 0 };
+    const warSchonFertig = state.buchFortschritt[buchId].fertig;
+    state.buchFortschritt[buchId].fertig = true;
+    save(state);
+    return !warSchonFertig; // true, wenn dies das erste Mal ist (fuer Sterne-Vergabe)
   }
 
   /** Karteikarten-Statistik pro Malfolge (z. B. "3x7"): wie oft falsch beantwortet
@@ -479,6 +505,7 @@ const Storage = (function () {
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
-    getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt
+    getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
+    getBuchFortschritt, saveBuchSeite, markBuchFertig
   };
 })();

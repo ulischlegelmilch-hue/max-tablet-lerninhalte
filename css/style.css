@@ -90,6 +90,41 @@ html, body {
   overflow-y: auto;
   padding: 28px;
 }
+/* Lesemodus (siehe lesemodus.js): #app-root nimmt beim Aktivieren die volle
+   Bildschirmhoehe ein (Topbar ist dann per JS ausgeblendet) und verliert
+   sein Padding - "wie bei einem E-Reader, nur das Buch bleibt". */
+#app-root.lesemodus-aktiv { height: 100%; padding: 0; overflow: hidden; }
+
+.lesemodus-seite { position: relative; width: 100%; height: 100%; background: #111; display: flex; align-items: center; justify-content: center; }
+.lesemodus-bild { max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-select: none; }
+.lesemodus-tap-links, .lesemodus-tap-mitte, .lesemodus-tap-rechts { position: absolute; top: 0; bottom: 0; }
+.lesemodus-tap-links { left: 0; width: 28%; }
+.lesemodus-tap-mitte { left: 28%; width: 44%; }
+.lesemodus-tap-rechts { right: 0; width: 28%; }
+.lesemodus-leiste {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  background: linear-gradient(180deg, rgba(0,0,0,.7), transparent);
+  color: #fff;
+  pointer-events: none;
+}
+.lesemodus-verlassen {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.15);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  pointer-events: auto;
+}
+.lesemodus-verlassen svg { width: 18px; height: 18px; }
+.lesemodus-titel { font-size: 14px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.lesemodus-fertig {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.85);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fff; text-align: center; gap: 18px; padding: 32px;
+}
 
 /* Startbildschirm: Begrüßung + Avatar + Tages-Streak. */
 .home-greeting {
@@ -274,6 +309,23 @@ html, body {
 }
 .badge-fertig { background: #3C9D5C; }
 .badge-weiter { background: #D9922C; }
+.story-buch-cover {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+}
+.story-unterueberschrift {
+  max-width: 900px;
+  margin: 28px auto 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
 
 /* Lese-Ansicht für ganze Geschichten */
 .story-reader {

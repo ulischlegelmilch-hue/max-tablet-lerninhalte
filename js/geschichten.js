@@ -247,6 +247,26 @@ const Geschichten = (function () {
     }
   ];
 
+  // Bildbasierte Buecher (aus einem PDF gerenderte Seiten, siehe lesemodus.js)
+  // - eigene, kleine Liste statt Teil von `bank`, weil sie weder Kapitel noch
+  // Verstaendnisfragen haben, sondern seitenweise im Lesemodus durchgeblaettert
+  // werden. seiten = Anzahl JPG-Dateien seite-01.jpg..seite-NN.jpg im Ordner.
+  const buecher = [
+    { id: 'enzo', titel: 'ENZO – Die Legende vom roten Rennstall', seiten: 20, ordner: 'images/buecher/enzo' }
+  ];
+
+  function buchSeitenUrls(buch) {
+    const urls = [];
+    for (let i = 1; i <= buch.seiten; i++) urls.push(`${buch.ordner}/seite-${String(i).padStart(2, '0')}.jpg`);
+    return urls;
+  }
+
+  function leseBuch(id) {
+    const buch = buecher.find(b => b.id === id);
+    if (!buch) return;
+    Lesemodus.starteBuch(buch.id, buch.titel, buchSeitenUrls(buch), renderMenu);
+  }
+
   // Lesefortschritt: merkt sich die Scroll-Position, damit Max nicht immer
   // von vorne anfangen muss, wenn er eine Geschichte nicht zu Ende liest.
   let aktiverIndex = null;
@@ -291,10 +311,24 @@ const Geschichten = (function () {
        </div>`;
     }).join('');
 
+    const buecherCards = buecher.map(b => {
+      const fortschritt = Storage.getBuchFortschritt(b.id);
+      let badge = '';
+      if (fortschritt && fortschritt.fertig) badge = '<div class="story-badge badge-fertig">✔ gelesen</div>';
+      else if (fortschritt && fortschritt.seite > 0) badge = '<div class="story-badge badge-weiter">↻ weiterlesen</div>';
+      return `<div class="story-card" onclick="Geschichten.leseBuch('${b.id}')">
+         ${badge}
+         <img class="story-buch-cover" src="${b.ordner}/seite-01.jpg">
+         <div class="story-titel">${b.titel}</div>
+       </div>`;
+    }).join('');
+
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Wähle eine Geschichte zum Lesen</div>
       <div class="story-grid">${cards}</div>
+      <div class="story-unterueberschrift">Bücher zum Lesen</div>
+      <div class="story-grid">${buecherCards}</div>
     `);
   }
 
@@ -342,5 +376,5 @@ const Geschichten = (function () {
     starter();
   }
 
-  return { renderMenu, leseGeschichte, starteFragen, naechsteOffene };
+  return { renderMenu, leseGeschichte, starteFragen, naechsteOffene, leseBuch };
 })();
