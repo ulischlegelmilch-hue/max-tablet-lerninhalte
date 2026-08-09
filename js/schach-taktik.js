@@ -260,6 +260,7 @@ const SchachTaktik = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="SchachTaktik.renderMenu()">Zurück zur Themenwahl</div>
       </div>
     `);
+    FernSync.meldeLernsetErledigt('Taktik: ' + THEMEN[session.thema].name, `${session.richtigCount} von ${total} richtig`, session.sterneGesamt);
   }
 
   return { renderMenu, starteSession, feldGeklickt };

@@ -48,6 +48,7 @@ const Strategie = (function () {
       typ: 'mc', frage: f.frage, optionen: f.optionen, richtigIndex: f.richtig
     }));
     const starter = () => App.startQuizSession('schach', auswahl, {
+      titel: 'Eröffnungsprinzipien-Quiz',
       onFinish: () => Storage.meldeTagesplanSchrittErledigt('strategie')
     });
     App.setLastStarter(starter);
@@ -95,6 +96,7 @@ const Strategie = (function () {
       typ: 'mc', frage: f.frage, optionen: f.optionen, richtigIndex: f.richtig
     }));
     const starter = () => App.startQuizSession('schach', auswahl, {
+      titel: 'Materialwerte-Quiz',
       onFinish: () => Storage.meldeTagesplanSchrittErledigt('strategie')
     });
     App.setLastStarter(starter);
@@ -258,6 +260,7 @@ const Strategie = (function () {
       typ: 'mc', frage: f.frage, optionen: f.optionen, richtigIndex: f.richtig
     }));
     const starter = () => App.startQuizSession('schach', auswahl, {
+      titel: 'Bauernendspiel-Quiz',
       onFinish: () => Storage.meldeTagesplanSchrittErledigt('strategie')
     });
     App.setLastStarter(starter);

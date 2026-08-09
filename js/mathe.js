@@ -335,7 +335,7 @@ const Mathe = (function () {
   }
 
   function starteMalfolgen() {
-    const starter = () => App.startQuizSession('mathe', genMalfolgenSession(15), { wiederholeFalsche: true });
+    const starter = () => App.startQuizSession('mathe', genMalfolgenSession(15), { titel: 'Malfolgen üben', wiederholeFalsche: true });
     App.setLastStarter(starter); starter();
   }
 
@@ -393,7 +393,7 @@ const Mathe = (function () {
   }
 
   function starteTagesaufgabe() {
-    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20));
+    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20), { titel: 'Mathe-Tagesaufgabe' });
     App.setLastStarter(starter); starter();
   }
 

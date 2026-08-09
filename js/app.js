@@ -349,6 +349,10 @@ const App = (function () {
     session = {
       fach, fragen, index: 0, sessionSterne: 0, richtigCount: 0,
       onFinish: config && config.onFinish,
+      // Lesbarer Titel fuer die Papa-Auswertung/Push-Meldung (siehe
+      // renderErgebnis) - faellt auf den fach-Kuerzel zurueck, wenn keiner
+      // mitgegeben wurde.
+      titel: (config && config.titel) || fach,
       // Wenn true: falsch beantwortete Fragen werden ein paar Fragen spaeter
       // erneut eingereiht (Karteikarten-Prinzip), statt einfach zu verschwinden.
       wiederholeFalsche: !!(config && config.wiederholeFalsche)
@@ -495,6 +499,7 @@ const App = (function () {
     `);
 
     if (typeof session.onFinish === 'function') session.onFinish();
+    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne);
   }
 
   let lastStarter = null;

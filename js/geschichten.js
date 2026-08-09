@@ -335,6 +335,7 @@ const Geschichten = (function () {
       richtigIndex: f.richtig
     }));
     const starter = () => App.startQuizSession('lesen', fragen, {
+      titel: 'Verständnisfragen: ' + g.titel,
       onFinish: () => Storage.markGeschichteFertig(i)
     });
     App.setLastStarter(starter);

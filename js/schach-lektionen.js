@@ -535,6 +535,10 @@ const SchachLektionen = (function () {
     haengt: generiereHaengtAufgabe, fallen: generiereFalleAufgabe
   };
   const ANZAHL_PRO_KATEGORIE = { schlagen: 6, schach: 6, matt: 6, haengt: 6, fallen: 3 };
+  const KATEGORIE_NAMEN = {
+    schlagen: 'Schlagen üben', schach: 'Schach geben', matt: 'Matt in 1',
+    haengt: 'Nicht hängen lassen', fallen: 'Fallen erkennen'
+  };
 
   let puzzleSession = null;
   let puzzleZustand = null;
@@ -636,6 +640,11 @@ const SchachLektionen = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="SchachLektionen.renderMenu()">Zurück zu den Lektionen</div>
       </div>
     `);
+    FernSync.meldeLernsetErledigt(
+      'Lektion: ' + (KATEGORIE_NAMEN[puzzleSession.kategorie] || puzzleSession.kategorie),
+      `${puzzleSession.richtigCount} von ${total} richtig`,
+      puzzleSession.sterneGesamt
+    );
   }
 
   return {

@@ -142,11 +142,11 @@ const Deutsch = (function () {
   }
 
   function starteRechtschreibung() {
-    const starter = () => App.startQuizSession('deutsch', genRechtschreibung(10));
+    const starter = () => App.startQuizSession('deutsch', genRechtschreibung(10), { titel: 'Rechtschreibung' });
     App.setLastStarter(starter); starter();
   }
   function starteLesen() {
-    const starter = () => App.startQuizSession('deutsch', genLesen(4));
+    const starter = () => App.startQuizSession('deutsch', genLesen(4), { titel: 'Lesen & Verstehen' });
     App.setLastStarter(starter); starter();
   }
 

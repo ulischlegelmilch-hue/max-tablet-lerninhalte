@@ -71,5 +71,21 @@ const FernSync = (function () {
     setInterval(poll, POLL_INTERVAL_MS);
   }
 
-  return { init, poll, zusatzaufgabenHtml, meldeErledigt };
+  /** Meldet ein abgeschlossenes Uebungs-/Quiz-Set an Papas Backend - loest dort
+   *  sofort eine Push-Benachrichtigung aus UND landet in der Auswertung. Fire-
+   *  and-forget wie meldeErledigt: schlaegt der Versuch fehl (kein Internet),
+   *  bleibt einfach keine Meldung dieses Mals aus, nichts an der App haengt
+   *  davon ab. titel/zusammenfassung sind schon fertig lesbarer Text (z.B.
+   *  "Mathe-Tagesaufgabe" / "8 von 10 richtig"), damit das Backend keine
+   *  Detailkenntnis der einzelnen Uebungsarten braucht. */
+  function meldeLernsetErledigt(titel, zusammenfassung, sterne) {
+    if (!BACKEND_URL) return;
+    fetchMitTimeout(BACKEND_URL + '/api/lernset-erledigt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titel, zusammenfassung, sterne })
+    }).catch(() => {});
+  }
+
+  return { init, poll, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt };
 })();

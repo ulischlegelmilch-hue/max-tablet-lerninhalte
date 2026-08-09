@@ -86,7 +86,7 @@ const Heimatkunde = (function () {
     // Fragen-Generierung MUSS innerhalb des Closures passieren, nicht davor -
     // sonst wuerde "Nochmal ueben" (App.restartLast) immer dieselbe bereits
     // berechnete Auswahl/Reihenfolge erneut abspielen statt neu zu mischen.
-    const starter = () => App.startQuizSession('heimat', genVerkehrszeichenFragen());
+    const starter = () => App.startQuizSession('heimat', genVerkehrszeichenFragen(), { titel: 'Verkehrszeichen-Quiz' });
     App.setLastStarter(starter);
     starter();
   }

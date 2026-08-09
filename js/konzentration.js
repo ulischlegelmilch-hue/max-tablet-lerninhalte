@@ -87,6 +87,7 @@ const Konzentration = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Konzentration.renderMenu()">Zurück</div>
       </div>
     `);
+    FernSync.meldeLernsetErledigt('Koordinaten finden', `${sek} Sekunden${istNeuerRekord ? ' (neue Bestzeit!)' : ''}`, 20);
   }
 
   // -----------------------------------------------------------------------
@@ -114,6 +115,7 @@ const Konzentration = (function () {
 
   function starteFeldfarbe() {
     const starter = () => App.startQuizSession('schach', genFeldfarbeFragen(10), {
+      titel: 'Feldfarbe-Quiz',
       onFinish: () => Storage.meldeTagesplanSchrittErledigt('konzentration')
     });
     App.setLastStarter(starter);
@@ -251,6 +253,7 @@ const Konzentration = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Konzentration.renderMenu()">Zurück</div>
       </div>
     `);
+    FernSync.meldeLernsetErledigt('Läufer-Weg merken', `${laeuferSession.richtigCount} von ${total} richtig`, laeuferSession.sterneGesamt);
   }
 
   return {
