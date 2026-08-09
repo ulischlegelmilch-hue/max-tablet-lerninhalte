@@ -35,6 +35,7 @@
   --geschichten: #6B4A92;  --geschichten-soft: #E4D8F0;
   --heimat: #47795A;       --heimat-soft: #D9EBDD;
   --schach: #363B4A;       --schach-soft: #DCDEE4;
+  --chat: #B8456B;         --chat-soft: #F6DCE6;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -221,6 +222,7 @@ html, body {
 .icon-geschichten { background: var(--geschichten); color: #fff; }
 .icon-heimat { background: var(--heimat); color: #fff; }
 .icon-schach { background: var(--schach); color: #fff; }
+.icon-chat { background: var(--chat); color: #fff; }
 
 /* Menu-Card/Tagesplan-Chip bekommen den hellen Fach-Tint als Kartenhintergrund
    (nicht nur einen duennen Rand) - Farbe traegt jetzt sichtbar die ganze
@@ -230,6 +232,7 @@ html, body {
 .accent-geschichten { background: var(--geschichten-soft); border-color: var(--geschichten); }
 .accent-heimat { background: var(--heimat-soft); border-color: var(--heimat); }
 .accent-schach { background: var(--schach-soft); border-color: var(--schach); }
+.accent-chat { background: var(--chat-soft); border-color: var(--chat); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
@@ -904,3 +907,65 @@ html, body {
 .wert-zeile:last-child { border-bottom: none; }
 .wert-name { font-weight: 700; color: var(--ink); }
 .wert-punkte { color: var(--accent-dark); letter-spacing: 1px; }
+
+/* Chat mit Papa */
+.chat-liste {
+  max-width: 700px;
+  margin: 0 auto var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 200px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+.chat-blase {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  line-height: 1.4;
+}
+.chat-blase-eigene {
+  align-self: flex-end;
+  background: var(--chat);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.chat-blase-fremd {
+  align-self: flex-start;
+  background: var(--muted);
+  color: var(--ink);
+  border-bottom-left-radius: 3px;
+}
+.chat-blase-zeit {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 3px;
+}
+.chat-eingabe-zeile {
+  max-width: 700px;
+  margin: 0 auto;
+  display: flex;
+  gap: var(--space-2);
+}
+.chat-eingabe {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 16px;
+  font-family: var(--font);
+  user-select: text;
+}
+.chat-senden-btn {
+  background: var(--chat);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}

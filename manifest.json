@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-09-2224",
+  "version": "2026-08-09-2246",
   "files": [
     "css/style.css",
     "images/verkehrszeichen/101_gefahrstelle.svg",
@@ -24,6 +24,7 @@
     "images/verkehrszeichen/357_sackgasse.svg",
     "index.html",
     "js/app.js",
+    "js/chat.js",
     "js/deutsch.js",
     "js/fernsync.js",
     "js/geschichten.js",

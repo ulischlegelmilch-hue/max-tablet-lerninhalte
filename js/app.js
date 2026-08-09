@@ -139,6 +139,10 @@ const App = (function () {
           <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
           <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
         </div>
+        <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
+          <span class="menu-icon icon-chat">${Icons.svg('chat')}</span>
+          <span class="menu-text"><span class="menu-label">Chat mit Papa</span><span class="menu-progress">Nachricht schreiben</span></span>
+        </div>
       </div>
     `);
   }

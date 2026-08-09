@@ -10,6 +10,10 @@ const FernSync = (function () {
   const POLL_INTERVAL_MS = 5 * 60 * 1000;
   const FETCH_TIMEOUT_MS = 10000;
 
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   async function fetchMitTimeout(url, options) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -45,7 +49,7 @@ const FernSync = (function () {
     if (!aufgaben.length) return '';
     const zeilenHtml = aufgaben.map(a => `
       <div class="fernaufgabe-zeile${a.erledigt ? ' fernaufgabe-erledigt' : ''}">
-        <span>${a.erledigt ? '✅' : '⬜'} ${a.text}</span>
+        <span>${a.erledigt ? '✅' : '⬜'} ${escapeHtml(a.text)}</span>
         ${a.erledigt ? '' : `<span class="btn-primary" style="padding:6px 14px;font-size:13px;" onclick="FernSync.meldeErledigt(${a.id})">Erledigt</span>`}
       </div>
     `).join('');
