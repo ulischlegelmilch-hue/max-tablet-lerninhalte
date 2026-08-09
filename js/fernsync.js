@@ -6,10 +6,7 @@
 // URL noch nicht gesetzt), bleibt einfach der zuletzt bekannte Stand erhalten -
 // nichts an der App haengt vom Erfolg dieses Polls ab.
 const FernSync = (function () {
-  // TODO(Uli): nach dem Anlegen des Render-Services die echte URL eintragen,
-  // z.B. "https://max-tablet-backend.onrender.com" (ohne Slash am Ende).
-  // Leer lassen = Fernsteuerung bleibt inaktiv, der Rest der App laeuft normal.
-  const BACKEND_URL = '';
+  const BACKEND_URL = 'https://max-tablet-backend.onrender.com';
   const POLL_INTERVAL_MS = 5 * 60 * 1000;
   const FETCH_TIMEOUT_MS = 10000;
 
