@@ -600,6 +600,35 @@ html, body {
   white-space: nowrap;
 }
 
+/* Datentabelle (Mathe: Diagramme lesen - Streifentabelle) */
+.daten-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-top: 4px;
+}
+.daten-tabelle th,
+.daten-tabelle td {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  text-align: center;
+}
+.daten-tabelle th {
+  background: var(--muted);
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+.daten-tabelle td.tab-luecke {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.aufgaben-hinweis {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
 .optionen {
   display: grid;
   grid-template-columns: 1fr 1fr;
