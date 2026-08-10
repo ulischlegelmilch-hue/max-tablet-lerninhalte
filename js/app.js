@@ -338,10 +338,20 @@ const App = (function () {
     renderQuestion();
   }
 
+  // Zweiter Versuch + Hilfe-Button: nur Fragen mit eigenem f.hilfe (Erklaerung
+  // mit einem ANDEREN Beispiel desselben Aufgabentyps) bekommen die neue
+  // Ablauf-Logik. Fragen ohne hilfe (z.B. andere Faecher, die die hilfe noch
+  // nicht eingepflegt haben) verhalten sich wie bisher: 1 Versuch, direkt fertig.
+  let eingabe = '';
+  let versuch = 1;
+  let hilfeGenutzt = false;
+
   function renderQuestion() {
     const f = session.fragen[session.index];
     const total = session.fragen.length;
     const nr = session.index + 1;
+    versuch = 1;
+    hilfeGenutzt = false;
 
     let bodyHtml = '';
     if (f.lesetext) {
@@ -358,6 +368,7 @@ const App = (function () {
       bodyHtml += `<div class="optionen" id="optionen"></div>`;
     }
     bodyHtml += `<div class="feedback" id="feedback"></div>`;
+    bodyHtml += `<div class="hilfe-bereich" id="hilfe-bereich"></div>`;
 
     render(`
       <div class="quiz-wrap">
@@ -378,6 +389,7 @@ const App = (function () {
 
   function renderOptionen(f) {
     const wrap = document.getElementById('optionen');
+    wrap.innerHTML = '';
     f.optionen.forEach((opt, i) => {
       const btn = document.createElement('div');
       btn.className = 'option-btn';
@@ -393,14 +405,15 @@ const App = (function () {
     const korrekt = i === f.richtigIndex;
     buttons[i].classList.add(korrekt ? 'richtig' : 'falsch');
     if (!korrekt) buttons[f.richtigIndex].classList.add('richtig');
-    abschlussFrage(korrekt);
+    verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f));
   }
 
-  let eingabe = '';
   function renderKeypad(f) {
     eingabe = '';
     const anzeige = document.getElementById('zahl-anzeige');
     const pad = document.getElementById('keypad');
+    pad.innerHTML = '';
+    anzeige.textContent = ' ';
     const tasten = ['1','2','3','4','5','6','7','8','9','⌫','0','OK'];
     tasten.forEach(t => {
       const btn = document.createElement('div');
@@ -413,26 +426,66 @@ const App = (function () {
           if (eingabe === '') return;
           document.querySelectorAll('.key-btn').forEach(b => b.onclick = null);
           const korrekt = parseInt(eingabe, 10) === f.antwort;
-          abschlussFrage(korrekt, f.antwort);
+          verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderKeypad(f));
           return;
         } else if (eingabe.length < 6) {
           eingabe += t;
         }
-        anzeige.textContent = eingabe === '' ? ' ' : eingabe;
+        anzeige.textContent = eingabe === '' ? ' ' : eingabe;
       };
       pad.appendChild(btn);
     });
   }
 
-  function abschlussFrage(korrekt, richtigeAntwort) {
-    const gained = Storage.addAntwort(session.fach, korrekt);
+  // Zentrale Weiche fuer JEDE Antwort (MC wie numerisch). neuerVersuch() baut
+  // die Eingabe-UI (Keypad/Optionen) fuer den 2. Versuch frisch auf.
+  function verarbeiteQuizAntwort(f, korrekt, richtigeAntwort, neuerVersuch) {
+    const hatHilfe = typeof f.hilfe === 'string' && f.hilfe.length > 0;
+
+    if (!korrekt && hatHilfe && versuch === 1) {
+      versuch = 2;
+      const fb = document.getElementById('feedback');
+      fb.className = 'feedback nok';
+      fb.textContent = '✘ Leider falsch. Versuch es noch einmal!';
+      document.getElementById('hilfe-bereich').innerHTML =
+        `<div class="btn-hilfe" id="btn-hilfe">💡 Hilfe anzeigen (dann keine ⭐ für diese Aufgabe)</div>`;
+      document.getElementById('btn-hilfe').onclick = () => zeigeHilfe(f);
+      neuerVersuch();
+      return;
+    }
+
+    let faktor = 1;
+    if (hatHilfe) {
+      if (hilfeGenutzt) faktor = 0;
+      else if (versuch >= 2) faktor = 0.5;
+    }
+    abschlussFrage(korrekt, richtigeAntwort, faktor);
+  }
+
+  function zeigeHilfe(f) {
+    hilfeGenutzt = true;
+    document.getElementById('hilfe-bereich').innerHTML = `
+      <div class="hilfe-box">
+        <div class="hilfe-warnung">⚠️ Für diese Aufgabe gibt es jetzt keine ⭐ mehr, auch wenn du sie danach richtig löst.</div>
+        ${f.hilfe}
+      </div>
+    `;
+  }
+
+  function abschlussFrage(korrekt, richtigeAntwort, faktor) {
+    if (faktor === undefined) faktor = 1;
+    const gained = Storage.addAntwort(session.fach, korrekt, faktor);
     if (korrekt) session.richtigCount++;
     session.sessionSterne += gained;
     updateTopbar();
 
     const f = session.fragen[session.index];
-    if (typeof f.aufAntwort === 'function') f.aufAntwort(korrekt);
-    if (!korrekt && session.wiederholeFalsche) {
+    // Fuer die Kategorien-/Karteikarten-Gewichtung zaehlt nur ein sauberer
+    // 1.-Versuch-Erfolg als "gewusst" - 2. Versuch oder Hilfe heisst: noch
+    // nicht sicher, soll also weiterhin oefter drankommen.
+    const giltAlsGewusst = korrekt && faktor >= 1;
+    if (typeof f.aufAntwort === 'function') f.aufAntwort(giltAlsGewusst);
+    if (!giltAlsGewusst && session.wiederholeFalsche) {
       const neuePosition = Math.min(session.fragen.length, session.index + 4);
       session.fragen.splice(neuePosition, 0, f);
     }
@@ -440,13 +493,16 @@ const App = (function () {
     const fb = document.getElementById('feedback');
     if (korrekt) {
       fb.className = 'feedback ok';
-      fb.textContent = '✔ Richtig! +' + gained + ' ⭐';
+      if (faktor === 0) fb.textContent = '✔ Richtig! Aber keine ⭐ (Hilfe genutzt).';
+      else if (faktor < 1) fb.textContent = `✔ Richtig! +${gained} ⭐ (halbe Punkte, 2. Versuch)`;
+      else fb.textContent = '✔ Richtig! +' + gained + ' ⭐';
     } else {
       fb.className = 'feedback nok';
       fb.textContent = richtigeAntwort !== undefined
         ? '✘ Leider falsch. Richtig wäre: ' + richtigeAntwort
         : '✘ Leider falsch.';
     }
+    document.getElementById('hilfe-bereich').innerHTML = '';
 
     setTimeout(() => {
       session.index++;

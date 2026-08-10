@@ -690,6 +690,36 @@ html, body {
 .feedback.ok { color: #1D6B36; }
 .feedback.nok { color: #A3392F; }
 
+/* 2. Versuch + Hilfe-Button (Mathe-Tagesaufgabe u.a., siehe app.js verarbeiteQuizAntwort) */
+.hilfe-bereich:empty { margin: 0; }
+.btn-hilfe {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: #FFF6E5;
+  border: 1px solid #E0A552;
+  color: #94590E;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.btn-hilfe:active { background: #FCEFE1; }
+.hilfe-box {
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  text-align: left;
+  line-height: 1.6;
+  font-size: 16px;
+  color: var(--ink);
+}
+.hilfe-warnung {
+  font-weight: 700;
+  color: #94590E;
+  margin-bottom: 10px;
+}
+
 /* Schach - Optik & Funktionsaufteilung an chess.com angelehnt: gruen/creme-
    farbenes, flaches Brett ohne Rundung, gelbe Markierung fuer ausgewaehltes
    Feld/letzten Zug, Punkt/Ring fuer Zielfelder statt blauer Kreis, sowie

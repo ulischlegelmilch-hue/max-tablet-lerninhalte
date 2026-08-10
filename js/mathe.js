@@ -64,47 +64,119 @@ const Mathe = (function () {
   // liefert "Nochmal üben" automatisch immer wieder frische Aufgaben.
   // Wenn Uli neue Foto-Beispiele schickt, werden die Generatoren hier
   // ersetzt statt die alten zu behalten.
+  //
+  // JEDER Generator liefert zusaetzlich ein Feld "hilfe" (HTML-String):
+  // eine vorgerechnete, ANDERE Beispielaufgabe desselben Typs. Der
+  // Hilfe-Button in app.js (verarbeiteQuizAntwort/zeigeHilfe) erscheint
+  // nur beim 2. Versuch nach einer falschen Antwort und kostet die
+  // Punkte fuer diese Aufgabe. Bei neuen Aufgabentypen IMMER eine
+  // passende hilfe mit einpflegen (siehe erklaerungAddition/-Subtraktion
+  // als wiederverwendbare Bausteine fuer schriftliches Rechnen).
   // ============================================================
+
+  // Zerlegt eine 3-stellige Zahl in [H, Z, E]-Ziffern.
+  function ziffern3(n) { return String(n).padStart(3, '0').split('').map(Number); }
+
+  const STELLEN = ['Hunderter', 'Zehner', 'Einer'];
+
+  // Schritt-fuer-Schritt-Erklaerung einer schriftlichen Addition (mit Uebertrag).
+  function erklaerungAddition(a, b) {
+    const summe = a + b;
+    const za = ziffern3(a), zb = ziffern3(b);
+    let uebertrag = 0;
+    const zeilen = [];
+    for (let i = 2; i >= 0; i--) {
+      const s = za[i] + zb[i] + uebertrag;
+      const ziffer = s % 10;
+      const neuerUebertrag = s >= 10 ? 1 : 0;
+      let zeile = `${STELLEN[i]}: ${za[i]} + ${zb[i]}`;
+      if (uebertrag) zeile += ` + ${uebertrag} (Übertrag)`;
+      zeile += ` = ${s}`;
+      if (neuerUebertrag) zeile += ` → ${ziffer} aufschreiben, 1 übertragen`;
+      zeilen.push(zeile);
+      uebertrag = neuerUebertrag;
+    }
+    return `<strong>Beispiel:</strong> ${a} + ${b} = ?<br>${zeilen.join('<br>')}<br><strong>Ergebnis: ${summe}</strong>`;
+  }
+
+  // Schritt-fuer-Schritt-Erklaerung einer schriftlichen Subtraktion (Abziehverfahren mit Leihen).
+  function erklaerungSubtraktion(a, b) {
+    const differenz = a - b;
+    const za = ziffern3(a);
+    const zb = ziffern3(b);
+    const zeilen = [];
+    let leihe = 0;
+    for (let i = 2; i >= 0; i--) {
+      const oben = za[i] - leihe;
+      const unten = zb[i];
+      const obenText = leihe ? `${za[i]} − 1 (geliehen) = ${oben}` : `${za[i]}`;
+      if (oben < unten) {
+        zeilen.push(`${STELLEN[i]}: ${obenText} − ${unten} geht nicht → leihe von der nächsten Stelle: ${oben + 10} − ${unten} = ${oben + 10 - unten}`);
+        leihe = 1;
+      } else {
+        zeilen.push(`${STELLEN[i]}: ${obenText} − ${unten} = ${oben - unten}`);
+        leihe = 0;
+      }
+    }
+    return `<strong>Beispiel:</strong> ${a} − ${b} = ?<br>${zeilen.join('<br>')}<br><strong>Ergebnis: ${differenz}</strong>`;
+  }
 
   // ---- Schriftlich Addieren/Subtrahieren (3-stellig) ----
   function genAddSubFrage() {
     const plus = Math.random() < 0.5;
     if (plus) {
       const a = rnd(100, 600), b = rnd(100, 999 - a);
-      return { typ: 'numeric', frage: `${a} + ${b} = ?`, antwort: a + b };
+      const a2 = rnd(100, 600), b2 = rnd(100, 999 - a2);
+      return { typ: 'numeric', frage: `${a} + ${b} = ?`, antwort: a + b, hilfe: erklaerungAddition(a2, b2) };
     }
     const a = rnd(200, 950), b = rnd(100, a - 10);
-    return { typ: 'numeric', frage: `${a} − ${b} = ?`, antwort: a - b };
+    const a2 = rnd(200, 950), b2 = rnd(100, a2 - 10);
+    return { typ: 'numeric', frage: `${a} − ${b} = ?`, antwort: a - b, hilfe: erklaerungSubtraktion(a2, b2) };
   }
 
-  // Zerlegt eine 3-stellige Zahl in [H, Z, E]-Ziffern.
-  function ziffern3(n) { return String(n).padStart(3, '0').split('').map(Number); }
-
-  // Subtraktion OHNE Uebertrag: jede Ziffer des Subtrahenden ist <= der
-  // entsprechenden Ziffer des Minuenden, es muss also nirgends geliehen werden.
-  function genSubtraktionOhneUebertrag() {
+  // Erzeugt ein Zahlenpaar OHNE Uebertrag: jede Ziffer des 2. Werts <= der des 1.
+  function beispielOhneUebertrag() {
     const h1 = rnd(2, 9), z1 = rnd(0, 9), e1 = rnd(0, 9);
     const h2 = rnd(1, h1), z2 = rnd(0, z1), e2 = rnd(0, e1);
-    const a = h1 * 100 + z1 * 10 + e1;
-    const b = h2 * 100 + z2 * 10 + e2;
-    return { typ: 'numeric', frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(ohne Übertrag)</span>`, antwort: a - b };
-  }
-
-  // Subtraktion MIT Uebertrag: mind. eine Ziffer des Subtrahenden ist groesser
-  // als die entsprechende Ziffer des Minuenden - es muss geliehen werden.
-  function genSubtraktionMitUebertrag() {
-    let a, b;
-    do {
-      a = rnd(200, 950);
-      b = rnd(100, a - 10);
-    } while (!brauchtUebertrag(a, b));
-    return { typ: 'numeric', frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(mit Übertrag)</span>`, antwort: a - b };
+    return { a: h1 * 100 + z1 * 10 + e1, b: h2 * 100 + z2 * 10 + e2 };
   }
 
   function brauchtUebertrag(a, b) {
     const [ah, az, ae] = ziffern3(a);
     const [bh, bz, be] = ziffern3(b);
     return ae < be || az < bz || ah < bh;
+  }
+
+  // Erzeugt ein Zahlenpaar MIT Uebertrag (mind. eine Stelle muss geliehen werden).
+  function beispielMitUebertrag() {
+    let a, b;
+    do {
+      a = rnd(200, 950);
+      b = rnd(100, a - 10);
+    } while (!brauchtUebertrag(a, b));
+    return { a, b };
+  }
+
+  function genSubtraktionOhneUebertrag() {
+    const { a, b } = beispielOhneUebertrag();
+    const bsp = beispielOhneUebertrag();
+    return {
+      typ: 'numeric',
+      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(ohne Übertrag)</span>`,
+      antwort: a - b,
+      hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
+    };
+  }
+
+  function genSubtraktionMitUebertrag() {
+    const { a, b } = beispielMitUebertrag();
+    const bsp = beispielMitUebertrag();
+    return {
+      typ: 'numeric',
+      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(mit Übertrag)</span>`,
+      antwort: a - b,
+      hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
+    };
   }
 
   function genFehlendeZifferAddition() {
@@ -115,10 +187,12 @@ const Mathe = (function () {
     const pos = rnd(0, 2);
     const versteckt = bZiffern[pos];
     bZiffern[pos] = '▢';
+    const a2 = rnd(100, 700), b2 = rnd(100, 899 - a2);
     return {
       typ: 'numeric',
       frage: `${a} + ${bZiffern.join('')} = ${summe}.<br>Welche Ziffer fehlt?`,
-      antwort: parseInt(versteckt, 10)
+      antwort: parseInt(versteckt, 10),
+      hilfe: `${erklaerungAddition(a2, b2)}<br>So rechnest du Stelle für Stelle - auch wenn eine Ziffer versteckt ist, findest du sie, indem du die anderen Stellen ganz normal ausrechnest.`
     };
   }
 
@@ -130,10 +204,12 @@ const Mathe = (function () {
     const pos = rnd(0, 2);
     const versteckt = bZiffern[pos];
     bZiffern[pos] = '▢';
+    const a2 = rnd(300, 899), b2 = rnd(100, a2 - 10);
     return {
       typ: 'numeric',
       frage: `${a} − ${bZiffern.join('')} = ${differenz}.<br>Welche Ziffer fehlt?`,
-      antwort: parseInt(versteckt, 10)
+      antwort: parseInt(versteckt, 10),
+      hilfe: `${erklaerungSubtraktion(a2, b2)}<br>So rechnest du Stelle für Stelle - auch wenn eine Ziffer versteckt ist, findest du sie, indem du die anderen Stellen ganz normal ausrechnest.`
     };
   }
 
@@ -155,7 +231,17 @@ const Mathe = (function () {
         schritte.push(`− ${delta}`);
       }
     }
-    return { typ: 'numeric', frage: `${start} ${schritte.join(' ')} = ?`, antwort: wert };
+    return { typ: 'numeric', frage: `${start} ${schritte.join(' ')} = ?`, antwort: wert, hilfe: hilfeRechenkette() };
+  }
+
+  function hilfeRechenkette() {
+    const s0 = rnd(50, 200);
+    const d1 = rnd(20, 100), d2 = rnd(10, Math.max(10, s0 + d1 - 30));
+    const s1 = s0 + d1;
+    const s2 = s1 - d2;
+    return `<strong>Beispiel:</strong> ${s0} + ${d1} − ${d2} = ?<br>` +
+      `Rechne Schritt für Schritt von links nach rechts:<br>` +
+      `${s0} + ${d1} = ${s1}<br>${s1} − ${d2} = ${s2}<br><strong>Ergebnis: ${s2}</strong>`;
   }
 
   function genStimmtDasFrage() {
@@ -170,11 +256,13 @@ const Mathe = (function () {
       angezeigt = echtesErgebnis + (Math.random() < 0.5 ? abweichung : -abweichung);
     }
     const zeichen = plus ? '+' : '−';
+    const a2 = rnd(200, 700), b2 = rnd(100, a2 - 10);
     return {
       typ: 'mc',
       frage: `Stimmt diese Rechnung?<br>${a} ${zeichen} ${b} = ${angezeigt}`,
       optionen: ['Ja, stimmt', 'Nein, falsch'],
-      richtigIndex: stimmt ? 0 : 1
+      richtigIndex: stimmt ? 0 : 1,
+      hilfe: `Rechne die Aufgabe selbst nach und vergleiche mit dem Ergebnis:<br>${erklaerungSubtraktion(a2, b2)}<br>Stimmt dein eigenes Ergebnis nicht mit dem in der Aufgabe überein, ist die Rechnung falsch.`
     };
   }
 
@@ -193,7 +281,14 @@ const Mathe = (function () {
     const zahlen = vorlage.match(/\d+/g).map(Number);
     const a = Math.max(zahlen[0], zahlen[1]);
     const b = Math.min(zahlen[0], zahlen[1]);
-    return { typ: 'numeric', frage: vorlage, antwort: a - b };
+    const a2 = rnd(400, 980), b2 = rnd(100, a2 - 20);
+    return {
+      typ: 'numeric',
+      frage: vorlage,
+      antwort: a - b,
+      hilfe: `<strong>Wörter:</strong> Minuend = die Zahl, von der abgezogen wird. Subtrahend = die Zahl, die abgezogen wird. Differenz = das Ergebnis.<br>` +
+        `"Subtrahiere ${b2} von ${a2}" heißt: ${a2} − ${b2}.<br>${erklaerungSubtraktion(a2, b2)}`
+    };
   }
 
   // ---- Einkaufen: mehrere Preise zusammenzählen ----
@@ -205,10 +300,13 @@ const Mathe = (function () {
     const preise = gewaehlt.map(() => rnd(15, 130));
     const teile = gewaehlt.map((art, i) => `${art} kostet ${preise[i]} €`);
     const summe = preise.reduce((s, p) => s + p, 0);
+    const p1 = rnd(15, 130), p2 = rnd(15, 130);
     return {
       typ: 'numeric',
       frage: `${teile.join(', ')}. Wie viel bezahlst du insgesamt?`,
-      antwort: summe
+      antwort: summe,
+      hilfe: `<strong>Beispiel:</strong> ein Buch kostet ${p1} €, ein Ball kostet ${p2} €. Was bezahlst du insgesamt?<br>` +
+        `Addiere einfach alle Preise: ${erklaerungAddition(p1, p2)}`
     };
   }
 
@@ -217,27 +315,46 @@ const Mathe = (function () {
     const typ = rnd(1, 4);
     if (typ === 1) {
       const a = rnd(2, 99);
-      return { typ: 'numeric', frage: `${a} · 10 = ?`, antwort: a * 10 };
+      return { typ: 'numeric', frage: `${a} · 10 = ?`, antwort: a * 10, hilfe: hilfeZehnHundert(1) };
     }
     if (typ === 2) {
       const a = rnd(2, 9);
-      return { typ: 'numeric', frage: `${a} · 100 = ?`, antwort: a * 100 };
+      return { typ: 'numeric', frage: `${a} · 100 = ?`, antwort: a * 100, hilfe: hilfeZehnHundert(2) };
     }
     if (typ === 3) {
       const erg = rnd(2, 99);
-      return { typ: 'numeric', frage: `${erg * 10} : 10 = ?`, antwort: erg };
+      return { typ: 'numeric', frage: `${erg * 10} : 10 = ?`, antwort: erg, hilfe: hilfeZehnHundert(3) };
     }
     const erg = rnd(2, 9);
-    return { typ: 'numeric', frage: `${erg * 100} : 100 = ?`, antwort: erg };
+    return { typ: 'numeric', frage: `${erg * 100} : 100 = ?`, antwort: erg, hilfe: hilfeZehnHundert(4) };
+  }
+
+  function hilfeZehnHundert(typ) {
+    if (typ === 1) { const a = rnd(2, 99); return `<strong>Beispiel:</strong> ${a} · 10 = ?<br>Beim Malnehmen mit 10 hängst du einfach eine 0 an die Zahl an.<br><strong>Ergebnis: ${a * 10}</strong>`; }
+    if (typ === 2) { const a = rnd(2, 9); return `<strong>Beispiel:</strong> ${a} · 100 = ?<br>Beim Malnehmen mit 100 hängst du zwei Nullen an die Zahl an.<br><strong>Ergebnis: ${a * 100}</strong>`; }
+    if (typ === 3) { const erg = rnd(2, 99); return `<strong>Beispiel:</strong> ${erg * 10} : 10 = ?<br>Beim Teilen durch 10 streichst du eine 0 am Ende der Zahl.<br><strong>Ergebnis: ${erg}</strong>`; }
+    const erg = rnd(2, 9); return `<strong>Beispiel:</strong> ${erg * 100} : 100 = ?<br>Beim Teilen durch 100 streichst du zwei Nullen am Ende der Zahl.<br><strong>Ergebnis: ${erg}</strong>`;
   }
 
   function genZehnerzahlenFrage() {
     if (Math.random() < 0.5) {
       const a = rnd(2, 9), b = rnd(2, 9) * 10;
-      return { typ: 'numeric', frage: `${a} · ${b} = ?`, antwort: a * b };
+      return { typ: 'numeric', frage: `${a} · ${b} = ?`, antwort: a * b, hilfe: hilfeZehnerzahlenMal() };
     }
     const b = rnd(2, 9) * 10, erg = rnd(2, 9);
-    return { typ: 'numeric', frage: `${b * erg} : ${b} = ?`, antwort: erg };
+    return { typ: 'numeric', frage: `${b * erg} : ${b} = ?`, antwort: erg, hilfe: hilfeZehnerzahlenGeteilt() };
+  }
+
+  function hilfeZehnerzahlenMal() {
+    const a = rnd(2, 9), zehnerFaktor = rnd(2, 9);
+    const b = zehnerFaktor * 10;
+    return `<strong>Beispiel:</strong> ${a} · ${b} = ?<br>Rechne erst ohne die 0: ${a} · ${zehnerFaktor} = ${a * zehnerFaktor}<br>Dann hänge die 0 wieder an: ${a * zehnerFaktor}0<br><strong>Ergebnis: ${a * b}</strong>`;
+  }
+
+  function hilfeZehnerzahlenGeteilt() {
+    const zehnerFaktor = rnd(2, 9), erg = rnd(2, 9);
+    const b = zehnerFaktor * 10;
+    return `<strong>Beispiel:</strong> ${b * erg} : ${b} = ?<br>Streiche bei beiden Zahlen eine 0: ${zehnerFaktor * erg} : ${zehnerFaktor} = ${erg}<br><strong>Ergebnis: ${erg}</strong>`;
   }
 
   // ---- Aufgabenfamilien: aus einer bekannten Malaufgabe (z. B. 60 · 9 = 540)
@@ -245,13 +362,17 @@ const Mathe = (function () {
   function genAufgabenfamilieFrage() {
     const a = rnd(2, 9), b = rnd(2, 9) * 10, produkt = a * b;
     const variante = rnd(1, 3);
+    const a2 = rnd(2, 9), b2 = rnd(2, 9) * 10, produkt2 = a2 * b2;
+    const hilfe = `<strong>Beispiel:</strong> ${a2} · ${b2} = ${produkt2}.<br>Daraus lassen sich alle diese Aufgaben ableiten:<br>` +
+      `${a2} · ${b2} = ${produkt2}<br>${b2} · ${a2} = ${produkt2} (Tauschaufgabe)<br>` +
+      `${produkt2} : ${a2} = ${b2} (Umkehraufgabe)<br>${produkt2} : ${b2} = ${a2} (Umkehraufgabe)`;
     if (variante === 1) {
-      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Tauschaufgabe? ${b} · ${a} = ?`, antwort: produkt };
+      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Tauschaufgabe? ${b} · ${a} = ?`, antwort: produkt, hilfe };
     }
     if (variante === 2) {
-      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${a} = ?`, antwort: b };
+      return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${a} = ?`, antwort: b, hilfe };
     }
-    return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${b} = ?`, antwort: a };
+    return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${b} = ?`, antwort: a, hilfe };
   }
 
   // Vergleiche zwei Rechnungen mit <, = oder >
@@ -273,8 +394,16 @@ const Mathe = (function () {
       typ: 'mc',
       frage: `${a} · ${b} ___ ${rechtsText}`,
       optionen: ['<', '=', '>'],
-      richtigIndex: ['<', '=', '>'].indexOf(zeichen)
+      richtigIndex: ['<', '=', '>'].indexOf(zeichen),
+      hilfe: hilfeVergleich()
     };
+  }
+
+  function hilfeVergleich() {
+    const a = rnd(2, 9), b = rnd(2, 9) * 10, c = rnd(2, 9), d = rnd(2, 9) * 10;
+    const links = a * b, rechts = c * d;
+    const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
+    return `<strong>Beispiel:</strong> ${a} · ${b} ___ ${c} · ${d}<br>Rechne zuerst beide Seiten aus: ${a} · ${b} = ${links}, ${c} · ${d} = ${rechts}<br>Jetzt vergleiche die Zahlen: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
   }
 
   // Zahl in ein Produkt mit einer Zehnerzahl zerlegen: 420 = ▢ · 60
@@ -284,8 +413,15 @@ const Mathe = (function () {
     return {
       typ: 'numeric',
       frage: `${produkt} = ▢ · ${faktorZehn}.<br>Welche Zahl fehlt?`,
-      antwort: faktorKlein
+      antwort: faktorKlein,
+      hilfe: hilfeZahlZerlegen()
     };
+  }
+
+  function hilfeZahlZerlegen() {
+    const faktorKlein = rnd(2, 9), faktorZehn = rnd(2, 9) * 10;
+    const produkt = faktorKlein * faktorZehn;
+    return `<strong>Beispiel:</strong> ${produkt} = ▢ · ${faktorZehn}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${faktorZehn} = ${faktorKlein}<br><strong>Fehlende Zahl: ${faktorKlein}</strong>`;
   }
 
   // ---- Teiler & Vielfache ----
@@ -300,7 +436,19 @@ const Mathe = (function () {
       }
     }
     const alle = shuffle([richtig, ...falsche]);
-    return { typ: 'mc', frage: `Welche Zahl ist ein Vielfaches von ${n}?`, optionen: alle, richtigIndex: alle.indexOf(richtig) };
+    return {
+      typ: 'mc',
+      frage: `Welche Zahl ist ein Vielfaches von ${n}?`,
+      optionen: alle,
+      richtigIndex: alle.indexOf(richtig),
+      hilfe: hilfeVielfaches()
+    };
+  }
+
+  function hilfeVielfaches() {
+    const n = rnd(3, 9);
+    const reihe = [1, 2, 3, 4, 5, 6].map(f => n * f);
+    return `<strong>Beispiel:</strong> Vielfache von ${n} sind alle Zahlen aus der ${n}er-Reihe:<br>${reihe.join(', ')}, ... (immer wieder ${n} dazuzählen)<br>Eine Zahl ist ein Vielfaches von ${n}, wenn sie sich ohne Rest durch ${n} teilen lässt.`;
   }
 
   function genTeilerFrage() {
@@ -315,7 +463,21 @@ const Mathe = (function () {
       if (ziel % kandidat !== 0 && !falsche.includes(kandidat)) falsche.push(kandidat);
     }
     const alle = shuffle([richtig, ...falsche]);
-    return { typ: 'mc', frage: `Welche Zahl ist ein Teiler von ${ziel}?`, optionen: alle, richtigIndex: alle.indexOf(richtig) };
+    return {
+      typ: 'mc',
+      frage: `Welche Zahl ist ein Teiler von ${ziel}?`,
+      optionen: alle,
+      richtigIndex: alle.indexOf(richtig),
+      hilfe: hilfeTeiler()
+    };
+  }
+
+  function hilfeTeiler() {
+    const teilerPool = [24, 36, 45, 56, 60, 72, 48, 63, 42, 54, 30, 40, 18, 28];
+    const ziel = teilerPool[rnd(0, teilerPool.length - 1)];
+    const echteTeiler = [];
+    for (let t = 1; t <= ziel; t++) if (ziel % t === 0) echteTeiler.push(t);
+    return `<strong>Beispiel:</strong> Teiler von ${ziel} findest du, indem du testest, welche Zahlen ${ziel} ohne Rest teilen:<br>${echteTeiler.join(', ')}<br>Das sind alle Teiler von ${ziel}.`;
   }
 
   // Welche Zahl ist Vielfaches von 2 UND 3 (also von 6)?
@@ -332,7 +494,9 @@ const Mathe = (function () {
       typ: 'mc',
       frage: 'Welche Zahl ist ein Vielfaches von 2 UND von 3?',
       optionen: alle,
-      richtigIndex: alle.indexOf(richtig)
+      richtigIndex: alle.indexOf(richtig),
+      hilfe: `<strong>Beispiel:</strong> Vielfache von 2: 2, 4, 6, 8, 10, 12, 14, 16, 18 ...<br>Vielfache von 3: 3, 6, 9, 12, 15, 18 ...<br>` +
+        `Zahlen, die in BEIDEN Reihen vorkommen (6, 12, 18, ...), sind Vielfache von 2 UND 3.`
     };
   }
 
@@ -349,8 +513,22 @@ const Mathe = (function () {
     return {
       typ: 'numeric',
       frage: `Die gesuchte Zahl ist Teiler von ${a} und ${b}.<br>Sie ist größer als ${n}. Welche Zahl ist gesucht?`,
-      antwort: d
+      antwort: d,
+      hilfe: hilfeTeilerRaetsel()
     };
+  }
+
+  function hilfeTeilerRaetsel() {
+    const d = rnd(3, 9);
+    let x, y;
+    do { x = rnd(2, 9); y = rnd(2, 9); } while (x === y || ggt(x, y) !== 1);
+    const a = d * x, b = d * y, n = d - 2;
+    const teilerA = []; for (let t = 1; t <= a; t++) if (a % t === 0) teilerA.push(t);
+    const teilerB = []; for (let t = 1; t <= b; t++) if (b % t === 0) teilerB.push(t);
+    const gemeinsame = teilerA.filter(t => teilerB.includes(t));
+    return `<strong>Beispiel:</strong> Gesucht: Teiler von ${a} und ${b}, größer als ${n}.<br>` +
+      `Teiler von ${a}: ${teilerA.join(', ')}<br>Teiler von ${b}: ${teilerB.join(', ')}<br>` +
+      `Gemeinsame Teiler: ${gemeinsame.join(', ')}<br>Davon größer als ${n}: nur die <strong>${d}</strong>.`;
   }
 
   // ---- Diagramme lesen: generiertes Balkendiagramm + Fragen dazu ----
@@ -382,15 +560,26 @@ const Mathe = (function () {
     return `<div class="balken-chart"><div class="balken-titel">${d.titel}</div>${zeilen}</div>`;
   }
 
+  // Kleines, eigenstaendiges Beispieldiagramm nur fuer die Hilfe-Erklaerungen
+  // (bewusst ANDERS als das gerade angezeigte, echte Diagramm der Frage).
+  function hilfeBeispielDiagramm() {
+    const d = { titel: 'Sonnenstunden im Monat', einheitMehrzahl: 'Sonnenstunden',
+      kategorien: ['März', 'April', 'Mai'], werte: [rnd(3, 6), rnd(5, 9), rnd(8, 12)] };
+    return { d, chart: htmlBalkenDiagramm(d) };
+  }
+
   function genSummenFrage(d, chartHtml) {
     const idxA = rnd(0, d.kategorien.length - 1);
     let idxB = rnd(0, d.kategorien.length - 1);
     while (idxB === idxA) idxB = rnd(0, d.kategorien.length - 1);
+    const bsp = hilfeBeispielDiagramm();
     return {
       typ: 'numeric',
       lesetext: chartHtml,
       frage: `Wie viele ${d.einheitMehrzahl} gab es in ${d.kategorien[idxA]} und ${d.kategorien[idxB]} zusammen?`,
-      antwort: d.werte[idxA] + d.werte[idxB]
+      antwort: d.werte[idxA] + d.werte[idxB],
+      hilfe: `<strong>Beispiel:</strong>${bsp.chart}Wie viele ${bsp.d.einheitMehrzahl} gab es in ${bsp.d.kategorien[0]} und ${bsp.d.kategorien[2]} zusammen?<br>` +
+        `Lies beide Balkenwerte ab und zähle sie zusammen: ${bsp.d.werte[0]} + ${bsp.d.werte[2]} = ${bsp.d.werte[0] + bsp.d.werte[2]}<br><strong>Ergebnis: ${bsp.d.werte[0] + bsp.d.werte[2]}</strong>`
     };
   }
 
@@ -399,12 +588,16 @@ const Mathe = (function () {
     const maxIdx = d.werte.indexOf(maxWert);
     const uebrige = shuffle(d.kategorien.map((_, i) => i).filter(i => i !== maxIdx));
     const gewaehlt = shuffle([maxIdx, ...uebrige.slice(0, 3)]);
+    const bsp = hilfeBeispielDiagramm();
+    const bspMaxIdx = bsp.d.werte.indexOf(Math.max(...bsp.d.werte));
     return {
       typ: 'mc',
       lesetext: chartHtml,
       frage: `In welchem Monat gab es die meisten ${d.einheitMehrzahl}?`,
       optionen: gewaehlt.map(i => d.kategorien[i]),
-      richtigIndex: gewaehlt.indexOf(maxIdx)
+      richtigIndex: gewaehlt.indexOf(maxIdx),
+      hilfe: `<strong>Beispiel:</strong>${bsp.chart}Suche den längsten/höchsten Balken - das ist der Monat mit den meisten ${bsp.d.einheitMehrzahl}.<br>` +
+        `Hier ist das <strong>${bsp.d.kategorien[bspMaxIdx]}</strong> mit ${bsp.d.werte[bspMaxIdx]}.`
     };
   }
 
@@ -413,11 +606,16 @@ const Mathe = (function () {
     const sortiert = d.werte.slice().sort((a, b) => a - b);
     const schwelle = sortiert[Math.floor(sortiert.length / 2)];
     const anzahl = d.werte.filter(w => w > schwelle).length;
+    const bsp = hilfeBeispielDiagramm();
+    const bspSchwelle = bsp.d.werte[1];
+    const bspAnzahl = bsp.d.werte.filter(w => w > bspSchwelle).length;
     return {
       typ: 'numeric',
       lesetext: chartHtml,
       frage: `Wie viele Monate hatten mehr als ${schwelle} ${d.einheitMehrzahl}?`,
-      antwort: anzahl
+      antwort: anzahl,
+      hilfe: `<strong>Beispiel:</strong>${bsp.chart}Wie viele Monate hatten mehr als ${bspSchwelle} ${bsp.d.einheitMehrzahl}?<br>` +
+        `Gehe jeden Balken durch und zähle, bei welchen der Wert größer als ${bspSchwelle} ist.<br><strong>Ergebnis: ${bspAnzahl}</strong>`
     };
   }
 
@@ -428,12 +626,16 @@ const Mathe = (function () {
     while (idxB === idxA) idxB = rnd(0, d.kategorien.length - 1);
     const wa = d.werte[idxA], wb = d.werte[idxB];
     const zeichen = wa < wb ? '<' : wa > wb ? '>' : '=';
+    const bsp = hilfeBeispielDiagramm();
+    const bspZeichen = bsp.d.werte[0] < bsp.d.werte[1] ? '<' : bsp.d.werte[0] > bsp.d.werte[1] ? '>' : '=';
     return {
       typ: 'mc',
       lesetext: chartHtml,
       frage: `Vergleiche: ${d.kategorien[idxA]} ___ ${d.kategorien[idxB]}`,
       optionen: ['<', '=', '>'],
-      richtigIndex: ['<', '=', '>'].indexOf(zeichen)
+      richtigIndex: ['<', '=', '>'].indexOf(zeichen),
+      hilfe: `<strong>Beispiel:</strong>${bsp.chart}Vergleiche: ${bsp.d.kategorien[0]} ___ ${bsp.d.kategorien[1]}<br>` +
+        `Lies beide Werte ab (${bsp.d.werte[0]} und ${bsp.d.werte[1]}) und vergleiche die Zahlen.<br><strong>Richtiges Zeichen: ${bspZeichen}</strong>`
     };
   }
 
@@ -451,44 +653,57 @@ const Mathe = (function () {
   // Zelle (Summe je Schuljahr oder Summe je Zeile) muss berechnet werden. ----
   const schuljahre = ['1. Schuljahr', '2. Schuljahr', '3. Schuljahr', '4. Schuljahr'];
 
+  function tabelleHtmlBauen(maedchen, jungen, versteckterTyp, versteckterIndex) {
+    function zelle(typ, i) {
+      if (typ === versteckterTyp && i === versteckterIndex) return '<td class="tab-luecke">?</td>';
+      if (typ === 'maedchen') return `<td>${maedchen[i]}</td>`;
+      if (typ === 'jungen') return `<td>${jungen[i]}</td>`;
+      return `<td>${maedchen[i] + jungen[i]}</td>`;
+    }
+    const kopf = schuljahre.map(s => `<th>${s}</th>`).join('');
+    const zeileMaedchen = schuljahre.map((_, i) => zelle('maedchen', i)).join('');
+    const zeileJungen = schuljahre.map((_, i) => zelle('jungen', i)).join('');
+    const zeileZusammen = schuljahre.map((_, i) => zelle('zusammen', i)).join('');
+    return `<table class="daten-tabelle"><tr><th></th>${kopf}</tr>` +
+      `<tr><th>Mädchen</th>${zeileMaedchen}</tr>` +
+      `<tr><th>Jungen</th>${zeileJungen}</tr>` +
+      `<tr><th>zusammen</th>${zeileZusammen}</tr></table>`;
+  }
+
   function genStreifentabelleFrage() {
     const maedchen = schuljahre.map(() => rnd(14, 30));
     const jungen = schuljahre.map(() => rnd(14, 30));
-
-    function tabelleHtml(versteckterTyp, versteckterIndex) {
-      function zelle(typ, i) {
-        if (typ === versteckterTyp && i === versteckterIndex) return '<td class="tab-luecke">?</td>';
-        if (typ === 'maedchen') return `<td>${maedchen[i]}</td>`;
-        if (typ === 'jungen') return `<td>${jungen[i]}</td>`;
-        return `<td>${maedchen[i] + jungen[i]}</td>`;
-      }
-      const kopf = schuljahre.map(s => `<th>${s}</th>`).join('');
-      const zeileMaedchen = schuljahre.map((_, i) => zelle('maedchen', i)).join('');
-      const zeileJungen = schuljahre.map((_, i) => zelle('jungen', i)).join('');
-      const zeileZusammen = schuljahre.map((_, i) => zelle('zusammen', i)).join('');
-      return `<table class="daten-tabelle"><tr><th></th>${kopf}</tr>` +
-        `<tr><th>Mädchen</th>${zeileMaedchen}</tr>` +
-        `<tr><th>Jungen</th>${zeileJungen}</tr>` +
-        `<tr><th>zusammen</th>${zeileZusammen}</tr></table>`;
-    }
-
     const i = rnd(0, 3);
+
     if (Math.random() < 0.5) {
       // "zusammen" fuer ein Schuljahr fehlt
       return {
         typ: 'numeric',
-        lesetext: tabelleHtml('zusammen', i),
+        lesetext: tabelleHtmlBauen(maedchen, jungen, 'zusammen', i),
         frage: `Wie viele Kinder waren insgesamt im ${schuljahre[i]}?`,
-        antwort: maedchen[i] + jungen[i]
+        antwort: maedchen[i] + jungen[i],
+        hilfe: hilfeStreifentabelle('zusammen')
       };
     }
     // eine Jungen-Zahl fehlt, "zusammen" ist bekannt
     return {
       typ: 'numeric',
-      lesetext: tabelleHtml('jungen', i),
+      lesetext: tabelleHtmlBauen(maedchen, jungen, 'jungen', i),
       frage: `Im ${schuljahre[i]} waren insgesamt ${maedchen[i] + jungen[i]} Kinder, davon ${maedchen[i]} Mädchen. Wie viele Jungen waren es?`,
-      antwort: jungen[i]
+      antwort: jungen[i],
+      hilfe: hilfeStreifentabelle('jungen')
     };
+  }
+
+  function hilfeStreifentabelle(art) {
+    const m = rnd(14, 25), j = rnd(14, 25);
+    if (art === 'zusammen') {
+      return `<strong>Beispiel:</strong> Im Beispiel-Schuljahr sind ${m} Mädchen und ${j} Jungen.<br>` +
+        `"Zusammen" heißt: beide Zahlen addieren.<br>${erklaerungAddition(m, j)}`;
+    }
+    const summe = m + j;
+    return `<strong>Beispiel:</strong> Insgesamt sind ${summe} Kinder da, davon ${m} Mädchen. Wie viele Jungen?<br>` +
+      `Rechne "zusammen" minus "Mädchen": ${erklaerungSubtraktion(summe, m)}`;
   }
 
   // ---- Malfolgen üben: Karteikarten-Prinzip. Falsch beantwortete Aufgaben

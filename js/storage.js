@@ -195,20 +195,27 @@ const Storage = (function () {
     if (a) { a.erledigt = true; save(state); }
   }
 
-  function addAntwort(fach, korrekt) {
+  // faktor steuert den Punkteanteil: 1 = voller Erfolg (1. Versuch), 0.5 = halbe
+  // Punkte (2. Versuch ohne Hilfe), 0 = keine Punkte (Hilfe angesehen) - siehe
+  // App.verarbeiteQuizAntwort in app.js. korrekt && faktor<=0 zaehlt bewusst wie
+  // "falsch" fuer Streak/Statistik, weil ohne Hilfe noch nicht sicher gekonnt.
+  function addAntwort(fach, korrekt, faktor) {
+    if (faktor === undefined) faktor = 1;
     registriereAktivenTag();
     if (!state.stats[fach]) state.stats[fach] = { richtig: 0, falsch: 0 };
-    if (korrekt) {
+    let gained = 0;
+    if (korrekt && faktor > 0) {
       state.streak++;
       const bonus = Math.min(state.streak, 5);
-      state.sterne += 10 + bonus;
+      gained = Math.round((10 + bonus) * faktor);
+      state.sterne += gained;
       state.stats[fach].richtig++;
     } else {
       state.streak = 0;
       state.stats[fach].falsch++;
     }
     save(state);
-    return korrekt ? 10 + Math.min(state.streak, 5) : 0;
+    return gained;
   }
 
   function getState() {
