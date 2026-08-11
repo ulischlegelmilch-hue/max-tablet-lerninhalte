@@ -749,6 +749,16 @@ html, body {
   min-height: 18px;
 }
 .sr-hinweis div:empty::before { content: '\00a0'; }
+/* Merk-Eins beim Ergaenzungsverfahren (Subtraktion): direkt neben der
+   unteren Ziffer der Spalte, in der sie addiert wird - nicht in einer
+   eigenen Zeile darueber (siehe htmlSubtraktionsZeilen in mathe.js). */
+.sr-carry-inline {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  vertical-align: super;
+  margin-left: 1px;
+}
 .sr-strich {
   border-top: 2px solid var(--ink);
   margin-top: 2px;

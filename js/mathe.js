@@ -85,51 +85,89 @@ const Mathe = (function () {
     return Array(breite - s.length).fill('').concat(s.split(''));
   }
 
-  // Baut die Rechnung GENAU SO auf, wie Max sie im Heft untereinander
-  // rechnet: Ziffern rechtsbuendig in Spalten, kleine Uebertrags-/Leihe-
-  // Hinweise darueber, ein Strich, das Ergebnis darunter - statt einer
-  // Satz-Erklaerung Stelle fuer Stelle (dieser Text-Stil war fuer Max
-  // verwirrend, weil er nicht dem gewohnten Rechenweg auf Papier entspricht).
-  function htmlSpaltenRechnung(a, b, operator, ergebnis) {
-    const breite = Math.max(String(a).length, String(b).length, String(ergebnis).length);
-    const digitsA = String(a).padStart(breite, '0').split('').map(Number);
-    const digitsB = String(b).padStart(breite, '0').split('').map(Number);
-    const hinweisZeile = Array(breite).fill('');
-
-    if (operator === '+') {
-      let uebertrag = 0;
-      for (let i = breite - 1; i >= 0; i--) {
-        const s = digitsA[i] + digitsB[i] + uebertrag;
-        uebertrag = s >= 10 ? 1 : 0;
-        if (uebertrag && i > 0) hinweisZeile[i - 1] = '+1';
-      }
-    } else {
-      let leihe = 0;
-      for (let i = breite - 1; i >= 0; i--) {
-        const oben = digitsA[i] - leihe;
-        if (oben < digitsB[i]) {
-          if (i > 0) hinweisZeile[i - 1] = '−1';
-          leihe = 1;
-        } else {
-          leihe = 0;
-        }
-      }
-    }
-
+  // Gemeinsamer Rahmen fuer beide Rechenarten: Ziffern rechtsbuendig in
+  // Spalten, ein Strich, das Ergebnis darunter - statt einer Satz-Erklaerung
+  // Stelle fuer Stelle (dieser Text-Stil war fuer Max verwirrend, weil er
+  // nicht dem gewohnten Rechenweg auf Papier entspricht). zeilenHtml enthaelt
+  // die beiden Operanden-Zeilen (inkl. evtl. Merk-Zahlen) und kommt aus
+  // htmlAdditionsZeilen/htmlSubtraktionsZeilen weiter unten.
+  function htmlSpaltenRahmen(breite, zeilenHtml, ergebnis) {
     const spaltenStil = `grid-template-columns: 26px repeat(${breite}, 1fr);`;
     const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
     const zeile = (zeichen, ziffern, klasse) =>
       `<div class="sr-zeile" style="${spaltenStil}">${zelle(zeichen, 'sr-zeichen')}` +
       `${ziffern.map(d => zelle(d, klasse)).join('')}</div>`;
+    return '<div class="sr-rechnung">' + zeilenHtml +
+      `<div class="sr-strich" style="margin-left:26px;"></div>` +
+      zeile('', spalteZiffern(ergebnis, breite), 'sr-ziffer sr-ergebnis') +
+      '</div>';
+  }
 
-    let html = '<div class="sr-rechnung">';
+  // Uebertrag bei der Addition: entsteht in einer Spalte, wird bei BEIDEN
+  // Ziffern der naechsten (linken) Spalte addiert - deshalb eine eigene
+  // kleine Zeile darueber, in der Spalte, in der addiert wird.
+  // digitsA/digitsB (nullgepolstert) dienen nur der Rechnung, anzeigeA/
+  // anzeigeB (leer statt "0" bei fuehrenden Stellen) sind fuer die Darstellung.
+  function htmlAdditionsZeilen(digitsA, digitsB, anzeigeA, anzeigeB, breite, spaltenStil) {
+    const hinweisZeile = Array(breite).fill('');
+    let uebertrag = 0;
+    for (let i = breite - 1; i >= 0; i--) {
+      const s = digitsA[i] + digitsB[i] + uebertrag;
+      uebertrag = s >= 10 ? 1 : 0;
+      if (uebertrag && i > 0) hinweisZeile[i - 1] = '+1';
+    }
+    const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
+    const zeile = (zeichen, ziffern, klasse) =>
+      `<div class="sr-zeile" style="${spaltenStil}">${zelle(zeichen, 'sr-zeichen')}` +
+      `${ziffern.map(d => zelle(d, klasse)).join('')}</div>`;
+    let html = '';
     if (hinweisZeile.some(h => h)) html += zeile('', hinweisZeile, 'sr-hinweis');
-    html += zeile('', spalteZiffern(a, breite), 'sr-ziffer');
-    html += zeile(operator, spalteZiffern(b, breite), 'sr-ziffer');
-    html += `<div class="sr-strich" style="margin-left:26px;"></div>`;
-    html += zeile('', spalteZiffern(ergebnis, breite), 'sr-ziffer sr-ergebnis');
-    html += '</div>';
+    html += zeile('', anzeigeA, 'sr-ziffer');
+    html += zeile('+', anzeigeB, 'sr-ziffer');
     return html;
+  }
+
+  // Subtraktion nach dem Ergaenzungsverfahren (so rechnet Max im Heft): pro
+  // Spalte wird ermittelt, was zur unteren Ziffer dazugezaehlt werden muss,
+  // um auf die obere zu kommen. Reicht das nicht ohne den naechsten Zehner,
+  // wird eine Eins gemerkt - die kommt DIREKT NEBEN die untere Ziffer der
+  // naechsten (naechst-linken) Spalte (nicht in eine eigene Zeile darueber,
+  // und nicht als Abzug von der oberen Zahl wie beim Entbuendelungsverfahren).
+  // Beispiel 437 − 238: von 8 bis 7 sind 9, merke 1 → die 1 kommt neben die
+  // untere 3 (naechste Spalte); von 4 (3+1) bis 3 sind 9, merke 1 → die 1
+  // kommt neben die 2 (naechste Spalte).
+  function htmlSubtraktionsZeilen(digitsA, digitsB, anzeigeA, anzeigeB, breite, spaltenStil) {
+    const bPlusEins = Array(breite).fill(false);
+    let merkeEins = 0;
+    for (let i = breite - 1; i >= 0; i--) {
+      if (merkeEins) bPlusEins[i] = true;
+      const bEffektiv = digitsB[i] + merkeEins;
+      merkeEins = digitsA[i] < bEffektiv ? 1 : 0;
+    }
+    const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
+    const aZellen = anzeigeA.map(d => zelle(d, 'sr-ziffer')).join('');
+    const bZellen = anzeigeB.map((d, i) => {
+      // Falls die Merk-Eins in eine Spalte faellt, in der b (Anzeige) leer
+      // waere (fuehrende Stelle): trotzdem "0" zeigen, sonst haengt das "+1"
+      // scheinbar in der Luft.
+      const anzeige = bPlusEins[i] && d === '' ? '0' : d;
+      return `<div class="sr-ziffer">${anzeige}${bPlusEins[i] ? '<span class="sr-carry-inline">+1</span>' : ''}</div>`;
+    }).join('');
+    return `<div class="sr-zeile" style="${spaltenStil}">${zelle('', 'sr-zeichen')}${aZellen}</div>` +
+      `<div class="sr-zeile" style="${spaltenStil}">${zelle('−', 'sr-zeichen')}${bZellen}</div>`;
+  }
+
+  function htmlSpaltenRechnung(a, b, operator, ergebnis) {
+    const breite = Math.max(String(a).length, String(b).length, String(ergebnis).length);
+    const digitsA = String(a).padStart(breite, '0').split('').map(Number);
+    const digitsB = String(b).padStart(breite, '0').split('').map(Number);
+    const anzeigeA = spalteZiffern(a, breite);
+    const anzeigeB = spalteZiffern(b, breite);
+    const spaltenStil = `grid-template-columns: 26px repeat(${breite}, 1fr);`;
+    const zeilenHtml = operator === '+'
+      ? htmlAdditionsZeilen(digitsA, digitsB, anzeigeA, anzeigeB, breite, spaltenStil)
+      : htmlSubtraktionsZeilen(digitsA, digitsB, anzeigeA, anzeigeB, breite, spaltenStil);
+    return htmlSpaltenRahmen(breite, zeilenHtml, ergebnis);
   }
 
   // Schritt-fuer-Schritt-Beispiel einer schriftlichen Addition (mit Uebertrag),
@@ -141,8 +179,8 @@ const Mathe = (function () {
       `<strong>Ergebnis: ${summe}</strong>`;
   }
 
-  // Schritt-fuer-Schritt-Beispiel einer schriftlichen Subtraktion (Abziehverfahren
-  // mit Leihen), dargestellt genau so, wie es untereinander gerechnet wird.
+  // Schritt-fuer-Schritt-Beispiel einer schriftlichen Subtraktion nach dem
+  // Ergaenzungsverfahren, dargestellt genau so, wie es untereinander gerechnet wird.
   function erklaerungSubtraktion(a, b) {
     const differenz = a - b;
     return `<strong>Beispiel:</strong> ${a} − ${b} = ?` +
