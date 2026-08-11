@@ -218,7 +218,12 @@ const App = (function () {
     `;
   }
 
-  function oeffneEinstellungen() {
+  // resetBestaetigung: zeigt statt des Reset-Buttons eine Ja/Abbrechen-Rueckfrage
+  // direkt auf der Seite. KEIN natives confirm() - die Kiosk-WebView hat keinen
+  // WebChromeClient eingerichtet, ohne den window.confirm()/alert() in Android
+  // WebViews stillschweigend nichts tun und sofort false liefern (der Dialog
+  // erscheint gar nicht) - der Reset wuerde also nie ausgefuehrt.
+  function oeffneEinstellungen(resetBestaetigung) {
     const regeln = Storage.getTagesplanRegeln();
     const regelnHtml = regeln.length
       ? regeln.map((r, i) => `
@@ -266,13 +271,20 @@ const App = (function () {
       <div class="welcome" style="margin-top:32px;">Fortschritt zurücksetzen</div>
       <div class="lese-text">Setzt Punkte, gelöste Aufgaben, Karteikarten-Fortschritt sowie gelesene Geschichten/Bücher komplett zurück (z. B. für einen echten Neustart). Tagesplan-Regeln und Malfolgen-Reihen bleiben erhalten. Das kann nicht rückgängig gemacht werden.</div>
       <div class="regel-karte">
-        <div class="btn-gefahr" onclick="App.bestaetigeFortschrittZuruecksetzen()">Gesamten Fortschritt zurücksetzen</div>
+        ${resetBestaetigung ? `
+          <div class="hilfe-warnung">⚠️ Wirklich ALLES zurücksetzen? Das kann nicht rückgängig gemacht werden.</div>
+          <div class="reset-aktionen">
+            <div class="btn-gefahr" onclick="App.fortschrittWirklichZuruecksetzen()">Ja, zurücksetzen</div>
+            <div class="btn-primary" style="background:var(--muted);color:var(--ink);margin-top:0;" onclick="App.oeffneEinstellungen()">Abbrechen</div>
+          </div>
+        ` : `
+          <div class="btn-gefahr" onclick="App.oeffneEinstellungen(true)">Gesamten Fortschritt zurücksetzen</div>
+        `}
       </div>
     `);
   }
 
-  function bestaetigeFortschrittZuruecksetzen() {
-    if (!confirm('Wirklich den gesamten Fortschritt zurücksetzen (Punkte, gelöste Aufgaben, gelesene Geschichten/Bücher)? Das kann nicht rückgängig gemacht werden.')) return;
+  function fortschrittWirklichZuruecksetzen() {
     Storage.resetFortschritt();
     oeffneEinstellungen();
   }
@@ -591,6 +603,6 @@ const App = (function () {
     init, gotoHome, render, subMenuHtml, updateTopbar,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
-    bestaetigeFortschrittZuruecksetzen
+    fortschrittWirklichZuruecksetzen
   };
 })();

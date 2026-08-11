@@ -1067,6 +1067,8 @@ html, body {
   cursor: pointer;
   text-align: center;
 }
+.reset-aktionen { display: flex; gap: 10px; flex-wrap: wrap; }
+.reset-aktionen .btn-gefahr, .reset-aktionen .btn-primary { flex: 1; min-width: 160px; }
 
 /* Eltern-Regel-Editor (Tagesplan-Regeln) */
 .regel-karte {
