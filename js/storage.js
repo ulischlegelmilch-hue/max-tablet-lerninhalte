@@ -477,13 +477,16 @@ const Storage = (function () {
     return { geloest: (state.stats[fach] && state.stats[fach].richtig) || 0 };
   }
 
-  /** Anzahl fertig gelesener Geschichten von insgesamt 7 - die 7 ist an die
-   *  Anzahl der Geschichten in geschichten.js gekoppelt und muss synchron
-   *  gehalten werden, bis es dafuer eine gemeinsame Konstante gibt. */
+  /** Anzahl fertig gelesener Buecher von insgesamt 2 - die 2 ist an die Anzahl
+   *  der Eintraege in geschichten.js `buecher` gekoppelt und muss synchron
+   *  gehalten werden, bis es dafuer eine gemeinsame Konstante gibt. Zaehlt
+   *  bewusst NUR noch Buecher (buchFortschritt), nicht mehr leseFortschritt -
+   *  die textbasierten Kapitelgeschichten (frueher in geschichten.js `bank`)
+   *  wurden entfernt, die Buecherei besteht nur noch aus Buechern. */
   function getGeschichtenFortschritt() {
-    const eintraege = state.leseFortschritt ? Object.values(state.leseFortschritt) : [];
+    const eintraege = state.buchFortschritt ? Object.values(state.buchFortschritt) : [];
     const fertig = eintraege.filter(e => e.fertig).length;
-    return { fertig, gesamt: 7 };
+    return { fertig, gesamt: 2 };
   }
 
   function schachStufeAufsteigen() {

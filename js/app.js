@@ -79,7 +79,7 @@ const App = (function () {
       {
         fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
         titel: (offen.nochmal ? 'Nochmal lesen: ' : 'Weiterlesen: ') + offen.titel,
-        onclick: `Geschichten.leseGeschichte(${offen.index})`
+        onclick: `Geschichten.leseBuch('${offen.id}')`
       }
     ];
   }
