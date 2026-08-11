@@ -252,7 +252,8 @@ const Geschichten = (function () {
   // Verstaendnisfragen haben, sondern seitenweise im Lesemodus durchgeblaettert
   // werden. seiten = Anzahl JPG-Dateien seite-01.jpg..seite-NN.jpg im Ordner.
   const buecher = [
-    { id: 'enzo', titel: 'ENZO – Die Legende vom roten Rennstall', seiten: 20, ordner: 'images/buecher/enzo' }
+    { id: 'enzo', titel: 'ENZO – Die Legende vom roten Rennstall', seiten: 20, ordner: 'images/buecher/enzo' },
+    { id: 'niki', titel: 'Niki: Die dritte Krone', seiten: 25, ordner: 'images/buecher/niki' }
   ];
 
   function buchSeitenUrls(buch) {
