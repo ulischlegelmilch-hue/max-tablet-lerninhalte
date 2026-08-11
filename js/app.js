@@ -68,8 +68,8 @@ const App = (function () {
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
     const heuteFach = Storage.getTagesFach();
-    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' };
-    const deutsch = { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', onclick: 'Deutsch.starteRechtschreibung()' };
+    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' };
+    const deutsch = { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' };
     const [heute, extra] = heuteFach === 'mathe' ? [mathe, deutsch] : [deutsch, mathe];
     heute.badge = 'Heute dran';
     extra.badge = 'Extra';
@@ -77,11 +77,10 @@ const App = (function () {
     return [
       heute, extra,
       {
-        fach: 'geschichten', icon: 'geschichten',
+        fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
         titel: (offen.nochmal ? 'Nochmal lesen: ' : 'Weiterlesen: ') + offen.titel,
         onclick: `Geschichten.leseGeschichte(${offen.index})`
-      },
-      { fach: 'heimat', icon: 'verkehrszeichen', titel: 'Verkehrszeichen-Quiz', onclick: 'Heimatkunde.starteQuiz()' }
+      }
     ];
   }
 
@@ -97,6 +96,7 @@ const App = (function () {
         <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
         <span class="tagesplan-chip-text">
           <span class="tagesplan-chip-titel">${t.titel}</span>
+          <span class="tagesplan-chip-fach">${t.fachName}</span>
           ${t.badge ? `<span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}">${t.badge}</span>` : ''}
         </span>
       </div>
@@ -262,7 +262,19 @@ const App = (function () {
           <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
         </div>
       </div>
+
+      <div class="welcome" style="margin-top:32px;">Fortschritt zurücksetzen</div>
+      <div class="lese-text">Setzt Punkte, gelöste Aufgaben, Karteikarten-Fortschritt sowie gelesene Geschichten/Bücher komplett zurück (z. B. für einen echten Neustart). Tagesplan-Regeln und Malfolgen-Reihen bleiben erhalten. Das kann nicht rückgängig gemacht werden.</div>
+      <div class="regel-karte">
+        <div class="btn-gefahr" onclick="App.bestaetigeFortschrittZuruecksetzen()">Gesamten Fortschritt zurücksetzen</div>
+      </div>
     `);
+  }
+
+  function bestaetigeFortschrittZuruecksetzen() {
+    if (!confirm('Wirklich den gesamten Fortschritt zurücksetzen (Punkte, gelöste Aufgaben, gelesene Geschichten/Bücher)? Das kann nicht rückgängig gemacht werden.')) return;
+    Storage.resetFortschritt();
+    oeffneEinstellungen();
   }
 
   function aktualisiereRegelFormular() {
@@ -578,6 +590,7 @@ const App = (function () {
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
-    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel
+    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
+    bestaetigeFortschrittZuruecksetzen
   };
 })();

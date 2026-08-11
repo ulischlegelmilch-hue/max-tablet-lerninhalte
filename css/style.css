@@ -206,6 +206,7 @@ html, body {
 .tagesplan-chip-icon svg { width: 16px; height: 16px; }
 .tagesplan-chip-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .tagesplan-chip-titel { font-size: 15px; font-weight: 600; color: var(--ink); }
+.tagesplan-chip-fach { font-size: 12px; color: var(--ink-soft); }
 .tagesplan-chip-badge {
   align-self: flex-start;
   font-size: 11px; font-weight: 700;
@@ -219,7 +220,7 @@ html, body {
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  gap: 18px;
   max-width: 1300px;
   margin: 8px auto 24px;
 }
@@ -228,7 +229,7 @@ html, body {
   align-items: center;
   gap: var(--space-4);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 26px 24px;
   text-align: left;
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -239,16 +240,18 @@ html, body {
 .menu-card:active { transform: translateY(1px); border-color: var(--accent); }
 .menu-icon {
   flex-shrink: 0;
-  width: 44px; height: 44px;
+  width: 56px; height: 56px;
   display: flex; align-items: center; justify-content: center;
   border-radius: var(--radius-sm);
   background: var(--muted);
   color: var(--ink);
 }
-.menu-icon svg { width: 21px; height: 21px; }
-.menu-text { min-width: 0; }
-.menu-label { font-size: 15px; font-weight: 600; color: var(--ink); }
-.menu-progress { font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.menu-icon svg { width: 27px; height: 27px; }
+/* Hauptwort (Label) links, Nebenwort (Fortschritt) rechts eingerueckt in
+   derselben Kachel - statt untereinander gestapelt. */
+.menu-text { min-width: 0; flex: 1; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.menu-label { font-size: 17px; font-weight: 600; color: var(--ink); white-space: nowrap; flex-shrink: 0; }
+.menu-progress { font-size: 13px; color: var(--ink-soft); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* Icon-Badge: volle, kraeftige Fach-Farbe mit weißem Icon (statt hellem Tint) -
    das ist der Farbpunkt mit dem staerksten Kontrast auf der Karte. */
@@ -1047,6 +1050,22 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   margin-top: 10px;
+}
+
+/* Destruktive Aktion im Eltern-Bereich (Fortschritt zuruecksetzen) - bewusst
+   zurueckhaltend rot statt kraeftig gefuellt, damit es nicht wie ein normaler
+   Haupt-Button aussieht, der versehentlich angetippt werden koennte. */
+.btn-gefahr {
+  display: inline-block;
+  padding: 13px 26px;
+  border-radius: var(--radius-sm);
+  background: #FCECEA;
+  border: 1px solid #DB6E63;
+  color: #A3392F;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
 }
 
 /* Eltern-Regel-Editor (Tagesplan-Regeln) */

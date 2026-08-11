@@ -14,7 +14,10 @@ const Icons = (function () {
       '<circle cx="8" cy="16" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="16" r="0.9" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="0.9" fill="currentColor" stroke="none"/>',
     deutsch: '<path d="M12 6.5c-1.7-1.3-4-2-6.5-2-.8 0-1.5.6-1.5 1.4v11c0 .8.7 1.4 1.5 1.4 2.5 0 4.8.7 6.5 2 1.7-1.3 4-2 6.5-2 .8 0 1.5-.6 1.5-1.4v-11c0-.8-.7-1.4-1.5-1.4-2.5 0-4.8.7-6.5 2z"/><line x1="12" y1="6.5" x2="12" y2="19.5"/>',
     geschichten: '<rect x="5" y="3" width="14" height="18" rx="2"/><line x1="5" y1="3" x2="5" y2="21"/><path d="M14 3v6l-2-1.5-2 1.5V3"/>',
-    heimat: '<path d="M12 3l8 14H4z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="15.5" r="0.9" fill="currentColor" stroke="none"/><line x1="12" y1="17" x2="12" y2="21"/>',
+    // Heimat & Sachkunde: Globus statt Verkehrsschild (das Warndreieck passte
+    // eher zu "Gefahr/Verkehr" als zum Fach als Ganzes, siehe eigener
+    // verkehrszeichen-Eintrag weiter unten fuer die Verkehrszeichen-Kachel).
+    heimat: '<circle cx="12" cy="12" r="9"/><line x1="3" y1="12" x2="21" y2="12"/><path d="M12 3a13 13 0 0 1 3.5 9 13 13 0 0 1-3.5 9 13 13 0 0 1-3.5-9A13 13 0 0 1 12 3z"/>',
     schach: '<path d="M7 21h10v-3H7z"/><path d="M8 18V10h8v8z"/><path d="M8 10V6h2v2h1V6h2v2h1V6h2v4z"/>',
     spielen: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z" fill="currentColor" stroke="none"/>',
     lektionen: '<path d="M12 5l9 4-9 4-9-4z"/><path d="M7 11v4c0 1.4 2.5 2.5 5 2.5s5-1.1 5-2.5v-4"/><line x1="21" y1="9" x2="21" y2="15"/>',
@@ -58,7 +61,10 @@ const Icons = (function () {
     materialwert: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h6M13 7h6"/><path d="M5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/><line x1="8" y1="21" x2="16" y2="21"/>'
   };
   PATHS.lesen = PATHS.deutsch;
-  PATHS.verkehrszeichen = PATHS.heimat;
+  // Eigenes Icon (Warndreieck) statt Alias auf heimat - wird nur noch für die
+  // Verkehrszeichen-Kachel INNERHALB von Heimat & Sachkunde gebraucht, dort
+  // passt das Verkehrsschild-Motiv nach wie vor.
+  PATHS.verkehrszeichen = '<path d="M12 3l8 14H4z"/><line x1="12" y1="9" x2="12" y2="13"/><circle cx="12" cy="15.5" r="0.9" fill="currentColor" stroke="none"/>';
   PATHS.grundmatt = PATHS.matt;
 
   function svg(name) {

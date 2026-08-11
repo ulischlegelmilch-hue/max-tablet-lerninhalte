@@ -502,6 +502,35 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Setzt Max' kompletten Lernfortschritt zurueck (Punkte, gelöste Aufgaben
+   *  je Fach, Karteikarten-Gewichtung, Lese-/Buch-Fortschritt, Schach-/Taktik-/
+   *  Konzentrations-Stand, Tages-Streak) - fuer einen echten Neustart, z. B.
+   *  wenn ein neues Kind das Tablet uebernimmt. Bewusst NICHT zurueckgesetzt:
+   *  tagesplanRegeln und malfolgenReihen (Ulis Eltern-Einstellungen bleiben
+   *  erhalten) sowie fernstand (wird beim naechsten Poll vom Backend eh
+   *  ueberschrieben). Nur ueber den PIN-geschuetzten Eltern-Bereich aufrufbar
+   *  (siehe App.oeffneEinstellungen), da unwiderruflich. */
+  function resetFortschritt() {
+    state.sterne = 0;
+    state.streak = 0;
+    state.stats = {
+      mathe: { richtig: 0, falsch: 0 },
+      deutsch: { richtig: 0, falsch: 0 },
+      lesen: { richtig: 0, falsch: 0 },
+      heimat: { richtig: 0, falsch: 0 }
+    };
+    state.leseFortschritt = {};
+    state.buchFortschritt = {};
+    state.malfolgen = {};
+    state.matheKategorien = {};
+    state.schach = { stufe: 0, siege: 0 };
+    state.taktik = {};
+    state.konzentration = { koordinatenBestzeitMs: null };
+    state.schachTagesplan = { datum: null, schritte: [] };
+    state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
+    save(state);
+  }
+
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
     getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
@@ -513,6 +542,6 @@ const Storage = (function () {
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
-    getBuchFortschritt, saveBuchSeite, markBuchFertig
+    getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt
   };
 })();
