@@ -443,19 +443,28 @@ const Mathe = (function () {
     return { typ: 'numeric', frage: `${a} · ${b} = ${produkt}.<br>Wie lautet die Umkehraufgabe? ${produkt} : ${b} = ?`, antwort: a, hilfe };
   }
 
-  // Vergleiche zwei Rechnungen mit <, = oder >
+  // Vergleiche zwei Rechnungen mit <, = oder > - es gibt ZWEI Varianten
+  // (rechts eine fertige Zahl ODER rechts nochmal eine Rechnung), die
+  // unterschiedlich viel Rechenarbeit brauchen. Die Hilfe muss zur jeweils
+  // GESTELLTEN Variante passen: steht rechts schon eine Zahl, muss (und darf)
+  // nur die linke Seite ausgerechnet werden - eine Hilfe, die trotzdem zeigt,
+  // wie man "beide Seiten" ausrechnet, waere fuer genau diese Variante falsch
+  // bzw. verwirrend (zeigt mehr Arbeit, als die Aufgabe verlangt).
   function genVergleichRechnungFrage() {
     const a = rnd(2, 9), b = rnd(2, 9) * 10;
     const links = a * b;
-    let rechts, rechtsText;
-    if (Math.random() < 0.4) {
+    const zahlRechts = Math.random() < 0.4;
+    let rechts, rechtsText, hilfe;
+    if (zahlRechts) {
       // rechte Seite: bloße Zahl, manchmal absichtlich daneben
       rechts = links + (Math.random() < 0.4 ? 0 : (rnd(1, 5) * 10 * (Math.random() < 0.5 ? 1 : -1)));
       rechtsText = `${rechts}`;
+      hilfe = hilfeVergleichMitZahl();
     } else {
       const c = rnd(2, 9), d = rnd(2, 9) * 10;
       rechts = c * d;
       rechtsText = `${c} · ${d}`;
+      hilfe = hilfeVergleichMitRechnung();
     }
     const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
     return {
@@ -463,15 +472,28 @@ const Mathe = (function () {
       frage: `${a} · ${b} ___ ${rechtsText}`,
       optionen: ['<', '=', '>'],
       richtigIndex: ['<', '=', '>'].indexOf(zeichen),
-      hilfe: hilfeVergleich()
+      hilfe
     };
   }
 
-  function hilfeVergleich() {
+  // Rechts steht schon eine fertige Zahl - nur die linke Seite muss gerechnet werden.
+  function hilfeVergleichMitZahl() {
+    const a = rnd(2, 9), b = rnd(2, 9) * 10;
+    const links = a * b;
+    const rechts = links + (Math.random() < 0.4 ? 0 : (rnd(1, 5) * 10 * (Math.random() < 0.5 ? 1 : -1)));
+    const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
+    return `<strong>Beispiel:</strong> ${a} · ${b} ___ ${rechts}<br>` +
+      `Rechts steht schon eine fertige Zahl - du musst nur die linke Seite ausrechnen: ${a} · ${b} = ${links}<br>` +
+      `Jetzt vergleiche direkt mit der Zahl rechts: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
+  }
+
+  // Rechts steht nochmal eine Rechnung - hier muessen wirklich BEIDE Seiten
+  // ausgerechnet werden, bevor man vergleichen kann.
+  function hilfeVergleichMitRechnung() {
     const a = rnd(2, 9), b = rnd(2, 9) * 10, c = rnd(2, 9), d = rnd(2, 9) * 10;
     const links = a * b, rechts = c * d;
     const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
-    return `<strong>Beispiel:</strong> ${a} · ${b} ___ ${c} · ${d}<br>Rechne zuerst beide Seiten aus: ${a} · ${b} = ${links}, ${c} · ${d} = ${rechts}<br>Jetzt vergleiche die Zahlen: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
+    return `<strong>Beispiel:</strong> ${a} · ${b} ___ ${c} · ${d}<br>Hier stehen auf beiden Seiten Rechnungen - du musst BEIDE ausrechnen: ${a} · ${b} = ${links}, ${c} · ${d} = ${rechts}<br>Jetzt vergleiche die Zahlen: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
   }
 
   // Zahl in ein Produkt mit einer Zehnerzahl zerlegen: 420 = ▢ · 60
