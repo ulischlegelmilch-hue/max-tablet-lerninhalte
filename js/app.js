@@ -487,7 +487,12 @@ const App = (function () {
     if (typeof f.aufAntwort === 'function') f.aufAntwort(giltAlsGewusst);
     if (!giltAlsGewusst && session.wiederholeFalsche) {
       const neuePosition = Math.min(session.fragen.length, session.index + 4);
-      session.fragen.splice(neuePosition, 0, f);
+      // Fragen mit neueVersion() (z.B. Tagesaufgabe) kommen mit NEUEN Zahlen
+      // desselben Aufgabentyps zurueck, statt wortwoertlich identisch (bei den
+      // Malfolgen-Fakten OHNE neueVersion bleibt es bewusst dieselbe Frage -
+      // das ist dort ja genau die Karteikarte, die geuebt werden soll).
+      const wiederholung = typeof f.neueVersion === 'function' ? f.neueVersion() : f;
+      session.fragen.splice(neuePosition, 0, wiederholung);
     }
 
     const fb = document.getElementById('feedback');

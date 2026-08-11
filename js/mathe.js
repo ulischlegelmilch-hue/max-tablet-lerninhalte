@@ -77,48 +77,77 @@ const Mathe = (function () {
   // Zerlegt eine 3-stellige Zahl in [H, Z, E]-Ziffern.
   function ziffern3(n) { return String(n).padStart(3, '0').split('').map(Number); }
 
-  const STELLEN = ['Hunderter', 'Zehner', 'Einer'];
-
-  // Schritt-fuer-Schritt-Erklaerung einer schriftlichen Addition (mit Uebertrag).
-  function erklaerungAddition(a, b) {
-    const summe = a + b;
-    const za = ziffern3(a), zb = ziffern3(b);
-    let uebertrag = 0;
-    const zeilen = [];
-    for (let i = 2; i >= 0; i--) {
-      const s = za[i] + zb[i] + uebertrag;
-      const ziffer = s % 10;
-      const neuerUebertrag = s >= 10 ? 1 : 0;
-      let zeile = `${STELLEN[i]}: ${za[i]} + ${zb[i]}`;
-      if (uebertrag) zeile += ` + ${uebertrag} (Übertrag)`;
-      zeile += ` = ${s}`;
-      if (neuerUebertrag) zeile += ` → ${ziffer} aufschreiben, 1 übertragen`;
-      zeilen.push(zeile);
-      uebertrag = neuerUebertrag;
-    }
-    return `<strong>Beispiel:</strong> ${a} + ${b} = ?<br>${zeilen.join('<br>')}<br><strong>Ergebnis: ${summe}</strong>`;
+  // Baut eine Ziffernfolge fester Breite fuer die Spaltenanzeige - fuehrende
+  // Stellen ohne Ziffer bleiben leer (kein "0" davor), damit z.B. eine
+  // 2-stellige Zahl neben einer 3-stelligen sauber rechtsbuendig steht.
+  function spalteZiffern(n, breite) {
+    const s = String(n);
+    return Array(breite - s.length).fill('').concat(s.split(''));
   }
 
-  // Schritt-fuer-Schritt-Erklaerung einer schriftlichen Subtraktion (Abziehverfahren mit Leihen).
-  function erklaerungSubtraktion(a, b) {
-    const differenz = a - b;
-    const za = ziffern3(a);
-    const zb = ziffern3(b);
-    const zeilen = [];
-    let leihe = 0;
-    for (let i = 2; i >= 0; i--) {
-      const oben = za[i] - leihe;
-      const unten = zb[i];
-      const obenText = leihe ? `${za[i]} − 1 (geliehen) = ${oben}` : `${za[i]}`;
-      if (oben < unten) {
-        zeilen.push(`${STELLEN[i]}: ${obenText} − ${unten} geht nicht → leihe von der nächsten Stelle: ${oben + 10} − ${unten} = ${oben + 10 - unten}`);
-        leihe = 1;
-      } else {
-        zeilen.push(`${STELLEN[i]}: ${obenText} − ${unten} = ${oben - unten}`);
-        leihe = 0;
+  // Baut die Rechnung GENAU SO auf, wie Max sie im Heft untereinander
+  // rechnet: Ziffern rechtsbuendig in Spalten, kleine Uebertrags-/Leihe-
+  // Hinweise darueber, ein Strich, das Ergebnis darunter - statt einer
+  // Satz-Erklaerung Stelle fuer Stelle (dieser Text-Stil war fuer Max
+  // verwirrend, weil er nicht dem gewohnten Rechenweg auf Papier entspricht).
+  function htmlSpaltenRechnung(a, b, operator, ergebnis) {
+    const breite = Math.max(String(a).length, String(b).length, String(ergebnis).length);
+    const digitsA = String(a).padStart(breite, '0').split('').map(Number);
+    const digitsB = String(b).padStart(breite, '0').split('').map(Number);
+    const hinweisZeile = Array(breite).fill('');
+
+    if (operator === '+') {
+      let uebertrag = 0;
+      for (let i = breite - 1; i >= 0; i--) {
+        const s = digitsA[i] + digitsB[i] + uebertrag;
+        uebertrag = s >= 10 ? 1 : 0;
+        if (uebertrag && i > 0) hinweisZeile[i - 1] = '+1';
+      }
+    } else {
+      let leihe = 0;
+      for (let i = breite - 1; i >= 0; i--) {
+        const oben = digitsA[i] - leihe;
+        if (oben < digitsB[i]) {
+          if (i > 0) hinweisZeile[i - 1] = '−1';
+          leihe = 1;
+        } else {
+          leihe = 0;
+        }
       }
     }
-    return `<strong>Beispiel:</strong> ${a} − ${b} = ?<br>${zeilen.join('<br>')}<br><strong>Ergebnis: ${differenz}</strong>`;
+
+    const spaltenStil = `grid-template-columns: 26px repeat(${breite}, 1fr);`;
+    const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
+    const zeile = (zeichen, ziffern, klasse) =>
+      `<div class="sr-zeile" style="${spaltenStil}">${zelle(zeichen, 'sr-zeichen')}` +
+      `${ziffern.map(d => zelle(d, klasse)).join('')}</div>`;
+
+    let html = '<div class="sr-rechnung">';
+    if (hinweisZeile.some(h => h)) html += zeile('', hinweisZeile, 'sr-hinweis');
+    html += zeile('', spalteZiffern(a, breite), 'sr-ziffer');
+    html += zeile(operator, spalteZiffern(b, breite), 'sr-ziffer');
+    html += `<div class="sr-strich" style="margin-left:26px;"></div>`;
+    html += zeile('', spalteZiffern(ergebnis, breite), 'sr-ziffer sr-ergebnis');
+    html += '</div>';
+    return html;
+  }
+
+  // Schritt-fuer-Schritt-Beispiel einer schriftlichen Addition (mit Uebertrag),
+  // dargestellt genau so, wie es untereinander gerechnet wird.
+  function erklaerungAddition(a, b) {
+    const summe = a + b;
+    return `<strong>Beispiel:</strong> ${a} + ${b} = ?` +
+      htmlSpaltenRechnung(a, b, '+', summe) +
+      `<strong>Ergebnis: ${summe}</strong>`;
+  }
+
+  // Schritt-fuer-Schritt-Beispiel einer schriftlichen Subtraktion (Abziehverfahren
+  // mit Leihen), dargestellt genau so, wie es untereinander gerechnet wird.
+  function erklaerungSubtraktion(a, b) {
+    const differenz = a - b;
+    return `<strong>Beispiel:</strong> ${a} − ${b} = ?` +
+      htmlSpaltenRechnung(a, b, '−', differenz) +
+      `<strong>Ergebnis: ${differenz}</strong>`;
   }
 
   // ---- Schriftlich Addieren/Subtrahieren (3-stellig) ----
@@ -256,13 +285,14 @@ const Mathe = (function () {
       angezeigt = echtesErgebnis + (Math.random() < 0.5 ? abweichung : -abweichung);
     }
     const zeichen = plus ? '+' : '−';
-    const a2 = rnd(200, 700), b2 = rnd(100, a2 - 10);
+    const a2 = rnd(200, 700), b2 = plus ? rnd(100, 999 - a2) : rnd(100, a2 - 10);
+    const erklaerung2 = plus ? erklaerungAddition(a2, b2) : erklaerungSubtraktion(a2, b2);
     return {
       typ: 'mc',
       frage: `Stimmt diese Rechnung?<br>${a} ${zeichen} ${b} = ${angezeigt}`,
       optionen: ['Ja, stimmt', 'Nein, falsch'],
       richtigIndex: stimmt ? 0 : 1,
-      hilfe: `Rechne die Aufgabe selbst nach und vergleiche mit dem Ergebnis:<br>${erklaerungSubtraktion(a2, b2)}<br>Stimmt dein eigenes Ergebnis nicht mit dem in der Aufgabe überein, ist die Rechnung falsch.`
+      hilfe: `Rechne die Aufgabe selbst nach und vergleiche mit dem Ergebnis:<br>${erklaerung2}<br>Stimmt dein eigenes Ergebnis nicht mit dem in der Aufgabe überein, ist die Rechnung falsch.`
     };
   }
 
@@ -807,6 +837,19 @@ const Mathe = (function () {
     return kategorien[kategorien.length - 1];
   }
 
+  // Erzeugt eine Frage aus einem bestimmten Generator UND merkt sich, wie sie
+  // bei Bedarf spaeter mit NEUEN Zahlen desselben Typs neu erzeugt werden kann
+  // (f.neueVersion) - genutzt von app.js, wenn eine falsch beantwortete Frage
+  // dank wiederholeFalsche ein paar Fragen spaeter noch einmal drankommt: Max
+  // soll dieselbe Art Aufgabe nochmal ueben, nicht wortwoertlich dieselben
+  // Zahlen auswendig lernen (siehe Karteikarten-Prinzip, aber mit variablem Inhalt).
+  function erzeugeFrage(kategorie, gen) {
+    const frage = gen();
+    frage.aufAntwort = (korrekt) => Storage.meldeMatheKategorieErgebnis(kategorie, korrekt);
+    frage.neueVersion = () => erzeugeFrage(kategorie, gen);
+    return frage;
+  }
+
   function genTagesaufgabe(anzahl) {
     const stats = Storage.getMatheKategorienStats();
     const bereicheProKategorie = {};
@@ -818,15 +861,21 @@ const Mathe = (function () {
     while (fragen.length < anzahl) {
       const kategorie = waehleKategorieGewichtet(bereicheProKategorie, stats);
       const generatoren = bereicheProKategorie[kategorie];
-      const frage = generatoren[rnd(0, generatoren.length - 1)]();
-      frage.aufAntwort = (korrekt) => Storage.meldeMatheKategorieErgebnis(kategorie, korrekt);
-      fragen.push(frage);
+      const gen = generatoren[rnd(0, generatoren.length - 1)];
+      fragen.push(erzeugeFrage(kategorie, gen));
     }
     return fragen;
   }
 
   function starteTagesaufgabe() {
-    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20), { titel: 'Mathe-Tagesaufgabe' });
+    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20), {
+      titel: 'Mathe-Tagesaufgabe',
+      // Karteikarten-Prinzip wie bei den Malfolgen: eine falsch beantwortete
+      // Aufgabe (1. Versuch nicht sauber richtig) kommt ein paar Fragen
+      // spaeter noch einmal dran - dank f.neueVersion() mit neuen Zahlen,
+      // nicht identisch wiederholt.
+      wiederholeFalsche: true
+    });
     App.setLastStarter(starter); starter();
   }
 

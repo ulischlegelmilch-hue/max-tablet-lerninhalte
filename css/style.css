@@ -720,6 +720,44 @@ html, body {
   margin-bottom: 10px;
 }
 
+/* Schriftliches Rechnen in der Hilfe: Ziffern in Spalten untereinander, genau
+   so wie Max es im Heft rechnet (siehe mathe.js htmlSpaltenRechnung) - statt
+   einer Satz-Erklaerung Stelle fuer Stelle. */
+.sr-rechnung {
+  margin: 12px 0;
+  font-variant-numeric: tabular-nums;
+}
+.sr-zeile {
+  display: grid;
+  align-items: center;
+}
+.sr-zeichen {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.sr-ziffer {
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ink);
+}
+.sr-hinweis {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  min-height: 18px;
+}
+.sr-hinweis div:empty::before { content: '\00a0'; }
+.sr-strich {
+  border-top: 2px solid var(--ink);
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+.sr-ergebnis {
+  color: var(--accent-dark);
+}
+
 /* Schach - Optik & Funktionsaufteilung an chess.com angelehnt: gruen/creme-
    farbenes, flaches Brett ohne Rundung, gelbe Markierung fuer ausgewaehltes
    Feld/letzten Zug, Punkt/Ring fuer Zielfelder statt blauer Kreis, sowie
