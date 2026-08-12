@@ -15,6 +15,7 @@ const Mathe = (function () {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
+      { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
     ]));
   }
@@ -984,6 +985,56 @@ const Mathe = (function () {
     FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne);
   }
 
+  // ---- Fortschritts-Uebersicht: zeigt pro ausgewaehlter Reihe UND pro
+  // einzelner Aufgabe (Fakt), wie weit Max ist - basierend auf denselben
+  // Daten wie das Karteikarten-Deck (Storage.getMalfolgenStats fuer den
+  // Sitzt-Status je Fakt, Storage.getMalfolgenDeck fuer "kommt in dieser
+  // Runde noch dran"). Rein informativ, keine eigene Logik/Punkte.
+  function malfolgenFaktStatus(stat) {
+    if (!stat) return 'neu';
+    return (stat.serie || 0) >= 2 ? 'sicher' : 'uebung';
+  }
+
+  function renderMalfolgenUebersicht() {
+    const reihen = Storage.getMalfolgenReihen();
+    const stats = Storage.getMalfolgenStats();
+    const restDeck = new Set(Storage.getMalfolgenDeck());
+
+    let gesamtSicher = 0;
+    const reihenHtml = reihen.map(a => {
+      let sicher = 0;
+      const chipsHtml = Array.from({ length: 10 }, (_, i) => i + 1).map(b => {
+        const fakt = `${a}x${b}`;
+        const status = malfolgenFaktStatus(stats[fakt]);
+        if (status === 'sicher') sicher++;
+        const offenKlasse = restDeck.has(fakt) ? ' uebersicht-chip-offen' : '';
+        return `<div class="uebersicht-chip uebersicht-chip-${status}${offenKlasse}" title="${a} × ${b} = ${a * b}">${b}</div>`;
+      }).join('');
+      gesamtSicher += sicher;
+      return `
+        <div class="uebersicht-reihe">
+          <div class="uebersicht-reihe-kopf"><span>${a}er-Reihe</span><span>${sicher} von 10 sicher</span></div>
+          <div class="uebersicht-chips">${chipsHtml}</div>
+        </div>
+      `;
+    }).join('');
+
+    const gesamtAnzahl = reihen.length * 10;
+
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Dein Fortschritt bei den Malfolgen</div>
+      <div class="lese-text">Insgesamt <strong>${gesamtSicher} von ${gesamtAnzahl}</strong> Aufgaben sitzen sicher. In der aktuellen Karten-Runde kommen noch <strong>${restDeck.size}</strong> Aufgaben dran, bevor sich alles wiederholt.</div>
+      <div class="uebersicht-legende">
+        <span><span class="uebersicht-punkt uebersicht-punkt-sicher"></span> sitzt sicher</span>
+        <span><span class="uebersicht-punkt uebersicht-punkt-uebung"></span> wird noch geübt</span>
+        <span><span class="uebersicht-punkt uebersicht-punkt-neu"></span> noch nie dran gewesen</span>
+        <span><span class="uebersicht-punkt uebersicht-punkt-offen"></span> kommt in dieser Runde noch dran</span>
+      </div>
+      <div class="uebersicht-liste">${reihenHtml}</div>
+    `);
+  }
+
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
   // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
   // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
@@ -1086,6 +1137,6 @@ const Mathe = (function () {
 
   return {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
-    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte
+    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht
   };
 })();
