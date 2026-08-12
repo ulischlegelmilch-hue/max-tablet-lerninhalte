@@ -14,6 +14,7 @@ const Storage = (function () {
       },
       leseFortschritt: {},
       malfolgen: {},
+      malfolgenDeck: [],
       matheKategorien: {},
       schach: { stufe: 0, siege: 0 },
       // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
@@ -313,6 +314,32 @@ const Storage = (function () {
   function setMalfolgenReihen(reihen) {
     if (!reihen || reihen.length === 0) return;
     state.malfolgenReihen = reihen;
+    // Reihen-Auswahl geaendert -> das Karten-Deck (siehe getMalfolgenDeck/
+    // setMalfolgenDeck) bezieht sich noch auf die ALTE Auswahl und muss beim
+    // naechsten Uben frisch gemischt werden, sonst blieben Fakten aus nicht
+    // mehr gewaehlten Reihen im Deck bzw. neu dazugewaehlte Reihen kaemen
+    // gar nicht rein, bis das alte Deck zufaellig aufgebraucht ist.
+    state.malfolgenDeck = [];
+    save(state);
+  }
+
+  /** Rest-"Kartendeck" fuers Malfolgen-Karteikarten-Uben (siehe mathe.js
+   *  starteMalfolgenKarten): ein einmal durchgemischtes Deck aus allen
+   *  aktuell ausgewaehlten Fakten (schwache Fakten mehrfach drin, siehe
+   *  mathe.js baueMalfolgenDeck), das Session fuer Session von VORNE
+   *  abgebaut wird, statt bei jeder Session neu (unabhaengig) gewuerfelt zu
+   *  werden. Das garantiert echte Abdeckung: jeder Fakt im Deck kommt
+   *  mindestens einmal dran, bevor irgendeiner ein zweites Mal drankommt -
+   *  reines gewichtetes Wuerfeln (auch mit Zuruecklegen) wuerde das NICHT
+   *  sicherstellen, v.a. bei vielen ausgewaehlten Reihen (z.B. alle 10
+   *  Reihen = 100 Fakten, aber nur 15 Karten pro Session). */
+  function getMalfolgenDeck() {
+    if (!state.malfolgenDeck) state.malfolgenDeck = [];
+    return state.malfolgenDeck;
+  }
+
+  function setMalfolgenDeck(deck) {
+    state.malfolgenDeck = deck;
     save(state);
   }
 
@@ -594,6 +621,7 @@ const Storage = (function () {
     state.leseFortschritt = {};
     state.buchFortschritt = {};
     state.malfolgen = {};
+    state.malfolgenDeck = [];
     state.matheKategorien = {};
     state.schach = { stufe: 0, siege: 0 };
     state.taktik = {};
@@ -618,6 +646,7 @@ const Storage = (function () {
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
     getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt,
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
-    getBelohnungsVerlauf, loeseBelohnungEin
+    getBelohnungsVerlauf, loeseBelohnungEin,
+    getMalfolgenDeck, setMalfolgenDeck
   };
 })();

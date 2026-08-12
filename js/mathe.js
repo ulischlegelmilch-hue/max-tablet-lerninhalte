@@ -866,24 +866,40 @@ const Mathe = (function () {
     return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
   }
 
-  // Gewichtete Ziehung MIT Zuruecklegen - anders als eine Ziehung ohne
-  // Zuruecklegen liefert das IMMER exakt `anzahl` Elemente, auch wenn der Pool
-  // (z.B. bei nur ein oder zwei ausgewaehlten Malfolgen-Reihen, siehe
-  // Storage.getMalfolgenReihen) kleiner als `anzahl` ist - ein Fakt kann dann
-  // mehrfach vorkommen, statt dass die Session vorzeitig verkuerzt wird.
-  function waehleGewichtetMitZuruecklegen(pool, anzahl) {
-    const gesamtgewicht = pool.reduce((s, x) => s + x.gewicht, 0);
-    const ausgewaehlt = [];
-    for (let i = 0; i < anzahl; i++) {
-      let ziel = Math.random() * gesamtgewicht;
-      let idx = 0;
-      for (; idx < pool.length - 1; idx++) {
-        ziel -= pool[idx].gewicht;
-        if (ziel <= 0) break;
-      }
-      ausgewaehlt.push(pool[idx]);
+  // Baut ein frisch gemischtes "Kartendeck" aus ALLEN aktuell ausgewaehlten
+  // Fakten (siehe Storage.getMalfolgenReihen) - schwache Fakten (hohes
+  // gewichtFuerStat) kommen mehrfach rein, jeder Fakt aber MINDESTENS einmal.
+  // Das Deck wird in Storage.malfolgenDeck persistiert und von
+  // ziehMalfolgenFakten() Session fuer Session von VORNE abgebaut (nicht bei
+  // jeder Session neu gewuerfelt) - dadurch ist garantiert, dass jeder Fakt
+  // im Deck einmal drankommt, bevor irgendeiner ein zweites Mal drankommt.
+  // gewichtFuerStat liefert bei "neutral" (keine Fehler) 3, ein Fakt braucht
+  // also im Schnitt 3 Gewichtspunkte pro Deck-Kopie - eine 1x1-Fehlerserie
+  // (gewicht 9) landet dadurch ca. 3x im Deck statt nur 1x.
+  function baueMalfolgenDeck() {
+    const stats = Storage.getMalfolgenStats();
+    const deck = [];
+    for (const fakt of malfolgenAlleFakten()) {
+      const kopien = Math.max(1, Math.round(gewichtFuerStat(stats[fakt]) / 3));
+      for (let i = 0; i < kopien; i++) deck.push(fakt);
     }
-    return ausgewaehlt;
+    return shuffle(deck);
+  }
+
+  // Zieht `anzahl` Fakten vom Deck-Rest (siehe baueMalfolgenDeck) - wird das
+  // Deck dabei leer, wird sofort ein frisches gemischt und weitergezogen
+  // (garantiert IMMER exakt `anzahl` Fakten, auch bei wenigen ausgewaehlten
+  // Reihen). Der Rest wird zurueck in Storage gespeichert, damit die naechste
+  // Session (auch nach App-Neustart) an derselben Stelle im Deck weitermacht.
+  function ziehMalfolgenFakten(anzahl) {
+    let deck = Storage.getMalfolgenDeck();
+    const gezogen = [];
+    while (gezogen.length < anzahl) {
+      if (deck.length === 0) deck = baueMalfolgenDeck();
+      gezogen.push(deck.shift());
+    }
+    Storage.setMalfolgenDeck(deck);
+    return gezogen;
   }
 
   // ---- Malfolgen als Karteikarten: Vorderseite zeigt die Aufgabe, Antippen
@@ -891,14 +907,12 @@ const Mathe = (function () {
   // es richtig gewusst hat (zwei Buttons), statt eine Zahl einzutippen. Kein
   // Wiederholen-innerhalb-der-Session mehr (das gehoerte zum alten Zahlen-
   // Eingabe-Quiz) - ueber Tage hinweg lenkt Storage.meldeMalfolgenErgebnis die
-  // Gewichtung trotzdem weiter Richtung schwacher Fakten.
+  // Deck-Gewichtung trotzdem weiter Richtung schwacher Fakten.
   let mfSession = null;
   let mfUmgedreht = false;
 
   function starteMalfolgenKarten() {
-    const stats = Storage.getMalfolgenStats();
-    const pool = malfolgenAlleFakten().map(fakt => ({ fakt, gewicht: gewichtFuerStat(stats[fakt]) }));
-    const fakten = waehleGewichtetMitZuruecklegen(pool, 15).map(({ fakt }) => fakt);
+    const fakten = ziehMalfolgenFakten(15);
     mfSession = { fakten, index: 0, richtig: 0, sterne: 0 };
     App.setLastStarter(starteMalfolgenKarten);
     renderMalfolgenKarte();
