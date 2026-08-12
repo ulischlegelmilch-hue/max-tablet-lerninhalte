@@ -14,7 +14,7 @@ const Mathe = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgen()' },
+      { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
     ]));
   }
@@ -170,6 +170,30 @@ const Mathe = (function () {
     return htmlSpaltenRahmen(breite, zeilenHtml, ergebnis);
   }
 
+  // Zeigt die AUFGABE selbst (nicht nur die Hilfe) im Spalten-Layout, ohne
+  // Uebertrags-Hinweise und ohne Ergebnis (nur "?" je Stelle) - Max soll die
+  // Aufgabe wirklich schriftlich auf Papier untereinander rechnen, statt nur
+  // eine Fliesstext-Aufgabe "437 + 238 = ?" im Kopf zu loesen. Eingetippt wird
+  // trotzdem nur das Endergebnis (siehe Design-Entscheidung: kein Ziffer-fuer-
+  // Ziffer-Eingaberaster auf dem Touchscreen, das Rechnen passiert auf Papier).
+  function htmlSpaltenAufgabe(a, b, operator) {
+    const ergebnis = operator === '+' ? a + b : a - b;
+    const breite = Math.max(String(a).length, String(b).length, String(ergebnis).length);
+    const anzeigeA = spalteZiffern(a, breite);
+    const anzeigeB = spalteZiffern(b, breite);
+    const spaltenStil = `grid-template-columns: 26px repeat(${breite}, 1fr);`;
+    const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
+    const zeile = (zeichen, ziffern, klasse) =>
+      `<div class="sr-zeile" style="${spaltenStil}">${zelle(zeichen, 'sr-zeichen')}` +
+      `${ziffern.map(d => zelle(d, klasse)).join('')}</div>`;
+    return '<div class="sr-rechnung sr-rechnung-frage">' +
+      zeile('', anzeigeA, 'sr-ziffer') +
+      zeile(operator, anzeigeB, 'sr-ziffer') +
+      `<div class="sr-strich" style="margin-left:26px;"></div>` +
+      zeile('', Array(breite).fill('?'), 'sr-ziffer sr-ergebnis-leer') +
+      '</div>';
+  }
+
   // Schritt-fuer-Schritt-Beispiel einer schriftlichen Addition (mit Uebertrag),
   // dargestellt genau so, wie es untereinander gerechnet wird.
   function erklaerungAddition(a, b) {
@@ -194,11 +218,11 @@ const Mathe = (function () {
     if (plus) {
       const a = rnd(100, 600), b = rnd(100, 999 - a);
       const a2 = rnd(100, 600), b2 = rnd(100, 999 - a2);
-      return { typ: 'numeric', frage: `${a} + ${b} = ?`, antwort: a + b, hilfe: erklaerungAddition(a2, b2) };
+      return { typ: 'numeric', frage: htmlSpaltenAufgabe(a, b, '+'), antwort: a + b, hilfe: erklaerungAddition(a2, b2) };
     }
     const a = rnd(200, 950), b = rnd(100, a - 10);
     const a2 = rnd(200, 950), b2 = rnd(100, a2 - 10);
-    return { typ: 'numeric', frage: `${a} − ${b} = ?`, antwort: a - b, hilfe: erklaerungSubtraktion(a2, b2) };
+    return { typ: 'numeric', frage: htmlSpaltenAufgabe(a, b, '−'), antwort: a - b, hilfe: erklaerungSubtraktion(a2, b2) };
   }
 
   // Erzeugt ein Zahlenpaar OHNE Uebertrag: jede Ziffer des 2. Werts <= der des 1.
@@ -229,7 +253,7 @@ const Mathe = (function () {
     const bsp = beispielOhneUebertrag();
     return {
       typ: 'numeric',
-      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(ohne Übertrag)</span>`,
+      frage: htmlSpaltenAufgabe(a, b, '−') + '<span class="aufgaben-hinweis">(ohne Übertrag)</span>',
       antwort: a - b,
       hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
     };
@@ -240,7 +264,7 @@ const Mathe = (function () {
     const bsp = beispielMitUebertrag();
     return {
       typ: 'numeric',
-      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(mit Übertrag)</span>`,
+      frage: htmlSpaltenAufgabe(a, b, '−') + '<span class="aufgaben-hinweis">(mit Übertrag)</span>',
       antwort: a - b,
       hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
     };
@@ -335,13 +359,35 @@ const Mathe = (function () {
   }
 
   // ---- Sachaufgaben zu Subtraktion (Minuend/Subtrahend/Differenz) ----
+  // Die ersten drei Vorlagen ueben bewusst die Fach-Vokabeln Minuend/Subtrahend/
+  // Differenz (aus Max' tatsaechlichen Schulaufgaben, siehe Foto-Beispiele) -
+  // die weiteren sind echte kleine Geschichten mit wechselndem Kontext, damit
+  // sich nicht nur die Zahlen, sondern auch der TEXT von Aufgabe zu Aufgabe
+  // unterscheidet (frueher wiederholten sich effektiv nur 3 immer gleiche
+  // Satzmuster mit anderen Zahlen).
   const sachaufgabenSubtraktion = [
     () => { const a = rnd(400, 980), b = rnd(100, a - 20);
       return `Subtrahiere ${b} von ${a}.`; },
     () => { const a = rnd(400, 980), b = rnd(100, a - 20);
       return `Der Minuend heißt ${a}, der Subtrahend ${b}. Berechne die Differenz.`; },
     () => { const a = rnd(400, 980), b = rnd(100, a - 20);
-      return `Berechne die Differenz von ${a} und ${b}.`; }
+      return `Berechne die Differenz von ${a} und ${b}.`; },
+    () => { const a = rnd(20, 32), b = rnd(3, 15);
+      return `In Max' Klasse sind ${a} Schüler. ${b} von ihnen sind heute krank. Wie viele Schüler sind da?`; },
+    () => { const a = rnd(30, 90), b = rnd(5, 25);
+      return `Auf dem Schulhof spielen ${a} Kinder. ${b} gehen zurück ins Klassenzimmer. Wie viele Kinder spielen noch auf dem Schulhof?`; },
+    () => { const a = rnd(200, 500), b = rnd(30, 150);
+      return `Ein Zug hat ${a} Plätze. ${b} davon sind schon besetzt. Wie viele Plätze sind noch frei?`; },
+    () => { const a = rnd(40, 200), b = rnd(5, 30);
+      return `Im Parkhaus stehen ${a} Autos. ${b} Autos fahren weg. Wie viele Autos stehen noch im Parkhaus?`; },
+    () => { const a = rnd(30, 90), b = rnd(4, 20);
+      return `Ein Bauer hat ${a} Hühner. Er verkauft ${b} davon auf dem Markt. Wie viele Hühner hat er jetzt noch?`; },
+    () => { const a = rnd(150, 600), b = rnd(20, 90);
+      return `In der Schulbücherei gibt es ${a} Bücher. ${b} davon sind gerade ausgeliehen. Wie viele Bücher stehen noch im Regal?`; },
+    () => { const a = rnd(25, 80), b = rnd(5, 18);
+      return `${a} Vögel sitzen auf einem Baum. ${b} von ihnen fliegen weg. Wie viele Vögel sitzen noch auf dem Baum?`; },
+    () => { const a = rnd(15, 30), b = rnd(2, 12);
+      return `Bei der Klassenfahrt sind ${a} Kinder dabei. ${b} davon fahren mit dem ersten Bus, der Rest mit dem zweiten. Wie viele Kinder sind im zweiten Bus?`; }
   ];
 
   function genSachaufgabeSubtraktion() {
@@ -820,40 +866,108 @@ const Mathe = (function () {
     return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
   }
 
-  function waehleGewichtet(pool, anzahl) {
-    const kopie = pool.slice();
+  // Gewichtete Ziehung MIT Zuruecklegen - anders als eine Ziehung ohne
+  // Zuruecklegen liefert das IMMER exakt `anzahl` Elemente, auch wenn der Pool
+  // (z.B. bei nur ein oder zwei ausgewaehlten Malfolgen-Reihen, siehe
+  // Storage.getMalfolgenReihen) kleiner als `anzahl` ist - ein Fakt kann dann
+  // mehrfach vorkommen, statt dass die Session vorzeitig verkuerzt wird.
+  function waehleGewichtetMitZuruecklegen(pool, anzahl) {
+    const gesamtgewicht = pool.reduce((s, x) => s + x.gewicht, 0);
     const ausgewaehlt = [];
-    for (let i = 0; i < anzahl && kopie.length > 0; i++) {
-      const gesamtgewicht = kopie.reduce((s, x) => s + x.gewicht, 0);
+    for (let i = 0; i < anzahl; i++) {
       let ziel = Math.random() * gesamtgewicht;
       let idx = 0;
-      for (; idx < kopie.length - 1; idx++) {
-        ziel -= kopie[idx].gewicht;
+      for (; idx < pool.length - 1; idx++) {
+        ziel -= pool[idx].gewicht;
         if (ziel <= 0) break;
       }
-      ausgewaehlt.push(kopie[idx]);
-      kopie.splice(idx, 1);
+      ausgewaehlt.push(pool[idx]);
     }
     return ausgewaehlt;
   }
 
-  function genMalfolgenSession(anzahl) {
+  // ---- Malfolgen als Karteikarten: Vorderseite zeigt die Aufgabe, Antippen
+  // dreht die Karte um und zeigt das Ergebnis - Max sagt danach SELBST, ob er
+  // es richtig gewusst hat (zwei Buttons), statt eine Zahl einzutippen. Kein
+  // Wiederholen-innerhalb-der-Session mehr (das gehoerte zum alten Zahlen-
+  // Eingabe-Quiz) - ueber Tage hinweg lenkt Storage.meldeMalfolgenErgebnis die
+  // Gewichtung trotzdem weiter Richtung schwacher Fakten.
+  let mfSession = null;
+  let mfUmgedreht = false;
+
+  function starteMalfolgenKarten() {
     const stats = Storage.getMalfolgenStats();
     const pool = malfolgenAlleFakten().map(fakt => ({ fakt, gewicht: gewichtFuerStat(stats[fakt]) }));
-    return waehleGewichtet(pool, anzahl).map(({ fakt }) => {
-      const [a, b] = fakt.split('x').map(Number);
-      return {
-        typ: 'numeric',
-        frage: `${a} × ${b} = ?`,
-        antwort: a * b,
-        aufAntwort: (korrekt) => Storage.meldeMalfolgenErgebnis(fakt, korrekt)
-      };
-    });
+    const fakten = waehleGewichtetMitZuruecklegen(pool, 15).map(({ fakt }) => fakt);
+    mfSession = { fakten, index: 0, richtig: 0, sterne: 0 };
+    App.setLastStarter(starteMalfolgenKarten);
+    renderMalfolgenKarte();
   }
 
-  function starteMalfolgen() {
-    const starter = () => App.startQuizSession('mathe', genMalfolgenSession(15), { titel: 'Malfolgen üben', wiederholeFalsche: true });
-    App.setLastStarter(starter); starter();
+  function renderMalfolgenKarte() {
+    mfUmgedreht = false;
+    const fakt = mfSession.fakten[mfSession.index];
+    const [a, b] = fakt.split('x').map(Number);
+    const nr = mfSession.index + 1;
+    const total = mfSession.fakten.length;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="progress-row"><span>Karte ${nr} / ${total}</span><span>MALFOLGEN</span></div>
+      <div class="karteikarte" onclick="Mathe.karteUmdrehen()">
+        <div class="karteikarte-inner" id="karteikarte-inner">
+          <div class="karteikarte-seite karteikarte-vorne">
+            <div class="karteikarte-frage">${a} × ${b}</div>
+            <div class="karteikarte-hinweis">Tippen zum Umdrehen</div>
+          </div>
+          <div class="karteikarte-seite karteikarte-hinten">
+            <div class="karteikarte-ergebnis">${a * b}</div>
+          </div>
+        </div>
+      </div>
+      <div class="karteikarte-bewertung" id="karteikarte-bewertung">
+        <div class="btn-bewertung btn-falsch" onclick="Mathe.bewerteMalfolgenKarte(false)">✘ Nicht gewusst</div>
+        <div class="btn-bewertung btn-richtig" onclick="Mathe.bewerteMalfolgenKarte(true)">✔ Richtig gewusst</div>
+      </div>
+    `);
+  }
+
+  function karteUmdrehen() {
+    if (mfUmgedreht) return;
+    mfUmgedreht = true;
+    document.getElementById('karteikarte-inner').classList.add('umgedreht');
+    document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
+  }
+
+  function bewerteMalfolgenKarte(korrekt) {
+    if (!mfUmgedreht) return; // erst umdrehen, dann bewerten
+    const fakt = mfSession.fakten[mfSession.index];
+    Storage.meldeMalfolgenErgebnis(fakt, korrekt);
+    const gained = Storage.addAntwort('mathe', korrekt, 1);
+    if (korrekt) { mfSession.richtig++; mfSession.sterne += gained; }
+    App.updateTopbar();
+    mfSession.index++;
+    if (mfSession.index >= mfSession.fakten.length) renderMalfolgenErgebnis();
+    else renderMalfolgenKarte();
+  }
+
+  function renderMalfolgenErgebnis() {
+    const total = mfSession.fakten.length;
+    const quote = Math.round((mfSession.richtig / total) * 100);
+    let emoji = '🙂';
+    if (quote >= 90) emoji = '🏆';
+    else if (quote >= 70) emoji = '🎉';
+    else if (quote >= 40) emoji = '👍';
+
+    App.render(`
+      <div class="result-card">
+        <div class="result-emoji">${emoji}</div>
+        <div class="result-title">${mfSession.richtig} von ${total} gewusst!</div>
+        <div class="result-sterne">Du hast ${mfSession.sterne} ⭐ verdient</div>
+        <div class="btn-primary" onclick="App.restartLast()">Nochmal üben</div>
+        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="App.gotoHome()">Zum Hauptmenü</div>
+      </div>
+    `);
+    FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne);
   }
 
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
@@ -864,8 +978,18 @@ const Mathe = (function () {
   // Bereichs mit mehreren Generatoren (z. B. "schriftlich") wird gleichverteilt
   // zufaellig einer davon benutzt - nur der Bereich selbst wird gewichtet. ----
   const AUFGABEN_BEREICHE = [
+    // genAddSubFrage/genSubtraktionOhneUebertrag/genSubtraktionMitUebertrag
+    // (echtes "Plus/Minus untereinander", siehe htmlSpaltenAufgabe) bewusst
+    // mehrfach gelistet: innerhalb der Kategorie "schriftlich" wird gleich-
+    // verteilt zufaellig EIN Eintrag gewaehlt, mehr Eintraege = haeufiger dran,
+    // ohne die anderen schriftlich-Aufgabentypen (Rechenkette, Fehlende Ziffer,
+    // Stimmt-das, Sachaufgaben) ganz zu verdraengen.
+    { kategorie: 'schriftlich', gen: genAddSubFrage },
+    { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genSubtraktionOhneUebertrag },
+    { kategorie: 'schriftlich', gen: genSubtraktionOhneUebertrag },
+    { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
     { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
     { kategorie: 'schriftlich', gen: genRechenketteFrage },
     { kategorie: 'schriftlich', gen: genFehlendeZifferAddition },
@@ -886,12 +1010,19 @@ const Mathe = (function () {
     { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage }
   ];
 
+  // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
+  // gewichtFuerStat) - "schriftlich" (Plus/Minus untereinander u.a., siehe
+  // AUFGABEN_BEREICHE) bewusst hoeher, auf Ulis Wunsch, dass Max vermehrt
+  // schriftlich rechnen uebt statt nur gleichverteilt ueber alle Bereiche.
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.8 };
+
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);
-    const gesamtgewicht = kategorien.reduce((s, k) => s + gewichtFuerStat(stats[k]), 0);
+    const gewicht = k => gewichtFuerStat(stats[k]) * (KATEGORIE_BASISGEWICHT[k] || 1);
+    const gesamtgewicht = kategorien.reduce((s, k) => s + gewicht(k), 0);
     let ziel = Math.random() * gesamtgewicht;
     for (const k of kategorien) {
-      ziel -= gewichtFuerStat(stats[k]);
+      ziel -= gewicht(k);
       if (ziel <= 0) return k;
     }
     return kategorien[kategorien.length - 1];
@@ -939,5 +1070,8 @@ const Mathe = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteTagesaufgabe, starteMalfolgen, renderReihenwahl, speichereMalfolgenReihen };
+  return {
+    renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
+    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte
+  };
 })();

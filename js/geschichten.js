@@ -24,16 +24,22 @@ const Geschichten = (function () {
 
   /** Liefert das erste noch nicht fertig gelesene Buch (fuer den Tagesplan-
    *  Banner auf dem Startbildschirm) - oder das letzte Buch mit "Nochmal
-   *  lesen", falls schon alle fertig sind. */
+   *  lesen", falls schon alle fertig sind. status unterscheidet drei Faelle
+   *  (siehe App.baueTagesplan fuer die Beschriftung): 'neu' = noch keine
+   *  Seite gelesen (auch direkt nach Storage.resetFortschritt), 'weiter' =
+   *  mindestens eine Seite gelesen, aber nicht fertig, 'nochmal' = schon
+   *  fertig gelesen. Frueher wurde hier IMMER "Weiterlesen" angezeigt, auch
+   *  fuer ein frisches/zurueckgesetztes Buch ohne jeden Fortschritt. */
   function naechsteOffene() {
     for (const b of buecher) {
       const fortschritt = Storage.getBuchFortschritt(b.id);
       if (!fortschritt || !fortschritt.fertig) {
-        return { id: b.id, titel: b.titel, nochmal: false };
+        const status = fortschritt && fortschritt.seite > 0 ? 'weiter' : 'neu';
+        return { id: b.id, titel: b.titel, status };
       }
     }
     const letztes = buecher[buecher.length - 1];
-    return { id: letztes.id, titel: letztes.titel, nochmal: true };
+    return { id: letztes.id, titel: letztes.titel, status: 'nochmal' };
   }
 
   function renderMenu() {

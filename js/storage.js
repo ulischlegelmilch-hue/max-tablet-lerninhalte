@@ -52,7 +52,20 @@ const Storage = (function () {
       // Fortschritt in bildbasierten Buechern (Lesemodus, siehe lesemodus.js) -
       // eigenes Feld statt leseFortschritt, weil Buecher seitenbasiert sind
       // (Seitenzahl statt scrollTop) und keine Verstaendnisfragen haben.
-      buchFortschritt: {}
+      buchFortschritt: {},
+      // Belohnungssystem (siehe belohnungen.js): guthaben ist ein Parallel-
+      // zaehler zu sterne, der bei JEDER Punktevergabe (addAntwort/addSterne)
+      // mitzaehlt, aber - anders als sterne - beim Einloesen einer Belohnung
+      // wieder ABNIMMT. sterne selbst bleibt dadurch unangetastet als reine
+      // Lifetime-Anzeige fuers Level, damit Einloesen nicht wie ein Level-
+      // Verlust wirkt. belohnungen ist der von den Eltern editierbare Katalog,
+      // belohnungsVerlauf ein Log bereits eingeloester Belohnungen.
+      guthaben: 0,
+      belohnungen: [
+        { id: 'filmabend', name: 'Filmabend', kosten: 450 },
+        { id: 'uebernachtung-papa', name: 'Übernachtung bei Papa', kosten: 1200 }
+      ],
+      belohnungsVerlauf: []
     };
   }
 
@@ -209,6 +222,7 @@ const Storage = (function () {
       const bonus = Math.min(state.streak, 5);
       gained = Math.round((10 + bonus) * faktor);
       state.sterne += gained;
+      state.guthaben = (state.guthaben || 0) + gained;
       state.stats[fach].richtig++;
     } else {
       state.streak = 0;
@@ -451,7 +465,61 @@ const Storage = (function () {
    *  gewonnene Schachpartie). */
   function addSterne(betrag) {
     state.sterne += betrag;
+    state.guthaben = (state.guthaben || 0) + betrag;
     save(state);
+  }
+
+  /** Aktuell verfuegbares Guthaben zum Einloesen von Belohnungen (siehe
+   *  belohnungen.js) - im Unterschied zu sterne NICHT die Lifetime-Summe,
+   *  sinkt beim Einloesen wieder. */
+  function getGuthaben() {
+    return state.guthaben || 0;
+  }
+
+  function getBelohnungen() {
+    if (!state.belohnungen) state.belohnungen = [];
+    return state.belohnungen;
+  }
+
+  /** Nur ueber den PIN-geschuetzten Eltern-Bereich aufrufbar - Max soll den
+   *  Katalog/die Kosten sehen, aber nicht selbst festlegen koennen. */
+  function fuegeBelohnungHinzu(name, kosten) {
+    if (!state.belohnungen) state.belohnungen = [];
+    const id = 'b' + Date.now() + Math.floor(Math.random() * 1000);
+    state.belohnungen.push({ id, name, kosten });
+    save(state);
+  }
+
+  function aendereBelohnung(id, name, kosten) {
+    const b = getBelohnungen().find(x => x.id === id);
+    if (!b) return;
+    b.name = name;
+    b.kosten = kosten;
+    save(state);
+  }
+
+  function loescheBelohnung(id) {
+    state.belohnungen = getBelohnungen().filter(b => b.id !== id);
+    save(state);
+  }
+
+  function getBelohnungsVerlauf() {
+    if (!state.belohnungsVerlauf) state.belohnungsVerlauf = [];
+    return state.belohnungsVerlauf;
+  }
+
+  /** Zieht die Kosten vom Guthaben ab und protokolliert die Einloesung - nur
+   *  aus dem Eltern-Bereich aufrufbar (siehe App.oeffneEinstellungen), damit
+   *  Max nicht selbst "auf Kredit" einloesen kann. Liefert false, wenn das
+   *  Guthaben nicht (mehr) reicht (z.B. Doppelklick). */
+  function loeseBelohnungEin(id) {
+    const b = getBelohnungen().find(x => x.id === id);
+    if (!b || getGuthaben() < b.kosten) return false;
+    state.guthaben -= b.kosten;
+    getBelohnungsVerlauf().unshift({ name: b.name, kosten: b.kosten, datum: heutigesDatum() });
+    if (state.belohnungsVerlauf.length > 20) state.belohnungsVerlauf.length = 20;
+    save(state);
+    return true;
   }
 
   /** Fortschritt auf der Schach-Schwierigkeitsleiter: aktuelle Stufe (Index)
@@ -507,12 +575,13 @@ const Storage = (function () {
 
   /** Setzt Max' kompletten Lernfortschritt zurueck (Punkte, gelöste Aufgaben
    *  je Fach, Karteikarten-Gewichtung, Lese-/Buch-Fortschritt, Schach-/Taktik-/
-   *  Konzentrations-Stand, Tages-Streak) - fuer einen echten Neustart, z. B.
-   *  wenn ein neues Kind das Tablet uebernimmt. Bewusst NICHT zurueckgesetzt:
-   *  tagesplanRegeln und malfolgenReihen (Ulis Eltern-Einstellungen bleiben
-   *  erhalten) sowie fernstand (wird beim naechsten Poll vom Backend eh
-   *  ueberschrieben). Nur ueber den PIN-geschuetzten Eltern-Bereich aufrufbar
-   *  (siehe App.oeffneEinstellungen), da unwiderruflich. */
+   *  Konzentrations-Stand, Tages-Streak, Belohnungs-Guthaben+Verlauf) - fuer
+   *  einen echten Neustart, z. B. wenn ein neues Kind das Tablet uebernimmt.
+   *  Bewusst NICHT zurueckgesetzt: tagesplanRegeln, malfolgenReihen und der
+   *  Belohnungs-KATALOG selbst (Ulis Eltern-Einstellungen bleiben erhalten)
+   *  sowie fernstand (wird beim naechsten Poll vom Backend eh ueberschrieben).
+   *  Nur ueber den PIN-geschuetzten Eltern-Bereich aufrufbar (siehe
+   *  App.oeffneEinstellungen), da unwiderruflich. */
   function resetFortschritt() {
     state.sterne = 0;
     state.streak = 0;
@@ -531,6 +600,8 @@ const Storage = (function () {
     state.konzentration = { koordinatenBestzeitMs: null };
     state.schachTagesplan = { datum: null, schritte: [] };
     state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
+    state.guthaben = 0;
+    state.belohnungsVerlauf = [];
     save(state);
   }
 
@@ -545,6 +616,8 @@ const Storage = (function () {
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
-    getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt
+    getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt,
+    getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
+    getBelohnungsVerlauf, loeseBelohnungEin
   };
 })();

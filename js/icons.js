@@ -58,7 +58,10 @@ const Icons = (function () {
     online: '<path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8 15.8a6 6 0 0 1 8 0"/><path d="M11 19a2 2 0 0 1 2 0"/><circle cx="12" cy="19" r="0.9" fill="currentColor" stroke="none"/>',
     chat: '<path d="M4 4h16v12H8l-4 4z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/>',
     bauer: '<circle cx="12" cy="6.5" r="2.6"/><path d="M9 10.5h6l1.5 9h-9z"/><line x1="7" y1="19.5" x2="17" y2="19.5"/>',
-    materialwert: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h6M13 7h6"/><path d="M5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/><line x1="8" y1="21" x2="16" y2="21"/>'
+    materialwert: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h6M13 7h6"/><path d="M5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/><line x1="8" y1="21" x2="16" y2="21"/>',
+    // Geschenk: fuer die Belohnungen-Kachel (siehe belohnungen.js).
+    geschenk: '<rect x="4" y="10" width="16" height="10" rx="1.5"/><line x1="4" y1="14" x2="20" y2="14"/><line x1="12" y1="10" x2="12" y2="20"/>' +
+      '<path d="M12 10c-1-2.6-3-3.6-4.3-2.6C6.6 8.3 7.6 10 12 10z"/><path d="M12 10c1-2.6 3-3.6 4.3-2.6C17.4 8.3 16.4 10 12 10z"/>'
   };
   PATHS.lesen = PATHS.deutsch;
   // Eigenes Icon (Warndreieck) statt Alias auf heimat - wird nur noch für die

@@ -65,6 +65,8 @@ const App = (function () {
   // per Regeln in App.oeffneEinstellungen einstellbar) - das jeweils andere Fach
   // bleibt trotzdem im Tagesplan, nur als "Extra" markiert, damit Max jederzeit
   // mehr üben kann, ohne dass ihm etwas gesperrt wird.
+  const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
+
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
     const heuteFach = Storage.getTagesFach();
@@ -78,7 +80,7 @@ const App = (function () {
       heute, extra,
       {
         fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
-        titel: (offen.nochmal ? 'Nochmal lesen: ' : 'Weiterlesen: ') + offen.titel,
+        titel: GESCHICHTEN_STATUS_PRAEFIX[offen.status] + offen.titel,
         onclick: `Geschichten.leseBuch('${offen.id}')`
       }
     ];
@@ -142,6 +144,10 @@ const App = (function () {
         <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
           <span class="menu-icon icon-chat">${Icons.svg('chat')}</span>
           <span class="menu-text"><span class="menu-label">Chat mit Papa</span><span class="menu-progress">Nachricht schreiben</span></span>
+        </div>
+        <div class="menu-card accent-belohnung" onclick="Belohnungen.renderMenu()">
+          <span class="menu-icon icon-belohnung">${Icons.svg('geschenk')}</span>
+          <span class="menu-text"><span class="menu-label">Belohnungen</span><span class="menu-progress">${Storage.getGuthaben()} ⭐ gesammelt</span></span>
         </div>
       </div>
     `);
@@ -223,6 +229,54 @@ const App = (function () {
   // WebChromeClient eingerichtet, ohne den window.confirm()/alert() in Android
   // WebViews stillschweigend nichts tun und sofort false liefern (der Dialog
   // erscheint gar nicht) - der Reset wuerde also nie ausgefuehrt.
+  // Nur hier (Eltern-Bereich) darf eine Belohnung tatsaechlich eingeloest
+  // werden - Max sieht seinen Fortschritt auf der Belohnungen-Kachel
+  // (belohnungen.js), kann dort aber nichts abbuchen.
+  function belohnungenHtml() {
+    const guthaben = Storage.getGuthaben();
+    const liste = Storage.getBelohnungen();
+    if (!liste.length) return '<div class="regel-leer">Noch keine Belohnungen eingetragen.</div>';
+    return liste.map(b => {
+      const erreicht = guthaben >= b.kosten;
+      return `
+        <div class="regel-zeile">
+          <span>${b.name} — ${b.kosten} ⭐${erreicht ? ' ✅ einlösbar' : ''}</span>
+          <span style="display:flex; align-items:center; gap:10px;">
+            ${erreicht ? `<span class="btn-hilfe" style="margin:0; padding:6px 14px;" onclick="App.belohnungEinloesen('${b.id}')">Einlösen</span>` : ''}
+            <span class="regel-loeschen" onclick="App.belohnungLoeschen('${b.id}')">${Icons.svg('loeschen')}</span>
+          </span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function belohnungsVerlaufHtml() {
+    const verlauf = Storage.getBelohnungsVerlauf();
+    if (!verlauf.length) return '';
+    return `
+      <div class="fortschritt-unterueberschrift">Verlauf</div>
+      ${verlauf.map(v => `<div class="kategorie-zeile"><span>${formatDatum(v.datum)}: ${v.name}</span><span>−${v.kosten} ⭐</span></div>`).join('')}
+    `;
+  }
+
+  function fuegeBelohnungHinzu() {
+    const name = document.getElementById('belohnung-name').value.trim();
+    const kosten = parseInt(document.getElementById('belohnung-kosten').value, 10);
+    if (!name || !kosten || kosten <= 0) return;
+    Storage.fuegeBelohnungHinzu(name, kosten);
+    oeffneEinstellungen();
+  }
+
+  function belohnungLoeschen(id) {
+    Storage.loescheBelohnung(id);
+    oeffneEinstellungen();
+  }
+
+  function belohnungEinloesen(id) {
+    Storage.loeseBelohnungEin(id);
+    oeffneEinstellungen();
+  }
+
   function oeffneEinstellungen(resetBestaetigung) {
     const regeln = Storage.getTagesplanRegeln();
     const regelnHtml = regeln.length
@@ -266,6 +320,18 @@ const App = (function () {
           <div id="regel-daten" class="regel-daten"><input type="date" id="regel-datum" class="regel-input"></div>
           <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
         </div>
+      </div>
+
+      <div class="welcome" style="margin-top:32px;">Belohnungen</div>
+      <div class="lese-text">Max' aktuelles Guthaben: <strong>${Storage.getGuthaben()} ⭐</strong>. Das Guthaben sinkt nur, wenn hier eine Belohnung eingelöst wird – am besten als kleines Ritual, z. B. am Ende der Woche. Die Kosten bewusst hoch genug ansetzen, damit es sich nach echter Anstrengung anfühlt.</div>
+      <div class="regel-karte">
+        <div class="regel-liste">${belohnungenHtml()}</div>
+        <div class="regel-formular">
+          <input type="text" id="belohnung-name" class="regel-input" placeholder="z.B. Kinobesuch">
+          <input type="number" id="belohnung-kosten" class="regel-input" placeholder="Kosten in ⭐" min="1">
+          <div class="btn-primary" onclick="App.fuegeBelohnungHinzu()">Belohnung hinzufügen</div>
+        </div>
+        ${belohnungsVerlaufHtml()}
       </div>
 
       <div class="welcome" style="margin-top:32px;">Fortschritt zurücksetzen</div>
@@ -603,6 +669,7 @@ const App = (function () {
     init, gotoHome, render, subMenuHtml, updateTopbar,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
-    fortschrittWirklichZuruecksetzen
+    fortschrittWirklichZuruecksetzen,
+    fuegeBelohnungHinzu, belohnungLoeschen, belohnungEinloesen
   };
 })();

@@ -36,6 +36,7 @@
   --heimat: #47795A;       --heimat-soft: #D9EBDD;
   --schach: #363B4A;       --schach-soft: #DCDEE4;
   --chat: #B8456B;         --chat-soft: #F6DCE6;
+  --belohnung: #B8860B;    --belohnung-soft: #F6E7BF;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -67,10 +68,19 @@ html, body {
 .topbar-btn svg { width: 19px; height: 19px; }
 #topbar-title {
   flex: 1;
+  min-width: 0;
   text-align: center;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
+  font-style: italic;
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 10px;
+}
+@media (max-width: 700px) {
+  #topbar-title { font-size: 12px; }
 }
 #topbar-stats {
   display: flex; gap: 10px;
@@ -89,6 +99,22 @@ html, body {
   width: 100%;
   overflow-y: auto;
   padding: 28px;
+}
+
+/* Bildschirm ist jetzt drehbar (siehe AndroidManifest.xml screenOrientation) -
+   v.a. beim Lesen der Buecher im Lesemodus praktisch. Die meisten Raster
+   nutzen schon auto-fit/flex und passen sich von selbst an; die folgenden
+   festen Spaltenzahlen wuerden in Portrait zu eng, deshalb hier reduziert. */
+@media (max-width: 760px) {
+  #app-root { padding: 16px; }
+  .story-grid, .sign-grid, .stufen-grid, .sub-grid, .taktik-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+@media (max-width: 480px) {
+  .menu-grid, .story-grid, .sign-grid, .stufen-grid, .sub-grid, .taktik-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 /* Lesemodus (siehe lesemodus.js): #app-root nimmt beim Aktivieren die volle
    Bildschirmhoehe ein (Topbar ist dann per JS ausgeblendet) und verliert
@@ -261,6 +287,7 @@ html, body {
 .icon-heimat { background: var(--heimat); color: #fff; }
 .icon-schach { background: var(--schach); color: #fff; }
 .icon-chat { background: var(--chat); color: #fff; }
+.icon-belohnung { background: var(--belohnung); color: #fff; }
 
 /* Menu-Card/Tagesplan-Chip bekommen den hellen Fach-Tint als Kartenhintergrund
    (nicht nur einen duennen Rand) - Farbe traegt jetzt sichtbar die ganze
@@ -271,6 +298,7 @@ html, body {
 .accent-heimat { background: var(--heimat-soft); border-color: var(--heimat); }
 .accent-schach { background: var(--schach-soft); border-color: var(--schach); }
 .accent-chat { background: var(--chat-soft); border-color: var(--chat); }
+.accent-belohnung { background: var(--belohnung-soft); border-color: var(--belohnung); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
@@ -632,6 +660,88 @@ html, body {
   color: var(--ink-soft);
 }
 
+/* Belohnungen (siehe belohnungen.js): Fortschrittsbalken zeigt Guthaben
+   relativ zu den Kosten - erreicht = warmer Rahmen + Hinweis, dass Mama/Papa
+   Bescheid geben soll (das Einloesen selbst passiert nur im PIN-Bereich). */
+.belohnung-liste { display: flex; flex-direction: column; gap: 16px; max-width: 620px; margin: 18px auto 0; }
+.belohnung-karte {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+.belohnung-erreicht { border-color: var(--belohnung); background: var(--belohnung-soft); }
+.belohnung-name { font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+.belohnung-balken { height: 14px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+.belohnung-balken-fuellung { height: 100%; border-radius: 999px; background: var(--belohnung); transition: width 0.3s; }
+.belohnung-status { margin-top: 10px; font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.belohnung-erreicht .belohnung-status { color: #8A6200; }
+
+/* Malfolgen-Karteikarten (siehe mathe.js starteMalfolgenKarten): 3D-Flip per
+   CSS-Transform statt Bild-Austausch - Vorder-/Rueckseite liegen uebereinander
+   und werden per rotateY gedreht, backface-visibility blendet die jeweils
+   abgewandte Seite aus. */
+.karteikarte {
+  max-width: 340px;
+  height: 220px;
+  margin: 28px auto 0;
+  cursor: pointer;
+  perspective: 1200px;
+}
+.karteikarte-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.45s;
+  transform-style: preserve-3d;
+}
+.karteikarte-inner.umgedreht { transform: rotateY(180deg); }
+.karteikarte-seite {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.karteikarte-hinten {
+  transform: rotateY(180deg);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.karteikarte-frage { font-size: 46px; font-weight: 700; color: var(--ink); }
+.karteikarte-hinweis { margin-top: 12px; font-size: 13px; color: var(--ink-soft); }
+.karteikarte-ergebnis { font-size: 58px; font-weight: 800; color: var(--accent-dark); }
+.karteikarte-bewertung {
+  display: flex;
+  gap: 14px;
+  max-width: 340px;
+  margin: 22px auto 0;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.karteikarte-bewertung.sichtbar { visibility: visible; opacity: 1; }
+.btn-bewertung {
+  flex: 1;
+  padding: 18px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+.btn-bewertung.btn-richtig { background: #EAF7ED; border: 1px solid #5DB876; color: #1D6B36; }
+.btn-bewertung.btn-falsch { background: #FCECEA; border: 1px solid #DB6E63; color: #A3392F; }
+.btn-bewertung:active { transform: translateY(1px); }
+
 .optionen {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -770,6 +880,16 @@ html, body {
 .sr-ergebnis {
   color: var(--accent-dark);
 }
+
+/* Schriftliche Aufgabe als eigentliche FRAGE (nicht nur in der Hilfe, siehe
+   mathe.js htmlSpaltenAufgabe) - deutlich groesser als in der Hilfe, damit
+   klar ist: das hier ist die Aufgabe, die auf Papier untereinander gerechnet
+   werden soll, bevor nur das Endergebnis eingetippt wird. */
+.sr-rechnung-frage { max-width: 280px; margin: 18px auto; }
+.sr-rechnung-frage .sr-ziffer { font-size: 30px; }
+.sr-rechnung-frage .sr-zeichen { font-size: 26px; }
+.sr-rechnung-frage .sr-strich { border-top-width: 3px; }
+.sr-ergebnis-leer { color: var(--ink-soft); }
 
 /* Schach - Optik & Funktionsaufteilung an chess.com angelehnt: gruen/creme-
    farbenes, flaches Brett ohne Rundung, gelbe Markierung fuer ausgewaehltes
