@@ -54,6 +54,12 @@ const Storage = (function () {
       // eigenes Feld statt leseFortschritt, weil Buecher seitenbasiert sind
       // (Seitenzahl statt scrollTop) und keine Verstaendnisfragen haben.
       buchFortschritt: {},
+      // Welches Buch Max zuletzt geoeffnet hat (siehe Lesemodus.starteBuch) -
+      // steuert, welches Buch der "Weiterlesen"-Chip im Tagesplan zeigt
+      // (Geschichten.naechsteOffene). Ohne dieses Feld zeigte der Chip IMMER
+      // das erste unfertige Buch in fester Listenreihenfolge, auch wenn Max
+      // gerade ein ANDERES Buch liest (13.08.2026 von Uli gemeldet).
+      zuletztGeoeffnetesBuch: null,
       // Belohnungssystem (siehe belohnungen.js): guthaben ist ein Parallel-
       // zaehler zu sterne, der bei JEDER Punktevergabe (addAntwort/addSterne)
       // mitzaehlt, aber - anders als sterne - beim Einloesen einer Belohnung
@@ -70,7 +76,14 @@ const Storage = (function () {
         { id: 'filmabend', name: 'Filmabend', kosten: 1200 },
         { id: 'uebernachtung-papa', name: 'Übernachtung bei Papa', kosten: 3000 }
       ],
-      belohnungsVerlauf: []
+      belohnungsVerlauf: [],
+      // Zwischenspeicher fuer unterbrochene Aufgabenfolgen (siehe App.
+      // startQuizSession/getOffeneSession) - falls Max z.B. mitten in der
+      // Mathe-Uebung zum Lesen wechselt, soll der Stand fuer HEUTE erhalten
+      // bleiben statt beim naechsten Start einer Uebung verloren zu gehen.
+      // Ein Eintrag pro "aktivitaet"-Schluessel (z.B. 'mathe-gemischt'),
+      // gilt nur fuer den Tag, an dem er gespeichert wurde.
+      offeneSessions: {}
     };
   }
 
@@ -272,6 +285,15 @@ const Storage = (function () {
     if (!state.buchFortschritt) state.buchFortschritt = {};
     const bestehend = state.buchFortschritt[buchId];
     state.buchFortschritt[buchId] = { seite, fertig: bestehend ? bestehend.fertig : false };
+    save(state);
+  }
+
+  function getZuletztGeoeffnetesBuch() {
+    return state.zuletztGeoeffnetesBuch || null;
+  }
+
+  function setZuletztGeoeffnetesBuch(buchId) {
+    state.zuletztGeoeffnetesBuch = buchId;
     save(state);
   }
 
@@ -553,6 +575,29 @@ const Storage = (function () {
     return true;
   }
 
+  /** Liefert den gespeicherten Zwischenstand einer unterbrochenen Aufgaben-
+   *  folge - oder null, wenn keiner existiert ODER er von einem frueheren
+   *  Kalendertag stammt (bewusst: "erst am naechsten Tag zuruecksetzen",
+   *  siehe App.startQuizSession). */
+  function getOffeneSession(aktivitaet) {
+    if (!state.offeneSessions) state.offeneSessions = {};
+    const eintrag = state.offeneSessions[aktivitaet];
+    if (!eintrag || eintrag.datum !== heutigesDatum()) return null;
+    return eintrag;
+  }
+
+  function setOffeneSession(aktivitaet, daten) {
+    if (!state.offeneSessions) state.offeneSessions = {};
+    state.offeneSessions[aktivitaet] = Object.assign({ datum: heutigesDatum() }, daten);
+    save(state);
+  }
+
+  function loescheOffeneSession(aktivitaet) {
+    if (!state.offeneSessions) return;
+    delete state.offeneSessions[aktivitaet];
+    save(state);
+  }
+
   /** Fortschritt auf der Schach-Schwierigkeitsleiter: aktuelle Stufe (Index)
    *  und Siege auf dieser Stufe seit dem letzten Aufstieg. */
   function getSchachFortschritt() {
@@ -624,6 +669,7 @@ const Storage = (function () {
     };
     state.leseFortschritt = {};
     state.buchFortschritt = {};
+    state.zuletztGeoeffnetesBuch = null;
     state.malfolgen = {};
     state.malfolgenDeck = [];
     state.matheKategorien = {};
@@ -634,6 +680,7 @@ const Storage = (function () {
     state.tagesStreak = { anzahl: 0, letzterAktivTag: null };
     state.guthaben = 0;
     state.belohnungsVerlauf = [];
+    state.offeneSessions = {};
     save(state);
   }
 
@@ -649,8 +696,10 @@ const Storage = (function () {
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
     getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt,
+    getZuletztGeoeffnetesBuch, setZuletztGeoeffnetesBuch,
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
     getBelohnungsVerlauf, loeseBelohnungEin,
-    getMalfolgenDeck, setMalfolgenDeck
+    getMalfolgenDeck, setMalfolgenDeck,
+    getOffeneSession, setOffeneSession, loescheOffeneSession
   };
 })();

@@ -906,9 +906,25 @@ const Mathe = (function () {
   let mfSession = null;
   let mfUmgedreht = false;
 
+  // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
+  // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
+  const AKTIVITAET_MALFOLGEN = 'malfolgen';
+  const ANZAHL_MALFOLGEN = 15;
+
   function starteMalfolgenKarten() {
-    const fakten = ziehMalfolgenFakten(15);
-    mfSession = { fakten, index: 0, richtig: 0, sterne: 0 };
+    const offen = Storage.getOffeneSession(AKTIVITAET_MALFOLGEN);
+    if (offen && offen.index > 0 && offen.index < ANZAHL_MALFOLGEN) {
+      const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN - offen.index);
+      mfSession = {
+        fakten, index: 0,
+        richtig: offen.richtigCount || 0,
+        sterne: offen.sessionSterne || 0,
+        anzeigeOffset: offen.index
+      };
+    } else {
+      const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN);
+      mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0 };
+    }
     App.setLastStarter(starteMalfolgenKarten);
     renderMalfolgenKarte();
   }
@@ -917,8 +933,8 @@ const Mathe = (function () {
     mfUmgedreht = false;
     const fakt = mfSession.fakten[mfSession.index];
     const [a, b] = fakt.split('x').map(Number);
-    const nr = mfSession.index + 1;
-    const total = mfSession.fakten.length;
+    const nr = mfSession.index + mfSession.anzeigeOffset + 1;
+    const total = mfSession.fakten.length + mfSession.anzeigeOffset;
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="progress-row"><span>Karte ${nr} / ${total}</span><span>MALFOLGEN</span></div>
@@ -955,12 +971,22 @@ const Mathe = (function () {
     if (korrekt) { mfSession.richtig++; mfSession.sterne += gained; }
     App.updateTopbar();
     mfSession.index++;
-    if (mfSession.index >= mfSession.fakten.length) renderMalfolgenErgebnis();
-    else renderMalfolgenKarte();
+    const fertig = mfSession.index >= mfSession.fakten.length;
+    if (fertig) {
+      Storage.loescheOffeneSession(AKTIVITAET_MALFOLGEN);
+      renderMalfolgenErgebnis();
+    } else {
+      Storage.setOffeneSession(AKTIVITAET_MALFOLGEN, {
+        index: mfSession.index + mfSession.anzeigeOffset,
+        richtigCount: mfSession.richtig,
+        sessionSterne: mfSession.sterne
+      });
+      renderMalfolgenKarte();
+    }
   }
 
   function renderMalfolgenErgebnis() {
-    const total = mfSession.fakten.length;
+    const total = mfSession.fakten.length + mfSession.anzeigeOffset;
     const quote = Math.round((mfSession.richtig / total) * 100);
     let emoji = '🙂';
     if (quote >= 90) emoji = '🏆';
@@ -1118,15 +1144,37 @@ const Mathe = (function () {
     return fragen;
   }
 
+  // aktivitaet-Schluessel fuer Storage.getOffeneSession/setOffeneSession -
+  // ermoeglicht das Fortsetzen einer unterbrochenen Aufgabenfolge am selben
+  // Tag (siehe App.startQuizSession), statt sie bei jedem Neuaufruf zu
+  // verwerfen (z.B. wenn Max zwischendurch etwas anderes macht wie lesen).
+  const AKTIVITAET_GEMISCHT = 'mathe-gemischt';
+  const ANZAHL_GEMISCHT = 20;
+
   function starteTagesaufgabe() {
-    const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20), {
-      titel: 'Gemischte Aufgaben',
-      // Karteikarten-Prinzip wie bei den Malfolgen: eine falsch beantwortete
-      // Aufgabe (1. Versuch nicht sauber richtig) kommt ein paar Fragen
-      // spaeter noch einmal dran - dank f.neueVersion() mit neuen Zahlen,
-      // nicht identisch wiederholt.
-      wiederholeFalsche: true
-    });
+    const starter = () => {
+      const offen = Storage.getOffeneSession(AKTIVITAET_GEMISCHT);
+      const config = {
+        titel: 'Gemischte Aufgaben',
+        // Karteikarten-Prinzip wie bei den Malfolgen: eine falsch beantwortete
+        // Aufgabe (1. Versuch nicht sauber richtig) kommt ein paar Fragen
+        // spaeter noch einmal dran - dank f.neueVersion() mit neuen Zahlen,
+        // nicht identisch wiederholt.
+        wiederholeFalsche: true,
+        aktivitaet: AKTIVITAET_GEMISCHT
+      };
+      if (offen && offen.index > 0 && offen.index < ANZAHL_GEMISCHT) {
+        // Fortsetzen: nur die NOCH FEHLENDEN Fragen neu erzeugen, Zaehler
+        // (richtig/Sterne) und Frage-Nummerierung setzen dort fort, wo Max
+        // aufgehoert hat.
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        App.startQuizSession('mathe', genTagesaufgabe(ANZAHL_GEMISCHT - offen.index), config);
+      } else {
+        App.startQuizSession('mathe', genTagesaufgabe(ANZAHL_GEMISCHT), config);
+      }
+    };
     App.setLastStarter(starter); starter();
   }
 

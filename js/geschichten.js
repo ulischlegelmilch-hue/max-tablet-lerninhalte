@@ -30,12 +30,31 @@ const Geschichten = (function () {
    *  mindestens eine Seite gelesen, aber nicht fertig, 'nochmal' = schon
    *  fertig gelesen. Frueher wurde hier IMMER "Weiterlesen" angezeigt, auch
    *  fuer ein frisches/zurueckgesetztes Buch ohne jeden Fortschritt. */
+  function statusFuer(fortschritt) {
+    return fortschritt && fortschritt.seite > 0 ? 'weiter' : 'neu';
+  }
+
+  /** Zuerst das zuletzt GEOEFFNETE Buch bevorzugen (Storage.
+   *  zuletztGeoeffnetesBuch, siehe Lesemodus.starteBuch) - vorher wurde hier
+   *  IMMER das erste unfertige Buch in fester Listenreihenfolge gezeigt, auch
+   *  wenn Max gerade ein ANDERES Buch angefangen/gelesen hat (13.08.2026 von
+   *  Uli gemeldet: "steht oben immer noch das alte Buch"). Nur wenn es kein
+   *  zuletzt geoeffnetes (oder das zuletzte bereits fertig gelesene) Buch
+   *  gibt, faellt es auf die alte "erstes unfertiges in der Liste"-Regel
+   *  zurueck (z.B. ganz am Anfang, bevor je ein Buch geoeffnet wurde). */
   function naechsteOffene() {
+    const zuletztId = Storage.getZuletztGeoeffnetesBuch();
+    const zuletzt = zuletztId && buecher.find(b => b.id === zuletztId);
+    if (zuletzt) {
+      const fortschritt = Storage.getBuchFortschritt(zuletzt.id);
+      if (!fortschritt || !fortschritt.fertig) {
+        return { id: zuletzt.id, titel: zuletzt.titel, status: statusFuer(fortschritt) };
+      }
+    }
     for (const b of buecher) {
       const fortschritt = Storage.getBuchFortschritt(b.id);
       if (!fortschritt || !fortschritt.fertig) {
-        const status = fortschritt && fortschritt.seite > 0 ? 'weiter' : 'neu';
-        return { id: b.id, titel: b.titel, status };
+        return { id: b.id, titel: b.titel, status: statusFuer(fortschritt) };
       }
     }
     const letztes = buecher[buecher.length - 1];

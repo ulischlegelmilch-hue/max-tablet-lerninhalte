@@ -428,7 +428,9 @@ const App = (function () {
 
   function startQuizSession(fach, fragen, config) {
     session = {
-      fach, fragen, index: 0, sessionSterne: 0, richtigCount: 0,
+      fach, fragen, index: 0,
+      sessionSterne: (config && config.startSessionSterne) || 0,
+      richtigCount: (config && config.startRichtigCount) || 0,
       onFinish: config && config.onFinish,
       // Lesbarer Titel fuer die Papa-Auswertung/Push-Meldung (siehe
       // renderErgebnis) - faellt auf den fach-Kuerzel zurueck, wenn keiner
@@ -436,7 +438,18 @@ const App = (function () {
       titel: (config && config.titel) || fach,
       // Wenn true: falsch beantwortete Fragen werden ein paar Fragen spaeter
       // erneut eingereiht (Karteikarten-Prinzip), statt einfach zu verschwinden.
-      wiederholeFalsche: !!(config && config.wiederholeFalsche)
+      wiederholeFalsche: !!(config && config.wiederholeFalsche),
+      // aktivitaet: Schluessel fuer Storage.setOffeneSession/getOffeneSession -
+      // wenn gesetzt, wird der Fortschritt nach jeder Antwort gespeichert, damit
+      // eine unterbrochene Aufgabenfolge (z.B. Max wechselt zwischendurch zum
+      // Lesen) am selben Tag fortgesetzt werden kann, statt verloren zu gehen
+      // (siehe Aufrufer wie Mathe.starteTagesaufgabe, die vor dem Start selbst
+      // pruefen, ob eine offene Session existiert, und dann nur die FEHLENDEN
+      // Fragen neu erzeugen). anzeigeOffset verschiebt "Frage X/Y" entsprechend,
+      // damit die Nummerierung beim Fortsetzen weiterlaeuft statt neu bei 1
+      // anzufangen.
+      aktivitaet: config && config.aktivitaet,
+      anzeigeOffset: (config && config.anzeigeOffset) || 0
     };
     renderQuestion();
   }
@@ -455,8 +468,8 @@ const App = (function () {
 
   function renderQuestion() {
     const f = session.fragen[session.index];
-    const total = session.fragen.length;
-    const nr = session.index + 1;
+    const total = session.fragen.length + session.anzeigeOffset;
+    const nr = session.index + session.anzeigeOffset + 1;
     versuch = 1;
     hilfeGenutzt = false;
 
@@ -630,7 +643,19 @@ const App = (function () {
 
     setTimeout(() => {
       session.index++;
-      if (session.index >= session.fragen.length) {
+      const fertig = session.index >= session.fragen.length;
+      if (session.aktivitaet) {
+        if (fertig) {
+          Storage.loescheOffeneSession(session.aktivitaet);
+        } else {
+          Storage.setOffeneSession(session.aktivitaet, {
+            index: session.index + session.anzeigeOffset,
+            richtigCount: session.richtigCount,
+            sessionSterne: session.sessionSterne
+          });
+        }
+      }
+      if (fertig) {
         renderErgebnis();
       } else {
         renderQuestion();
@@ -639,7 +664,7 @@ const App = (function () {
   }
 
   function renderErgebnis() {
-    const total = session.fragen.length;
+    const total = session.fragen.length + session.anzeigeOffset;
     const quote = Math.round((session.richtigCount / total) * 100);
     let emoji = '🙂';
     if (quote >= 90) emoji = '🏆';

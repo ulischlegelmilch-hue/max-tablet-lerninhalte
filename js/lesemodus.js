@@ -33,6 +33,10 @@ const Lesemodus = (function () {
 
     const fortschritt = Storage.getBuchFortschritt(id);
     seite = (fortschritt && fortschritt.seite < urls.length) ? fortschritt.seite : 0;
+    // Merkt sich SOFORT beim Oeffnen (nicht erst beim ersten Umblaettern),
+    // welches Buch Max zuletzt aufgeschlagen hat - der "Weiterlesen"-Chip im
+    // Tagesplan (siehe Geschichten.naechsteOffene) zeigt genau dieses Buch.
+    Storage.setZuletztGeoeffnetesBuch(id);
 
     document.getElementById('topbar').style.display = 'none';
     document.getElementById('app-root').classList.add('lesemodus-aktiv');

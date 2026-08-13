@@ -141,12 +141,47 @@ const Deutsch = (function () {
     return fragen;
   }
 
+  // aktivitaet-Schluessel fuer Storage.getOffeneSession/setOffeneSession -
+  // ermoeglicht Fortsetzen einer unterbrochenen Aufgabenfolge am selben Tag
+  // (siehe App.startQuizSession und Mathe.starteTagesaufgabe fuers Vorbild).
   function starteRechtschreibung() {
-    const starter = () => App.startQuizSession('deutsch', genRechtschreibung(10), { titel: 'Rechtschreibung' });
+    const AKTIVITAET = 'deutsch-rechtschreibung';
+    const ANZAHL = 10;
+    const starter = () => {
+      const offen = Storage.getOffeneSession(AKTIVITAET);
+      const config = { titel: 'Rechtschreibung', aktivitaet: AKTIVITAET };
+      if (offen && offen.index > 0 && offen.index < ANZAHL) {
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        App.startQuizSession('deutsch', genRechtschreibung(ANZAHL - offen.index), config);
+      } else {
+        App.startQuizSession('deutsch', genRechtschreibung(ANZAHL), config);
+      }
+    };
     App.setLastStarter(starter); starter();
   }
+
   function starteLesen() {
-    const starter = () => App.startQuizSession('deutsch', genLesen(4), { titel: 'Lesen & Verstehen' });
+    const AKTIVITAET = 'deutsch-lesen';
+    // 4 Texte a 2 Fragen = 8 Fragen gesamt - beim Fortsetzen wird in TEXTEN
+    // (nicht Fragen) nachgezogen, dann auf die noch fehlende Fragenzahl
+    // gekuerzt, da genLesen() textweise erzeugt.
+    const ANZAHL_TEXTE = 4;
+    const ANZAHL = ANZAHL_TEXTE * 2;
+    const starter = () => {
+      const offen = Storage.getOffeneSession(AKTIVITAET);
+      const config = { titel: 'Lesen & Verstehen', aktivitaet: AKTIVITAET };
+      if (offen && offen.index > 0 && offen.index < ANZAHL) {
+        const fehlend = ANZAHL - offen.index;
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        App.startQuizSession('deutsch', genLesen(Math.ceil(fehlend / 2)).slice(0, fehlend), config);
+      } else {
+        App.startQuizSession('deutsch', genLesen(ANZAHL_TEXTE), config);
+      }
+    };
     App.setLastStarter(starter); starter();
   }
 
