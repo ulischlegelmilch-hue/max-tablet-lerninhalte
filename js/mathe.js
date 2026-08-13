@@ -660,11 +660,23 @@ const Mathe = (function () {
       if (!indices.includes(i)) indices.push(i);
     }
     indices.sort((a, b) => a - b);
+    // Werte MUESSEN sich alle unterscheiden - sonst kann "In welchem Monat gab
+    // es die meisten Regentage?" (siehe genMaxMonatFrage) einen echten
+    // Gleichstand haben, bei dem mehrere Monate denselben Hoechstwert zeigen,
+    // aber nur EINER als richtig gilt (indexOf findet nur den ersten Treffer).
+    // Bei 5 unabhaengig gewuerfelten Werten aus 2-16 (15 moegliche Werte) kam
+    // das frueher in ca. 15% der Faelle vor - bei Max real aufgetreten
+    // (12.08.2026: "die auswaehlbaren Monate haben alle die gleiche Anzahl").
+    const werte = [];
+    while (werte.length < 5) {
+      const w = rnd(2, 16);
+      if (!werte.includes(w)) werte.push(w);
+    }
     return {
       titel: 'Regentage im Monat',
       einheitMehrzahl: 'Regentage',
       kategorien: indices.map(i => monate[i]),
-      werte: indices.map(() => rnd(2, 16))
+      werte
     };
   }
 
