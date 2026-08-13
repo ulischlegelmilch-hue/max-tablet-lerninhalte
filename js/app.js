@@ -368,7 +368,23 @@ const App = (function () {
           <div class="btn-gefahr" onclick="App.oeffneEinstellungen(true)">Gesamten Fortschritt zurücksetzen</div>
         `}
       </div>
+
+      ${versionInfoHtml()}
     `);
+  }
+
+  // Bisher gab es KEINE sichtbare Versionsanzeige irgendwo in der App (nur
+  // Logcat/Toast waehrend eines Updates) - fuehrte wiederholt dazu, dass nach
+  // einem App-Update unklar war, ob es wirklich angekommen ist (13.08.2026).
+  // AndroidBridge existiert nur in der echten Kiosk-WebView, nicht in der
+  // Browser-Vorschau (siehe initDevElternSimulation).
+  function versionInfoHtml() {
+    if (typeof AndroidBridge === 'undefined') return '';
+    const appVersion = AndroidBridge.getAppVersion ? AndroidBridge.getAppVersion() : '?';
+    const contentVersion = AndroidBridge.getContentVersion ? AndroidBridge.getContentVersion() : '';
+    return `
+      <div class="version-info">App-Version ${appVersion}${contentVersion ? ' · Inhalte ' + contentVersion : ''}</div>
+    `;
   }
 
   function fortschrittWirklichZuruecksetzen() {

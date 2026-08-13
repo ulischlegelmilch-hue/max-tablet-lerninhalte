@@ -1267,6 +1267,7 @@ html, body {
 }
 .regel-zeile:last-child { border-bottom: none; }
 .regel-leer { color: var(--ink-soft); font-size: 15px; padding: var(--space-2) 0; }
+.version-info { text-align: center; color: var(--ink-soft); font-size: 12px; margin: 28px 0 8px; }
 .regel-loeschen {
   display: flex; align-items: center; justify-content: center;
   width: 30px; height: 30px;
