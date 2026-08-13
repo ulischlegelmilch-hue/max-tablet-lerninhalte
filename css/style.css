@@ -1261,6 +1261,20 @@ html, body {
 }
 .regel-loeschen svg { width: 16px; height: 16px; }
 .regel-loeschen:active { background: #FCECEA; }
+
+/* Belohnungen-Zeile im Eltern-Bereich: Name+Kosten direkt editierbar statt
+   nur loeschen+neu-anlegen (siehe app.js belohnungenHtml/belohnungSpeichern). */
+.belohnung-edit-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.belohnung-edit-zeile:last-child { border-bottom: none; }
+.belohnung-edit-zeile .regel-input { flex: 1; min-width: 120px; }
+.belohnung-edit-kosten { max-width: 90px; flex: none; }
 .regel-formular { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .regel-daten { display: flex; gap: var(--space-3); }
 .regel-input {

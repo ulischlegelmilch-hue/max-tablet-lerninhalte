@@ -70,7 +70,7 @@ const App = (function () {
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
     const heuteFach = Storage.getTagesFach();
-    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Tagesaufgabe', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' };
+    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' };
     const deutsch = { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' };
     const [heute, extra] = heuteFach === 'mathe' ? [mathe, deutsch] : [deutsch, mathe];
     heute.badge = 'Heute dran';
@@ -232,6 +232,11 @@ const App = (function () {
   // Nur hier (Eltern-Bereich) darf eine Belohnung tatsaechlich eingeloest
   // werden - Max sieht seinen Fortschritt auf der Belohnungen-Kachel
   // (belohnungen.js), kann dort aber nichts abbuchen.
+  // Name+Kosten direkt bearbeitbar (statt loeschen+neu anlegen) - Storage.
+  // aendereBelohnung() gab es intern schon, war hier aber noch nicht verdrahtet.
+  // Wichtig fuer Uli: die Kosten sind Erfahrungswerte, die sich nach echtem
+  // Test mit Max noch anpassen lassen muessen sollen, ohne den Verlauf/die
+  // Reihenfolge zu verlieren.
   function belohnungenHtml() {
     const guthaben = Storage.getGuthaben();
     const liste = Storage.getBelohnungen();
@@ -239,12 +244,12 @@ const App = (function () {
     return liste.map(b => {
       const erreicht = guthaben >= b.kosten;
       return `
-        <div class="regel-zeile">
-          <span>${b.name} — ${b.kosten} ⭐${erreicht ? ' ✅ einlösbar' : ''}</span>
-          <span style="display:flex; align-items:center; gap:10px;">
-            ${erreicht ? `<span class="btn-hilfe" style="margin:0; padding:6px 14px;" onclick="App.belohnungEinloesen('${b.id}')">Einlösen</span>` : ''}
-            <span class="regel-loeschen" onclick="App.belohnungLoeschen('${b.id}')">${Icons.svg('loeschen')}</span>
-          </span>
+        <div class="belohnung-edit-zeile">
+          <input type="text" class="regel-input" id="bel-name-${b.id}" value="${b.name}">
+          <input type="number" class="regel-input belohnung-edit-kosten" id="bel-kosten-${b.id}" value="${b.kosten}" min="1">
+          <span class="btn-hilfe" style="margin:0; padding:8px 14px;" onclick="App.belohnungSpeichern('${b.id}')">Speichern</span>
+          ${erreicht ? `<span class="btn-hilfe" style="margin:0; padding:8px 14px;" onclick="App.belohnungEinloesen('${b.id}')">Einlösen</span>` : ''}
+          <span class="regel-loeschen" onclick="App.belohnungLoeschen('${b.id}')">${Icons.svg('loeschen')}</span>
         </div>
       `;
     }).join('');
@@ -264,6 +269,14 @@ const App = (function () {
     const kosten = parseInt(document.getElementById('belohnung-kosten').value, 10);
     if (!name || !kosten || kosten <= 0) return;
     Storage.fuegeBelohnungHinzu(name, kosten);
+    oeffneEinstellungen();
+  }
+
+  function belohnungSpeichern(id) {
+    const name = document.getElementById('bel-name-' + id).value.trim();
+    const kosten = parseInt(document.getElementById('bel-kosten-' + id).value, 10);
+    if (!name || !kosten || kosten <= 0) return;
+    Storage.aendereBelohnung(id, name, kosten);
     oeffneEinstellungen();
   }
 
@@ -670,6 +683,6 @@ const App = (function () {
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
     fortschrittWirklichZuruecksetzen,
-    fuegeBelohnungHinzu, belohnungLoeschen, belohnungEinloesen
+    fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen
   };
 })();

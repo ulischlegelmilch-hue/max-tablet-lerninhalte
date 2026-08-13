@@ -62,9 +62,13 @@ const Storage = (function () {
       // Verlust wirkt. belohnungen ist der von den Eltern editierbare Katalog,
       // belohnungsVerlauf ein Log bereits eingeloester Belohnungen.
       guthaben: 0,
+      // Kosten bewusst hoch angesetzt (12.08.2026 erste Version war mit 450/1200
+      // deutlich zu leicht verdient, Uli-Feedback nach echtem Test mit Max) -
+      // bei ca. 10-15 ⭐ pro richtiger Antwort braucht Filmabend jetzt mehrere
+      // Tage, Übernachtung bei Papa ungefaehr eine volle Woche Uebung.
       belohnungen: [
-        { id: 'filmabend', name: 'Filmabend', kosten: 450 },
-        { id: 'uebernachtung-papa', name: 'Übernachtung bei Papa', kosten: 1200 }
+        { id: 'filmabend', name: 'Filmabend', kosten: 1200 },
+        { id: 'uebernachtung-papa', name: 'Übernachtung bei Papa', kosten: 3000 }
       ],
       belohnungsVerlauf: []
     };

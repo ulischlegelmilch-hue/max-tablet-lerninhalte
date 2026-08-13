@@ -13,7 +13,7 @@ const Mathe = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
-      { icon: 'tagesaufgabe', titel: 'Tagesaufgabe', onclick: 'Mathe.starteTagesaufgabe()' },
+      { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
@@ -1125,7 +1125,7 @@ const Mathe = (function () {
 
   function starteTagesaufgabe() {
     const starter = () => App.startQuizSession('mathe', genTagesaufgabe(20), {
-      titel: 'Mathe-Tagesaufgabe',
+      titel: 'Gemischte Aufgaben',
       // Karteikarten-Prinzip wie bei den Malfolgen: eine falsch beantwortete
       // Aufgabe (1. Versuch nicht sauber richtig) kommt ein paar Fragen
       // spaeter noch einmal dran - dank f.neueVersion() mit neuen Zahlen,
