@@ -11,6 +11,28 @@ const Mathe = (function () {
 
   function ggt(a, b) { return b === 0 ? a : ggt(b, a % b); }
 
+  // Verhindert, dass innerhalb kurzer Distanz dieselbe Variante/Vorlage
+  // nochmal drankommt (z.B. immer wieder dasselbe Diagramm-Thema oder dieselbe
+  // Sachaufgaben-Geschichte in einem 20er-Set) - Uli-Feedback 13.08.2026:
+  // "er hat jetzt in einem Set vielfach diese Aufgabe [...] gehabt". Reines
+  // unabhaengiges Wuerfeln liess das zu oft passieren. Merkt sich pro "topf"
+  // (Schluessel) die zuletzt verwendeten Indizes ueber den Modul-Scope hinweg
+  // (bleibt bis zum naechsten Seiten-/App-Neuladen bestehen - ausreichend, das
+  // muss keine Session ueberdauern) und wuerfelt bei einem Treffer neu.
+  const zuletztVerwendet = {};
+  function waehleOhneWiederholung(topf, anzahlOptionen, merkTiefe) {
+    if (!zuletztVerwendet[topf]) zuletztVerwendet[topf] = [];
+    const kuerzlich = zuletztVerwendet[topf];
+    let idx, versuche = 0;
+    do {
+      idx = rnd(0, anzahlOptionen - 1);
+      versuche++;
+    } while (kuerzlich.includes(idx) && versuche < 20 && anzahlOptionen > merkTiefe);
+    kuerzlich.push(idx);
+    if (kuerzlich.length > merkTiefe) kuerzlich.shift();
+    return idx;
+  }
+
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
@@ -23,7 +45,7 @@ const Mathe = (function () {
   // Frei zugaenglich (kein Eltern-PIN) - Max soll selbst entscheiden koennen,
   // welche 1x1-Reihen er bei "Malfolgen üben" trainiert (z.B. klein anfangen
   // mit nur der 2er- und 5er-Reihe, spaeter erweitern).
-  function renderReihenwahl() {
+  function renderReihenwahl(bestaetigt) {
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Welche Reihen willst du üben?</div>
@@ -37,7 +59,7 @@ const Mathe = (function () {
             </label>
           `).join('')}
         </div>
-        <div id="reihen-hinweis" class="reihen-hinweis"></div>
+        <div id="reihen-hinweis" class="reihen-hinweis${bestaetigt ? ' reihen-hinweis-erfolg' : ''}">${bestaetigt ? '✔ Gespeichert!' : ''}</div>
         <div class="btn-primary" onclick="Mathe.speichereMalfolgenReihen()">Speichern</div>
       </div>
     `);
@@ -51,7 +73,7 @@ const Mathe = (function () {
       return;
     }
     Storage.setMalfolgenReihen(reihen);
-    renderReihenwahl();
+    renderReihenwahl(true);
   }
 
   // ============================================================
@@ -374,7 +396,8 @@ const Mathe = (function () {
   ];
 
   function genSachaufgabeSubtraktion() {
-    const vorlage = sachaufgabenSubtraktion[rnd(0, sachaufgabenSubtraktion.length - 1)]();
+    const vorlageIdx = waehleOhneWiederholung('sachaufgabe-subtraktion-vorlage', sachaufgabenSubtraktion.length, 5);
+    const vorlage = sachaufgabenSubtraktion[vorlageIdx]();
     const zahlen = vorlage.match(/\d+/g).map(Number);
     const a = Math.max(zahlen[0], zahlen[1]);
     const b = Math.min(zahlen[0], zahlen[1]);
@@ -653,7 +676,22 @@ const Mathe = (function () {
   // ---- Diagramme lesen: generiertes Balkendiagramm + Fragen dazu ----
   const monate = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
-  function genRegentageDiagramm() {
+  // Mehrere Themen statt immer nur "Regentage" - frueher war JEDES Diagramm
+  // thematisch dasselbe (Uli-Feedback 13.08.2026: "er hat jetzt in einem Set
+  // vielfach diese Aufgabe mit den Regentagen gehabt"), obwohl sich die
+  // FRAGE (Summe/Maximum/Vergleich/Schwelle) schon abwechselte.
+  const DIAGRAMM_THEMEN = [
+    { titel: 'Regentage im Monat', einheitMehrzahl: 'Regentage', min: 2, max: 16 },
+    { titel: 'Sonnenstunden im Monat', einheitMehrzahl: 'Sonnenstunden', min: 3, max: 14 },
+    { titel: 'Verkaufte Eis am Kiosk', einheitMehrzahl: 'verkaufte Eis', min: 20, max: 90 },
+    { titel: 'Gelesene Bücher in der Klasse', einheitMehrzahl: 'gelesene Bücher', min: 2, max: 18 },
+    { titel: 'Fahrräder auf dem Schulhof', einheitMehrzahl: 'Fahrräder', min: 5, max: 40 },
+    { titel: 'Ausgeliehene Spiele in der Pause', einheitMehrzahl: 'ausgeliehene Spiele', min: 3, max: 20 }
+  ];
+
+  function genDiagrammDaten() {
+    const themaIdx = waehleOhneWiederholung('diagramm-thema', DIAGRAMM_THEMEN.length, 3);
+    const thema = DIAGRAMM_THEMEN[themaIdx];
     const indices = [];
     while (indices.length < 5) {
       const i = rnd(0, 11);
@@ -661,20 +699,19 @@ const Mathe = (function () {
     }
     indices.sort((a, b) => a - b);
     // Werte MUESSEN sich alle unterscheiden - sonst kann "In welchem Monat gab
-    // es die meisten Regentage?" (siehe genMaxMonatFrage) einen echten
-    // Gleichstand haben, bei dem mehrere Monate denselben Hoechstwert zeigen,
-    // aber nur EINER als richtig gilt (indexOf findet nur den ersten Treffer).
-    // Bei 5 unabhaengig gewuerfelten Werten aus 2-16 (15 moegliche Werte) kam
-    // das frueher in ca. 15% der Faelle vor - bei Max real aufgetreten
-    // (12.08.2026: "die auswaehlbaren Monate haben alle die gleiche Anzahl").
+    // es die meisten X?" (siehe genMaxMonatFrage) einen echten Gleichstand
+    // haben, bei dem mehrere Monate denselben Hoechstwert zeigen, aber nur
+    // EINER als richtig gilt (indexOf findet nur den ersten Treffer). Bei 5
+    // unabhaengig gewuerfelten Werten kam das frueher in ca. 15% der Faelle
+    // vor - bei Max real aufgetreten (12.08.2026).
     const werte = [];
     while (werte.length < 5) {
-      const w = rnd(2, 16);
+      const w = rnd(thema.min, thema.max);
       if (!werte.includes(w)) werte.push(w);
     }
     return {
-      titel: 'Regentage im Monat',
-      einheitMehrzahl: 'Regentage',
+      titel: thema.titel,
+      einheitMehrzahl: thema.einheitMehrzahl,
       kategorien: indices.map(i => monate[i]),
       werte
     };
@@ -774,10 +811,11 @@ const Mathe = (function () {
   // Diagramm-Kategorie zum gleichen "eine Frage pro Auswahl"-Schema wie alle
   // anderen Bereiche der Tagesaufgabe (siehe AUFGABEN_BEREICHE).
   function genDiagrammFrage() {
-    const d = genRegentageDiagramm();
+    const d = genDiagrammDaten();
     const chartHtml = htmlBalkenDiagramm(d);
     const varianten = [genSummenFrage, genMaxMonatFrage, genMehrAlsFrage, genDiagrammVergleichFrage];
-    return varianten[rnd(0, varianten.length - 1)](d, chartHtml);
+    const idx = waehleOhneWiederholung('diagramm-variante', varianten.length, 2);
+    return varianten[idx](d, chartHtml);
   }
 
   // ---- Streifendiagramm/Tabelle: Mädchen/Jungen pro Schuljahr, eine fehlende
@@ -871,14 +909,54 @@ const Mathe = (function () {
   // gewichtFuerStat liefert bei "neutral" (keine Fehler) 3, ein Fakt braucht
   // also im Schnitt 3 Gewichtspunkte pro Deck-Kopie - eine 1x1-Fehlerserie
   // (gewicht 9) landet dadurch ca. 3x im Deck statt nur 1x.
+  // Wie shuffle(), verhindert zusaetzlich, dass ein und derselbe Fakt (bei
+  // schwachen Fakten stecken mehrere Kopien im Deck) direkt hintereinander
+  // zweimal vorkommt - reines Fisher-Yates-Mischen laesst das gelegentlich zu,
+  // was sich nicht "zufaellig" anfuehlt (13.08.2026 Uli-Wunsch: "Malfolgen
+  // sollten in Zufallswiedergabe angezeigt werden", aehnlich Musik-Shuffle).
+  // Klassisches "Reorganize String"-Verfahren: verteilt bei jedem Schritt
+  // eine zufaellig gewaehlte Gruppe unter den jeweils HAEUFIGSTEN noch
+  // uebrigen Werten (die nicht der zuletzt gesetzte Wert ist) - das
+  // garantiert (wenn ueberhaupt moeglich) keine zwei gleichen Werte direkt
+  // nebeneinander, anders als "mischen + hinterher reparieren", das bei
+  // dichteren Wiederholungen nicht zuverlaessig konvergiert.
+  function mischeOhneNachbarWiederholung(arr) {
+    const gruppen = new Map();
+    for (const x of arr) gruppen.set(x, (gruppen.get(x) || 0) + 1);
+    let eintraege = shuffle([...gruppen.entries()]);
+
+    const ergebnis = [];
+    let vorheriger = null;
+    while (ergebnis.length < arr.length) {
+      eintraege.sort((a, b) => b[1] - a[1]);
+      const maxCount = eintraege[0][1];
+      const kandidaten = eintraege.filter(([wert, anzahl]) => anzahl === maxCount && wert !== vorheriger);
+      const pool = kandidaten.length > 0 ? kandidaten : eintraege.filter(([wert]) => wert !== vorheriger);
+      const gewaehlt = pool.length > 0 ? pool[rnd(0, pool.length - 1)] : eintraege[0];
+      const wert = gewaehlt[0];
+      ergebnis.push(wert);
+      vorheriger = wert;
+      const eintrag = eintraege.find(e => e[0] === wert);
+      eintrag[1]--;
+      eintraege = eintraege.filter(e => e[1] > 0);
+    }
+    return ergebnis;
+  }
+
   function baueMalfolgenDeck() {
     const stats = Storage.getMalfolgenStats();
     const deck = [];
     for (const fakt of malfolgenAlleFakten()) {
-      const kopien = Math.max(1, Math.round(gewichtFuerStat(stats[fakt]) / 3));
+      // Obergrenze 5 Kopien: gewichtFuerStat waechst mit der Fehlerzahl
+      // unbegrenzt (kein Deckel), ein staendig falsch beantworteter Fakt
+      // koennte sonst so viele Kopien bekommen, dass sich Nachbar-
+      // Wiederholungen bei wenigen ausgewaehlten Reihen gar nicht mehr
+      // vermeiden lassen (Schubfachprinzip: bei 5 Kopien unter mind. 9
+      // Karten kein Problem, bei mehr Kopien in kleinen Decks schon).
+      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerStat(stats[fakt]) / 3)));
       for (let i = 0; i < kopien; i++) deck.push(fakt);
     }
-    return shuffle(deck);
+    return mischeOhneNachbarWiederholung(deck);
   }
 
   // Zieht `anzahl` Fakten vom Deck-Rest (siehe baueMalfolgenDeck) - wird das
@@ -999,7 +1077,8 @@ const Mathe = (function () {
         <div class="result-title">${mfSession.richtig} von ${total} gewusst!</div>
         <div class="result-sterne">Du hast ${mfSession.sterne} ⭐ verdient</div>
         <div class="btn-primary" onclick="App.restartLast()">Nochmal üben</div>
-        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="App.gotoHome()">Zum Hauptmenü</div>
+        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Mathe.renderMalfolgenUebersicht()">Fortschritt ansehen</div>
+        <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>
     `);
     FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne);
@@ -1033,17 +1112,19 @@ const Mathe = (function () {
       gesamtSicher += sicher;
       return `
         <div class="uebersicht-reihe">
-          <div class="uebersicht-reihe-kopf"><span>${a}er-Reihe</span><span>${sicher} von 10 sicher</span></div>
+          <div class="uebersicht-reihe-kopf"><span>${a}er-Reihe</span><span>${sicher === 10 ? '✅ alle sicher!' : sicher + ' von 10 sicher'}</span></div>
           <div class="uebersicht-chips">${chipsHtml}</div>
         </div>
       `;
     }).join('');
 
     const gesamtAnzahl = reihen.length * 10;
+    const alleSicher = gesamtAnzahl > 0 && gesamtSicher === gesamtAnzahl;
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Dein Fortschritt bei den Malfolgen</div>
+      ${alleSicher ? `<div class="uebersicht-banner-fertig">🎉 Du kannst alle ausgewählten Reihen sicher!</div>` : ''}
       <div class="lese-text">Insgesamt <strong>${gesamtSicher} von ${gesamtAnzahl}</strong> Aufgaben sitzen sicher. In der aktuellen Karten-Runde kommen noch <strong>${restDeck.size}</strong> Aufgaben dran, bevor sich alles wiederholt.</div>
       <div class="uebersicht-legende">
         <span><span class="uebersicht-punkt uebersicht-punkt-sicher"></span> sitzt sicher</span>
