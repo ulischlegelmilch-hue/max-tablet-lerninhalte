@@ -39,6 +39,11 @@ const Chat = (function () {
       nachrichten = msg.nachrichten;
       verbunden = msg.verbunden;
       verbindungsStatus = 'verbunden';
+      // Chat ist gerade offen -> alles bisher von Papa Geschickte gilt als
+      // gesehen (loescht das Ungelesen-Badge im Hauptmenue, siehe app.js
+      // gotoHome/Storage.getLetzteGeseheneChatId).
+      const hoechstePapaId = nachrichten.filter(n => n.von === 'papa').reduce((m, n) => Math.max(m, n.id), 0);
+      if (hoechstePapaId > 0) Storage.setLetzteGeseheneChatId(hoechstePapaId);
       zeichne();
     };
     ws.onclose = () => {

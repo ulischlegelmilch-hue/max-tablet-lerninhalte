@@ -67,6 +67,14 @@ const App = (function () {
   // mehr üben kann, ohne dass ihm etwas gesperrt wird.
   const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
 
+  // Ungelesen-Badge auf der Chat-Kachel (siehe fernsync.js pruefeNeueChatNachricht
+  // fuers Aktualisieren von letzteChatVonPapa, chat.js fuers Loeschen beim
+  // tatsaechlichen Oeffnen des Chats).
+  function chatUngelesen() {
+    const letzte = Storage.getLetzteChatVonPapa();
+    return !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+  }
+
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
     const heuteFach = Storage.getTagesFach();
@@ -142,8 +150,8 @@ const App = (function () {
           <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
         </div>
         <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
-          <span class="menu-icon icon-chat">${Icons.svg('chat')}</span>
-          <span class="menu-text"><span class="menu-label">Chat mit Papa</span><span class="menu-progress">Nachricht schreiben</span></span>
+          <span class="menu-icon icon-chat">${Icons.svg('chat')}${chatUngelesen() ? '<span class="menu-badge"></span>' : ''}</span>
+          <span class="menu-text"><span class="menu-label">Chat mit Papa</span><span class="menu-progress">${chatUngelesen() ? '🔴 Neue Nachricht!' : 'Nachricht schreiben'}</span></span>
         </div>
         <div class="menu-card accent-belohnung" onclick="Belohnungen.renderMenu()">
           <span class="menu-icon icon-belohnung">${Icons.svg('geschenk')}</span>

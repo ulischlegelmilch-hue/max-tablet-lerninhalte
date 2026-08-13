@@ -37,8 +37,51 @@ const FernSync = (function () {
       if (!r.ok) return;
       const stand = await r.json();
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
+      pruefeNeueChatNachricht(stand.letzteChatVonPapa);
     } catch (e) {
       // Kein Internet / Backend nicht erreichbar - naechster Versuch in POLL_INTERVAL_MS.
+    }
+  }
+
+  /** Ungelesen-Badge (siehe app.js gotoHome) + Ton als Absicherung UNABHAENGIG
+   *  von der nativen Push-Zustellung (Max ist z.B. gerade in Mathe statt im
+   *  Chat, oder die Push kam aus irgendeinem Grund nicht durch) - erkennt eine
+   *  neue Papa-Nachricht am naechsten Poll (bis zu 5 Min. Verzoegerung, siehe
+   *  POLL_INTERVAL_MS) und spielt den Ton NUR einmal pro tatsaechlich neuer
+   *  Nachricht (Vergleich gegen den zuletzt per Poll bekannten Stand, nicht
+   *  gegen "gesehen" - sonst wuerde bei jedem Poll erneut getoent, solange
+   *  Max die Nachricht noch nicht geoeffnet hat). Beim allerersten Poll nach
+   *  Installation/Reset (kein bekannter Vorstand) bewusst KEIN Ton, sonst
+   *  wuerde jede App-Neuinstallation fuer eine laengst alte Nachricht toenen. */
+  function pruefeNeueChatNachricht(letzte) {
+    if (!letzte) return;
+    const bekannt = Storage.getLetzteChatVonPapa();
+    const istNeu = bekannt && letzte.id > bekannt.id;
+    Storage.setLetzteChatVonPapa(letzte);
+    if (istNeu) spieleBenachrichtigungston();
+  }
+
+  function spieleBenachrichtigungston() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const spieleTon = (frequenz, start, dauer) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.value = frequenz;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+        g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dauer);
+        o.start(ctx.currentTime + start);
+        o.stop(ctx.currentTime + start + dauer + 0.05);
+      };
+      spieleTon(880, 0, 0.18);
+      spieleTon(1175, 0.16, 0.25);
+    } catch (e) {
+      // Web Audio evtl. blockiert (kein Nutzer-Interaktion bisher) - kein Problem,
+      // das Badge im Hauptmenue zeigt die neue Nachricht trotzdem an.
     }
   }
 

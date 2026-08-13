@@ -265,6 +265,7 @@ html, body {
 }
 .menu-card:active { transform: translateY(1px); border-color: var(--accent); }
 .menu-icon {
+  position: relative;
   flex-shrink: 0;
   width: 56px; height: 56px;
   display: flex; align-items: center; justify-content: center;
@@ -273,6 +274,15 @@ html, body {
   color: var(--ink);
 }
 .menu-icon svg { width: 27px; height: 27px; }
+/* Ungelesen-Badge auf der Chat-Kachel (siehe app.js chatUngelesen). */
+.menu-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #DB6E63;
+  border: 2px solid var(--card-bg);
+}
 /* Hauptwort (Label) links, Nebenwort (Fortschritt) rechts eingerueckt in
    derselben Kachel - statt untereinander gestapelt. */
 .menu-text { min-width: 0; flex: 1; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }

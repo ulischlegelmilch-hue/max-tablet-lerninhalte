@@ -50,6 +50,14 @@ const Storage = (function () {
       // gecacht, wird bei jedem erfolgreichen Poll gegen das Max-Tablet-Backend
       // komplett ersetzt.
       fernstand: { regeln: [], zusatzaufgaben: [] },
+      // Ungelesen-Badge/Ton fuers Chat mit Papa (siehe fernsync.js, chat.js,
+      // app.js gotoHome): letzteChatVonPapa ist der letzte per Poll bekannte
+      // Stand ({id, ts}), letzteGeseheneChatId der hoechste von Max tatsaechlich
+      // GESEHENE (Chat-Screen war offen). Ungelesen = letzteChatVonPapa.id >
+      // letzteGeseheneChatId. Absichtlich getrennte Felder statt eines simplen
+      // Bool-Flags, damit auch nach einem App-Neustart korrekt verglichen wird.
+      letzteChatVonPapa: null,
+      letzteGeseheneChatId: 0,
       // Fortschritt in bildbasierten Buechern (Lesemodus, siehe lesemodus.js) -
       // eigenes Feld statt leseFortschritt, weil Buecher seitenbasiert sind
       // (Seitenzahl statt scrollTop) und keine Verstaendnisfragen haben.
@@ -214,6 +222,25 @@ const Storage = (function () {
 
   function setFernstand(regeln, zusatzaufgaben) {
     state.fernstand = { regeln: regeln || [], zusatzaufgaben: zusatzaufgaben || [] };
+    save(state);
+  }
+
+  function getLetzteChatVonPapa() {
+    return state.letzteChatVonPapa || null;
+  }
+
+  function setLetzteChatVonPapa(eintrag) {
+    state.letzteChatVonPapa = eintrag;
+    save(state);
+  }
+
+  function getLetzteGeseheneChatId() {
+    return state.letzteGeseheneChatId || 0;
+  }
+
+  function setLetzteGeseheneChatId(id) {
+    if (id <= (state.letzteGeseheneChatId || 0)) return;
+    state.letzteGeseheneChatId = id;
     save(state);
   }
 
@@ -695,6 +722,7 @@ const Storage = (function () {
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
+    getLetzteChatVonPapa, setLetzteChatVonPapa, getLetzteGeseheneChatId, setLetzteGeseheneChatId,
     getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt,
     getZuletztGeoeffnetesBuch, setZuletztGeoeffnetesBuch,
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
