@@ -44,6 +44,16 @@ const FernSync = (function () {
       const stand = await r.json();
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
       pruefeNeueChatNachricht(stand.letzteChatVonPapa);
+      // Storage hat sich gerade veraendert (Zusatzaufgaben und/oder Chat-
+      // Ungelesen-Status) - falls Max GERADE auf dem Startbildschirm sitzt,
+      // muss der neu gerendert werden, sonst bleibt z.B. das Chat-Badge trotz
+      // korrekt aktualisierter Daten unsichtbar, bis er zufaellig woanders
+      // hin- und wieder zurueck navigiert (13.08.2026 per Live-Test am
+      // Geraet gefunden: Storage war korrekt, nur die DOM blieb stehen).
+      // Sitzt Max GERADE WOANDERS (z.B. mitten in einer Aufgabenfolge), tut
+      // aktualisiereHomeFallsAktiv() bewusst NICHTS - kein erzwungener
+      // Ruecksprung zum Startbildschirm.
+      App.aktualisiereHomeFallsAktiv();
     } catch (e) {
       // Kein Internet / Backend nicht erreichbar - naechster Versuch in POLL_INTERVAL_MS.
     }
@@ -52,7 +62,7 @@ const FernSync = (function () {
   /** Ungelesen-Badge (siehe app.js gotoHome) + Ton als Absicherung UNABHAENGIG
    *  von der nativen Push-Zustellung (Max ist z.B. gerade in Mathe statt im
    *  Chat, oder die Push kam aus irgendeinem Grund nicht durch) - erkennt eine
-   *  neue Papa-Nachricht am naechsten Poll (bis zu 5 Min. Verzoegerung, siehe
+   *  neue Papa-Nachricht am naechsten Poll (bis zu 1 Min. Verzoegerung, siehe
    *  POLL_INTERVAL_MS) und spielt den Ton NUR einmal pro tatsaechlich neuer
    *  Nachricht (Vergleich gegen den zuletzt per Poll bekannten Stand, nicht
    *  gegen "gesehen" - sonst wuerde bei jedem Poll erneut getoent, solange
@@ -70,6 +80,11 @@ const FernSync = (function () {
   function spieleBenachrichtigungston() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Autoplay-Policy: ein AudioContext, der OHNE vorherige Nutzer-Interaktion
+      // erzeugt wird (hier: aus einem setInterval-Poll, kein Tap davor), startet
+      // in manchen WebViews im Zustand "suspended" und bleibt dann STUMM, ohne
+      // dass ein Fehler geworfen wird - resume() erzwingt die Wiedergabe.
+      if (ctx.state === 'suspended') ctx.resume();
       const spieleTon = (frequenz, start, dauer) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();

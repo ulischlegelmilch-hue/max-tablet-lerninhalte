@@ -48,7 +48,19 @@ const App = (function () {
   let onLeaveScreen = null;
   function setOnLeaveScreen(fn) { onLeaveScreen = fn; }
 
+  // Merkt sich, ob GERADE der Startbildschirm angezeigt wird - noetig, damit
+  // FernSync nach einem Hintergrund-Poll (z.B. neue Chatnachricht von Papa)
+  // das Ungelesen-Badge live nachtragen kann, OHNE Max von einem anderen
+  // Bildschirm (z.B. mitten in einer Aufgabenfolge) zurueck nach Hause zu
+  // reissen (siehe App.aktualisiereHomeFallsAktiv/FernSync.poll). Vorher
+  // wurde chatUngelesen() nur EINMALIG beim Aufruf von gotoHome() ausgewertet -
+  // ein Poll, der waehrend Max schon auf dem Startbildschirm sitzt (oder kurz
+  // nach dem App-Start, bevor der erste Poll fertig ist) fertig wird, aendert
+  // zwar Storage, aber ohne Neu-Rendern blieb das Badge unsichtbar.
+  let istAufHomeBildschirm = false;
+
   function render(html) {
+    istAufHomeBildschirm = false;
     if (onLeaveScreen) {
       const fn = onLeaveScreen;
       onLeaveScreen = null;
@@ -56,6 +68,10 @@ const App = (function () {
     }
     root().innerHTML = html;
     updateTopbar();
+  }
+
+  function aktualisiereHomeFallsAktiv() {
+    if (istAufHomeBildschirm) gotoHome();
   }
 
   // Vier feste Einstiege quer durchs Programm (Schach bewusst ausgenommen -
@@ -159,6 +175,7 @@ const App = (function () {
         </div>
       </div>
     `);
+    istAufHomeBildschirm = true;
   }
 
   // ---------------------------------------------------------------------
@@ -748,6 +765,7 @@ const App = (function () {
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
     fortschrittWirklichZuruecksetzen,
-    fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen
+    fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,
+    aktualisiereHomeFallsAktiv
   };
 })();
