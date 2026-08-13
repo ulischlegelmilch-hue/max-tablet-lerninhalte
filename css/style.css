@@ -921,16 +921,6 @@ html, body {
   color: var(--accent-dark);
 }
 
-/* Schriftliche Aufgabe als eigentliche FRAGE (nicht nur in der Hilfe, siehe
-   mathe.js htmlSpaltenAufgabe) - deutlich groesser als in der Hilfe, damit
-   klar ist: das hier ist die Aufgabe, die auf Papier untereinander gerechnet
-   werden soll, bevor nur das Endergebnis eingetippt wird. */
-.sr-rechnung-frage { max-width: 280px; margin: 18px auto; }
-.sr-rechnung-frage .sr-ziffer { font-size: 30px; }
-.sr-rechnung-frage .sr-zeichen { font-size: 26px; }
-.sr-rechnung-frage .sr-strich { border-top-width: 3px; }
-.sr-ergebnis-leer { color: var(--ink-soft); }
-
 /* Schach - Optik & Funktionsaufteilung an chess.com angelehnt: gruen/creme-
    farbenes, flaches Brett ohne Rundung, gelbe Markierung fuer ausgewaehltes
    Feld/letzten Zug, Punkt/Ring fuer Zielfelder statt blauer Kreis, sowie

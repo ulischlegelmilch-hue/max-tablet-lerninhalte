@@ -445,6 +445,10 @@ const App = (function () {
   // mit einem ANDEREN Beispiel desselben Aufgabentyps) bekommen die neue
   // Ablauf-Logik. Fragen ohne hilfe (z.B. andere Faecher, die die hilfe noch
   // nicht eingepflegt haben) verhalten sich wie bisher: 1 Versuch, direkt fertig.
+  // Der Hilfe-Button ist von Anfang an sichtbar (nicht erst nach einer falschen
+  // 1. Antwort, siehe renderQuestion) - Max soll bei Bedarf JEDERZEIT
+  // nachschauen koennen, auch schon VOR dem ersten Versuch. Kostet wie bisher
+  // die Punkte fuer diese eine Aufgabe (siehe zeigeHilfe/abschlussFrage).
   let eingabe = '';
   let versuch = 1;
   let hilfeGenutzt = false;
@@ -488,6 +492,16 @@ const App = (function () {
     } else {
       renderOptionen(f);
     }
+
+    if (typeof f.hilfe === 'string' && f.hilfe.length > 0) {
+      zeigeHilfeButton(f);
+    }
+  }
+
+  function zeigeHilfeButton(f) {
+    document.getElementById('hilfe-bereich').innerHTML =
+      `<div class="btn-hilfe" id="btn-hilfe">💡 Hilfe anzeigen (dann keine ⭐ für diese Aufgabe)</div>`;
+    document.getElementById('btn-hilfe').onclick = () => zeigeHilfe(f);
   }
 
   function renderOptionen(f) {
@@ -550,9 +564,11 @@ const App = (function () {
       const fb = document.getElementById('feedback');
       fb.className = 'feedback nok';
       fb.textContent = '✘ Leider falsch. Versuch es noch einmal!';
-      document.getElementById('hilfe-bereich').innerHTML =
-        `<div class="btn-hilfe" id="btn-hilfe">💡 Hilfe anzeigen (dann keine ⭐ für diese Aufgabe)</div>`;
-      document.getElementById('btn-hilfe').onclick = () => zeigeHilfe(f);
+      // #hilfe-bereich bleibt unangetastet: neuerVersuch() baut nur Keypad/
+      // Optionen neu auf. Stand dort schon der Hilfe-Button (siehe
+      // zeigeHilfeButton in renderQuestion), bleibt er einfach stehen; wurde
+      // die Hilfe schon VOR diesem 1. Versuch genutzt, bleibt die Erklaerung
+      // stehen statt wieder durch den Button ersetzt zu werden.
       neuerVersuch();
       return;
     }

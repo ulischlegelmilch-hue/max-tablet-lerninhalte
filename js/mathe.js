@@ -171,30 +171,6 @@ const Mathe = (function () {
     return htmlSpaltenRahmen(breite, zeilenHtml, ergebnis);
   }
 
-  // Zeigt die AUFGABE selbst (nicht nur die Hilfe) im Spalten-Layout, ohne
-  // Uebertrags-Hinweise und ohne Ergebnis (nur "?" je Stelle) - Max soll die
-  // Aufgabe wirklich schriftlich auf Papier untereinander rechnen, statt nur
-  // eine Fliesstext-Aufgabe "437 + 238 = ?" im Kopf zu loesen. Eingetippt wird
-  // trotzdem nur das Endergebnis (siehe Design-Entscheidung: kein Ziffer-fuer-
-  // Ziffer-Eingaberaster auf dem Touchscreen, das Rechnen passiert auf Papier).
-  function htmlSpaltenAufgabe(a, b, operator) {
-    const ergebnis = operator === '+' ? a + b : a - b;
-    const breite = Math.max(String(a).length, String(b).length, String(ergebnis).length);
-    const anzeigeA = spalteZiffern(a, breite);
-    const anzeigeB = spalteZiffern(b, breite);
-    const spaltenStil = `grid-template-columns: 26px repeat(${breite}, 1fr);`;
-    const zelle = (inhalt, klasse) => `<div class="${klasse}">${inhalt}</div>`;
-    const zeile = (zeichen, ziffern, klasse) =>
-      `<div class="sr-zeile" style="${spaltenStil}">${zelle(zeichen, 'sr-zeichen')}` +
-      `${ziffern.map(d => zelle(d, klasse)).join('')}</div>`;
-    return '<div class="sr-rechnung sr-rechnung-frage">' +
-      zeile('', anzeigeA, 'sr-ziffer') +
-      zeile(operator, anzeigeB, 'sr-ziffer') +
-      `<div class="sr-strich" style="margin-left:26px;"></div>` +
-      zeile('', Array(breite).fill('?'), 'sr-ziffer sr-ergebnis-leer') +
-      '</div>';
-  }
-
   // Schritt-fuer-Schritt-Beispiel einer schriftlichen Addition (mit Uebertrag),
   // dargestellt genau so, wie es untereinander gerechnet wird.
   function erklaerungAddition(a, b) {
@@ -214,16 +190,22 @@ const Mathe = (function () {
   }
 
   // ---- Schriftlich Addieren/Subtrahieren (3-stellig) ----
+  // Die Aufgabe selbst wird als normale Fliesstext-Frage gestellt ("437 + 238
+  // = ?"), NICHT im Spalten-Layout - die Spaltenansicht (untereinander wie im
+  // Heft) gibt es bewusst nur in der Hilfe (siehe erklaerungAddition/
+  // erklaerungSubtraktion), auf Ulis ausdruecklichen Wunsch (12.08.2026: eine
+  // fruehere Version zeigte die Frage selbst schon in Spalten, das sollte
+  // wieder normale Aufgabenanzeige werden).
   function genAddSubFrage() {
     const plus = Math.random() < 0.5;
     if (plus) {
       const a = rnd(100, 600), b = rnd(100, 999 - a);
       const a2 = rnd(100, 600), b2 = rnd(100, 999 - a2);
-      return { typ: 'numeric', frage: htmlSpaltenAufgabe(a, b, '+'), antwort: a + b, hilfe: erklaerungAddition(a2, b2) };
+      return { typ: 'numeric', frage: `${a} + ${b} = ?`, antwort: a + b, hilfe: erklaerungAddition(a2, b2) };
     }
     const a = rnd(200, 950), b = rnd(100, a - 10);
     const a2 = rnd(200, 950), b2 = rnd(100, a2 - 10);
-    return { typ: 'numeric', frage: htmlSpaltenAufgabe(a, b, '−'), antwort: a - b, hilfe: erklaerungSubtraktion(a2, b2) };
+    return { typ: 'numeric', frage: `${a} − ${b} = ?`, antwort: a - b, hilfe: erklaerungSubtraktion(a2, b2) };
   }
 
   // Erzeugt ein Zahlenpaar OHNE Uebertrag: jede Ziffer des 2. Werts <= der des 1.
@@ -254,7 +236,7 @@ const Mathe = (function () {
     const bsp = beispielOhneUebertrag();
     return {
       typ: 'numeric',
-      frage: htmlSpaltenAufgabe(a, b, '−') + '<span class="aufgaben-hinweis">(ohne Übertrag)</span>',
+      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(ohne Übertrag)</span>`,
       antwort: a - b,
       hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
     };
@@ -265,7 +247,7 @@ const Mathe = (function () {
     const bsp = beispielMitUebertrag();
     return {
       typ: 'numeric',
-      frage: htmlSpaltenAufgabe(a, b, '−') + '<span class="aufgaben-hinweis">(mit Übertrag)</span>',
+      frage: `${a} − ${b} = ?<br><span class="aufgaben-hinweis">(mit Übertrag)</span>`,
       antwort: a - b,
       hilfe: erklaerungSubtraktion(bsp.a, bsp.b)
     };
@@ -1044,8 +1026,9 @@ const Mathe = (function () {
   // zufaellig einer davon benutzt - nur der Bereich selbst wird gewichtet. ----
   const AUFGABEN_BEREICHE = [
     // genAddSubFrage/genSubtraktionOhneUebertrag/genSubtraktionMitUebertrag
-    // (echtes "Plus/Minus untereinander", siehe htmlSpaltenAufgabe) bewusst
-    // mehrfach gelistet: innerhalb der Kategorie "schriftlich" wird gleich-
+    // (echtes "Plus/Minus untereinander", als normale Aufgabe gestellt -
+    // die Spaltenansicht gibt es nur in der Hilfe) bewusst mehrfach gelistet:
+    // innerhalb der Kategorie "schriftlich" wird gleich-
     // verteilt zufaellig EIN Eintrag gewaehlt, mehr Eintraege = haeufiger dran,
     // ohne die anderen schriftlich-Aufgabentypen (Rechenkette, Fehlende Ziffer,
     // Stimmt-das, Sachaufgaben) ganz zu verdraengen.
