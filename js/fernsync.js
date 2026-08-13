@@ -85,15 +85,19 @@ const FernSync = (function () {
       // in manchen WebViews im Zustand "suspended" und bleibt dann STUMM, ohne
       // dass ein Fehler geworfen wird - resume() erzwingt die Wiedergabe.
       if (ctx.state === 'suspended') ctx.resume();
+      // Pegel war vorher nur 0.2 (20% von maximal 1.0) - deutlich zu leise
+      // (13.08.2026 Uli-Feedback trotz hoher Geraete-Lautstaerke). Jetzt nah
+      // an der Vollaussteuerung (0.9) plus "triangle" statt "sine" - klingt
+      // praesenter/durchdringender, nicht nur lauter.
       const spieleTon = (frequenz, start, dauer) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.connect(g);
         g.connect(ctx.destination);
-        o.type = 'sine';
+        o.type = 'triangle';
         o.frequency.value = frequenz;
         g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-        g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + start + 0.02);
         g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dauer);
         o.start(ctx.currentTime + start);
         o.stop(ctx.currentTime + start + dauer + 0.05);
