@@ -7,7 +7,13 @@
 // nichts an der App haengt vom Erfolg dieses Polls ab.
 const FernSync = (function () {
   const BACKEND_URL = 'https://max-tablet-backend.onrender.com';
-  const POLL_INTERVAL_MS = 5 * 60 * 1000;
+  // War 5 Minuten - auf 1 Minute verkuerzt (13.08.2026), seit Chat-Nachrichten
+  // von Papa hierueber erkannt werden (Badge+Ton, siehe pruefeNeueChatNachricht):
+  // echte Push-Benachrichtigungen sind auf diesem Geraet nicht moeglich (Google
+  // Play Services bewusst entfernt, FCM braucht das zwingend), der Poll ist
+  // deshalb der EINZIGE Weg, wie Max eine neue Nachricht ueberhaupt bemerkt -
+  // 1 Minute wirkt fast wie Echtzeit, ohne staendig Netzwerk/Akku zu belasten.
+  const POLL_INTERVAL_MS = 60 * 1000;
   const FETCH_TIMEOUT_MS = 10000;
 
   function escapeHtml(s) {
