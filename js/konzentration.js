@@ -97,7 +97,7 @@ const Konzentration = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Konzentration.renderMenu()">Zurück</div>
       </div>
     `);
-    FernSync.meldeLernsetErledigt('Koordinaten finden', `${sek} Sekunden${istNeuerRekord ? ' (neue Bestzeit!)' : ''}`, 20);
+    FernSync.meldeLernsetErledigt('Koordinaten finden', `${sek} Sekunden${istNeuerRekord ? ' (neue Bestzeit!)' : ''}`, 20, 'schach');
   }
 
   // -----------------------------------------------------------------------
@@ -263,7 +263,7 @@ const Konzentration = (function () {
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Konzentration.renderMenu()">Zurück</div>
       </div>
     `);
-    FernSync.meldeLernsetErledigt('Läufer-Weg merken', `${laeuferSession.richtigCount} von ${total} richtig`, laeuferSession.sterneGesamt);
+    FernSync.meldeLernsetErledigt('Läufer-Weg merken', `${laeuferSession.richtigCount} von ${total} richtig`, laeuferSession.sterneGesamt, 'schach');
   }
 
   return {

@@ -723,7 +723,7 @@ const App = (function () {
     `);
 
     if (typeof session.onFinish === 'function') session.onFinish();
-    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne);
+    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne, session.fach);
   }
 
   let lastStarter = null;

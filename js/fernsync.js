@@ -149,13 +149,22 @@ const FernSync = (function () {
    *  bleibt einfach keine Meldung dieses Mals aus, nichts an der App haengt
    *  davon ab. titel/zusammenfassung sind schon fertig lesbarer Text (z.B.
    *  "Mathe-Tagesaufgabe" / "8 von 10 richtig"), damit das Backend keine
-   *  Detailkenntnis der einzelnen Uebungsarten braucht. */
-  function meldeLernsetErledigt(titel, zusammenfassung, sterne) {
+   *  Detailkenntnis der einzelnen Uebungsarten braucht. fach gruppiert den
+   *  Eintrag in Papas Auswertung (z.B. 'mathe'/'malfolgen'/'deutsch'/'heimat'/
+   *  'schach'). Schickt zusaetzlich IMMER den aktuellen Storage-Schnappschuss
+   *  der Malfolgen-/Mathe-Kategorien-Statistik mit (klein genug, um das bei
+   *  jedem Set einfach mitzuschicken) - damit Papas "Wo hat er noch Probleme"-
+   *  Ansicht nach JEDEM Set aktuell ist, nicht nur nach Malfolgen-Sitzungen. */
+  function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach) {
     if (!BACKEND_URL) return;
     fetchMitTimeout(BACKEND_URL + '/api/lernset-erledigt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titel, zusammenfassung, sterne })
+      body: JSON.stringify({
+        titel, zusammenfassung, sterne, fach,
+        malfolgenStats: Storage.getMalfolgenStats(),
+        matheKategorienStats: Storage.getMatheKategorienStats()
+      })
     }).catch(() => {});
   }
 

@@ -1081,7 +1081,7 @@ const Mathe = (function () {
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>
     `);
-    FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne);
+    FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne, 'malfolgen');
   }
 
   // ---- Fortschritts-Uebersicht: zeigt pro ausgewaehlter Reihe UND pro
