@@ -61,7 +61,15 @@ const Icons = (function () {
     materialwert: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h6M13 7h6"/><path d="M5 7l-3 6a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/><line x1="8" y1="21" x2="16" y2="21"/>',
     // Geschenk: fuer die Belohnungen-Kachel (siehe belohnungen.js).
     geschenk: '<rect x="4" y="10" width="16" height="10" rx="1.5"/><line x1="4" y1="14" x2="20" y2="14"/><line x1="12" y1="10" x2="12" y2="20"/>' +
-      '<path d="M12 10c-1-2.6-3-3.6-4.3-2.6C6.6 8.3 7.6 10 12 10z"/><path d="M12 10c1-2.6 3-3.6 4.3-2.6C17.4 8.3 16.4 10 12 10z"/>'
+      '<path d="M12 10c-1-2.6-3-3.6-4.3-2.6C6.6 8.3 7.6 10 12 10z"/><path d="M12 10c1-2.6 3-3.6 4.3-2.6C17.4 8.3 16.4 10 12 10z"/>',
+    // Schiffe versenken: kleines Schiff (Rumpf + Mast + Flagge) ueber einer
+    // Wellenlinie - fuer die Menuekachel und den "Automatisch platzieren"-Button.
+    schiffe: '<path d="M3 16h18l-2.5 4h-13z"/><path d="M7 16V9h10v7"/><line x1="12" y1="9" x2="12" y2="3"/>' +
+      '<path d="M12 3.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/>',
+    // Zielkreuz fuer die "Automatisch platzieren"/Wuerfel-Aktion beim Schiffe-
+    // versenken-Aufbau sowie fuer Treffer-Anzeigen.
+    ziel: '<circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>',
+    drehen: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>'
   };
   PATHS.lesen = PATHS.deutsch;
   // Eigenes Icon (Warndreieck) statt Alias auf heimat - wird nur noch für die

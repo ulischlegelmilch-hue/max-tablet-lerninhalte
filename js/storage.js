@@ -17,6 +17,10 @@ const Storage = (function () {
       malfolgenDeck: [],
       matheKategorien: {},
       schach: { stufe: 0, siege: 0 },
+      // Schiffe versenken (siehe schiffeversenken.js) - bewusst kein Schwierigkeits-
+      // Fortschritt wie beim Schach, nur ein einfacher Sieg-Zaehler fuer die
+      // Menuekachel, das Spiel selbst hat aktuell nur eine Schwierigkeitsstufe.
+      schiffeversenken: { siege: 0 },
       // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
       // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
       // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
@@ -640,6 +644,19 @@ const Storage = (function () {
     return state.schach;
   }
 
+  function getSchiffeFortschritt() {
+    if (!state.schiffeversenken) state.schiffeversenken = { siege: 0 };
+    return state.schiffeversenken;
+  }
+
+  function meldeSchiffeSieg() {
+    registriereAktivenTag();
+    if (!state.schiffeversenken) state.schiffeversenken = { siege: 0 };
+    state.schiffeversenken.siege++;
+    save(state);
+    return state.schiffeversenken;
+  }
+
   /** Fortschritt fuer eine einfache Fach-Kachel (Mathe/Deutsch/Heimat): Anzahl
    *  richtig geloester Aufgaben. Geschichten und Schach haben eigene Anzeigen
    *  (siehe getGeschichtenFortschritt/getSchachFortschritt), da dort "Aufgaben
@@ -701,6 +718,7 @@ const Storage = (function () {
     state.malfolgenDeck = [];
     state.matheKategorien = {};
     state.schach = { stufe: 0, siege: 0 };
+    state.schiffeversenken = { siege: 0 };
     state.taktik = {};
     state.konzentration = { koordinatenBestzeitMs: null };
     state.schachTagesplan = { datum: null, schritte: [] };
@@ -716,6 +734,7 @@ const Storage = (function () {
     getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
+    getSchiffeFortschritt, meldeSchiffeSieg,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln, getTagesFach,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,

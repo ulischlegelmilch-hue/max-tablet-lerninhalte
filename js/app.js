@@ -161,9 +161,9 @@ const App = (function () {
           <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span>
           <span class="menu-text"><span class="menu-label">Heimat &amp; Sachkunde</span><span class="menu-progress">${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst</span></span>
         </div>
-        <div class="menu-card accent-schach" onclick="Schach.renderMenu()">
-          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
-          <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
+        <div class="menu-card accent-spiele" onclick="App.renderSpieleMenu()">
+          <span class="menu-icon icon-spiele">${Icons.svg('spielen')}</span>
+          <span class="menu-text"><span class="menu-label">Spiele</span><span class="menu-progress">Schach &amp; Schiffe versenken</span></span>
         </div>
         <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
           <span class="menu-icon icon-chat">${Icons.svg('chat')}${chatUngelesen() ? '<span class="menu-badge"></span>' : ''}</span>
@@ -176,6 +176,29 @@ const App = (function () {
       </div>
     `);
     istAufHomeBildschirm = true;
+  }
+
+  // Oberordner "Spiele" - buendelt alle eigenstaendigen Spiele-Module hinter
+  // einer gemeinsamen Home-Kachel statt jedes einzeln auf der Startseite zu
+  // zeigen (skaliert besser, je mehr Spiele dazukommen). Nutzt bewusst
+  // dieselben .menu-grid/.menu-card-Klassen wie gotoHome() (nicht die
+  // schlichteren .sub-card aus subMenuHtml), damit die Fortschrittsanzeige
+  // je Spiel (Stufe/Siege) erhalten bleibt.
+  function renderSpieleMenu() {
+    render(`
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Spiele</div>
+      <div class="menu-grid">
+        <div class="menu-card accent-schach" onclick="Schach.renderMenu()">
+          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
+          <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
+        </div>
+        <div class="menu-card accent-schiffe" onclick="Schiffeversenken.renderMenu()">
+          <span class="menu-icon icon-schiffe">${Icons.svg('schiffe')}</span>
+          <span class="menu-text"><span class="menu-label">Schiffe versenken</span><span class="menu-progress">${Schiffeversenken.fortschrittText()}</span></span>
+        </div>
+      </div>
+    `);
   }
 
   // ---------------------------------------------------------------------
@@ -761,7 +784,7 @@ const App = (function () {
   }
 
   return {
-    init, gotoHome, render, subMenuHtml, updateTopbar,
+    init, gotoHome, render, subMenuHtml, updateTopbar, renderSpieleMenu,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
     fortschrittWirklichZuruecksetzen,

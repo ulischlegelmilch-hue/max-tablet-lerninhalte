@@ -37,6 +37,8 @@
   --schach: #363B4A;       --schach-soft: #DCDEE4;
   --chat: #B8456B;         --chat-soft: #F6DCE6;
   --belohnung: #B8860B;    --belohnung-soft: #F6E7BF;
+  --schiffe: #1D5C7A;      --schiffe-soft: #D3E6EE;
+  --spiele: #1F7A6C;       --spiele-soft: #D2ECE7;
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -298,6 +300,8 @@ html, body {
 .icon-schach { background: var(--schach); color: #fff; }
 .icon-chat { background: var(--chat); color: #fff; }
 .icon-belohnung { background: var(--belohnung); color: #fff; }
+.icon-schiffe { background: var(--schiffe); color: #fff; }
+.icon-spiele { background: var(--spiele); color: #fff; }
 
 /* Menu-Card/Tagesplan-Chip bekommen den hellen Fach-Tint als Kartenhintergrund
    (nicht nur einen duennen Rand) - Farbe traegt jetzt sichtbar die ganze
@@ -309,6 +313,8 @@ html, body {
 .accent-schach { background: var(--schach-soft); border-color: var(--schach); }
 .accent-chat { background: var(--chat-soft); border-color: var(--chat); }
 .accent-belohnung { background: var(--belohnung-soft); border-color: var(--belohnung); }
+.accent-schiffe { background: var(--schiffe-soft); border-color: var(--schiffe); }
+.accent-spiele { background: var(--spiele-soft); border-color: var(--spiele); }
 
 /* Geschichten-Bibliothek */
 .story-grid {
@@ -1444,3 +1450,142 @@ html, body {
   font-weight: 700;
   cursor: pointer;
 }
+
+/* Schiffe versenken =========================================================
+   Eigenes 10x10-Raster nach demselben Grundmuster wie das Schach-Brett
+   (Rang-Spalte links, Datei-Zeile unten), aber eigene Klassen statt schach-*
+   wiederzuverwenden - Spaltenzahl (10 statt 8) und Feldfarben (Wasser statt
+   Schachbrett) sind grundverschieden. .schach-info/.schach-status/.welcome/
+   .back-row/.back-btn/.schach-aktionsleiste/.schach-aktion-btn(-sekundaer)
+   sind dagegen bewusst WIEDERVERWENDET (sie sind schon generisch/farbneutral
+   gehalten, nicht schach-spezifisch eingefaerbt). */
+.schiffe-wrap { max-width: 900px; margin: 0 auto; text-align: center; }
+.schiffe-regeln-card { text-align: left; }
+.schiffe-regeln-card ul { line-height: 1.9; margin: 10px 0; padding-left: 22px; }
+.schiffe-regeln-card p { line-height: 1.6; }
+
+.schiffe-fleet-liste {
+  max-width: 420px;
+  margin: 14px auto 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.schiffe-fleet-zeile {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  border-top: 1px solid var(--border);
+}
+.schiffe-fleet-zeile:first-child { border-top: none; }
+.schiffe-fleet-zeile-fertig { color: var(--ink-soft); }
+.schiffe-fleet-zeile-fertig span:last-child { color: #1D6B36; }
+
+.schiffe-flotten-status {
+  display: flex;
+  justify-content: space-between;
+  max-width: 600px;
+  margin: 0 auto 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.schiffe-eigene-ueberschrift {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 22px 0 8px;
+}
+
+.schiffe-rahmen { width: min(96vw, 55vh, 600px); margin: 0 auto; }
+.schiffe-rahmen-klein { width: min(60vw, 28vh, 320px); }
+.schiffe-brett-zeile { display: flex; align-items: stretch; }
+.schiffe-rang-leiste { width: 24px; flex-shrink: 0; display: flex; flex-direction: column; }
+.schiffe-rang-leiste > div {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.schiffe-brett {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+  background: #0E3A52;
+}
+.schiffe-datei-zeile { display: flex; }
+.schiffe-rang-spacer { width: 24px; flex-shrink: 0; }
+.schiffe-datei-leiste {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  padding-top: 3px;
+}
+.schiffe-datei-leiste > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.schiffe-feld {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+}
+.schiffe-rahmen-klein .schiffe-feld { cursor: default; }
+.schiffe-feld-unbekannt { background: #1D5C7A; }
+/* Eigenes Schiff (nur auf dem eigenen Brett sichtbar, waehrend der Aufstellung
+   UND waehrend des Kampfs). */
+.schiffe-feld-eigenes { background: #1B2733; }
+.schiffe-feld-wasser { background: #1D5C7A; }
+.schiffe-feld-wasser::after {
+  content: '';
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+.schiffe-feld-treffer { background: #C0392B; }
+.schiffe-feld-treffer::after {
+  content: '';
+  position: absolute;
+  width: 42%;
+  height: 42%;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.85;
+}
+.schiffe-feld-versenkt { background: #4A1410; }
+.schiffe-feld-versenkt::before,
+.schiffe-feld-versenkt::after {
+  content: '';
+  position: absolute;
+  width: 68%;
+  height: 3px;
+  border-radius: 2px;
+  background: #fff;
+}
+.schiffe-feld-versenkt::before { transform: rotate(45deg); }
+.schiffe-feld-versenkt::after { transform: rotate(-45deg); }
