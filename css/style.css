@@ -1133,6 +1133,7 @@ html, body {
    Icon-Buttons unter dem chess.com-Brett. */
 .schach-aktionsleiste {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   width: min(96vw, 64vh, 900px);
@@ -1140,7 +1141,12 @@ html, body {
 }
 .schach-aktion-btn {
   flex: 1;
+  min-width: 140px;
   max-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   text-align: center;
   padding: 13px;
   border-radius: var(--radius-sm);
@@ -1150,6 +1156,13 @@ html, body {
   background: var(--accent);
   color: #fff;
 }
+/* Ohne diese Regel fallen die Icons.svg()-Icons (nur viewBox, keine eigene
+   Groesse - siehe icons.js) auf die riesige Browser-Standardgroesse zurueck,
+   was per flex-Standard align-items:stretch ALLE Buttons in der Zeile
+   aufblaeht, auch icon-lose wie "Zurücksetzen" (beim Durchspielen von
+   Schiffe versenken am 16.08.2026 entdeckt - jeder andere Icons.svg()-
+   Einsatz im Projekt hat so eine Regel, dieser hier hatte sie nie). */
+.schach-aktion-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
 .schach-aktion-btn-sekundaer {
   background: var(--accent-soft);
   color: var(--accent-dark);
@@ -1544,6 +1557,8 @@ html, body {
 
 .schiffe-flotten-status {
   display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   justify-content: space-between;
   max-width: 600px;
   margin: 0 auto 12px;

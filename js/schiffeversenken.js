@@ -1,8 +1,8 @@
 // Schiffe versenken gegen den Computer. Regeln/Feld-Mathematik/Zufalls-Flotte
 // leben in schiffe-engine.js (SchiffeEngine, geteilt mit schiffeversenken-
 // online.js) - dieses Modul ist nur die Oberflaeche + die Computer-KI.
-// Abwechselnd wird EIN Feld beschossen (kein Bonuszug bei Treffer - das ist
-// eine Hasbro-Brettspiel-Variante, nicht Teil der klassischen Regeln).
+// Bei einem Treffer darf man nochmal schiessen (Uli-Wunsch 16.08.2026) - erst
+// bei Wasser wechselt der Zug.
 //
 // Bindet sich wie schach.js direkt an App.render() an - kein Speichern/
 // Fortsetzen zwischen Sitzungen, "Neues Spiel" baut jedes Mal frisch auf.
@@ -42,7 +42,7 @@ const Schiffeversenken = (function () {
             <li>4× U-Boot (2 Felder)</li>
           </ul>
           <p>Schiffe dürfen sich nicht berühren – auch nicht über Eck.</p>
-          <p>Abwechselnd wird ein Feld auf dem gegnerischen Meer beschossen. Wer zuerst alle gegnerischen Schiffe versenkt hat, gewinnt!</p>
+          <p>Abwechselnd wird ein Feld auf dem gegnerischen Meer beschossen. Bei einem Treffer darfst du direkt nochmal schießen! Erst bei Wasser ist der Gegner dran. Wer zuerst alle gegnerischen Schiffe versenkt hat, gewinnt!</p>
         </div>
       </div>
     `);
