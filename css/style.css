@@ -1489,6 +1489,59 @@ html, body {
 .schiffe-fleet-zeile-fertig { color: var(--ink-soft); }
 .schiffe-fleet-zeile-fertig span:last-child { color: #1D6B36; }
 
+/* Schiffs-Tray fuer die ueberarbeitete Platzierung (Uli-Wunsch 16.08.2026:
+   "orientiere dich an professionellen apps") - statt starrer Reihenfolge
+   waehlt man hier antippbar, WELCHER Schiffstyp als naechstes gesetzt wird;
+   ein bereits platziertes Schiff antippen nimmt es wieder vom Brett (siehe
+   platzierungsFeldGeklickt in schiffeversenken*.js). */
+.schiffe-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  max-width: 560px;
+  margin: 14px auto 0;
+}
+.schiffe-tray-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.schiffe-tray-chip-groesse {
+  display: flex;
+  gap: 2px;
+}
+.schiffe-tray-chip-groesse span {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.55;
+}
+.schiffe-tray-chip-aktiv {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+.schiffe-tray-chip-fertig {
+  color: var(--ink-soft);
+  border-color: transparent;
+  cursor: default;
+  opacity: 0.6;
+}
+.schiffe-tray-chip-anzahl { opacity: 0.75; font-weight: 600; }
+
+.schiffe-feld-entfernbar { cursor: pointer; }
+.schiffe-feld-entfernbar:hover { filter: brightness(1.35); }
+
 .schiffe-flotten-status {
   display: flex;
   justify-content: space-between;

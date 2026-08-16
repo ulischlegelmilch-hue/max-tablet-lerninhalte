@@ -30,6 +30,28 @@ const SchachOnline = (function () {
     return DATEIEN[SchachEngine.fileOf(feld)] + (SchachEngine.rankOf(feld) + 1);
   }
 
+  /** "schach" (Schach, aber noch kein Matt) ist ein eigener status-Wert von
+   *  SchachEngine.spielstatus() - die Partie LAEUFT dabei ganz normal weiter,
+   *  nur eben mit einer Schach-Anzeige. Frueher wurde hier nur auf genau
+   *  status==='laeuft' geprueft, wodurch die Partie beim naechsten Schachgebot
+   *  faelschlich wie beendet behandelt wurde: kein Zug mehr moeglich, Aktions-
+   *  leiste zeigte "Neues Spiel" statt "Aufgeben" (13./14.08.2026 von Uli
+   *  gemeldet: "war im Schach, konnte nicht mehr ziehen, Spiel auf einmal
+   *  beendet"). schach.js (gegen den Computer) hat das schon immer richtig
+   *  gemacht (`status !== 'laeuft' && status !== 'schach'`) - dieser Online-
+   *  Modus hatte das nie nachgezogen. */
+  function spielLaeuftNoch(status) {
+    return status === 'laeuft' || status === 'schach';
+  }
+
+  function findeKoenigFeld(zust, farbe) {
+    for (let i = 0; i < 64; i++) {
+      const s = zust.board[i];
+      if (s && s.typ === 'k' && s.farbe === farbe) return i;
+    }
+    return null;
+  }
+
   /** Geschlagene Figuren + Materialvorteil aus der aktuellen Brettstellung
    *  (gleiche Logik wie in schach.js - Module teilen sich hier bewusst keinen
    *  Code, siehe Projektkonvention: jede Datei ist ein eigenstaendiges IIFE). */
@@ -166,6 +188,8 @@ const SchachOnline = (function () {
   function brettHtml() {
     const zustand = stand.zustand;
     const letzterZug = zustand.letzterZug;
+    const schachKoenigFeld = stand.status === 'schach' || stand.status === 'matt'
+      ? findeKoenigFeld(zustand, zustand.amZug) : null;
     const felderOrient = visuelleFelder();
     const zellen = felderOrient.map((feld) => {
       const rank = SchachEngine.rankOf(feld), file = SchachEngine.fileOf(feld);
@@ -174,6 +198,7 @@ const SchachOnline = (function () {
       let klassen = 'schach-feld ' + (hell ? 'schach-feld-hell' : 'schach-feld-dunkel');
       if (ausgewaehlt === feld) klassen += ' schach-feld-ausgewaehlt';
       if (ziele.some(z => z.nach === feld)) klassen += stein ? ' schach-feld-ziel-schlag' : ' schach-feld-ziel';
+      if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
       return `<div class="${klassen}" onclick="SchachOnline.feldGeklickt(${feld})">${symbol}</div>`;
@@ -223,9 +248,11 @@ const SchachOnline = (function () {
         statusHtml = stand.gewinner === farbe
           ? '<div class="schach-status schach-status-sieg">Papa hat aufgegeben – du gewinnst!</div>'
           : '<div class="schach-status schach-status-niederlage">Die Partie wurde aufgegeben.</div>';
+      } else if (stand.status === 'schach') {
+        statusHtml = '<div class="schach-status schach-status-schach">Schach!</div>';
       }
 
-      const infoText = stand.status !== 'laeuft'
+      const infoText = !spielLaeuftNoch(stand.status)
         ? ''
         : (stand.zustand.amZug === farbe ? 'Du bist am Zug' : 'Papa ist am Zug …') +
           (stand.verbunden.papa ? '' : ' (Papa ist gerade offline, bekommt aber eine Benachrichtigung)');
@@ -252,7 +279,7 @@ const SchachOnline = (function () {
             <span class="schach-geschlagen">${spielerGeschlagenHtml}${spielerVorteil > 0 ? `<span class="schach-materialvorteil">+${spielerVorteil}</span>` : ''}</span>
           </div>
           <div class="schach-aktionsleiste">
-            ${stand.status === 'laeuft'
+            ${spielLaeuftNoch(stand.status)
               ? '<span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchachOnline.aufgeben()">Aufgeben</span>'
               : '<span class="schach-aktion-btn" onclick="SchachOnline.starteNeueRunde()">Neues Spiel</span>'}
           </div>
@@ -283,7 +310,7 @@ const SchachOnline = (function () {
   }
 
   function feldGeklickt(feld) {
-    if (!stand || stand.status !== 'laeuft' || !ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!stand || !spielLaeuftNoch(stand.status) || !ws || ws.readyState !== WebSocket.OPEN) return;
     const farbe = meineFarbe();
     if (!farbe || stand.zustand.amZug !== farbe) return;
     const stein = stand.zustand.board[feld];

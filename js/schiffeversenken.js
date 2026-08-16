@@ -15,6 +15,10 @@ const Schiffeversenken = (function () {
   let eigeneSchiffe = [];
   let platzierungsAusrichtung = 'h';
   let platzierungsHinweis = '';
+  // Welcher Schiffstyp beim naechsten Feld-Klick gesetzt wird - waehlbar
+  // ueber den Schiffs-Tray statt starrer Reihenfolge (siehe CSS-Kommentar
+  // .schiffe-tray, Uli-Wunsch 16.08.2026).
+  let ausgewaehlterTyp = null;
 
   function renderMenu() {
     App.render(App.subMenuHtml('Schiffe versenken', [
@@ -48,17 +52,27 @@ const Schiffeversenken = (function () {
     eigeneSchiffe = [];
     platzierungsAusrichtung = 'h';
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
     renderPlatzierung();
   }
 
+  /** Antippbarer Schiffs-Tray statt reiner Anzeige: waehlt, WELCHER Typ beim
+   *  naechsten Feld-Klick gesetzt wird (statt starrer Reihenfolge groesstes-
+   *  zuerst) - orientiert an professionellen Battleship-Apps (Uli-Wunsch
+   *  16.08.2026). */
   function fleetUebersichtHtml() {
     return E.SCHIFF_TYPEN.map(def => {
       const platziert = eigeneSchiffe.filter(s => s.typ === def.typ).length;
       const fertig = platziert === def.anzahl;
+      const aktiv = def.typ === ausgewaehlterTyp;
+      const klassen = 'schiffe-tray-chip' + (fertig ? ' schiffe-tray-chip-fertig' : aktiv ? ' schiffe-tray-chip-aktiv' : '');
+      const klick = fertig ? '' : ` onclick="Schiffeversenken.waehleTyp('${def.typ}')"`;
       return `
-        <div class="schiffe-fleet-zeile${fertig ? ' schiffe-fleet-zeile-fertig' : ''}">
-          <span>${def.name} (${def.laenge})</span><span>${platziert} / ${def.anzahl}</span>
-        </div>
+        <span class="${klassen}"${klick}>
+          <span class="schiffe-tray-chip-groesse">${'<span></span>'.repeat(def.laenge)}</span>
+          ${def.name}
+          <span class="schiffe-tray-chip-anzahl">${def.anzahl - platziert}×</span>
+        </span>
       `;
     }).join('');
   }
@@ -67,25 +81,25 @@ const Schiffeversenken = (function () {
     let zellenHtml = '';
     for (let i = 0; i < E.GESAMT; i++) {
       const hatSchiff = eigeneSchiffe.some(s => s.zellen.includes(i));
-      const klasse = hatSchiff ? 'schiffe-feld-eigenes' : 'schiffe-feld-unbekannt';
+      const klasse = hatSchiff ? 'schiffe-feld-eigenes schiffe-feld-entfernbar' : 'schiffe-feld-unbekannt';
       zellenHtml += `<div class="schiffe-feld ${klasse}" onclick="Schiffeversenken.platzierungsFeldGeklickt(${i})"></div>`;
     }
     return brettRahmenHtml(zellenHtml, 'gross');
   }
 
   function renderPlatzierung() {
-    const naechstes = E.PLATZIERUNGS_REIHENFOLGE[eigeneSchiffe.length];
-    const fertig = !naechstes;
+    const fertig = !ausgewaehlterTyp;
+    const naechsterName = ausgewaehlterTyp ? E.SCHIFF_TYPEN.find(d => d.typ === ausgewaehlterTyp).name : '';
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Schiffeversenken.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schiffe-wrap">
         <div class="welcome">Flotte aufstellen</div>
-        <div class="schach-info">${fertig ? 'Alle Schiffe platziert!' : `Platziere: ${naechstes.name} (${naechstes.laenge} Felder) – Startfeld antippen`}</div>
+        <div class="schach-info">${fertig ? 'Alle Schiffe platziert!' : `${naechsterName} ausgewählt – Startfeld antippen. Ein gesetztes Schiff antippen nimmt es wieder weg.`}</div>
         ${platzierungsHinweis ? `<div class="schach-status schach-status-niederlage">${platzierungsHinweis}</div>` : ''}
         ${platzierungsBrettHtml()}
-        <div class="schiffe-fleet-liste">${fleetUebersichtHtml()}</div>
+        <div class="schiffe-tray">${fleetUebersichtHtml()}</div>
         <div class="schach-aktionsleiste">
-          ${!fertig ? `<span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="Schiffeversenken.dreheAusrichtung()">${Icons.svg('drehen')} Drehen: ${platzierungsAusrichtung === 'h' ? 'waagerecht' : 'senkrecht'}</span>` : ''}
+          <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="Schiffeversenken.dreheAusrichtung()">${Icons.svg('drehen')} Drehen: ${platzierungsAusrichtung === 'h' ? 'waagerecht' : 'senkrecht'}</span>
           <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="Schiffeversenken.automatischPlatzieren()">${Icons.svg('schiffe')} Automatisch platzieren</span>
           <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="Schiffeversenken.platzierungZuruecksetzen()">Zurücksetzen</span>
         </div>
@@ -94,8 +108,29 @@ const Schiffeversenken = (function () {
     `);
   }
 
+  function waehleTyp(typ) {
+    const def = E.SCHIFF_TYPEN.find(d => d.typ === typ);
+    if (!def) return;
+    const platziert = eigeneSchiffe.filter(s => s.typ === typ).length;
+    if (platziert >= def.anzahl) return;
+    ausgewaehlterTyp = typ;
+    platzierungsHinweis = '';
+    renderPlatzierung();
+  }
+
   function platzierungsFeldGeklickt(startIdx) {
-    const def = E.PLATZIERUNGS_REIHENFOLGE[eigeneSchiffe.length];
+    // Ein bereits gesetztes Schiff antippen nimmt es wieder vom Brett -
+    // einfacher als Drag&Drop, aber genauso flexibel neu positionierbar
+    // (Uli-Wunsch 16.08.2026: "sollte besser handlebar sein").
+    const vorhandenes = E.schiffAnFeld(eigeneSchiffe, startIdx);
+    if (vorhandenes) {
+      eigeneSchiffe = eigeneSchiffe.filter(s => s !== vorhandenes);
+      ausgewaehlterTyp = vorhandenes.typ;
+      platzierungsHinweis = '';
+      renderPlatzierung();
+      return;
+    }
+    const def = E.SCHIFF_TYPEN.find(d => d.typ === ausgewaehlterTyp);
     if (!def) return;
     const zellen = E.berechneZellen(startIdx, def.laenge, platzierungsAusrichtung);
     if (!zellen) {
@@ -110,6 +145,7 @@ const Schiffeversenken = (function () {
     }
     eigeneSchiffe.push(E.neuesSchiff(def, zellen));
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, ausgewaehlterTyp);
     renderPlatzierung();
   }
 
@@ -118,20 +154,23 @@ const Schiffeversenken = (function () {
     renderPlatzierung();
   }
 
+  /** Wuerfelt IMMER die komplette Flotte neu (verwirft eine evtl. schon
+   *  begonnene manuelle Aufstellung) statt nur die noch fehlenden Schiffe
+   *  aufzufuellen - sonst war ein zweiter Klick, nachdem schon alle 10
+   *  Schiffe standen, wirkungslos (restlicheDefs war dann leer), was sich
+   *  wie "immer dieselbe Aufstellung" anfuehlte (Uli-Bugreport 16.08.2026:
+   *  "die automatische planung der schiffe sollte jedesmal anders sein"). */
   function automatischPlatzieren() {
-    const restlicheDefs = E.PLATZIERUNGS_REIHENFOLGE.slice(eigeneSchiffe.length);
-    if (!restlicheDefs.length) return;
-    const ergebnis = E.versucheZufaelligPlatzieren(eigeneSchiffe, restlicheDefs);
-    if (ergebnis) {
-      eigeneSchiffe = ergebnis;
-      platzierungsHinweis = '';
-    }
+    eigeneSchiffe = E.zufaelligeFlotte();
+    platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
     renderPlatzierung();
   }
 
   function platzierungZuruecksetzen() {
     eigeneSchiffe = [];
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
     renderPlatzierung();
   }
 
@@ -255,6 +294,22 @@ const Schiffeversenken = (function () {
     return schiffe.filter(s => !E.schiffVersenkt(s)).length;
   }
 
+  /** "Welche Schiffe/Groessen muss ich noch treffen" (Uli-Wunsch 16.08.2026) -
+   *  im Unterschied zur Online-Variante kennt dieses Modul die komplette
+   *  computerSchiffe-Liste direkt, kann also einfach durchzaehlen statt ueber
+   *  E.flottenUebersicht(versenkteSchiffe) zu gehen (das ist nur online noetig,
+   *  wo der Angreifer die gegnerische Flotte nie direkt sieht). */
+  function gegnerFlottenUebersichtHtml() {
+    return E.SCHIFF_TYPEN.map(def => {
+      const versenkt = computerSchiffe.filter(s => s.typ === def.typ && E.schiffVersenkt(s)).length;
+      return `
+        <div class="schiffe-fleet-zeile${versenkt === def.anzahl ? ' schiffe-fleet-zeile-fertig' : ''}">
+          <span>${def.name} (${def.laenge})</span><span>${versenkt} / ${def.anzahl}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderKampf() {
     App.setOnLeaveScreen(raeumeKiTimeoutAuf);
 
@@ -280,6 +335,8 @@ const Schiffeversenken = (function () {
           <span>🙂 Du: ${schiffeUebrig(eigeneSchiffe)} von ${E.SCHIFFE_GESAMT} Schiffen übrig</span>
         </div>
         ${brettHtml('gegner', spielLaeuft && amZug === 'spieler', 'gross')}
+        <div class="schiffe-eigene-ueberschrift">Noch zu versenken</div>
+        <div class="schiffe-fleet-liste">${gegnerFlottenUebersichtHtml()}</div>
         <div class="schiffe-eigene-ueberschrift">Deine Flotte</div>
         ${brettHtml('eigenes', false, 'klein')}
         <div class="schach-aktionsleiste">
@@ -309,7 +366,9 @@ const Schiffeversenken = (function () {
   function gegnerFeldGeklickt(ziel) {
     if (!spielLaeuft || amZug !== 'spieler' || beschussAufComputer[ziel]) return;
     const schiff = E.schiffAnFeld(computerSchiffe, ziel);
+    let treffer = false;
     if (schiff) {
+      treffer = true;
       schiff.treffer[schiff.zellen.indexOf(ziel)] = true;
       if (E.schiffVersenkt(schiff)) schiff.zellen.forEach(z => { beschussAufComputer[z] = 'versenkt'; });
       else beschussAufComputer[ziel] = 'treffer';
@@ -317,6 +376,10 @@ const Schiffeversenken = (function () {
       beschussAufComputer[ziel] = 'wasser';
     }
     if (pruefeSpielende()) { renderKampf(); return; }
+    // Bei Treffer bleibt derselbe Spieler am Zug (auf Uli-Wunsch 16.08.2026 -
+    // haeufigste digitale Battleship-Konvention, wirkt vertrauter als die
+    // reine Papier-Regel mit strikt wechselnden Zuegen).
+    if (treffer) { renderKampf(); return; }
     amZug = 'computer';
     renderKampf();
     kiTimeoutHandle = setTimeout(computerZugAusfuehren, 900);
@@ -328,7 +391,9 @@ const Schiffeversenken = (function () {
     const ziel = kiWaehleZiel();
     kiGetestet.add(ziel);
     const schiff = E.schiffAnFeld(eigeneSchiffe, ziel);
+    let treffer = false;
     if (schiff) {
+      treffer = true;
       schiff.treffer[schiff.zellen.indexOf(ziel)] = true;
       if (E.schiffVersenkt(schiff)) {
         schiff.zellen.forEach(z => { beschussAufSpieler[z] = 'versenkt'; });
@@ -343,6 +408,13 @@ const Schiffeversenken = (function () {
       beschussAufSpieler[ziel] = 'wasser';
     }
     if (pruefeSpielende()) { renderKampf(); return; }
+    if (treffer) {
+      // Computer bleibt symmetrisch zur Spielerregel bei Treffer ebenfalls
+      // am Zug - schiesst nach kurzer Pause gleich nochmal.
+      renderKampf();
+      kiTimeoutHandle = setTimeout(computerZugAusfuehren, 900);
+      return;
+    }
     amZug = 'spieler';
     renderKampf();
   }
@@ -363,7 +435,7 @@ const Schiffeversenken = (function () {
 
   return {
     renderMenu, renderRegeln, starteFlottenaufstellung,
-    platzierungsFeldGeklickt, dreheAusrichtung, automatischPlatzieren, platzierungZuruecksetzen,
+    platzierungsFeldGeklickt, waehleTyp, dreheAusrichtung, automatischPlatzieren, platzierungZuruecksetzen,
     kampfBeginnen, gegnerFeldGeklickt, aufgeben, fortschrittText
   };
 })();

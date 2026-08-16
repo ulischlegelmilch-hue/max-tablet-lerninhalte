@@ -35,6 +35,10 @@ const SchiffeversenkenOnline = (function () {
   let platzierungsAusrichtung = 'h';
   let platzierungsHinweis = '';
   let bereitGesendet = false;
+  // Welcher Schiffstyp beim naechsten Feld-Klick gesetzt wird - waehlbar
+  // ueber den Schiffs-Tray statt starrer Reihenfolge (siehe CSS-Kommentar
+  // .schiffe-tray in style.css, Uli-Wunsch 16.08.2026).
+  let ausgewaehlterTyp = null;
 
   // Verhindert Mehrfach-Antworten auf dieselbe Anfrage, solange der Server
   // sie noch nicht als beantwortet quittiert hat (mehrere "stand"-Broadcasts
@@ -62,15 +66,37 @@ const SchiffeversenkenOnline = (function () {
       const vorherigerStatus = stand ? stand.status : null;
       stand = msg;
       verbindungsStatus = 'verbunden';
-      // Neue Partie auf Server-Seite (z.B. Papa hat "Neues Spiel" gestartet,
-      // waehrend wir hier schon/noch eine alte Aufstellung hatten) - eigene
-      // Flotte muss neu aufgestellt werden.
+      // Neu IN die Platzierungsphase gewechselt - entweder eine echte neue
+      // Partie (z.B. Papa hat "Neues Spiel" gestartet) ODER dieselbe Partie
+      // nach einem Reload/App-Neustart (der lokale Modul-Zustand war dann
+      // komplett leer, obwohl der Server noch mitten in "platzierung"
+      // steht). Statt hart auf leer zurueckzusetzen: zuerst versuchen, eine
+      // lokal gespeicherte Aufstellung wiederherzustellen (siehe
+      // Storage.getSchiffeOnlinePlatzierung) - das behebt den von Uli am
+      // 16.08.2026 gemeldeten Bug "Schiffsanordnung wird nicht gemerkt, kam
+      // oefters vor". Eine wiederhergestellte Aufstellung aus einer ALTEN
+      // Partie in eine neue einzusetzen ist unbedenklich (sie ist immer noch
+      // eine vollstaendig gueltige Flotte, nur eben nicht druckfrisch).
       if (vorherigerStatus !== 'platzierung' && msg.status === 'platzierung') {
-        eigeneSchiffe = [];
+        const gespeichert = Storage.getSchiffeOnlinePlatzierung();
+        eigeneSchiffe = gespeichert ? gespeichert.schiffe : [];
+        bereitGesendet = gespeichert ? gespeichert.bereitGesendet : false;
         platzierungsAusrichtung = 'h';
         platzierungsHinweis = '';
-        bereitGesendet = false;
+        ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
         letzteBeantworteteZiel = null;
+        // Falls wir laut Server schon bereit gemeldet waren (Server hat das
+        // ueberlebt, auch wenn unser lokaler Zustand das erst gerade
+        // wiederhergestellt hat), das nochmal sicherstellen - kostet nichts,
+        // der Server ignoriert eine wiederholte "bereit"-Meldung nicht
+        // schaedlich (setzt bereitschaft[rolle] nur erneut auf true).
+        if (bereitGesendet && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ typ: 'bereit' }));
+        }
+      } else if (vorherigerStatus === 'platzierung' && msg.status !== 'platzierung') {
+        // Platzierungsphase vorbei (Kampf beginnt oder Partie abgebrochen) -
+        // die Zwischenspeicherung wird nicht mehr gebraucht.
+        Storage.loescheSchiffeOnlinePlatzierung();
       }
       beantworteOffeneAnfrageFallsNoetig();
       zeichne();
@@ -102,6 +128,7 @@ const SchiffeversenkenOnline = (function () {
     eigeneSchiffe = [];
     platzierungsAusrichtung = 'h';
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
     bereitGesendet = false;
     letzteBeantworteteZiel = null;
     verbinden();
@@ -138,14 +165,23 @@ const SchiffeversenkenOnline = (function () {
   // Flotten-Aufstellung (Oberflaeche dupliziert zu schiffeversenken.js -
   // Projektkonvention, siehe Kopfkommentar)
   // -----------------------------------------------------------------------
+  /** Antippbarer Schiffs-Tray statt reiner Anzeige: waehlt, WELCHER Typ beim
+   *  naechsten Feld-Klick gesetzt wird (statt starrer Reihenfolge groesstes-
+   *  zuerst) - orientiert an professionellen Battleship-Apps (Uli-Wunsch
+   *  16.08.2026). */
   function fleetUebersichtHtml() {
     return E.SCHIFF_TYPEN.map(def => {
       const platziert = eigeneSchiffe.filter(s => s.typ === def.typ).length;
       const fertig = platziert === def.anzahl;
+      const aktiv = def.typ === ausgewaehlterTyp;
+      const klassen = 'schiffe-tray-chip' + (fertig ? ' schiffe-tray-chip-fertig' : aktiv ? ' schiffe-tray-chip-aktiv' : '');
+      const klick = fertig ? '' : ` onclick="SchiffeversenkenOnline.waehleTyp('${def.typ}')"`;
       return `
-        <div class="schiffe-fleet-zeile${fertig ? ' schiffe-fleet-zeile-fertig' : ''}">
-          <span>${def.name} (${def.laenge})</span><span>${platziert} / ${def.anzahl}</span>
-        </div>
+        <span class="${klassen}"${klick}>
+          <span class="schiffe-tray-chip-groesse">${'<span></span>'.repeat(def.laenge)}</span>
+          ${def.name}
+          <span class="schiffe-tray-chip-anzahl">${def.anzahl - platziert}×</span>
+        </span>
       `;
     }).join('');
   }
@@ -174,15 +210,15 @@ const SchiffeversenkenOnline = (function () {
     let zellenHtml = '';
     for (let i = 0; i < E.GESAMT; i++) {
       const hatSchiff = eigeneSchiffe.some(s => s.zellen.includes(i));
-      const klasse = hatSchiff ? 'schiffe-feld-eigenes' : 'schiffe-feld-unbekannt';
+      const klasse = hatSchiff ? 'schiffe-feld-eigenes schiffe-feld-entfernbar' : 'schiffe-feld-unbekannt';
       zellenHtml += `<div class="schiffe-feld ${klasse}" onclick="SchiffeversenkenOnline.platzierungsFeldGeklickt(${i})"></div>`;
     }
     return brettRahmenHtml(zellenHtml, 'gross');
   }
 
   function renderPlatzierung() {
-    const naechstes = E.PLATZIERUNGS_REIHENFOLGE[eigeneSchiffe.length];
-    const fertig = !naechstes;
+    const fertig = !ausgewaehlterTyp;
+    const naechsterName = ausgewaehlterTyp ? E.SCHIFF_TYPEN.find(d => d.typ === ausgewaehlterTyp).name : '';
     const gegnerBereit = stand.bereitschaft[GEGNER_ROLLE];
     let html = `
       <div class="back-row"><span class="back-btn" onclick="Schiffeversenken.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -197,12 +233,12 @@ const SchiffeversenkenOnline = (function () {
       `;
     } else {
       html += `
-        <div class="schach-info">${fertig ? 'Alle Schiffe platziert!' : `Platziere: ${naechstes.name} (${naechstes.laenge} Felder) – Startfeld antippen`}</div>
+        <div class="schach-info">${fertig ? 'Alle Schiffe platziert!' : `${naechsterName} ausgewählt – Startfeld antippen. Ein gesetztes Schiff antippen nimmt es wieder weg.`}</div>
         ${platzierungsHinweis ? `<div class="schach-status schach-status-niederlage">${platzierungsHinweis}</div>` : ''}
         ${platzierungsBrettHtml()}
-        <div class="schiffe-fleet-liste">${fleetUebersichtHtml()}</div>
+        <div class="schiffe-tray">${fleetUebersichtHtml()}</div>
         <div class="schach-aktionsleiste">
-          ${!fertig ? `<span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchiffeversenkenOnline.dreheAusrichtung()">${Icons.svg('drehen')} Drehen: ${platzierungsAusrichtung === 'h' ? 'waagerecht' : 'senkrecht'}</span>` : ''}
+          <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchiffeversenkenOnline.dreheAusrichtung()">${Icons.svg('drehen')} Drehen: ${platzierungsAusrichtung === 'h' ? 'waagerecht' : 'senkrecht'}</span>
           <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchiffeversenkenOnline.automatischPlatzieren()">${Icons.svg('schiffe')} Automatisch platzieren</span>
           <span class="schach-aktion-btn schach-aktion-btn-sekundaer" onclick="SchiffeversenkenOnline.platzierungZuruecksetzen()">Zurücksetzen</span>
         </div>
@@ -213,9 +249,32 @@ const SchiffeversenkenOnline = (function () {
     App.render(html);
   }
 
+  function waehleTyp(typ) {
+    if (bereitGesendet) return;
+    const def = E.SCHIFF_TYPEN.find(d => d.typ === typ);
+    if (!def) return;
+    const platziert = eigeneSchiffe.filter(s => s.typ === typ).length;
+    if (platziert >= def.anzahl) return;
+    ausgewaehlterTyp = typ;
+    platzierungsHinweis = '';
+    zeichne();
+  }
+
   function platzierungsFeldGeklickt(startIdx) {
     if (bereitGesendet) return;
-    const def = E.PLATZIERUNGS_REIHENFOLGE[eigeneSchiffe.length];
+    // Ein bereits gesetztes Schiff antippen nimmt es wieder vom Brett -
+    // einfacher als Drag&Drop, aber genauso flexibel neu positionierbar
+    // (Uli-Wunsch 16.08.2026: "sollte besser handlebar sein").
+    const vorhandenes = E.schiffAnFeld(eigeneSchiffe, startIdx);
+    if (vorhandenes) {
+      eigeneSchiffe = eigeneSchiffe.filter(s => s !== vorhandenes);
+      ausgewaehlterTyp = vorhandenes.typ;
+      platzierungsHinweis = '';
+      Storage.setSchiffeOnlinePlatzierung(eigeneSchiffe, bereitGesendet);
+      zeichne();
+      return;
+    }
+    const def = E.SCHIFF_TYPEN.find(d => d.typ === ausgewaehlterTyp);
     if (!def) return;
     const zellen = E.berechneZellen(startIdx, def.laenge, platzierungsAusrichtung);
     if (!zellen) {
@@ -230,6 +289,8 @@ const SchiffeversenkenOnline = (function () {
     }
     eigeneSchiffe.push(E.neuesSchiff(def, zellen));
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, ausgewaehlterTyp);
+    Storage.setSchiffeOnlinePlatzierung(eigeneSchiffe, bereitGesendet);
     zeichne();
   }
 
@@ -238,12 +299,18 @@ const SchiffeversenkenOnline = (function () {
     zeichne();
   }
 
+  /** Wuerfelt IMMER die komplette Flotte neu (verwirft eine evtl. schon
+   *  begonnene manuelle Aufstellung) statt nur die noch fehlenden Schiffe
+   *  aufzufuellen - sonst war ein zweiter Klick, nachdem schon alle 10
+   *  Schiffe standen, wirkungslos (restlicheDefs war dann leer), was sich
+   *  wie "immer dieselbe Aufstellung" anfuehlte (Uli-Bugreport 16.08.2026:
+   *  "die automatische planung der schiffe sollte jedesmal anders sein"). */
   function automatischPlatzieren() {
     if (bereitGesendet) return;
-    const restlicheDefs = E.PLATZIERUNGS_REIHENFOLGE.slice(eigeneSchiffe.length);
-    if (!restlicheDefs.length) return;
-    const ergebnis = E.versucheZufaelligPlatzieren(eigeneSchiffe, restlicheDefs);
-    if (ergebnis) { eigeneSchiffe = ergebnis; platzierungsHinweis = ''; }
+    eigeneSchiffe = E.zufaelligeFlotte();
+    platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
+    Storage.setSchiffeOnlinePlatzierung(eigeneSchiffe, bereitGesendet);
     zeichne();
   }
 
@@ -251,12 +318,15 @@ const SchiffeversenkenOnline = (function () {
     if (bereitGesendet) return;
     eigeneSchiffe = [];
     platzierungsHinweis = '';
+    ausgewaehlterTyp = E.naechsterPlatzierungsTyp(eigeneSchiffe, null);
+    Storage.loescheSchiffeOnlinePlatzierung();
     zeichne();
   }
 
   function bereitMelden() {
     if (bereitGesendet || eigeneSchiffe.length !== E.SCHIFFE_GESAMT) return;
     bereitGesendet = true;
+    Storage.setSchiffeOnlinePlatzierung(eigeneSchiffe, bereitGesendet);
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ typ: 'bereit' }));
     zeichne();
   }
@@ -287,6 +357,18 @@ const SchiffeversenkenOnline = (function () {
     // korrekte Kennzahl "versenkte Schiffsteile" nicht an und beschraenken
     // uns auf den Spielausgang (siehe renderKampf statusHtml).
     return Object.values(beschuss).filter(e => e === 'versenkt').length;
+  }
+
+  /** "Welche Schiffe/Groessen muss ich noch treffen" (Uli-Wunsch 16.08.2026) -
+   *  online kennt der Angreifer die gegnerische Flotte nie direkt, deshalb
+   *  ueber E.flottenUebersicht() aus den vom Verteidiger gemeldeten
+   *  versenkten Schiffslaengen (stand.versenkteSchiffe[MEINE_ROLLE]). */
+  function gegnerFlottenUebersichtHtml() {
+    return E.flottenUebersicht(stand.versenkteSchiffe[MEINE_ROLLE]).map(({ def, versenkt }) => `
+      <div class="schiffe-fleet-zeile${versenkt === def.anzahl ? ' schiffe-fleet-zeile-fertig' : ''}">
+        <span>${def.name} (${def.laenge})</span><span>${versenkt} / ${def.anzahl}</span>
+      </div>
+    `).join('');
   }
 
   function renderKampf() {
@@ -341,6 +423,8 @@ const SchiffeversenkenOnline = (function () {
           <span>🙂 Du: ${schuesseUebrig(gegnerBeschossen)} von ${E.SCHIFFE_GESAMT} versenkt</span>
         </div>
         ${brettRahmenHtml(zellenGegner, 'gross')}
+        <div class="schiffe-eigene-ueberschrift">Noch zu versenken</div>
+        <div class="schiffe-fleet-liste">${gegnerFlottenUebersichtHtml()}</div>
         <div class="schiffe-eigene-ueberschrift">Deine Flotte</div>
         ${brettRahmenHtml(zellenEigen, 'klein')}
         <div class="schach-aktionsleiste">
@@ -404,6 +488,6 @@ const SchiffeversenkenOnline = (function () {
 
   return {
     starteAnsicht, starteSpiel, aufgeben, feuern,
-    platzierungsFeldGeklickt, dreheAusrichtung, automatischPlatzieren, platzierungZuruecksetzen, bereitMelden
+    platzierungsFeldGeklickt, waehleTyp, dreheAusrichtung, automatischPlatzieren, platzierungZuruecksetzen, bereitMelden
   };
 })();

@@ -22,6 +22,12 @@ const Storage = (function () {
       // Menuekachel, das Spiel selbst hat aktuell nur eine Schwierigkeitsstufe.
       schiffeversenken: { siege: 0 },
       maumau: { siege: 0 },
+      // Laufende Online-Flottenaufstellung fuer Schiffe versenken - rein
+      // lokal (NIE an den Server geschickt), damit ein Reload/App-Neustart
+      // waehrend der Platzierungsphase die schon gesetzten Schiffe nicht
+      // verwirft (von Uli am 16.08.2026 gemeldet: "Schiffsanordnung wird
+      // nicht gemerkt, kam oefters vor"). Siehe getSchiffeOnlinePlatzierung.
+      schiffeOnlinePlatzierung: null,
       // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
       // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
       // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
@@ -658,6 +664,20 @@ const Storage = (function () {
     return state.schiffeversenken;
   }
 
+  function getSchiffeOnlinePlatzierung() {
+    return state.schiffeOnlinePlatzierung || null;
+  }
+
+  function setSchiffeOnlinePlatzierung(schiffe, bereitGesendet) {
+    state.schiffeOnlinePlatzierung = { schiffe, bereitGesendet: !!bereitGesendet };
+    save(state);
+  }
+
+  function loescheSchiffeOnlinePlatzierung() {
+    state.schiffeOnlinePlatzierung = null;
+    save(state);
+  }
+
   function getMauMauFortschritt() {
     if (!state.maumau) state.maumau = { siege: 0 };
     return state.maumau;
@@ -734,6 +754,7 @@ const Storage = (function () {
     state.schach = { stufe: 0, siege: 0 };
     state.schiffeversenken = { siege: 0 };
     state.maumau = { siege: 0 };
+    state.schiffeOnlinePlatzierung = null;
     state.taktik = {};
     state.konzentration = { koordinatenBestzeitMs: null };
     state.schachTagesplan = { datum: null, schritte: [] };
@@ -750,6 +771,7 @@ const Storage = (function () {
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
     getSchiffeFortschritt, meldeSchiffeSieg,
+    getSchiffeOnlinePlatzierung, setSchiffeOnlinePlatzierung, loescheSchiffeOnlinePlatzierung,
     getMauMauFortschritt, meldeMauMauSieg,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln, getTagesFach,

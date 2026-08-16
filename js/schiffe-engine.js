@@ -118,9 +118,52 @@ const SchiffeEngine = (function () {
     return schiffe.every(schiffVersenkt);
   }
 
+  /** Jede Schiffslaenge kommt in der Flotte nur bei GENAU einem Schiffstyp
+   *  vor - darueber laesst sich online (wo der Angreifer die gegnerische
+   *  Flotte nie direkt sieht) trotzdem anzeigen, WELCHE Schiffstypen schon
+   *  versenkt sind: der Verteidiger schickt beim Versenken nur die Anzahl
+   *  betroffener Zellen mit (siehe backend/server.js versenkteSchiffe), die
+   *  Laenge allein reicht zur Typ-Zuordnung. */
+  const LAENGE_ZU_TYP = {};
+  SCHIFF_TYPEN.forEach(def => { LAENGE_ZU_TYP[def.laenge] = def.typ; });
+
+  /** Baut aus einer Liste versenkter Schiffe (jeweils nur {laenge} oder
+   *  vollstaendige Schiffsobjekte mit .typ - beides wird akzeptiert) eine
+   *  Uebersicht "je Schiffstyp X von Y versenkt", fuer die "welche Schiffe/
+   *  Groessen muss ich noch treffen"-Anzeige (Uli-Wunsch 16.08.2026). */
+  function flottenUebersicht(versenkteSchiffe) {
+    const versenktProTyp = {};
+    (versenkteSchiffe || []).forEach(s => {
+      const typ = s.typ || LAENGE_ZU_TYP[s.laenge];
+      if (typ) versenktProTyp[typ] = (versenktProTyp[typ] || 0) + 1;
+    });
+    return SCHIFF_TYPEN.map(def => ({
+      def, versenkt: Math.min(versenktProTyp[def.typ] || 0, def.anzahl)
+    }));
+  }
+
+  /** Welcher Schiffstyp beim manuellen Platzieren als naechstes drankommt -
+   *  fuer die ueberarbeitete Platzierungs-Oberflaeche (Schiffs-Tray statt
+   *  starrer Reihenfolge, Uli-Wunsch 16.08.2026: "orientiere dich an
+   *  professionellen Apps"). `bevorzugt` wird beibehalten, solange von DEM
+   *  Typ noch welche fehlen (Nutzer waehlt z.B. bewusst "noch ein U-Boot"),
+   *  sonst faellt es auf den ersten Typ mit noch fehlenden Schiffen zurueck. */
+  function naechsterPlatzierungsTyp(schiffe, bevorzugt) {
+    const platziertProTyp = {};
+    schiffe.forEach(s => { platziertProTyp[s.typ] = (platziertProTyp[s.typ] || 0) + 1; });
+    const hatNochFreie = def => (platziertProTyp[def.typ] || 0) < def.anzahl;
+    if (bevorzugt) {
+      const def = SCHIFF_TYPEN.find(d => d.typ === bevorzugt);
+      if (def && hatNochFreie(def)) return bevorzugt;
+    }
+    const naechstes = SCHIFF_TYPEN.find(hatNochFreie);
+    return naechstes ? naechstes.typ : null;
+  }
+
   return {
-    BREITE, GESAMT, SCHIFF_TYPEN, PLATZIERUNGS_REIHENFOLGE, SCHIFFE_GESAMT,
+    BREITE, GESAMT, SCHIFF_TYPEN, PLATZIERUNGS_REIHENFOLGE, SCHIFFE_GESAMT, LAENGE_ZU_TYP,
     idx, zeileVon, spalteVon, inBrett, berechneZellen, gesperrteNachbarn, kannPlatzieren,
-    neuesSchiff, versucheZufaelligPlatzieren, zufaelligeFlotte, schiffAnFeld, schiffVersenkt, flotteBesiegt
+    neuesSchiff, versucheZufaelligPlatzieren, zufaelligeFlotte, schiffAnFeld, schiffVersenkt, flotteBesiegt,
+    flottenUebersicht, naechsterPlatzierungsTyp
   };
 })();
