@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-15-1753",
+  "version": "2026-08-16-1257",
   "files": [
     "css/style.css",
     "images/buecher/enzo/seite-01.jpg",
@@ -79,6 +79,9 @@
     "js/konzentration.js",
     "js/lesemodus.js",
     "js/mathe.js",
+    "js/maumau-engine.js",
+    "js/maumau-online.js",
+    "js/maumau.js",
     "js/schach-engine.js",
     "js/schach-lektionen.js",
     "js/schach-online.js",

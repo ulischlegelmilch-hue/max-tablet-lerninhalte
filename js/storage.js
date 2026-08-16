@@ -21,6 +21,7 @@ const Storage = (function () {
       // Fortschritt wie beim Schach, nur ein einfacher Sieg-Zaehler fuer die
       // Menuekachel, das Spiel selbst hat aktuell nur eine Schwierigkeitsstufe.
       schiffeversenken: { siege: 0 },
+      maumau: { siege: 0 },
       // Kalendertag-Streak fuer den Startbildschirm ("X Tage in Folge dabei") -
       // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
       // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
@@ -657,6 +658,19 @@ const Storage = (function () {
     return state.schiffeversenken;
   }
 
+  function getMauMauFortschritt() {
+    if (!state.maumau) state.maumau = { siege: 0 };
+    return state.maumau;
+  }
+
+  function meldeMauMauSieg() {
+    registriereAktivenTag();
+    if (!state.maumau) state.maumau = { siege: 0 };
+    state.maumau.siege++;
+    save(state);
+    return state.maumau;
+  }
+
   /** Fortschritt fuer eine einfache Fach-Kachel (Mathe/Deutsch/Heimat): Anzahl
    *  richtig geloester Aufgaben. Geschichten und Schach haben eigene Anzeigen
    *  (siehe getGeschichtenFortschritt/getSchachFortschritt), da dort "Aufgaben
@@ -719,6 +733,7 @@ const Storage = (function () {
     state.matheKategorien = {};
     state.schach = { stufe: 0, siege: 0 };
     state.schiffeversenken = { siege: 0 };
+    state.maumau = { siege: 0 };
     state.taktik = {};
     state.konzentration = { koordinatenBestzeitMs: null };
     state.schachTagesplan = { datum: null, schritte: [] };
@@ -735,6 +750,7 @@ const Storage = (function () {
     getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
     getSchiffeFortschritt, meldeSchiffeSieg,
+    getMauMauFortschritt, meldeMauMauSieg,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln, getTagesFach,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,

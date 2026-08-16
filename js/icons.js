@@ -69,7 +69,9 @@ const Icons = (function () {
     // Zielkreuz fuer die "Automatisch platzieren"/Wuerfel-Aktion beim Schiffe-
     // versenken-Aufbau sowie fuer Treffer-Anzeigen.
     ziel: '<circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>',
-    drehen: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>'
+    drehen: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+    // Mau-Mau: zwei leicht gefaecherte Spielkarten fuer die Menuekachel.
+    maumau: '<rect x="3" y="5" width="11" height="16" rx="1.5" transform="rotate(-10 8.5 13)"/><rect x="10" y="5" width="11" height="16" rx="1.5" transform="rotate(10 15.5 13)"/>'
   };
   PATHS.lesen = PATHS.deutsch;
   // Eigenes Icon (Warndreieck) statt Alias auf heimat - wird nur noch für die

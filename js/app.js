@@ -163,7 +163,7 @@ const App = (function () {
         </div>
         <div class="menu-card accent-spiele" onclick="App.renderSpieleMenu()">
           <span class="menu-icon icon-spiele">${Icons.svg('spielen')}</span>
-          <span class="menu-text"><span class="menu-label">Spiele</span><span class="menu-progress">Schach &amp; Schiffe versenken</span></span>
+          <span class="menu-text"><span class="menu-label">Spiele</span><span class="menu-progress">Schach, Schiffe versenken &amp; Mau-Mau</span></span>
         </div>
         <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
           <span class="menu-icon icon-chat">${Icons.svg('chat')}${chatUngelesen() ? '<span class="menu-badge"></span>' : ''}</span>
@@ -196,6 +196,10 @@ const App = (function () {
         <div class="menu-card accent-schiffe" onclick="Schiffeversenken.renderMenu()">
           <span class="menu-icon icon-schiffe">${Icons.svg('schiffe')}</span>
           <span class="menu-text"><span class="menu-label">Schiffe versenken</span><span class="menu-progress">${Schiffeversenken.fortschrittText()}</span></span>
+        </div>
+        <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
+          <span class="menu-icon icon-maumau">${Icons.svg('maumau')}</span>
+          <span class="menu-text"><span class="menu-label">Mau-Mau</span><span class="menu-progress">${Maumau.fortschrittText()}</span></span>
         </div>
       </div>
     `);
