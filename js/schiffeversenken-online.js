@@ -46,6 +46,18 @@ const SchiffeversenkenOnline = (function () {
   // verarbeitet ist).
   let letzteBeantworteteZiel = null;
 
+  /** Vergleicht den alten mit dem neuen beschuss[MEINE_ROLLE] und spielt den
+   *  passenden Sound fuer neu hinzugekommene Zellen genau EINMAL ab (auch
+   *  wenn ein Versenken mehrere Zellen auf einmal hinzufuegt). */
+  function spieleSoundFuerNeueErgebnisse(alterBeschuss, neuerBeschuss) {
+    if (!neuerBeschuss) return;
+    const neueZiele = Object.keys(neuerBeschuss).filter(z => !alterBeschuss || !(z in alterBeschuss));
+    if (!neueZiele.length) return;
+    if (neueZiele.some(z => neuerBeschuss[z] === 'versenkt')) SoundFX.versenkt();
+    else if (neueZiele.some(z => neuerBeschuss[z] === 'treffer')) SoundFX.treffer();
+    else SoundFX.wasser();
+  }
+
   function verbinden() {
     aktiv = true;
     verbindungsStatus = 'verbindet';
@@ -64,8 +76,15 @@ const SchiffeversenkenOnline = (function () {
       try { msg = JSON.parse(event.data); } catch (e) { return; }
       if (msg.typ !== 'stand') return;
       const vorherigerStatus = stand ? stand.status : null;
+      const vorherigerBeschussGegner = stand && stand.beschuss ? stand.beschuss[MEINE_ROLLE] : null;
       stand = msg;
       verbindungsStatus = 'verbunden';
+      // Ergebnis-Sound fuer den EIGENEN Schuss, sobald der Server es meldet
+      // (beschuss[MEINE_ROLLE] waechst nur, nie ruecklaeufig - neue Zellen
+      // seit dem letzten Stand = das gerade eingetroffene Ergebnis. Bei
+      // "versenkt" tauchen mehrere Zellen auf einmal auf, zaehlt trotzdem
+      // nur als EIN Sound). Uli-Feedback 16.08.2026: "kein Sound im Spiel".
+      spieleSoundFuerNeueErgebnisse(vorherigerBeschussGegner, msg.beschuss ? msg.beschuss[MEINE_ROLLE] : null);
       // Neu IN die Platzierungsphase gewechselt - entweder eine echte neue
       // Partie (z.B. Papa hat "Neues Spiel" gestartet) ODER dieselbe Partie
       // nach einem Reload/App-Neustart (der lokale Modul-Zustand war dann
@@ -156,6 +175,9 @@ const SchiffeversenkenOnline = (function () {
     }
     const flotteBesiegt = E.flotteBesiegt(eigeneSchiffe);
     letzteBeantworteteZiel = anfrage.ziel;
+    if (ergebnis === 'versenkt') SoundFX.versenkt();
+    else if (ergebnis === 'treffer') SoundFX.treffer();
+    else SoundFX.wasser();
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ typ: 'feuer_ergebnis', ziel: anfrage.ziel, ergebnis, versenkteZellen, flotteBesiegt }));
     }
@@ -210,7 +232,9 @@ const SchiffeversenkenOnline = (function () {
     let zellenHtml = '';
     for (let i = 0; i < E.GESAMT; i++) {
       const hatSchiff = eigeneSchiffe.some(s => s.zellen.includes(i));
-      const klasse = hatSchiff ? 'schiffe-feld-eigenes schiffe-feld-entfernbar' : 'schiffe-feld-unbekannt';
+      const klasse = hatSchiff
+        ? `schiffe-feld-eigenes schiffe-feld-entfernbar ${E.schiffFormKlasse(eigeneSchiffe, i)}`
+        : 'schiffe-feld-unbekannt';
       zellenHtml += `<div class="schiffe-feld ${klasse}" onclick="SchiffeversenkenOnline.platzierungsFeldGeklickt(${i})"></div>`;
     }
     return brettRahmenHtml(zellenHtml, 'gross');
@@ -339,7 +363,9 @@ const SchiffeversenkenOnline = (function () {
     if (ergebnis === 'versenkt') return 'schiffe-feld-versenkt';
     if (ergebnis === 'treffer') return 'schiffe-feld-treffer';
     if (ergebnis === 'wasser') return 'schiffe-feld-wasser';
-    return eigeneSchiffe.some(s => s.zellen.includes(i)) ? 'schiffe-feld-eigenes' : 'schiffe-feld-unbekannt';
+    return eigeneSchiffe.some(s => s.zellen.includes(i))
+      ? `schiffe-feld-eigenes ${E.schiffFormKlasse(eigeneSchiffe, i)}`
+      : 'schiffe-feld-unbekannt';
   }
 
   function feldKlasseGegner(i) {
@@ -363,12 +389,31 @@ const SchiffeversenkenOnline = (function () {
    *  online kennt der Angreifer die gegnerische Flotte nie direkt, deshalb
    *  ueber E.flottenUebersicht() aus den vom Verteidiger gemeldeten
    *  versenkten Schiffslaengen (stand.versenkteSchiffe[MEINE_ROLLE]). */
-  function gegnerFlottenUebersichtHtml() {
-    return E.flottenUebersicht(stand.versenkteSchiffe[MEINE_ROLLE]).map(({ def, versenkt }) => `
-      <div class="schiffe-fleet-zeile${versenkt === def.anzahl ? ' schiffe-fleet-zeile-fertig' : ''}">
-        <span>${def.name} (${def.laenge})</span><span>${versenkt} / ${def.anzahl}</span>
+  /** Ein Mini-Schiff (in der gleichen Bug/Heck-Kapselform wie auf dem echten
+   *  Brett) fuer den "Noch zu versenken"-Tracker - eingaengiger als eine
+   *  Bruchzahl fuer einen 9-Jaehrigen (Uli-Feedback 16.08.2026). */
+  function trackerSchiffHtml(laenge, versenkt) {
+    let segmente = '';
+    for (let s = 0; s < laenge; s++) {
+      const pos = s === 0 ? ' schiffe-tracker-bug' : (s === laenge - 1 ? ' schiffe-tracker-heck' : '');
+      segmente += `<span class="schiffe-tracker-segment${pos}"></span>`;
+    }
+    return `<span class="schiffe-tracker-schiff${versenkt ? ' schiffe-tracker-schiff-versenkt' : ''}">${segmente}</span>`;
+  }
+
+  function trackerZeileHtml(def, versenkt) {
+    let boote = '';
+    for (let i = 0; i < def.anzahl; i++) boote += trackerSchiffHtml(def.laenge, i < versenkt);
+    return `
+      <div class="schiffe-tracker-zeile${versenkt === def.anzahl ? ' schiffe-tracker-zeile-fertig' : ''}">
+        <span class="schiffe-tracker-name">${def.name}</span>
+        <span class="schiffe-tracker-boote">${boote}</span>
       </div>
-    `).join('');
+    `;
+  }
+
+  function gegnerFlottenUebersichtHtml() {
+    return E.flottenUebersicht(stand.versenkteSchiffe[MEINE_ROLLE]).map(({ def, versenkt }) => trackerZeileHtml(def, versenkt)).join('');
   }
 
   function renderKampf() {
@@ -424,7 +469,7 @@ const SchiffeversenkenOnline = (function () {
         </div>
         ${brettRahmenHtml(zellenGegner, 'gross')}
         <div class="schiffe-eigene-ueberschrift">Noch zu versenken</div>
-        <div class="schiffe-fleet-liste">${gegnerFlottenUebersichtHtml()}</div>
+        <div class="schiffe-tracker-liste">${gegnerFlottenUebersichtHtml()}</div>
         <div class="schiffe-eigene-ueberschrift">Deine Flotte</div>
         ${brettRahmenHtml(zellenEigen, 'klein')}
         <div class="schach-aktionsleiste">

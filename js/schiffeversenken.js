@@ -81,7 +81,9 @@ const Schiffeversenken = (function () {
     let zellenHtml = '';
     for (let i = 0; i < E.GESAMT; i++) {
       const hatSchiff = eigeneSchiffe.some(s => s.zellen.includes(i));
-      const klasse = hatSchiff ? 'schiffe-feld-eigenes schiffe-feld-entfernbar' : 'schiffe-feld-unbekannt';
+      const klasse = hatSchiff
+        ? `schiffe-feld-eigenes schiffe-feld-entfernbar ${E.schiffFormKlasse(eigeneSchiffe, i)}`
+        : 'schiffe-feld-unbekannt';
       zellenHtml += `<div class="schiffe-feld ${klasse}" onclick="Schiffeversenken.platzierungsFeldGeklickt(${i})"></div>`;
     }
     return brettRahmenHtml(zellenHtml, 'gross');
@@ -252,7 +254,9 @@ const Schiffeversenken = (function () {
       if (beschossen === 'versenkt') return 'schiffe-feld-versenkt';
       if (beschossen === 'treffer') return 'schiffe-feld-treffer';
       if (beschossen === 'wasser') return 'schiffe-feld-wasser';
-      return eigeneSchiffe.some(s => s.zellen.includes(i)) ? 'schiffe-feld-eigenes' : 'schiffe-feld-unbekannt';
+      return eigeneSchiffe.some(s => s.zellen.includes(i))
+        ? `schiffe-feld-eigenes ${E.schiffFormKlasse(eigeneSchiffe, i)}`
+        : 'schiffe-feld-unbekannt';
     }
     const beschossen = beschussAufComputer[i];
     if (beschossen === 'versenkt') return 'schiffe-feld-versenkt';
@@ -294,6 +298,29 @@ const Schiffeversenken = (function () {
     return schiffe.filter(s => !E.schiffVersenkt(s)).length;
   }
 
+  /** Ein Mini-Schiff (in der gleichen Bug/Heck-Kapselform wie auf dem echten
+   *  Brett) fuer den "Noch zu versenken"-Tracker - eingaengiger als eine
+   *  Bruchzahl fuer einen 9-Jaehrigen (Uli-Feedback 16.08.2026). */
+  function trackerSchiffHtml(laenge, versenkt) {
+    let segmente = '';
+    for (let s = 0; s < laenge; s++) {
+      const pos = s === 0 ? ' schiffe-tracker-bug' : (s === laenge - 1 ? ' schiffe-tracker-heck' : '');
+      segmente += `<span class="schiffe-tracker-segment${pos}"></span>`;
+    }
+    return `<span class="schiffe-tracker-schiff${versenkt ? ' schiffe-tracker-schiff-versenkt' : ''}">${segmente}</span>`;
+  }
+
+  function trackerZeileHtml(def, versenkt) {
+    let boote = '';
+    for (let i = 0; i < def.anzahl; i++) boote += trackerSchiffHtml(def.laenge, i < versenkt);
+    return `
+      <div class="schiffe-tracker-zeile${versenkt === def.anzahl ? ' schiffe-tracker-zeile-fertig' : ''}">
+        <span class="schiffe-tracker-name">${def.name}</span>
+        <span class="schiffe-tracker-boote">${boote}</span>
+      </div>
+    `;
+  }
+
   /** "Welche Schiffe/Groessen muss ich noch treffen" (Uli-Wunsch 16.08.2026) -
    *  im Unterschied zur Online-Variante kennt dieses Modul die komplette
    *  computerSchiffe-Liste direkt, kann also einfach durchzaehlen statt ueber
@@ -302,11 +329,7 @@ const Schiffeversenken = (function () {
   function gegnerFlottenUebersichtHtml() {
     return E.SCHIFF_TYPEN.map(def => {
       const versenkt = computerSchiffe.filter(s => s.typ === def.typ && E.schiffVersenkt(s)).length;
-      return `
-        <div class="schiffe-fleet-zeile${versenkt === def.anzahl ? ' schiffe-fleet-zeile-fertig' : ''}">
-          <span>${def.name} (${def.laenge})</span><span>${versenkt} / ${def.anzahl}</span>
-        </div>
-      `;
+      return trackerZeileHtml(def, versenkt);
     }).join('');
   }
 
@@ -336,7 +359,7 @@ const Schiffeversenken = (function () {
         </div>
         ${brettHtml('gegner', spielLaeuft && amZug === 'spieler', 'gross')}
         <div class="schiffe-eigene-ueberschrift">Noch zu versenken</div>
-        <div class="schiffe-fleet-liste">${gegnerFlottenUebersichtHtml()}</div>
+        <div class="schiffe-tracker-liste">${gegnerFlottenUebersichtHtml()}</div>
         <div class="schiffe-eigene-ueberschrift">Deine Flotte</div>
         ${brettHtml('eigenes', false, 'klein')}
         <div class="schach-aktionsleiste">
@@ -370,10 +393,11 @@ const Schiffeversenken = (function () {
     if (schiff) {
       treffer = true;
       schiff.treffer[schiff.zellen.indexOf(ziel)] = true;
-      if (E.schiffVersenkt(schiff)) schiff.zellen.forEach(z => { beschussAufComputer[z] = 'versenkt'; });
-      else beschussAufComputer[ziel] = 'treffer';
+      if (E.schiffVersenkt(schiff)) { schiff.zellen.forEach(z => { beschussAufComputer[z] = 'versenkt'; }); SoundFX.versenkt(); }
+      else { beschussAufComputer[ziel] = 'treffer'; SoundFX.treffer(); }
     } else {
       beschussAufComputer[ziel] = 'wasser';
+      SoundFX.wasser();
     }
     if (pruefeSpielende()) { renderKampf(); return; }
     // Bei Treffer bleibt derselbe Spieler am Zug (auf Uli-Wunsch 16.08.2026 -
@@ -399,13 +423,16 @@ const Schiffeversenken = (function () {
         schiff.zellen.forEach(z => { beschussAufSpieler[z] = 'versenkt'; });
         kiAktiverTrefferAnker = [];
         kiZielListe = [];
+        SoundFX.versenkt();
       } else {
         beschussAufSpieler[ziel] = 'treffer';
         kiAktiverTrefferAnker.push(ziel);
         kiAktualisiereZielListe();
+        SoundFX.treffer();
       }
     } else {
       beschussAufSpieler[ziel] = 'wasser';
+      SoundFX.wasser();
     }
     if (pruefeSpielende()) { renderKampf(); return; }
     if (treffer) {

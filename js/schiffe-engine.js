@@ -110,6 +110,22 @@ const SchiffeEngine = (function () {
     return schiffe.find(s => s.zellen.includes(ziel)) || null;
   }
 
+  /** CSS-Klasse fuer die Bootsform-Darstellung von Feld `zelle` (abgerundetes
+   *  Bug-/Heck-Ende statt scharfkantigem Rechteck-Block) - leerer String bei
+   *  Wasser oder einer Rumpf-Mittelzelle (die braucht keine Rundung). Nur fuer
+   *  die EIGENE Flotte sinnvoll (bei der gegnerischen kennt man `schiffe` ja
+   *  gar nicht). Uli-Feedback 16.08.2026: "Schiffe wirken wie Bloecke, nicht
+   *  wie Schiffe". */
+  function schiffFormKlasse(schiffe, zelle) {
+    const schiff = schiffAnFeld(schiffe, zelle);
+    if (!schiff || schiff.zellen.length < 2) return '';
+    const ausrichtung = (schiff.zellen[1] - schiff.zellen[0]) === 1 ? 'h' : 'v';
+    const i = schiff.zellen.indexOf(zelle);
+    if (i === 0) return 'schiffe-schiff-' + ausrichtung + '-bug';
+    if (i === schiff.zellen.length - 1) return 'schiffe-schiff-' + ausrichtung + '-heck';
+    return '';
+  }
+
   function schiffVersenkt(schiff) {
     return schiff.treffer.every(t => t);
   }
@@ -164,6 +180,6 @@ const SchiffeEngine = (function () {
     BREITE, GESAMT, SCHIFF_TYPEN, PLATZIERUNGS_REIHENFOLGE, SCHIFFE_GESAMT, LAENGE_ZU_TYP,
     idx, zeileVon, spalteVon, inBrett, berechneZellen, gesperrteNachbarn, kannPlatzieren,
     neuesSchiff, versucheZufaelligPlatzieren, zufaelligeFlotte, schiffAnFeld, schiffVersenkt, flotteBesiegt,
-    flottenUebersicht, naechsterPlatzierungsTyp
+    flottenUebersicht, naechsterPlatzierungsTyp, schiffFormKlasse
   };
 })();
