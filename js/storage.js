@@ -32,12 +32,22 @@ const Storage = (function () {
       // bewusst ein eigenes Feld, nicht zu verwechseln mit `streak` oben, das nur
       // aufeinanderfolgende RICHTIGE ANTWORTEN innerhalb einer Sitzung zaehlt.
       tagesStreak: { anzahl: 0, letzterAktivTag: null },
-      // Von Uli manuell gesetzte Ausnahmen fuer "welches Fach ist heute die
-      // Tagesaufgabe" (siehe getTagesFach) - jeder Eintrag:
-      // { typ: 'einzeltag', datum: 'YYYY-MM-DD', fach } |
-      // { typ: 'zeitraum', von: 'YYYY-MM-DD', bis: 'YYYY-MM-DD', fach } |
-      // { typ: 'wochenende', fach }
+      // Von Uli manuell gesetzte Ausnahmen fuer "welches(e) Fach(-Faecher) ist/
+      // sind heute Pflicht + wieviele Aufgaben" (siehe getTagesPensum/
+      // getTagesPensumAnzahl) - jeder Eintrag, `anzahl` optional (fehlt sie,
+      // gilt FAECHER_STANDARD_ANZAHL):
+      // { typ: 'einzeltag', datum: 'YYYY-MM-DD', fach, anzahl? } |
+      // { typ: 'zeitraum', von: 'YYYY-MM-DD', bis: 'YYYY-MM-DD', fach, anzahl? } |
+      // { typ: 'wochentag', tag: 0-6 (So=0..Sa=6), fach, anzahl? } |
+      // { typ: 'wochenende', fach, anzahl? }
+      // Pro Kalendertag kann JEDES Fach (mathe/deutsch/heimat) eine eigene
+      // Regel haben - mehrere Faecher koennen also am selben Tag Pflicht sein.
       tagesplanRegeln: [],
+      // Wie viele Aufgaben Max HEUTE schon je Fach beantwortet hat (siehe
+      // meldeTagespensumAntwort/getTagesPensumErledigt) - fuer die "X von Y"-
+      // Anzeige im Tagesplan-Banner. datum steuert den taeglichen Reset,
+      // aehnlich wie bei schachTagesplan/tagesStreak.
+      tagespensumFortschritt: { datum: null, erledigt: {} },
       // Welche 1er-10er-Reihen bei den Malfolgen abgefragt werden (Uli kann
       // das im Eltern-Bereich einschränken, damit Max klein anfangen kann) -
       // standardmäßig alle, damit sich am Verhalten nichts ändert, solange
@@ -175,46 +185,97 @@ const Storage = (function () {
     save(state);
   }
 
-  /** Sucht in EINER Regelliste nach einer heute zutreffenden Regel - Einzeltag
-   *  vor Zeitraum vor Wochenende. null, wenn keine passt. Ausgelagert aus
-   *  getTagesFach, damit sowohl die lokalen als auch die vom Handy synchronisierten
-   *  Fern-Regeln (siehe getFernRegeln) mit derselben Logik geprueft werden koennen. */
-  function findeZutreffendeRegel(regeln, heute, heuteIso) {
-    const einzeltag = regeln.find(r => r.typ === 'einzeltag' && r.datum === heuteIso);
-    if (einzeltag) return einzeltag;
+  // Standard-Aufgabenzahl je Fach, falls keine Regel eine eigene `anzahl`
+  // vorgibt - entspricht den bisherigen fest verdrahteten Werten (Mathe
+  // ANZAHL_GEMISCHT=20, Deutsch-Rechtschreibung ANZAHL=10, Heimatkunde
+  // anzahlProQuiz()=10), damit sich am Verhalten ohne Regeln nichts aendert.
+  const FAECHER_STANDARD_ANZAHL = { mathe: 20, deutsch: 10, heimat: 10 };
 
-    const zeitraum = regeln.find(r => r.typ === 'zeitraum' && r.von <= heuteIso && heuteIso <= r.bis);
-    if (zeitraum) return zeitraum;
-
-    const istWochenende = heute.getDay() === 0 || heute.getDay() === 6;
-    if (istWochenende) {
-      const wochenendeRegel = regeln.find(r => r.typ === 'wochenende');
-      if (wochenendeRegel) return wochenendeRegel;
-    }
-    return null;
+  /** Sucht in EINER Regelliste alle heute zutreffenden Regeln und liefert sie
+   *  als { fach: regel }-Objekt - pro Fach gewinnt die erste passende Regel in
+   *  der Prioritaet Einzeltag > Zeitraum > Wochentag > Wochenende. Mehrere
+   *  Faecher koennen so gleichzeitig am selben Tag Pflicht sein. Ausgelagert,
+   *  damit sowohl die lokalen als auch die vom Handy synchronisierten
+   *  Fern-Regeln (siehe getFernRegeln) mit derselben Logik geprueft werden. */
+  function findeZutreffendeRegelnHeute(regeln, heute, heuteIso) {
+    const heuteTag = heute.getDay();
+    const passt = r => {
+      if (r.typ === 'einzeltag') return r.datum === heuteIso;
+      if (r.typ === 'zeitraum') return r.von <= heuteIso && heuteIso <= r.bis;
+      if (r.typ === 'wochentag') return r.tag === heuteTag;
+      if (r.typ === 'wochenende') return heuteTag === 0 || heuteTag === 6;
+      return false;
+    };
+    const prioritaet = { einzeltag: 0, zeitraum: 1, wochentag: 2, wochenende: 3 };
+    const treffer = regeln.filter(passt).sort((a, b) => prioritaet[a.typ] - prioritaet[b.typ]);
+    const ergebnis = {};
+    treffer.forEach(r => { if (!(r.fach in ergebnis)) ergebnis[r.fach] = r; });
+    return ergebnis;
   }
 
-  /** Welches Fach (mathe/deutsch) ist heute als Tagesaufgabe im Tagesplan
-   *  hervorgehoben? Prueft zuerst die vom Handy synchronisierten Fern-Regeln
-   *  (siehe fernsync.js - die sind "frischer", Papa hat sie gerade eben gesetzt),
-   *  dann Ulis lokal am Tablet gesetzte Regeln, und faellt sonst auf eine feste
-   *  taegliche Abwechslung zurueck (gerader Tag im Jahr = Mathe, ungerader =
-   *  Deutsch), damit ohne jede Regel trotzdem taeglich gewechselt wird. Das
-   *  andere Fach bleibt im Tagesplan immer zusaetzlich als "Extra" antippbar -
-   *  diese Funktion sperrt nichts, sie entscheidet nur, was hervorgehoben wird. */
-  function getTagesFach() {
+  /** Kombiniert Fern- (Vorrang) und lokale Regeln zu einem { fach: regel }-
+   *  Objekt fuer heute. */
+  function findeHeutigeRegelnKombiniert() {
     const heute = new Date();
     const heuteIso = heutigesDatum();
+    const lokal = findeZutreffendeRegelnHeute(getTagesplanRegeln(), heute, heuteIso);
+    const fern = findeZutreffendeRegelnHeute(getFernRegeln(), heute, heuteIso);
+    return Object.assign({}, lokal, fern);
+  }
 
-    const fernTreffer = findeZutreffendeRegel(getFernRegeln(), heute, heuteIso);
-    if (fernTreffer) return fernTreffer.fach;
+  /** Wie viele Aufgaben umfasst eine Runde des angegebenen Fachs HEUTE? Gilt
+   *  unabhaengig davon, ob Max ueber den Tagesplan-Chip oder das Fach-Menue
+   *  selbst startet, damit "eine Runde X" immer gleich lang ist. Ohne
+   *  passende Regel gilt der Standardwert (siehe FAECHER_STANDARD_ANZAHL). */
+  function getTagesPensumAnzahl(fach) {
+    const regel = findeHeutigeRegelnKombiniert()[fach];
+    return (regel && regel.anzahl) || FAECHER_STANDARD_ANZAHL[fach];
+  }
 
-    const lokalerTreffer = findeZutreffendeRegel(getTagesplanRegeln(), heute, heuteIso);
-    if (lokalerTreffer) return lokalerTreffer.fach;
+  /** Welche(s) Fach/Faecher sind heute im Tagesplan als Pflicht hervorgehoben,
+   *  inklusive Soll-Anzahl? Ohne JEDE passende Regel (weder fern noch lokal)
+   *  faellt es auf eine feste taegliche Abwechslung zwischen Mathe und Deutsch
+   *  zurueck (gerader Tag im Jahr = Mathe, ungerader = Deutsch), damit ohne
+   *  jede Regel trotzdem taeglich gewechselt wird - wie bisher. Alle nicht
+   *  gelisteten Faecher bleiben fuer Max trotzdem zusaetzlich als "Extra"
+   *  antippbar (siehe App.baueTagesplan) - diese Funktion sperrt nichts. */
+  function getTagesPensum() {
+    const kombiniert = findeHeutigeRegelnKombiniert();
+    const faecher = Object.keys(kombiniert);
+    if (faecher.length === 0) {
+      const heute = new Date();
+      const jahresanfang = new Date(heute.getFullYear(), 0, 1);
+      const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
+      const fach = tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
+      return [{ fach, anzahl: FAECHER_STANDARD_ANZAHL[fach] }];
+    }
+    return faecher.map(fach => ({ fach, anzahl: kombiniert[fach].anzahl || FAECHER_STANDARD_ANZAHL[fach] }));
+  }
 
-    const jahresanfang = new Date(heute.getFullYear(), 0, 1);
-    const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
-    return tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
+  /** Heutiger Beantwortet-Zaehler je Fach fuer die "X von Y"-Anzeige im
+   *  Tagesplan-Banner - resettet automatisch bei Kalendertagwechsel. */
+  function getTagespensumFortschritt() {
+    const heute = heutigesDatum();
+    if (!state.tagespensumFortschritt || state.tagespensumFortschritt.datum !== heute) {
+      state.tagespensumFortschritt = { datum: heute, erledigt: {} };
+      save(state);
+    }
+    return state.tagespensumFortschritt;
+  }
+
+  function getTagesPensumErledigt(fach) {
+    return getTagespensumFortschritt().erledigt[fach] || 0;
+  }
+
+  /** Wird einmal pro fertig beantworteter Frage einer Pflicht-faehigen Aktivitaet
+   *  aufgerufen (siehe App.abschlussFrage) - zaehlt bewusst JEDE beantwortete
+   *  Frage (auch falsch beantwortete/Wiederholungen), nicht nur richtige, da
+   *  "Aufgaben loesen" hier das Bearbeiten meint, nicht die Trefferquote
+   *  (die wird getrennt in stats[fach] gefuehrt). */
+  function meldeTagespensumAntwort(fach) {
+    const stand = getTagespensumFortschritt();
+    stand.erledigt[fach] = (stand.erledigt[fach] || 0) + 1;
+    save(state);
   }
 
   /** Vom Handy aus (ueber das Max-Tablet-Backend) gesetzte Regeln + freie
@@ -774,7 +835,8 @@ const Storage = (function () {
     getSchiffeOnlinePlatzierung, setSchiffeOnlinePlatzierung, loescheSchiffeOnlinePlatzierung,
     getMauMauFortschritt, meldeMauMauSieg,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
-    getTagesplanRegeln, setTagesplanRegeln, getTagesFach,
+    getTagesplanRegeln, setTagesplanRegeln,
+    getTagesPensum, getTagesPensumAnzahl, getTagesPensumErledigt, meldeTagespensumAntwort,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,

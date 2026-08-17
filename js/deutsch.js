@@ -146,10 +146,12 @@ const Deutsch = (function () {
   // (siehe App.startQuizSession und Mathe.starteTagesaufgabe fuers Vorbild).
   function starteRechtschreibung() {
     const AKTIVITAET = 'deutsch-rechtschreibung';
-    const ANZAHL = 10;
     const starter = () => {
+      // Von Uli im Eltern-Bereich einstellbar (Tagesplan-Regeln, siehe
+      // Storage.getTagesPensumAnzahl) - ohne Regel Standard 10.
+      const ANZAHL = Storage.getTagesPensumAnzahl('deutsch');
       const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Rechtschreibung', aktivitaet: AKTIVITAET };
+      const config = { titel: 'Rechtschreibung', aktivitaet: AKTIVITAET, pensumFach: 'deutsch' };
       if (offen && offen.index > 0 && offen.index < ANZAHL) {
         config.anzeigeOffset = offen.index;
         config.startRichtigCount = offen.richtigCount;

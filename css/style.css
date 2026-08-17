@@ -243,6 +243,7 @@ html, body {
   color: var(--accent-dark);
 }
 .tagesplan-chip-badge-extra { color: var(--ink-soft); }
+.tagesplan-chip-badge-geschafft { color: #2E7D46; }
 
 /* Hauptmenü - neutrale weiße Karten, Icon-Badge in gedeckter Fach-Farbe (siehe
    --mathe/--deutsch/... Tokens oben), zwei feste Spalten wie gewünscht. */

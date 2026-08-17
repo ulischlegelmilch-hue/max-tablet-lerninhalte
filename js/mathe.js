@@ -1230,10 +1230,13 @@ const Mathe = (function () {
   // Tag (siehe App.startQuizSession), statt sie bei jedem Neuaufruf zu
   // verwerfen (z.B. wenn Max zwischendurch etwas anderes macht wie lesen).
   const AKTIVITAET_GEMISCHT = 'mathe-gemischt';
-  const ANZAHL_GEMISCHT = 20;
 
   function starteTagesaufgabe() {
     const starter = () => {
+      // Von Uli im Eltern-Bereich einstellbar (Tagesplan-Regeln, siehe
+      // Storage.getTagesPensumAnzahl) - ohne Regel Standard 20, egal ob der
+      // Einstieg ueber den Tagesplan-Chip oder das Mathe-Menue erfolgt.
+      const ANZAHL_GEMISCHT = Storage.getTagesPensumAnzahl('mathe');
       const offen = Storage.getOffeneSession(AKTIVITAET_GEMISCHT);
       const config = {
         titel: 'Gemischte Aufgaben',
@@ -1242,7 +1245,8 @@ const Mathe = (function () {
         // spaeter noch einmal dran - dank f.neueVersion() mit neuen Zahlen,
         // nicht identisch wiederholt.
         wiederholeFalsche: true,
-        aktivitaet: AKTIVITAET_GEMISCHT
+        aktivitaet: AKTIVITAET_GEMISCHT,
+        pensumFach: 'mathe'
       };
       if (offen && offen.index > 0 && offen.index < ANZAHL_GEMISCHT) {
         // Fortsetzen: nur die NOCH FEHLENDEN Fragen neu erzeugen, Zaehler

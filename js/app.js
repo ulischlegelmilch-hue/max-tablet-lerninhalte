@@ -74,14 +74,20 @@ const App = (function () {
     if (istAufHomeBildschirm) gotoHome();
   }
 
-  // Vier feste Einstiege quer durchs Programm (Schach bewusst ausgenommen -
-  // eine Partie ist kein kurzer Zwischendurch-Shortcut). Ruft ausschließlich
-  // bereits bestehende Fach-Funktionen auf, keine eigene Aufgabenlogik.
-  // Mathe/Deutsch wechseln sich taeglich als "Heute dran" ab (Storage.getTagesFach,
-  // per Regeln in App.oeffneEinstellungen einstellbar) - das jeweils andere Fach
-  // bleibt trotzdem im Tagesplan, nur als "Extra" markiert, damit Max jederzeit
-  // mehr üben kann, ohne dass ihm etwas gesperrt wird.
+  // Ruft ausschließlich bereits bestehende Fach-Funktionen auf, keine eigene
+  // Aufgabenlogik. Welche(s) Fach(-Faecher) heute Pflicht sind + mit wie
+  // vielen Aufgaben, kommt aus Storage.getTagesPensum (per Regeln in
+  // App.oeffneEinstellungen einstellbar, inkl. Wochentag-Regeln) - alle nicht
+  // gelisteten Faecher bleiben trotzdem im Tagesplan, nur als "Extra"
+  // markiert, damit Max jederzeit mehr üben kann, ohne dass ihm etwas
+  // gesperrt wird.
   const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
+
+  const TAGESPLAN_FACH_META = {
+    mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
+    deutsch: { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' },
+    heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
+  };
 
   // Ungelesen-Badge auf der Chat-Kachel (siehe fernsync.js pruefeNeueChatNachricht
   // fuers Aktualisieren von letzteChatVonPapa, chat.js fuers Loeschen beim
@@ -93,15 +99,31 @@ const App = (function () {
 
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
-    const heuteFach = Storage.getTagesFach();
-    const mathe = { fach: 'mathe', icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' };
-    const deutsch = { fach: 'deutsch', icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' };
-    const [heute, extra] = heuteFach === 'mathe' ? [mathe, deutsch] : [deutsch, mathe];
-    heute.badge = 'Heute dran';
-    extra.badge = 'Extra';
-    extra.extra = true;
+    const pensum = Storage.getTagesPensum();
+    const pensumFaecher = pensum.map(p => p.fach);
+
+    const pflichtChips = pensum.map(p => {
+      const erledigt = Storage.getTagesPensumErledigt(p.fach);
+      const geschafft = erledigt >= p.anzahl;
+      return Object.assign({ fach: p.fach }, TAGESPLAN_FACH_META[p.fach], {
+        badge: geschafft ? '✅ Geschafft' : `${erledigt} von ${p.anzahl}`,
+        geschafft
+      });
+    });
+    const extraChips = Object.keys(TAGESPLAN_FACH_META)
+      .filter(fach => !pensumFaecher.includes(fach))
+      .map(fach => Object.assign({ fach }, TAGESPLAN_FACH_META[fach], { badge: 'Extra', extra: true }));
+
     return [
-      heute, extra,
+      ...pflichtChips, ...extraChips,
+      {
+        // Fest, jeden Tag im Tagesplan (kein Regel-gesteuertes Pflichtfach wie
+        // oben, da Uli hierfuer keine Tages-/Wochentag-Differenzierung wollte,
+        // nur "jeden Tag ueben") - eigenes Karteikarten-Deck sorgt schon fuer
+        // Abdeckung ueber Tage hinweg, daher keine "X von Y"-Zielanzahl noetig.
+        fach: 'mathe', icon: 'malfolgen', fachName: 'Mathe',
+        titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()'
+      },
       {
         fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
         titel: GESCHICHTEN_STATUS_PRAEFIX[offen.status] + offen.titel,
@@ -123,7 +145,7 @@ const App = (function () {
         <span class="tagesplan-chip-text">
           <span class="tagesplan-chip-titel">${t.titel}</span>
           <span class="tagesplan-chip-fach">${t.fachName}</span>
-          ${t.badge ? `<span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}">${t.badge}</span>` : ''}
+          ${t.badge ? `<span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}${t.geschafft ? ' tagesplan-chip-badge-geschafft' : ''}">${t.badge}</span>` : ''}
         </span>
       </div>
     `).join('');
@@ -215,11 +237,16 @@ const App = (function () {
     return `${t}.${m}.${j}`;
   }
 
+  const REGEL_FACH_NAMEN = { mathe: 'Mathe', deutsch: 'Deutsch', heimat: 'Heimat & Sachkunde' };
+  const WOCHENTAG_NAMEN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
   function regelText(r) {
-    const fachName = r.fach === 'mathe' ? 'Mathe' : 'Deutsch';
-    if (r.typ === 'einzeltag') return `${formatDatum(r.datum)}: ${fachName}`;
-    if (r.typ === 'zeitraum') return `${formatDatum(r.von)} – ${formatDatum(r.bis)}: ${fachName}`;
-    return `Jedes Wochenende: ${fachName}`;
+    const fachName = REGEL_FACH_NAMEN[r.fach] || r.fach;
+    const anzahlText = r.anzahl ? ` (${r.anzahl} Aufgaben)` : '';
+    if (r.typ === 'einzeltag') return `${formatDatum(r.datum)}: ${fachName}${anzahlText}`;
+    if (r.typ === 'zeitraum') return `${formatDatum(r.von)} – ${formatDatum(r.bis)}: ${fachName}${anzahlText}`;
+    if (r.typ === 'wochentag') return `Jeden ${WOCHENTAG_NAMEN[r.tag]}: ${fachName}${anzahlText}`;
+    return `Jedes Wochenende: ${fachName}${anzahlText}`;
   }
 
   function fortschrittZeile(fach, label) {
@@ -367,7 +394,7 @@ const App = (function () {
       </div>
 
       <div class="welcome" style="margin-top:32px;">Tagesplan-Regeln</div>
-      <div class="lese-text">Bestimme, an welchen Tagen Mathe oder Deutsch im Tagesplan als "Heute dran" hervorgehoben wird. Ohne Regeln wechselt es automatisch jeden Kalendertag ab. Das andere Fach bleibt für Max immer zusätzlich als "Extra" antippbar – nichts wird gesperrt.</div>
+      <div class="lese-text">Bestimme, welche(s) Fach (Mathe/Deutsch/Heimat &amp; Sachkunde) an welchen Tagen im Tagesplan als Pflicht hervorgehoben wird, und wie viele Aufgaben Max dafür lösen soll (z. B. "Jeden Montag: Mathe, 15 Aufgaben" oder "Jedes Wochenende: Deutsch, 20 Aufgaben"). Mehrere Regeln für denselben Tag sind möglich, wenn mehrere Fächer parallel Pflicht sein sollen. Anzahl leer lassen = Standard (Mathe 20 / Deutsch 10 / Heimat 10). Ohne jede Regel wechselt es automatisch jeden Kalendertag zwischen Mathe und Deutsch ab. Nicht gelistete Fächer bleiben für Max immer zusätzlich als "Extra" antippbar – nichts wird gesperrt, nur die "X von Y"-Anzeige im Tagesplan zeigt Ulis Vorgabe.</div>
 
       <div class="regel-karte">
         <div class="regel-liste">${regelnHtml}</div>
@@ -376,13 +403,16 @@ const App = (function () {
           <select id="regel-typ" class="regel-input" onchange="App.aktualisiereRegelFormular()">
             <option value="einzeltag">Einzelner Tag</option>
             <option value="zeitraum">Zeitraum</option>
+            <option value="wochentag">Jeden [Wochentag]</option>
             <option value="wochenende">Jedes Wochenende</option>
           </select>
           <select id="regel-fach" class="regel-input">
             <option value="mathe">Mathe</option>
             <option value="deutsch">Deutsch</option>
+            <option value="heimat">Heimat & Sachkunde</option>
           </select>
           <div id="regel-daten" class="regel-daten"><input type="date" id="regel-datum" class="regel-input"></div>
+          <input type="number" id="regel-anzahl" class="regel-input" placeholder="Anzahl Aufgaben (leer = Standard)" min="1">
           <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
         </div>
       </div>
@@ -444,6 +474,12 @@ const App = (function () {
     } else if (typ === 'zeitraum') {
       container.innerHTML =
         '<input type="date" id="regel-von" class="regel-input"> <input type="date" id="regel-bis" class="regel-input">';
+    } else if (typ === 'wochentag') {
+      container.innerHTML = `<select id="regel-tag" class="regel-input">
+        <option value="1">Montag</option><option value="2">Dienstag</option><option value="3">Mittwoch</option>
+        <option value="4">Donnerstag</option><option value="5">Freitag</option><option value="6">Samstag</option>
+        <option value="0">Sonntag</option>
+      </select>`;
     } else {
       container.innerHTML = '';
     }
@@ -452,6 +488,7 @@ const App = (function () {
   function fuegeRegelHinzu() {
     const typ = document.getElementById('regel-typ').value;
     const fach = document.getElementById('regel-fach').value;
+    const anzahlRoh = parseInt(document.getElementById('regel-anzahl').value, 10);
     let regel;
     if (typ === 'einzeltag') {
       const datum = document.getElementById('regel-datum').value;
@@ -462,9 +499,12 @@ const App = (function () {
       const bis = document.getElementById('regel-bis').value;
       if (!von || !bis) return;
       regel = { typ, von, bis, fach };
+    } else if (typ === 'wochentag') {
+      regel = { typ, tag: parseInt(document.getElementById('regel-tag').value, 10), fach };
     } else {
       regel = { typ: 'wochenende', fach };
     }
+    if (anzahlRoh > 0) regel.anzahl = anzahlRoh;
     const regeln = Storage.getTagesplanRegeln();
     regeln.push(regel);
     Storage.setTagesplanRegeln(regeln);
@@ -517,7 +557,12 @@ const App = (function () {
       // damit die Nummerierung beim Fortsetzen weiterlaeuft statt neu bei 1
       // anzufangen.
       aktivitaet: config && config.aktivitaet,
-      anzeigeOffset: (config && config.anzeigeOffset) || 0
+      anzeigeOffset: (config && config.anzeigeOffset) || 0,
+      // Wenn gesetzt: jede beantwortete Frage zaehlt in Storage.getTagesPensum-
+      // Erledigt fuer dieses Fach mit (siehe abschlussFrage) - nur bei den
+      // Pflicht-faehigen Tagesplan-Aktivitaeten (Mathe-Tagesaufgabe, Deutsch-
+      // Rechtschreibung, Heimatkunde-Verkehrszeichen), nicht bei jeder Uebung.
+      pensumFach: config && config.pensumFach
     };
     renderQuestion();
   }
@@ -677,6 +722,7 @@ const App = (function () {
     const gained = Storage.addAntwort(session.fach, korrekt, faktor);
     if (korrekt) session.richtigCount++;
     session.sessionSterne += gained;
+    if (session.pensumFach) Storage.meldeTagespensumAntwort(session.pensumFach);
     updateTopbar();
 
     const f = session.fragen[session.index];

@@ -40,9 +40,11 @@ const Heimatkunde = (function () {
     { name: 'Vorfahrt von rechts', bedeutung: 'Achtung, hier gilt "rechts vor links" - Fahrzeuge von rechts haben Vorfahrt.', datei: '102_kreuzung_rechts.svg' }
   ];
 
-  // Nicht alle Zeichen auf einmal abfragen (mittlerweile 20 Stück) - 10 pro
-  // Runde ist überschaubar für ein Kind, "Nochmal üben" mischt danach neu.
-  function anzahlProQuiz() { return Math.min(10, zeichen.length); }
+  // Nicht alle Zeichen auf einmal abfragen (mittlerweile 20 Stück) - Standard
+  // 10 pro Runde ist überschaubar für ein Kind, "Nochmal üben" mischt danach
+  // neu. Von Uli im Eltern-Bereich einstellbar (Tagesplan-Regeln, siehe
+  // Storage.getTagesPensumAnzahl).
+  function anzahlProQuiz() { return Math.min(Storage.getTagesPensumAnzahl('heimat'), zeichen.length); }
 
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
@@ -86,7 +88,7 @@ const Heimatkunde = (function () {
     // Fragen-Generierung MUSS innerhalb des Closures passieren, nicht davor -
     // sonst wuerde "Nochmal ueben" (App.restartLast) immer dieselbe bereits
     // berechnete Auswahl/Reihenfolge erneut abspielen statt neu zu mischen.
-    const starter = () => App.startQuizSession('heimat', genVerkehrszeichenFragen(), { titel: 'Verkehrszeichen-Quiz' });
+    const starter = () => App.startQuizSession('heimat', genVerkehrszeichenFragen(), { titel: 'Verkehrszeichen-Quiz', pensumFach: 'heimat' });
     App.setLastStarter(starter);
     starter();
   }
