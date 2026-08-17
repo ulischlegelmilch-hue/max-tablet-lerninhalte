@@ -987,7 +987,7 @@ const Mathe = (function () {
   // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
   // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
   const AKTIVITAET_MALFOLGEN = 'malfolgen';
-  const ANZAHL_MALFOLGEN = 15;
+  const ANZAHL_MALFOLGEN = 30;
 
   function starteMalfolgenKarten() {
     const offen = Storage.getOffeneSession(AKTIVITAET_MALFOLGEN);
