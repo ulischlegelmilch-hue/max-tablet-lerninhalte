@@ -155,16 +155,23 @@ const FernSync = (function () {
    *  der Malfolgen-/Mathe-Kategorien-Statistik mit (klein genug, um das bei
    *  jedem Set einfach mitzuschicken) - damit Papas "Wo hat er noch Probleme"-
    *  Ansicht nach JEDEM Set aktuell ist, nicht nur nach Malfolgen-Sitzungen. */
-  function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach) {
+  // verlauf (optional): [{frage, ergebnis}] - einzelne Aufgaben-Ergebnisse
+  // dieser Aufgabenfolge (siehe App.startQuizSession/abschlussFrage bzw.
+  // Mathe.bewerteMalfolgenKarte), macht den Eintrag in Papas Auswertung
+  // anklickbar (Uli-Wunsch 22.08.2026). Nur mitgeschickt, wenn vorhanden -
+  // Faecher/Uebungen ohne Protokoll (z.B. Schach) bleiben unveraendert.
+  function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach, verlauf) {
     if (!BACKEND_URL) return;
+    const body = {
+      titel, zusammenfassung, sterne, fach,
+      malfolgenStats: Storage.getMalfolgenStats(),
+      matheKategorienStats: Storage.getMatheKategorienStats()
+    };
+    if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
     fetchMitTimeout(BACKEND_URL + '/api/lernset-erledigt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        titel, zusammenfassung, sterne, fach,
-        malfolgenStats: Storage.getMalfolgenStats(),
-        matheKategorienStats: Storage.getMatheKategorienStats()
-      })
+      body: JSON.stringify(body)
     }).catch(() => {});
   }
 

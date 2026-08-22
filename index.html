@@ -18,7 +18,19 @@
   </div>
 </div>
 
-<div id="app-root"></div>
+<!-- Reines HTML, kein JS noetig: erscheint sofort beim allerersten Parsen der
+     Seite, WEIT bevor die vielen <script>-Tags unten (Kiosk-Geraet ist alt/
+     langsam) fertig geladen+ausgefuehrt sind und App.init() ueberhaupt laufen
+     kann. App.render()/gotoHome() ueberschreibt #app-root beim ersten echten
+     Render automatisch - kein eigener JS-Ausblend-Code noetig (Uli-Wunsch
+     22.08.2026: "lieber ein Intro" statt des bisherigen langen Weiss-Screens). -->
+<div id="app-root">
+  <div class="intro-screen">
+    <div class="intro-fuchs">🦊</div>
+    <div class="intro-titel">Lernfuchs</div>
+    <div class="intro-lade-punkte"><span></span><span></span><span></span></div>
+  </div>
+</div>
 
 <script src="js/icons.js"></script>
 <script src="js/storage.js"></script>

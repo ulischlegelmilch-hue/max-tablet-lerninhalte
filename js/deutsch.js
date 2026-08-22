@@ -156,6 +156,7 @@ const Deutsch = (function () {
         config.anzeigeOffset = offen.index;
         config.startRichtigCount = offen.richtigCount;
         config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
         App.startQuizSession('deutsch', genRechtschreibung(ANZAHL - offen.index), config);
       } else {
         App.startQuizSession('deutsch', genRechtschreibung(ANZAHL), config);
@@ -179,6 +180,7 @@ const Deutsch = (function () {
         config.anzeigeOffset = offen.index;
         config.startRichtigCount = offen.richtigCount;
         config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
         App.startQuizSession('deutsch', genLesen(Math.ceil(fehlend / 2)).slice(0, fehlend), config);
       } else {
         App.startQuizSession('deutsch', genLesen(ANZAHL_TEXTE), config);

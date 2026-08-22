@@ -261,8 +261,6 @@ const Maumau = (function () {
   }
 
   function renderSpiel() {
-    App.setOnLeaveScreen(raeumeKiTimeoutAuf);
-
     const oben = obenliegendeKarte();
     let statusHtml = '';
     if (aufgegeben) {
@@ -331,6 +329,9 @@ const Maumau = (function () {
         </div>
       </div>
     `);
+    // ERST nach App.render() registrieren, siehe ausfuehrlicher Kommentar in
+    // schiffeversenken.js renderKampf() (identischer Bug/Fix, 22.08.2026).
+    App.setOnLeaveScreen(raeumeKiTimeoutAuf);
   }
 
   // Fuer die Fortschrittsanzeige auf der Spiele-Kachel (siehe App.renderSpieleMenu).

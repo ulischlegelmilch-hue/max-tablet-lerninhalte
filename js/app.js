@@ -562,9 +562,23 @@ const App = (function () {
       // Erledigt fuer dieses Fach mit (siehe abschlussFrage) - nur bei den
       // Pflicht-faehigen Tagesplan-Aktivitaeten (Mathe-Tagesaufgabe, Deutsch-
       // Rechtschreibung, Heimatkunde-Verkehrszeichen), nicht bei jeder Uebung.
-      pensumFach: config && config.pensumFach
+      pensumFach: config && config.pensumFach,
+      // Protokoll "welche Frage, welches Ergebnis" fuer Papas Auswertung (siehe
+      // abschlussFrage/renderErgebnis) - macht eine abgeschlossene Aufgabenfolge
+      // dort anklickbar, damit sichtbar wird, WELCHE Aufgaben Max richtig/falsch
+      // hatte, statt nur einer Gesamtquote (Uli-Wunsch 22.08.2026). Bei einer
+      // fortgesetzten Aufgabenfolge (siehe config.startVerlauf/aktivitaet) wird
+      // der bisherige Teil uebernommen, statt beim Fortsetzen zu verschwinden.
+      verlauf: (config && config.startVerlauf) || []
     };
     renderQuestion();
+  }
+
+  /** Rohe frage-HTML (kann <br>/<span> enthalten, siehe z.B. mathe.js) zu
+   *  lesbarem Klartext fuer die Aufgaben-Verlaufsliste - keine echte HTML-
+   *  Darstellung noetig, nur ein kurzer Wiedererkennungstext. */
+  function klartextFrage(html) {
+    return String(html || '').replace(/<br\s*\/?>/gi, ' – ').replace(/<[^>]+>/g, '').trim();
   }
 
   // Zweiter Versuch + Hilfe-Button: nur Fragen mit eigenem f.hilfe (Erklaerung
@@ -731,6 +745,14 @@ const App = (function () {
     // nicht sicher, soll also weiterhin oefter drankommen.
     const giltAlsGewusst = korrekt && faktor >= 1;
     if (typeof f.aufAntwort === 'function') f.aufAntwort(giltAlsGewusst);
+    // Fuer die Aufgaben-Verlaufsliste in Papas Auswertung: EIN Eintrag pro
+    // abgeschlossener Frage (auch bei "wiederholeFalsche"-Wiedervorlage
+    // spaeter ein zweiter, das ist gewollt - zeigt ehrlich, dass sie beim
+    // ersten Mal noch nicht sass).
+    session.verlauf.push({
+      frage: klartextFrage(f.frage),
+      ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig'
+    });
     if (!giltAlsGewusst && session.wiederholeFalsche) {
       const neuePosition = Math.min(session.fragen.length, session.index + 4);
       // Fragen mit neueVersion() (z.B. Tagesaufgabe) kommen mit NEUEN Zahlen
@@ -765,7 +787,8 @@ const App = (function () {
           Storage.setOffeneSession(session.aktivitaet, {
             index: session.index + session.anzeigeOffset,
             richtigCount: session.richtigCount,
-            sessionSterne: session.sessionSterne
+            sessionSterne: session.sessionSterne,
+            verlauf: session.verlauf
           });
         }
       }
@@ -796,7 +819,7 @@ const App = (function () {
     `);
 
     if (typeof session.onFinish === 'function') session.onFinish();
-    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne, session.fach);
+    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne, session.fach, session.verlauf);
   }
 
   let lastStarter = null;

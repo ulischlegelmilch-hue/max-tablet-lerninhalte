@@ -334,8 +334,6 @@ const Schiffeversenken = (function () {
   }
 
   function renderKampf() {
-    App.setOnLeaveScreen(raeumeKiTimeoutAuf);
-
     let statusHtml = '';
     if (aufgegeben) {
       statusHtml = '<div class="schach-status schach-status-niederlage">Du hast aufgegeben.</div>';
@@ -369,6 +367,16 @@ const Schiffeversenken = (function () {
         </div>
       </div>
     `);
+    // ERST nach App.render() registrieren (nicht davor) - sonst feuert render()
+    // diesen Callback sofort wieder selbst (jeder Render "verlaesst" ja
+    // formal den vorherigen Bildschirm), noch bevor der eigentliche KI-Timeout
+    // weiter unten ueberhaupt gesetzt wird. Der wuerde dann beim Verlassen
+    // des Bildschirms waehrend "Computer denkt nach" NICHT abgeraeumt und
+    // spaeter unkontrolliert renderKampf() feuern, egal wo Max gerade ist
+    // (Uli-Bugreport 22.08.2026: Max verliess das Brett, beim Wiederaufrufen
+    // ging nur noch "Aufgeben"). Gleiches Muster wie in
+    // schiffeversenken-online.js zeichne().
+    App.setOnLeaveScreen(raeumeKiTimeoutAuf);
   }
 
   function pruefeSpielende() {

@@ -997,11 +997,12 @@ const Mathe = (function () {
         fakten, index: 0,
         richtig: offen.richtigCount || 0,
         sterne: offen.sessionSterne || 0,
-        anzeigeOffset: offen.index
+        anzeigeOffset: offen.index,
+        verlauf: offen.verlauf || []
       };
     } else {
       const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN);
-      mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0 };
+      mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0, verlauf: [] };
     }
     App.setLastStarter(starteMalfolgenKarten);
     renderMalfolgenKarte();
@@ -1047,6 +1048,9 @@ const Mathe = (function () {
     Storage.meldeMalfolgenErgebnis(fakt, korrekt);
     const gained = Storage.addAntwort('mathe', korrekt, 1);
     if (korrekt) { mfSession.richtig++; mfSession.sterne += gained; }
+    // Fuer die Aufgaben-Verlaufsliste in Papas Auswertung, siehe App.js
+    // abschlussFrage fuers Vorbild bei den anderen Faechern.
+    mfSession.verlauf.push({ frage: fakt.replace('x', ' × '), ergebnis: korrekt ? 'richtig' : 'falsch' });
     App.updateTopbar();
     mfSession.index++;
     const fertig = mfSession.index >= mfSession.fakten.length;
@@ -1057,7 +1061,8 @@ const Mathe = (function () {
       Storage.setOffeneSession(AKTIVITAET_MALFOLGEN, {
         index: mfSession.index + mfSession.anzeigeOffset,
         richtigCount: mfSession.richtig,
-        sessionSterne: mfSession.sterne
+        sessionSterne: mfSession.sterne,
+        verlauf: mfSession.verlauf
       });
       renderMalfolgenKarte();
     }
@@ -1081,7 +1086,7 @@ const Mathe = (function () {
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>
     `);
-    FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne, 'malfolgen');
+    FernSync.meldeLernsetErledigt('Malfolgen üben', `${mfSession.richtig} von ${total} gewusst`, mfSession.sterne, 'malfolgen', mfSession.verlauf);
   }
 
   // ---- Fortschritts-Uebersicht: zeigt pro ausgewaehlter Reihe UND pro
@@ -1255,6 +1260,7 @@ const Mathe = (function () {
         config.anzeigeOffset = offen.index;
         config.startRichtigCount = offen.richtigCount;
         config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
         App.startQuizSession('mathe', genTagesaufgabe(ANZAHL_GEMISCHT - offen.index), config);
       } else {
         App.startQuizSession('mathe', genTagesaufgabe(ANZAHL_GEMISCHT), config);
