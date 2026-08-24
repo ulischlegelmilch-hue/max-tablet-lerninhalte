@@ -12,7 +12,8 @@ const Deutsch = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Deutsch – was übst du?', [
       { icon: 'rechtschreibung', titel: 'Rechtschreibung', onclick: 'Deutsch.starteRechtschreibung()' },
-      { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }
+      { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' },
+      { icon: 'wortarten', titel: 'Wortarten erkennen', onclick: 'Deutsch.starteWortarten()' }
     ]));
   }
 
@@ -141,6 +142,66 @@ const Deutsch = (function () {
     return fragen;
   }
 
+  // Jeder Eintrag ein einfacher Satz (3./4.-Klasse-Niveau) mit genau EINEM
+  // markierten Nomen/Verb/Adjektiv - bewusst nur je eins pro Wortart pro Satz
+  // (auch wenn ein Satz z.B. mehrere Nomen enthaelt, siehe "Die Vögel singen
+  // fröhlich im Baum" mit sowohl "Vögel" als auch "Baum"), damit die 3
+  // Antwort-Optionen einer Frage immer eindeutig genau EIN richtiges Wort
+  // haben. Die nicht markierten weiteren Nomen im Satz tauchen dadurch nie
+  // als Ablenker-Option auf - das waere sonst verwirrend/unfair.
+  const wortartenBank = [
+    { satz: 'Der kleine Hund bellt laut.', nomen: 'Hund', verb: 'bellt', adjektiv: 'kleine' },
+    { satz: 'Die Sonne scheint hell am Himmel.', nomen: 'Sonne', verb: 'scheint', adjektiv: 'hell' },
+    { satz: 'Mein Bruder isst einen roten Apfel.', nomen: 'Apfel', verb: 'isst', adjektiv: 'roten' },
+    { satz: 'Die Katze schläft auf dem weichen Kissen.', nomen: 'Kissen', verb: 'schläft', adjektiv: 'weichen' },
+    { satz: 'Der Junge malt ein buntes Bild.', nomen: 'Bild', verb: 'malt', adjektiv: 'buntes' },
+    { satz: 'Im Winter fällt oft weißer Schnee.', nomen: 'Schnee', verb: 'fällt', adjektiv: 'weißer' },
+    { satz: 'Die Kinder spielen fröhlich im Garten.', nomen: 'Garten', verb: 'spielen', adjektiv: 'fröhlich' },
+    { satz: 'Der alte Baum steht im Wald.', nomen: 'Baum', verb: 'steht', adjektiv: 'alte' },
+    { satz: 'Sie backt einen leckeren Kuchen.', nomen: 'Kuchen', verb: 'backt', adjektiv: 'leckeren' },
+    { satz: 'Der schnelle Zug fährt in den Bahnhof ein.', nomen: 'Zug', verb: 'fährt', adjektiv: 'schnelle' },
+    { satz: 'Das kleine Baby schläft ruhig.', nomen: 'Baby', verb: 'schläft', adjektiv: 'kleine' },
+    { satz: 'Der Bauer pflückt reife Äpfel.', nomen: 'Äpfel', verb: 'pflückt', adjektiv: 'reife' },
+    { satz: 'Die Vögel singen fröhlich im Baum.', nomen: 'Baum', verb: 'singen', adjektiv: 'fröhlich' },
+    { satz: 'Ein starker Wind weht über das Feld.', nomen: 'Wind', verb: 'weht', adjektiv: 'starker' },
+    { satz: 'Die freundliche Frau hilft dem Kind.', nomen: 'Frau', verb: 'hilft', adjektiv: 'freundliche' },
+    { satz: 'Der müde Wanderer sucht ein Hotel.', nomen: 'Wanderer', verb: 'sucht', adjektiv: 'müde' },
+    { satz: 'Im Sommer blühen bunte Blumen.', nomen: 'Blumen', verb: 'blühen', adjektiv: 'bunte' },
+    { satz: 'Der Lehrer erklärt eine schwierige Aufgabe.', nomen: 'Aufgabe', verb: 'erklärt', adjektiv: 'schwierige' },
+    { satz: 'Die Feuerwehr löscht das brennende Haus.', nomen: 'Haus', verb: 'löscht', adjektiv: 'brennende' },
+    { satz: 'Am Abend liest die Mutter eine spannende Geschichte.', nomen: 'Geschichte', verb: 'liest', adjektiv: 'spannende' }
+  ];
+
+  const WORTARTEN_LABEL = { nomen: 'Nomen (Namenwort)', verb: 'Verb (Tuwort)', adjektiv: 'Adjektiv (Wiewort)' };
+
+  // Hilfe-Texte (2. Versuch, siehe app.js verarbeiteQuizAntwort/zeigeHilfe) -
+  // bewusst ein FESTES, von der jeweiligen Frage UNABHAENGIGES Beispiel pro
+  // Wortart (nicht der gerade gefragte Satz selbst), damit Max die Regel an
+  // einem zweiten Fall nachvollziehen kann statt nur die Loesung vorgesagt
+  // zu bekommen.
+  const HILFE_WORTARTEN = {
+    nomen: '<strong>Nomen (Namenwort):</strong> bezeichnet eine Person, ein Tier oder eine Sache. Du kannst fast immer "der/die/das" davorsetzen, und es wird großgeschrieben. <strong>Beispiel:</strong> Die kleine Maus läuft schnell. → <strong>Maus</strong> ist das Nomen.',
+    verb: '<strong>Verb (Tuwort):</strong> sagt, was jemand tut oder was passiert. Du kannst es umstellen: ich …, du …, er/sie/es … . <strong>Beispiel:</strong> Die kleine Maus läuft schnell. → <strong>läuft</strong> ist das Verb.',
+    adjektiv: '<strong>Adjektiv (Wiewort):</strong> beschreibt, wie etwas ist. Du kannst fragen: "Wie ist es?". <strong>Beispiel:</strong> Die kleine Maus läuft schnell. → <strong>kleine</strong> ist das Adjektiv.'
+  };
+
+  function genWortarten(anzahl) {
+    const kombis = [];
+    wortartenBank.forEach(eintrag => {
+      ['nomen', 'verb', 'adjektiv'].forEach(wortart => kombis.push({ eintrag, wortart }));
+    });
+    return pickN(kombis, anzahl).map(({ eintrag, wortart }) => {
+      const optionenWorte = shuffle([eintrag.nomen, eintrag.verb, eintrag.adjektiv]);
+      return {
+        typ: 'mc',
+        frage: `„${eintrag.satz}“<br>Welches Wort ist ein <strong>${WORTARTEN_LABEL[wortart]}</strong>?`,
+        optionen: optionenWorte,
+        richtigIndex: optionenWorte.indexOf(eintrag[wortart]),
+        hilfe: HILFE_WORTARTEN[wortart]
+      };
+    });
+  }
+
   // aktivitaet-Schluessel fuer Storage.getOffeneSession/setOffeneSession -
   // ermoeglicht Fortsetzen einer unterbrochenen Aufgabenfolge am selben Tag
   // (siehe App.startQuizSession und Mathe.starteTagesaufgabe fuers Vorbild).
@@ -189,5 +250,26 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteRechtschreibung, starteLesen };
+  // Bewusst NICHT pensumFach-verknuepft (wie schon Lesen & Verstehen) - eine
+  // freiwillige Zusatzuebung, keine Tagesplan-Pflicht.
+  function starteWortarten() {
+    const AKTIVITAET = 'deutsch-wortarten';
+    const ANZAHL = 10;
+    const starter = () => {
+      const offen = Storage.getOffeneSession(AKTIVITAET);
+      const config = { titel: 'Wortarten erkennen', aktivitaet: AKTIVITAET };
+      if (offen && offen.index > 0 && offen.index < ANZAHL) {
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
+        App.startQuizSession('deutsch', genWortarten(ANZAHL - offen.index), config);
+      } else {
+        App.startQuizSession('deutsch', genWortarten(ANZAHL), config);
+      }
+    };
+    App.setLastStarter(starter); starter();
+  }
+
+  return { renderMenu, starteRechtschreibung, starteLesen, starteWortarten };
 })();

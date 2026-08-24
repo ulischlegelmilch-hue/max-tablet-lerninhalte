@@ -44,6 +44,10 @@ const FernSync = (function () {
       const stand = await r.json();
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
       pruefeNeueChatNachricht(stand.letzteChatVonPapa);
+      // Internet+Backend sind gerade nachweislich erreichbar - guter Moment,
+      // um evtl. liegengebliebene Lernset-Meldungen nachzureichen (siehe
+      // sendeOffeneLernsetMeldungen).
+      sendeOffeneLernsetMeldungen();
       // Storage hat sich gerade veraendert (Zusatzaufgaben und/oder Chat-
       // Ungelesen-Status) - falls Max GERADE auf dem Startbildschirm sitzt,
       // muss der neu gerendert werden, sonst bleibt z.B. das Chat-Badge trotz
@@ -160,6 +164,14 @@ const FernSync = (function () {
   // Mathe.bewerteMalfolgenKarte), macht den Eintrag in Papas Auswertung
   // anklickbar (Uli-Wunsch 22.08.2026). Nur mitgeschickt, wenn vorhanden -
   // Faecher/Uebungen ohne Protokoll (z.B. Schach) bleiben unveraendert.
+  function sendeLernsetMeldung(body) {
+    return fetchMitTimeout(BACKEND_URL + '/api/lernset-erledigt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(r => { if (!r.ok) throw new Error('http ' + r.status); });
+  }
+
   function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach, verlauf) {
     if (!BACKEND_URL) return;
     const body = {
@@ -168,11 +180,32 @@ const FernSync = (function () {
       matheKategorienStats: Storage.getMatheKategorienStats()
     };
     if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
-    fetchMitTimeout(BACKEND_URL + '/api/lernset-erledigt', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }).catch(() => {});
+    sendeLernsetMeldung(body).catch(() => {
+      // Kein Internet gerade / Backend nicht erreichbar (z.B. Render-Cold-
+      // Start, siehe fetchMitTimeout-Timeout) - NICHT wie frueher einfach
+      // verwerfen, sonst verschwindet eine ganze abgeschlossene Aufgabenfolge
+      // stillschweigend aus Papas Auswertung (24.08.2026 von Uli gemeldet).
+      // Stattdessen fuer den naechsten erfolgreichen Poll vormerken.
+      Storage.pushOffeneLernsetMeldung(body);
+    });
+  }
+
+  /** Arbeitet die Warteschlange nicht zugestellter Lernset-Meldungen ab -
+   *  wird nach jedem erfolgreich beantworteten Poll aufgerufen (= Internet
+   *  ist gerade nachweislich da). Bricht beim ERSTEN Fehlschlag ab (haelt die
+   *  Reihenfolge ein UND vermeidet sinnloses Dauerfeuern, falls das Backend
+   *  doch noch nicht bereit ist) - der naechste Poll versucht es einfach
+   *  wieder. */
+  async function sendeOffeneLernsetMeldungen() {
+    const liste = Storage.getOffeneLernsetMeldungen();
+    while (liste.length) {
+      try {
+        await sendeLernsetMeldung(liste[0]);
+        Storage.entferneErsteOffeneLernsetMeldung();
+      } catch (e) {
+        break;
+      }
+    }
   }
 
   return { init, poll, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt };

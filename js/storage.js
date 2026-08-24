@@ -112,7 +112,18 @@ const Storage = (function () {
       // bleiben statt beim naechsten Start einer Uebung verloren zu gehen.
       // Ein Eintrag pro "aktivitaet"-Schluessel (z.B. 'mathe-gemischt'),
       // gilt nur fuer den Tag, an dem er gespeichert wurde.
-      offeneSessions: {}
+      offeneSessions: {},
+      // Warteschlange fuer Lernset-Meldungen ans Backend (siehe FernSync.
+      // meldeLernsetErledigt), die NICHT sofort zugestellt werden konnten
+      // (kein Internet gerade, Render-Backend im Cold-Start-Schlaf, Timeout) -
+      // ohne das verschwand eine ganze abgeschlossene Aufgabenfolge
+      // STILLSCHWEIGEND aus Papas Auswertung, weil der urspruengliche POST
+      // reines Fire-and-Forget war (24.08.2026 von Uli gemeldet: Max' zweite
+      // 5er-Mathe-Runde tauchte nie auf, obwohl er sie gemacht hat). Jeder
+      // Eintrag ist der komplette, schon fertig zusammengebaute Request-Body.
+      // Wird bei jedem erfolgreichen Poll abgearbeitet (siehe FernSync.
+      // sendeOffeneLernsetMeldungen).
+      offeneLernsetMeldungen: []
     };
   }
 
@@ -697,6 +708,28 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Warteschlange nicht zugestellter Lernset-Meldungen - siehe defaultState. */
+  function getOffeneLernsetMeldungen() {
+    if (!state.offeneLernsetMeldungen) state.offeneLernsetMeldungen = [];
+    return state.offeneLernsetMeldungen;
+  }
+
+  function pushOffeneLernsetMeldung(body) {
+    const liste = getOffeneLernsetMeldungen();
+    liste.push(body);
+    // Deckelt die Warteschlange - bei einem laenger anhaltenden Ausfall
+    // sollen lieber die AELTESTEN Meldungen wegfallen als der gespeicherte
+    // Zustand unbegrenzt wachsen.
+    if (liste.length > 30) liste.splice(0, liste.length - 30);
+    save(state);
+  }
+
+  function entferneErsteOffeneLernsetMeldung() {
+    const liste = getOffeneLernsetMeldungen();
+    liste.shift();
+    save(state);
+  }
+
   /** Fortschritt auf der Schach-Schwierigkeitsleiter: aktuelle Stufe (Index)
    *  und Siege auf dieser Stufe seit dem letzten Aufstieg. */
   function getSchachFortschritt() {
@@ -847,6 +880,7 @@ const Storage = (function () {
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
     getBelohnungsVerlauf, loeseBelohnungEin,
     getMalfolgenDeck, setMalfolgenDeck,
-    getOffeneSession, setOffeneSession, loescheOffeneSession
+    getOffeneSession, setOffeneSession, loescheOffeneSession,
+    getOffeneLernsetMeldungen, pushOffeneLernsetMeldung, entferneErsteOffeneLernsetMeldung
   };
 })();
