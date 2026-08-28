@@ -202,6 +202,15 @@ const Storage = (function () {
   // anzahlProQuiz()=10), damit sich am Verhalten ohne Regeln nichts aendert.
   const FAECHER_STANDARD_ANZAHL = { mathe: 20, deutsch: 10, heimat: 10 };
 
+  // Uli-Wunsch 28.08.2026: "wenn max die mischaufgaben macht, sollen ab jetzt
+  // pro session 10 aufgaben abgefragt werden" - bewusst FEST verdrahtet statt
+  // ueber eine weitere Tagesplan-Regel geloest, damit es WIRKLICH IMMER 10
+  // sind (Tagesplan-Chip UND manueller Start ueber das Mathe-Menue), egal was
+  // die zu diesem Zeitpunkt schon bestehende lokale Wochenregel auf dem
+  // Tablet (Mo/Mi/Fr=5, So=20, siehe getTagesplanRegeln) fuer den jeweiligen
+  // Tag vorgibt - siehe getTagesPensumAnzahl.
+  const ANZAHL_MATHE_FEST = 10;
+
   /** Sucht in EINER Regelliste alle heute zutreffenden Regeln und liefert sie
    *  als { fach: regel }-Objekt - pro Fach gewinnt die erste passende Regel in
    *  der Prioritaet Einzeltag > Zeitraum > Wochentag > Wochenende. Mehrere
@@ -237,8 +246,11 @@ const Storage = (function () {
   /** Wie viele Aufgaben umfasst eine Runde des angegebenen Fachs HEUTE? Gilt
    *  unabhaengig davon, ob Max ueber den Tagesplan-Chip oder das Fach-Menue
    *  selbst startet, damit "eine Runde X" immer gleich lang ist. Ohne
-   *  passende Regel gilt der Standardwert (siehe FAECHER_STANDARD_ANZAHL). */
+   *  passende Regel gilt der Standardwert (siehe FAECHER_STANDARD_ANZAHL).
+   *  Mathe ist seit 28.08.2026 bewusst die Ausnahme: IMMER ANZAHL_MATHE_FEST,
+   *  auch wenn eine Tagesplan-Regel fuer Mathe eine eigene `anzahl` setzt. */
   function getTagesPensumAnzahl(fach) {
+    if (fach === 'mathe') return ANZAHL_MATHE_FEST;
     const regel = findeHeutigeRegelnKombiniert()[fach];
     return (regel && regel.anzahl) || FAECHER_STANDARD_ANZAHL[fach];
   }
@@ -258,9 +270,14 @@ const Storage = (function () {
       const jahresanfang = new Date(heute.getFullYear(), 0, 1);
       const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
       const fach = tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
-      return [{ fach, anzahl: FAECHER_STANDARD_ANZAHL[fach] }];
+      return [{ fach, anzahl: getTagesPensumAnzahl(fach) }];
     }
-    return faecher.map(fach => ({ fach, anzahl: kombiniert[fach].anzahl || FAECHER_STANDARD_ANZAHL[fach] }));
+    // getTagesPensumAnzahl() statt kombiniert[fach].anzahl direkt zu lesen -
+    // sonst wuerde das Tagesplan-Banner fuer Mathe weiterhin die Regel-eigene
+    // Zahl (5/20) zeigen, obwohl die Runde selbst laengst fest 10 Aufgaben
+    // umfasst (siehe getTagesPensumAnzahl) - "X von Y" muss zur echten
+    // Rundenlaenge passen, sonst wirkt "Geschafft" zu frueh oder nie.
+    return faecher.map(fach => ({ fach, anzahl: getTagesPensumAnzahl(fach) }));
   }
 
   /** Heutiger Beantwortet-Zaehler je Fach fuer die "X von Y"-Anzeige im
