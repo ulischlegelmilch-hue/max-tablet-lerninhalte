@@ -1351,6 +1351,30 @@ html, body {
   min-height: 44px;
 }
 
+/* Fach-Tagesregeln-Wochentabelle (seit 28.08.2026 gemeinsam mit Papas Handy-
+   App, siehe App.wochentabelleHtml) - ersetzt das fruehere "eine Regel nach
+   der anderen hinzufuegen"-Formular fuer den Alltagsfall (Uli-Wunsch:
+   "einstellbar ... und das uebersichtlich, leicht verstaendlich"). Einzeltag-/
+   Zeitraum-Ausnahmen bleiben als kleine Liste+Formular darunter (siehe
+   .regel-formular weiter oben), die Tabelle deckt nur die Wochentag-Faelle ab. */
+.regel-woche-tabelle { margin-bottom: var(--space-4); overflow-x: auto; }
+.regel-woche-zeile {
+  display: grid;
+  grid-template-columns: 90px repeat(7, 1fr);
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.regel-woche-kopf { margin-bottom: 10px; }
+.regel-woche-fach-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+.regel-woche-tag-label { text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.regel-woche-zelle {
+  min-height: 40px;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 14px;
+}
+
 /* Nur Browser-Vorschau (siehe App.initDevElternSimulation) - Nachbau der
    nativen 🔒/📅-Buttons, damit der Eltern-Bereich auch ohne Tablet testbar
    ist. Erscheint auf dem echten Tablet nie. */

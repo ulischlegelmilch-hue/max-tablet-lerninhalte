@@ -133,6 +133,11 @@ const App = (function () {
   }
 
   function gotoHome() {
+    // Verlassen des Eltern-Bereichs verwirft einen unfertigen Tagesregeln-
+    // Entwurf (siehe fuegeAusnahmeHinzu/loescheAusnahme/speichereTagesregeln) -
+    // konsistent mit dem "Abbrechen" bei "Fortschritt zuruecksetzen" weiter
+    // unten: nur ein expliziter Speichern-Klick persistiert etwas wirklich.
+    regelnEntwurfAusnahmen = null;
     const streak = Storage.getTagesStreak();
     const streakText = streak.anzahl > 0
       ? `${streak.anzahl} ${streak.anzahl === 1 ? 'Tag' : 'Tage'} in Folge`
@@ -239,6 +244,12 @@ const App = (function () {
 
   const REGEL_FACH_NAMEN = { mathe: 'Mathe', deutsch: 'Deutsch', heimat: 'Heimat & Sachkunde' };
   const WOCHENTAG_NAMEN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+  // Mo-So-Reihenfolge fuer die Wochentabelle (Storage/Date.getDay() zaehlt
+  // Sonntag=0, fuer die Anzeige aber gewohnte Wochenreihenfolge Mo zuerst).
+  const WOCHENTAGE_MO_SO = [
+    { tag: 1, kurz: 'Mo' }, { tag: 2, kurz: 'Di' }, { tag: 3, kurz: 'Mi' }, { tag: 4, kurz: 'Do' },
+    { tag: 5, kurz: 'Fr' }, { tag: 6, kurz: 'Sa' }, { tag: 0, kurz: 'So' }
+  ];
 
   function regelText(r) {
     const fachName = REGEL_FACH_NAMEN[r.fach] || r.fach;
@@ -369,16 +380,75 @@ const App = (function () {
     oeffneEinstellungen();
   }
 
+  // Liefert die aktuell gueltigen Wochentag-Regeln entweder aus dem GERADE
+  // sichtbaren Grid-DOM (wenn Max/Uli schon auf diesem Bildschirm ist und
+  // z.B. eine Ausnahme hinzufuegt/loescht - siehe fuegeAusnahmeHinzu/
+  // loescheAusnahme, sonst wuerden ungespeicherte Grid-Eingaben beim
+  // Neuzeichnen verloren gehen) oder, falls das Grid noch gar nicht existiert
+  // (allererstes Oeffnen), frisch aus dem zwischengespeicherten Server-Stand
+  // (siehe Storage.getFernRegeln). Ein leeres NodeList unterscheidet zuverlaessig
+  // beide Faelle, weil das Grid beim allerersten Oeffnen noch nicht im DOM ist.
+  function wochentagRegelnAusDomOderStorage() {
+    const felder = document.querySelectorAll('.regel-woche-zelle');
+    if (felder.length === 0) return Storage.getFernRegeln().filter(r => r.typ === 'wochentag');
+    const ergebnis = [];
+    felder.forEach(input => {
+      const wert = parseInt(input.value, 10);
+      if (wert > 0) ergebnis.push({ typ: 'wochentag', tag: parseInt(input.dataset.tag, 10), fach: input.dataset.fach, anzahl: wert });
+    });
+    return ergebnis;
+  }
+
+  // Ungespeicherter Entwurf der Ausnahmen-Liste (Einzeltag/Zeitraum, siehe
+  // fuegeAusnahmeHinzu/loescheAusnahme) - null = noch keine Aenderung seit dem
+  // letzten Server-Stand, dann wird direkt aus Storage.getFernRegeln() gelesen.
+  // Wird beim Verlassen des Eltern-Bereichs (gotoHome) und nach erfolgreichem
+  // Speichern (speichereTagesregeln) wieder auf null zurueckgesetzt.
+  let regelnEntwurfAusnahmen = null;
+
+  function aktuelleAusnahmen() {
+    return regelnEntwurfAusnahmen !== null
+      ? regelnEntwurfAusnahmen
+      : Storage.getFernRegeln().filter(r => r.typ !== 'wochentag');
+  }
+
+  // Fach x Wochentag-Raster statt "eine Regel nach der anderen hinzufuegen" -
+  // Uli-Wunsch 28.08.2026: "einstellbar, wie gross das Pensum pro Fach pro Tag
+  // ist. und das uebersichtlich, leicht verstaendlich". Eine leere Zelle
+  // bedeutet "Standardwert" (siehe Storage.FAECHER_STANDARD_ANZAHL), keine
+  // Zelle sperrt irgendetwas - nicht hervorgehobene Faecher bleiben fuer Max
+  // weiterhin als "Extra" antippbar (siehe Storage.getTagesPensum).
+  function wochentabelleHtml(wochentagRegeln) {
+    function wertFuer(fach, tag) {
+      const r = wochentagRegeln.find(x => x.fach === fach && x.tag === tag);
+      return r ? r.anzahl : '';
+    }
+    const kopf = `<div class="regel-woche-zeile regel-woche-kopf">
+      <div class="regel-woche-fach-label"></div>
+      ${WOCHENTAGE_MO_SO.map(w => `<div class="regel-woche-tag-label">${w.kurz}</div>`).join('')}
+    </div>`;
+    const zeilen = Object.keys(REGEL_FACH_NAMEN).map(fach => `
+      <div class="regel-woche-zeile">
+        <div class="regel-woche-fach-label">${REGEL_FACH_NAMEN[fach]}</div>
+        ${WOCHENTAGE_MO_SO.map(w => `<input type="number" min="1" class="regel-woche-zelle regel-input" data-fach="${fach}" data-tag="${w.tag}" value="${wertFuer(fach, w.tag)}" placeholder="Std.">`).join('')}
+      </div>
+    `).join('');
+    return `<div class="regel-woche-tabelle">${kopf}${zeilen}</div>`;
+  }
+
+  function ausnahmenHtml(ausnahmen) {
+    if (!ausnahmen.length) return '<div class="regel-leer">Keine Ausnahmen.</div>';
+    return ausnahmen.map((r, i) => `
+      <div class="regel-zeile">
+        <span>${regelText(r)}</span>
+        <span class="regel-loeschen" onclick="App.loescheAusnahme(${i})">${Icons.svg('loeschen')}</span>
+      </div>
+    `).join('');
+  }
+
   function oeffneEinstellungen(resetBestaetigung) {
-    const regeln = Storage.getTagesplanRegeln();
-    const regelnHtml = regeln.length
-      ? regeln.map((r, i) => `
-          <div class="regel-zeile">
-            <span>${regelText(r)}</span>
-            <span class="regel-loeschen" onclick="App.loescheRegel(${i})">${Icons.svg('loeschen')}</span>
-          </div>
-        `).join('')
-      : '<div class="regel-leer">Noch keine Regeln – wechselt automatisch jeden Tag zwischen Mathe und Deutsch.</div>';
+    const wochentagRegeln = wochentagRegelnAusDomOderStorage();
+    const ausnahmen = aktuelleAusnahmen();
 
     render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -393,18 +463,18 @@ const App = (function () {
         ${schachTagesplanHtml()}
       </div>
 
-      <div class="welcome" style="margin-top:32px;">Tagesplan-Regeln</div>
-      <div class="lese-text">Bestimme, welche(s) Fach (Mathe/Deutsch/Heimat &amp; Sachkunde) an welchen Tagen im Tagesplan als Pflicht hervorgehoben wird, und wie viele Aufgaben Max dafür lösen soll (z. B. "Jeden Montag: Mathe, 15 Aufgaben" oder "Jedes Wochenende: Deutsch, 20 Aufgaben"). Mehrere Regeln für denselben Tag sind möglich, wenn mehrere Fächer parallel Pflicht sein sollen. Anzahl leer lassen = Standard (Mathe 20 / Deutsch 10 / Heimat 10). Ohne jede Regel wechselt es automatisch jeden Kalendertag zwischen Mathe und Deutsch ab. Nicht gelistete Fächer bleiben für Max immer zusätzlich als "Extra" antippbar – nichts wird gesperrt, nur die "X von Y"-Anzeige im Tagesplan zeigt Ulis Vorgabe.</div>
+      <div class="welcome" style="margin-top:32px;">Fach-Tagesregeln</div>
+      <div class="lese-text">Wie viele Aufgaben soll Max pro Fach an welchem Wochentag lösen? Zelle leer lassen = Standardwert. Diese Regeln gelten gleichermaßen auf dem Tablet und in Papas Handy-App – eine Änderung hier wirkt sich dort genauso aus (und umgekehrt), sobald beide Seiten wieder online sind. Nicht hervorgehobene Fächer bleiben für Max immer zusätzlich als "Extra" antippbar.</div>
 
       <div class="regel-karte">
-        <div class="regel-liste">${regelnHtml}</div>
+        ${wochentabelleHtml(wochentagRegeln)}
 
+        <div class="fortschritt-unterueberschrift" style="margin-top:20px;">Ausnahmen (z. B. Ferien)</div>
+        <div class="regel-liste">${ausnahmenHtml(ausnahmen)}</div>
         <div class="regel-formular">
           <select id="regel-typ" class="regel-input" onchange="App.aktualisiereRegelFormular()">
             <option value="einzeltag">Einzelner Tag</option>
             <option value="zeitraum">Zeitraum</option>
-            <option value="wochentag">Jeden [Wochentag]</option>
-            <option value="wochenende">Jedes Wochenende</option>
           </select>
           <select id="regel-fach" class="regel-input">
             <option value="mathe">Mathe</option>
@@ -413,8 +483,11 @@ const App = (function () {
           </select>
           <div id="regel-daten" class="regel-daten"><input type="date" id="regel-datum" class="regel-input"></div>
           <input type="number" id="regel-anzahl" class="regel-input" placeholder="Anzahl Aufgaben (leer = Standard)" min="1">
-          <div class="btn-primary" onclick="App.fuegeRegelHinzu()">Regel hinzufügen</div>
+          <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.fuegeAusnahmeHinzu()">+ Ausnahme (noch nicht gespeichert)</div>
         </div>
+
+        <div id="regeln-hinweis" class="reihen-hinweis"></div>
+        <div class="btn-primary" onclick="App.speichereTagesregeln()">Tagesregeln speichern</div>
       </div>
 
       <div class="welcome" style="margin-top:32px;">Belohnungen</div>
@@ -466,56 +539,68 @@ const App = (function () {
     oeffneEinstellungen();
   }
 
+  // Nur noch Einzeltag/Zeitraum (Ausnahmen) - Wochentag/Wochenende werden
+  // jetzt ueber die Wochentabelle abgedeckt (siehe wochentabelleHtml).
   function aktualisiereRegelFormular() {
     const typ = document.getElementById('regel-typ').value;
     const container = document.getElementById('regel-daten');
-    if (typ === 'einzeltag') {
-      container.innerHTML = '<input type="date" id="regel-datum" class="regel-input">';
-    } else if (typ === 'zeitraum') {
+    if (typ === 'zeitraum') {
       container.innerHTML =
         '<input type="date" id="regel-von" class="regel-input"> <input type="date" id="regel-bis" class="regel-input">';
-    } else if (typ === 'wochentag') {
-      container.innerHTML = `<select id="regel-tag" class="regel-input">
-        <option value="1">Montag</option><option value="2">Dienstag</option><option value="3">Mittwoch</option>
-        <option value="4">Donnerstag</option><option value="5">Freitag</option><option value="6">Samstag</option>
-        <option value="0">Sonntag</option>
-      </select>`;
     } else {
-      container.innerHTML = '';
+      container.innerHTML = '<input type="date" id="regel-datum" class="regel-input">';
     }
   }
 
-  function fuegeRegelHinzu() {
+  // Fuegt eine Ausnahme NUR zum Entwurf hinzu (siehe regelnEntwurfAusnahmen) -
+  // persistiert wird erst durch einen expliziten Klick auf "Tagesregeln
+  // speichern" (App.speichereTagesregeln), damit ein Tippfehler nicht sofort
+  // live auf dem Server landet und auch ungespeicherte Wochentabellen-
+  // Eingaben beim Neuzeichnen nicht verloren gehen (siehe
+  // wochentagRegelnAusDomOderStorage).
+  function fuegeAusnahmeHinzu() {
     const typ = document.getElementById('regel-typ').value;
     const fach = document.getElementById('regel-fach').value;
     const anzahlRoh = parseInt(document.getElementById('regel-anzahl').value, 10);
     let regel;
-    if (typ === 'einzeltag') {
-      const datum = document.getElementById('regel-datum').value;
-      if (!datum) return;
-      regel = { typ, datum, fach };
-    } else if (typ === 'zeitraum') {
+    if (typ === 'zeitraum') {
       const von = document.getElementById('regel-von').value;
       const bis = document.getElementById('regel-bis').value;
       if (!von || !bis) return;
       regel = { typ, von, bis, fach };
-    } else if (typ === 'wochentag') {
-      regel = { typ, tag: parseInt(document.getElementById('regel-tag').value, 10), fach };
     } else {
-      regel = { typ: 'wochenende', fach };
+      const datum = document.getElementById('regel-datum').value;
+      if (!datum) return;
+      regel = { typ: 'einzeltag', datum, fach };
     }
     if (anzahlRoh > 0) regel.anzahl = anzahlRoh;
-    const regeln = Storage.getTagesplanRegeln();
-    regeln.push(regel);
-    Storage.setTagesplanRegeln(regeln);
+    regelnEntwurfAusnahmen = aktuelleAusnahmen().concat([regel]);
     oeffneEinstellungen();
   }
 
-  function loescheRegel(i) {
-    const regeln = Storage.getTagesplanRegeln();
-    regeln.splice(i, 1);
-    Storage.setTagesplanRegeln(regeln);
+  function loescheAusnahme(i) {
+    const neu = aktuelleAusnahmen().slice();
+    neu.splice(i, 1);
+    regelnEntwurfAusnahmen = neu;
     oeffneEinstellungen();
+  }
+
+  // Persistiert Wochentabelle + Ausnahmen zusammen als EINE neue Fern-Regel-
+  // Liste (siehe FernSync.speichereRegeln/backend POST /api/regeln) - Server
+  // ist die einzige Quelle der Wahrheit, sowohl Tablet als auch Papas Handy-
+  // App lesen/schreiben dieselbe Liste (Uli-Wunsch 28.08.2026).
+  async function speichereTagesregeln() {
+    const regeln = wochentagRegelnAusDomOderStorage().concat(aktuelleAusnahmen());
+    const hinweis = document.getElementById('regeln-hinweis');
+    if (hinweis) hinweis.textContent = 'Speichert …';
+    const erfolg = await FernSync.speichereRegeln(regeln);
+    if (erfolg) {
+      regelnEntwurfAusnahmen = null;
+      oeffneEinstellungen();
+    } else {
+      const hinweisNeu = document.getElementById('regeln-hinweis');
+      if (hinweisNeu) hinweisNeu.textContent = 'Keine Verbindung – nicht gespeichert. Bitte später erneut versuchen.';
+    }
   }
 
   function subMenuHtml(titel, karten) {
@@ -906,8 +991,8 @@ const App = (function () {
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar, renderSpieleMenu,
     startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
-    oeffneEinstellungen, aktualisiereRegelFormular, fuegeRegelHinzu, loescheRegel,
-    fortschrittWirklichZuruecksetzen,
+    oeffneEinstellungen, aktualisiereRegelFormular, fuegeAusnahmeHinzu, loescheAusnahme,
+    speichereTagesregeln, fortschrittWirklichZuruecksetzen,
     fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,
     aktualisiereHomeFallsAktiv
   };

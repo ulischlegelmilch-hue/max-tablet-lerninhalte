@@ -186,6 +186,13 @@ const Storage = (function () {
     return state.tagesStreak;
   }
 
+  // Historisch: rein lokale, nie synchronisierte Tagesplan-Regeln. Seit
+  // 28.08.2026 durch die gemeinsame Fern-Regel-Liste ersetzt (siehe
+  // getFernRegeln/findeHeutigeRegelnKombiniert) - Uli-Wunsch: Tablet und
+  // Elternapp sollen dieselbe Konfiguration bearbeiten, nicht zwei getrennte.
+  // Diese beiden Funktionen bleiben NUR fuer die einmalige Migration
+  // bestehender lokaler Regeln in die Fern-Liste erhalten (siehe
+  // FernSync.init) - nirgends sonst mehr gelesen.
   function getTagesplanRegeln() {
     if (!state.tagesplanRegeln) state.tagesplanRegeln = [];
     return state.tagesplanRegeln;
@@ -204,12 +211,10 @@ const Storage = (function () {
   // uebersteuern koennen ("es sollte per Regel umgangen werden koennen").
   const FAECHER_STANDARD_ANZAHL = { mathe: 10, deutsch: 10, heimat: 10 };
 
-  /** Sucht in EINER Regelliste alle heute zutreffenden Regeln und liefert sie
+  /** Sucht in der Regelliste alle heute zutreffenden Regeln und liefert sie
    *  als { fach: regel }-Objekt - pro Fach gewinnt die erste passende Regel in
    *  der Prioritaet Einzeltag > Zeitraum > Wochentag > Wochenende. Mehrere
-   *  Faecher koennen so gleichzeitig am selben Tag Pflicht sein. Ausgelagert,
-   *  damit sowohl die lokalen als auch die vom Handy synchronisierten
-   *  Fern-Regeln (siehe getFernRegeln) mit derselben Logik geprueft werden. */
+   *  Faecher koennen so gleichzeitig am selben Tag Pflicht sein. */
   function findeZutreffendeRegelnHeute(regeln, heute, heuteIso) {
     const heuteTag = heute.getDay();
     const passt = r => {
@@ -226,14 +231,16 @@ const Storage = (function () {
     return ergebnis;
   }
 
-  /** Kombiniert Fern- (Vorrang) und lokale Regeln zu einem { fach: regel }-
-   *  Objekt fuer heute. */
+  /** Heutige zutreffende Regeln, EINE gemeinsame Quelle fuer Tablet UND
+   *  Elternapp (seit 28.08.2026, siehe getFernRegeln) - vorher wurden lokale
+   *  Tablet-Regeln und vom Handy gesetzte Fern-Regeln getrennt gefuehrt und
+   *  mit Fern-Vorrang zusammengefuehrt, was dazu fuehren konnte, dass eine
+   *  Handy-Regel eine Tablet-Konfiguration unbeabsichtigt ueberschrieb, ohne
+   *  dass die eine Seite die Regeln der anderen je zu sehen bekam. */
   function findeHeutigeRegelnKombiniert() {
     const heute = new Date();
     const heuteIso = heutigesDatum();
-    const lokal = findeZutreffendeRegelnHeute(getTagesplanRegeln(), heute, heuteIso);
-    const fern = findeZutreffendeRegelnHeute(getFernRegeln(), heute, heuteIso);
-    return Object.assign({}, lokal, fern);
+    return findeZutreffendeRegelnHeute(getFernRegeln(), heute, heuteIso);
   }
 
   /** Wie viele Aufgaben umfasst eine Runde des angegebenen Fachs HEUTE? Gilt

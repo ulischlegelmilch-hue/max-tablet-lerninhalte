@@ -142,7 +142,83 @@ const FernSync = (function () {
     });
   }
 
+  /** Einmaliger Umzug alter, rein lokaler Tagesplan-Regeln (siehe
+   *  Storage.getTagesplanRegeln - vor 28.08.2026 die einzige Ablage fuer
+   *  Ulis Wochenplan) in die gemeinsame Fern-Regel-Liste, damit Tablet und
+   *  Elternapp danach dieselbe Konfiguration sehen/bearbeiten (Uli-Wunsch:
+   *  "das zukuenftig sowohl auf dem tablet ... als auch in der elternapp ...
+   *  gleich haben"). Best-effort wie der Rest dieser Datei: schlaegt es
+   *  mangels Internet fehl, bleibt die lokale Liste unveraendert stehen und
+   *  der naechste App-Start (Kiosk-Tablet wacht/startet haeufig neu) versucht
+   *  es einfach wieder - kein dedizierter Retry-Mechanismus noetig. Die
+   *  lokale Liste wird ERST nach bestaetigt erfolgreichem Hochladen geleert,
+   *  damit bei einem Abbruch mittendrin nichts verloren geht.
+   */
+  async function migriereLokaleTagesplanRegelnFallsNoetig() {
+    const lokal = Storage.getTagesplanRegeln();
+    if (!lokal.length || !BACKEND_URL) return;
+    try {
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/state');
+      if (!r.ok) return;
+      const stand = await r.json();
+      const kombiniert = (stand.regeln || []).concat(lokal);
+      const antwort = await fetchMitTimeout(BACKEND_URL + '/api/regeln', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regeln: kombiniert })
+      });
+      if (!antwort.ok) return;
+      const json = await antwort.json();
+      Storage.setFernstand(json.regeln, stand.zusatzaufgaben);
+      Storage.setTagesplanRegeln([]);
+    } catch (e) {
+      // Kein Internet gerade - lokale Liste bleibt bestehen, naechster App-Start versucht es erneut.
+    }
+  }
+
+  /** Speichert die komplette Fach-Tagesregeln-Liste (Wochentabelle + Ausnahmen,
+   *  siehe App.oeffneEinstellungen) - ersetzt IMMER die gesamte Liste, wie es
+   *  das Backend erwartet (siehe backend/webapp/index.html speichereRegeln,
+   *  gleiches Muster). Liefert true/false statt fire-and-forget, damit der
+   *  Eltern-Bereich bei fehlendem Internet eine ehrliche Fehlermeldung zeigen
+   *  kann statt eine Aenderung nur zu simulieren, die serverseitig nie ankam. */
+  async function speichereRegeln(regeln) {
+    if (!BACKEND_URL) return false;
+    try {
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/regeln', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ regeln })
+      });
+      if (!r.ok) return false;
+      const json = await r.json();
+      Storage.setFernstand(json.regeln, Storage.getFernZusatzaufgaben());
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /** Expliziter, sofortiger Abruf des Server-Stands (statt auf den naechsten
+   *  Poll-Zyklus zu warten) - genutzt beim OEFFNEN des Eltern-Bereichs, damit
+   *  dort keine bis zu 1 Minute alte Regel-Liste angezeigt wird (siehe
+   *  POLL_INTERVAL_MS). Liefert die Regeln oder null (kein Internet - Aufrufer
+   *  faellt dann auf den zuletzt bekannten Cache zurueck, siehe getFernRegeln). */
+  async function holeRegelnFrisch() {
+    if (!BACKEND_URL) return null;
+    try {
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/state');
+      if (!r.ok) return null;
+      const stand = await r.json();
+      Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
+      return stand.regeln;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function init() {
+    migriereLokaleTagesplanRegelnFallsNoetig();
     poll();
     setInterval(poll, POLL_INTERVAL_MS);
   }
@@ -208,5 +284,5 @@ const FernSync = (function () {
     }
   }
 
-  return { init, poll, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt };
+  return { init, poll, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
 })();
