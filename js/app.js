@@ -592,6 +592,12 @@ const App = (function () {
   let eingabe = '';
   let versuch = 1;
   let hilfeGenutzt = false;
+  // Was Max beim ALLERERSTEN Versuch dieser Frage falsch eingegeben/angetippt
+  // hat (Uli-Wunsch 28.08.2026: "ich will genau sehen [...] welches falsche
+  // Ergebnis er hatte", nicht nur eine richtig/falsch-Quote) - wird in
+  // verarbeiteQuizAntwort gesetzt, bevor ein 2. Versuch die Eingabe ueberschreibt,
+  // und landet als falscheAntwort im verlauf-Eintrag (siehe abschlussFrage).
+  let ersteFalscheAntwort = null;
 
   function renderQuestion() {
     const f = session.fragen[session.index];
@@ -599,6 +605,7 @@ const App = (function () {
     const nr = session.index + session.anzeigeOffset + 1;
     versuch = 1;
     hilfeGenutzt = false;
+    ersteFalscheAntwort = null;
 
     let bodyHtml = '';
     if (f.lesetext) {
@@ -662,7 +669,7 @@ const App = (function () {
     const korrekt = i === f.richtigIndex;
     buttons[i].classList.add(korrekt ? 'richtig' : 'falsch');
     if (!korrekt) buttons[f.richtigIndex].classList.add('richtig');
-    verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f));
+    verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f), f.optionen[i]);
   }
 
   function renderKeypad(f) {
@@ -683,7 +690,7 @@ const App = (function () {
           if (eingabe === '') return;
           document.querySelectorAll('.key-btn').forEach(b => b.onclick = null);
           const korrekt = parseInt(eingabe, 10) === f.antwort;
-          verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderKeypad(f));
+          verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderKeypad(f), eingabe);
           return;
         } else if (eingabe.length < 6) {
           eingabe += t;
@@ -696,8 +703,13 @@ const App = (function () {
 
   // Zentrale Weiche fuer JEDE Antwort (MC wie numerisch). neuerVersuch() baut
   // die Eingabe-UI (Keypad/Optionen) fuer den 2. Versuch frisch auf.
-  function verarbeiteQuizAntwort(f, korrekt, richtigeAntwort, neuerVersuch) {
+  function verarbeiteQuizAntwort(f, korrekt, richtigeAntwort, neuerVersuch, gegebeneAntwort) {
     const hatHilfe = typeof f.hilfe === 'string' && f.hilfe.length > 0;
+
+    // Muss VOR dem 2.-Versuch-Abzweig passieren, sonst geht die Eingabe des
+    // 1. (falschen) Versuchs verloren, sobald neuerVersuch() das Keypad/die
+    // Optionen fuer den 2. Versuch neu aufbaut.
+    if (!korrekt && versuch === 1) ersteFalscheAntwort = gegebeneAntwort;
 
     if (!korrekt && hatHilfe && versuch === 1) {
       versuch = 2;
@@ -748,10 +760,17 @@ const App = (function () {
     // Fuer die Aufgaben-Verlaufsliste in Papas Auswertung: EIN Eintrag pro
     // abgeschlossener Frage (auch bei "wiederholeFalsche"-Wiedervorlage
     // spaeter ein zweiter, das ist gewollt - zeigt ehrlich, dass sie beim
-    // ersten Mal noch nicht sass).
+    // ersten Mal noch nicht sass). richtigeAntwort/falscheAntwort zusaetzlich
+    // zum reinen richtig/falsch (Uli-Wunsch 28.08.2026), damit Papas
+    // Auswertung nicht nur zeigt, DASS eine Aufgabe beim 1. Versuch nicht
+    // sass, sondern auch WELCHE falsche Zahl/Option Max gegeben hat - nur bei
+    // MC/numerischen Fragen sinnvoll befuellt (Malfolgen-Karteikarten haben
+    // gar keine "Eingabe", siehe Mathe.bewerteMalfolgenKarte).
     session.verlauf.push({
       frage: klartextFrage(f.frage),
-      ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig'
+      ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig',
+      richtigeAntwort: f.typ === 'mc' ? f.optionen[f.richtigIndex] : f.antwort,
+      falscheAntwort: ersteFalscheAntwort
     });
     if (!giltAlsGewusst && session.wiederholeFalsche) {
       const neuePosition = Math.min(session.fragen.length, session.index + 4);

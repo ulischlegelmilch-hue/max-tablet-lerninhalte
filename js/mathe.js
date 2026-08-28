@@ -52,7 +52,7 @@ const Mathe = (function () {
       <div class="lese-text">Wähl die 1×1-Reihen aus, die bei "Malfolgen üben" drankommen sollen.</div>
       <div class="regel-karte">
         <div class="reihen-grid">
-          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => `
             <label class="reihen-check">
               <input type="checkbox" class="reihen-checkbox" value="${n}"${Storage.getMalfolgenReihen().includes(n) ? ' checked' : ''}>
               ${n}er-Reihe
