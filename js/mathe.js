@@ -566,6 +566,125 @@ const Mathe = (function () {
     return `<strong>Beispiel:</strong> ${produkt} = ▢ · ${faktorZehn}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${faktorZehn} = ${faktorKlein}<br><strong>Fehlende Zahl: ${faktorKlein}</strong>`;
   }
 
+  // ---- Zehnerzahl mal Zehnerzahl (20 · 30, 50 · 10, ...) - eigener Bereich,
+  // da genZehnerzahlenFrage oben nur "einstellig · Zehnerzahl" abdeckt.
+  // Ergaenzt am 28.08.2026 fuer die Mathearbeit ueber "Multiplizieren und
+  // Dividieren" (siehe Hausaufgaben-Foto: 20·30=600, 30·30=900, 50·10=500 ...).
+  function genRundeZehnerMalFrage() {
+    const aZehn = rnd(2, 9) * 10, bZehn = rnd(2, 9) * 10;
+    return { typ: 'numeric', frage: `${aZehn} · ${bZehn} = ?`, antwort: aZehn * bZehn, hilfe: hilfeRundeZehnerMal() };
+  }
+
+  function hilfeRundeZehnerMal() {
+    const aZehn = rnd(2, 9) * 10, bZehn = rnd(2, 9) * 10;
+    const a = aZehn / 10, b = bZehn / 10;
+    return `<strong>Beispiel:</strong> ${aZehn} · ${bZehn} = ?<br>Rechne erst ohne die Nullen: ${a} · ${b} = ${a * b}<br>Dann hänge beide Nullen wieder an: ${a * b}00<br><strong>Ergebnis: ${aZehn * bZehn}</strong>`;
+  }
+
+  // ---- Fehlender Faktor (42 · ▢ = 420, ▢ · 30 = 900, ...) - ein Faktor ist
+  // eine "nette" zweistellige Zahl, der andere eine Zehnerzahl, beide
+  // Positionen koennen fehlen (siehe Hausaufgaben-Foto, Aufgabe 2).
+  const NETTE_ZWEISTELLIGE = [10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 32, 35, 36, 40, 42, 45, 48, 49, 50, 54, 56, 60, 63, 64, 70, 72, 80, 81, 90, 99];
+
+  function genFehlenderFaktorFrage() {
+    const bekannterFaktor = NETTE_ZWEISTELLIGE[rnd(0, NETTE_ZWEISTELLIGE.length - 1)];
+    const fehlenderFaktor = rnd(2, 9) * 10;
+    const produkt = bekannterFaktor * fehlenderFaktor;
+    const ersterFehlt = Math.random() < 0.5;
+    const frageText = ersterFehlt ? `▢ · ${bekannterFaktor} = ${produkt}` : `${bekannterFaktor} · ▢ = ${produkt}`;
+    return { typ: 'numeric', frage: `${frageText}.<br>Welche Zahl fehlt?`, antwort: fehlenderFaktor, hilfe: hilfeFehlenderFaktor() };
+  }
+
+  function hilfeFehlenderFaktor() {
+    const bekannterFaktor = NETTE_ZWEISTELLIGE[rnd(0, NETTE_ZWEISTELLIGE.length - 1)];
+    const fehlenderFaktor = rnd(2, 9) * 10;
+    const produkt = bekannterFaktor * fehlenderFaktor;
+    return `<strong>Beispiel:</strong> ${bekannterFaktor} · ▢ = ${produkt}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${bekannterFaktor} = ${fehlenderFaktor}<br><strong>Fehlende Zahl: ${fehlenderFaktor}</strong>`;
+  }
+
+  // ---- Einfache Geteiltaufgaben (81 : 9, 63 : 7, ...) - kleines Einmaleins
+  // rueckwaerts, ergaenzt die Malfolgen-Karteikarten um die Umkehrung.
+  function genGeteiltEinfachFrage() {
+    const teiler = rnd(2, 9), quotient = rnd(2, 9);
+    const dividend = teiler * quotient;
+    return { typ: 'numeric', frage: `${dividend} : ${teiler} = ?`, antwort: quotient, hilfe: hilfeGeteiltEinfach() };
+  }
+
+  function hilfeGeteiltEinfach() {
+    const teiler = rnd(2, 9), quotient = rnd(2, 9);
+    const dividend = teiler * quotient;
+    return `<strong>Beispiel:</strong> ${dividend} : ${teiler} = ?<br>Überlege: ${teiler} · ? = ${dividend}. Das kennst du aus dem kleinen Einmaleins: ${teiler} · ${quotient} = ${dividend}<br><strong>Ergebnis: ${quotient}</strong>`;
+  }
+
+  // ---- Fehlender Teiler/Dividend (360 : ▢ = 6, ▢ : 80 = 3, ...) - der
+  // Quotient ist immer bekannt, Teiler ODER Dividend fehlt (Foto, Aufgabe 4).
+  const TEILER_OPTIONEN = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90];
+
+  function genFehlenderTeilerDividendFrage() {
+    const teiler = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
+    const quotient = rnd(2, 9);
+    const dividend = teiler * quotient;
+    const dividendFehlt = Math.random() < 0.5;
+    const frageText = dividendFehlt ? `▢ : ${teiler} = ${quotient}` : `${dividend} : ▢ = ${quotient}`;
+    return { typ: 'numeric', frage: `${frageText}.<br>Welche Zahl fehlt?`, antwort: dividendFehlt ? dividend : teiler, hilfe: hilfeFehlenderTeilerDividend() };
+  }
+
+  function hilfeFehlenderTeilerDividend() {
+    const teiler = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
+    const quotient = rnd(2, 9);
+    const dividend = teiler * quotient;
+    return `<strong>Beispiel:</strong> ${dividend} : ▢ = ${quotient}.<br>Rechne rückwärts mit Malnehmen: ${quotient} · ${teiler} = ${dividend}, also ist die fehlende Zahl ${teiler}.<br><strong>Fehlende Zahl: ${teiler}</strong>`;
+  }
+
+  // ---- Rechenkette mit Malnehmen/Teilen (56 ·10 :8 ·3 :70 = ?) - wie
+  // genRechenketteFrage, aber mit ×/÷ statt +/− (Foto, Aufgabe 5).
+  function genMalGeteiltKetteFrage() {
+    const start = rnd(2, 90);
+    let wert = start;
+    const schritte = [];
+    const anzahlSchritte = rnd(3, 4);
+    for (let i = 0; i < anzahlSchritte; i++) {
+      const moeglichkeiten = [];
+      for (const k of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
+        if (wert * k <= 2000) moeglichkeiten.push({ text: `· ${k}`, neu: wert * k });
+      }
+      for (let k = 2; k <= 10; k++) {
+        if (wert % k === 0 && wert / k >= 2) moeglichkeiten.push({ text: `: ${k}`, neu: wert / k });
+      }
+      const wahl = moeglichkeiten[rnd(0, moeglichkeiten.length - 1)];
+      schritte.push(wahl.text);
+      wert = wahl.neu;
+    }
+    return { typ: 'numeric', frage: `${start} ${schritte.join(' ')} = ?`, antwort: wert, hilfe: hilfeMalGeteiltKette() };
+  }
+
+  function hilfeMalGeteiltKette() {
+    const s0 = rnd(2, 9), s1 = s0 * 10, s2 = s1 / 2;
+    return `<strong>Beispiel:</strong> ${s0} · 10 : 2 = ?<br>Rechne Schritt für Schritt von links nach rechts:<br>${s0} · 10 = ${s1}<br>${s1} : 2 = ${s2}<br><strong>Ergebnis: ${s2}</strong>`;
+  }
+
+  // ---- Doppeltes/Hälfte von Produkt/Quotient (Foto, Aufgabe 6) ----
+  function genDoppeltHaelfteFrage() {
+    const doppelt = Math.random() < 0.5;
+    if (doppelt) {
+      const a = rnd(2, 9) * 10, b = rnd(2, 9);
+      const produkt = a * b;
+      return { typ: 'numeric', frage: `Welche Zahl ist das Doppelte des Produktes aus ${a} und ${b}?`, antwort: produkt * 2, hilfe: hilfeDoppeltHaelfte() };
+    }
+    const b = rnd(2, 9) * 10, q = rnd(2, 9) * 2;
+    const a = b * q;
+    return { typ: 'numeric', frage: `Welche Zahl ist die Hälfte des Quotienten aus ${a} und ${b}?`, antwort: q / 2, hilfe: hilfeDoppeltHaelfte() };
+  }
+
+  function hilfeDoppeltHaelfte() {
+    if (Math.random() < 0.5) {
+      const a = rnd(2, 9) * 10, b = rnd(2, 9), produkt = a * b;
+      return `<strong>Beispiel:</strong> Doppeltes des Produktes aus ${a} und ${b}?<br>Erst das Produkt ausrechnen: ${a} · ${b} = ${produkt}<br>Dann verdoppeln (·2): ${produkt} · 2 = ${produkt * 2}<br><strong>Ergebnis: ${produkt * 2}</strong>`;
+    }
+    const b = rnd(2, 9) * 10, q = rnd(2, 9) * 2, a = b * q;
+    return `<strong>Beispiel:</strong> Hälfte des Quotienten aus ${a} und ${b}?<br>Erst den Quotienten ausrechnen: ${a} : ${b} = ${q}<br>Dann halbieren (:2): ${q} : 2 = ${q / 2}<br><strong>Ergebnis: ${q / 2}</strong>`;
+  }
+
   // ---- Teiler & Vielfache ----
   function genVielfachesFrage() {
     const n = rnd(3, 9);
@@ -875,6 +994,84 @@ const Mathe = (function () {
       `Rechne "zusammen" minus "Mädchen": ${erklaerungSubtraktion(summe, m)}`;
   }
 
+  // ---- Rechenvorteile bei 3 Zahlen (430+50+70, 755-36-15, ...) - ergaenzt
+  // am 28.08.2026 fuer die Mathearbeit (Wiederholungsblatt "Klasse 3").
+  // Plus-Variante: zwei der drei Zahlen ergeben absichtlich einen glatten
+  // Zehner/Hunderter (der eigentliche "Vorteil"). Minus-Variante: beide
+  // abgezogenen Zahlen zuerst addieren, dann nur einmal abziehen.
+  function genRechenvorteilFrage() {
+    const plus = Math.random() < 0.5;
+    if (plus) {
+      const teil = rnd(1, 9) * 10;
+      const partner = 100 - teil;
+      const dritte = rnd(20, 500);
+      const zahlen = shuffle([teil, partner, dritte]);
+      return { typ: 'numeric', frage: `${zahlen[0]} + ${zahlen[1]} + ${zahlen[2]} = ?`, antwort: teil + partner + dritte, hilfe: hilfeRechenvorteil() };
+    }
+    const start = rnd(500, 990);
+    const b = rnd(10, 90), c = rnd(10, Math.max(10, Math.min(90, start - b - 10)));
+    return { typ: 'numeric', frage: `${start} − ${b} − ${c} = ?`, antwort: start - b - c, hilfe: hilfeRechenvorteil() };
+  }
+
+  function hilfeRechenvorteil() {
+    if (Math.random() < 0.5) {
+      const teil = rnd(1, 9) * 10, partner = 100 - teil, dritte = rnd(20, 500);
+      return `<strong>Beispiel:</strong> ${teil} + ${partner} + ${dritte} = ?<br>Suche zwei Zahlen, die zusammen einen glatten Zehner/Hunderter ergeben: ${teil} + ${partner} = ${teil + partner}<br>Dann die dritte Zahl dazu: ${teil + partner} + ${dritte} = ${teil + partner + dritte}<br><strong>Ergebnis: ${teil + partner + dritte}</strong>`;
+    }
+    const start = rnd(500, 990), b = rnd(10, 90), c = rnd(10, Math.max(10, Math.min(90, start - b - 10)));
+    return `<strong>Beispiel:</strong> ${start} − ${b} − ${c} = ?<br>Rechenvorteil: addiere zuerst beide Zahlen, die abgezogen werden: ${b} + ${c} = ${b + c}<br>Dann einmal abziehen: ${start} − ${b + c} = ${start - (b + c)}<br><strong>Ergebnis: ${start - (b + c)}</strong>`;
+  }
+
+  // ---- Zahlenfolge fortsetzen (110, 111, 220, 222, ...) - vereinfacht auf
+  // eine gleichbleibende Schrittweite (Regel finden + fortsetzen).
+  function genZahlenfolgeFrage() {
+    const schritt = rnd(2, 25), start = rnd(1, 30);
+    const folge = [start, start + schritt, start + 2 * schritt, start + 3 * schritt];
+    return { typ: 'numeric', frage: `${folge.join(', ')}, ?<br>Wie geht die Zahlenfolge weiter?`, antwort: start + 4 * schritt, hilfe: hilfeZahlenfolge() };
+  }
+
+  function hilfeZahlenfolge() {
+    const schritt = rnd(2, 20), start = rnd(1, 20);
+    const folge = [start, start + schritt, start + 2 * schritt];
+    return `<strong>Beispiel:</strong> ${folge.join(', ')}, ?<br>Finde die Regel: von einer Zahl zur nächsten wird immer ${schritt} dazugezählt.<br>Wende die Regel nochmal an: ${folge[2]} + ${schritt} = ${folge[2] + schritt}<br><strong>Nächste Zahl: ${folge[2] + schritt}</strong>`;
+  }
+
+  // ---- Vergleiche mit </=/> bei Additions-/Subtraktionsaufgaben (366+34 ? 400,
+  // 170+90 ? 60+210, ...) - wie genVergleichRechnungFrage, aber fuer +/− statt ×.
+  function genVergleichAddSubFrage() {
+    const plus = Math.random() < 0.5;
+    const a = rnd(100, 700);
+    const b = plus ? rnd(10, 400) : rnd(10, a - 10);
+    const links = plus ? a + b : a - b;
+    const zahlRechts = Math.random() < 0.5;
+    let rechts, rechtsText;
+    if (zahlRechts) {
+      rechts = links + (Math.random() < 0.3 ? 0 : (rnd(1, 8) * 10 * (Math.random() < 0.5 ? 1 : -1)));
+      rechtsText = `${rechts}`;
+    } else {
+      const plus2 = Math.random() < 0.5;
+      const c = rnd(100, 700), d = plus2 ? rnd(10, 400) : rnd(10, c - 10);
+      rechts = plus2 ? c + d : c - d;
+      rechtsText = `${c} ${plus2 ? '+' : '−'} ${d}`;
+    }
+    const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
+    return {
+      typ: 'mc',
+      frage: `${a} ${plus ? '+' : '−'} ${b} ___ ${rechtsText}`,
+      optionen: ['<', '=', '>'],
+      richtigIndex: ['<', '=', '>'].indexOf(zeichen),
+      hilfe: hilfeVergleichAddSub()
+    };
+  }
+
+  function hilfeVergleichAddSub() {
+    const a = rnd(100, 700), b = rnd(10, 400);
+    const links = a + b;
+    const rechts = links + rnd(1, 5) * 10;
+    const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
+    return `<strong>Beispiel:</strong> ${a} + ${b} ___ ${rechts}<br>Rechne die linke Seite aus: ${a} + ${b} = ${links}<br>Vergleiche mit der Zahl rechts: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
+  }
+
   // ---- Malfolgen üben: Karteikarten-Prinzip. Falsch beantwortete Aufgaben
   // kommen (dank App.startQuizSession-Option wiederholeFalsche) noch in
   // derselben Sitzung wieder dran; ueber Storage.getMalfolgenStats() merkt
@@ -1179,14 +1376,35 @@ const Mathe = (function () {
     { kategorie: 'teilervielfache', gen: genTeilerRaetselFrage },
     { kategorie: 'diagramme', gen: genDiagrammFrage },
     { kategorie: 'diagramme', gen: genStreifentabelleFrage },
-    { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage }
+    { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage },
+    // Neu am 28.08.2026 fuer die Mathearbeit "Multiplizieren und Dividieren"
+    // (siehe Hausaufgaben-Fotos) - genRundeZehnerMalFrage/genFehlenderFaktorFrage/
+    // genFehlenderTeilerDividendFrage mehrfach gelistet, da sie den Kern des
+    // Uebungsblatts treffen; genMalGeteiltKetteFrage/genDoppeltHaelfteFrage
+    // (Zusatzaufgaben auf dem Blatt) je einmal.
+    { kategorie: 'multdivrund', gen: genRundeZehnerMalFrage },
+    { kategorie: 'multdivrund', gen: genRundeZehnerMalFrage },
+    { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
+    { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
+    { kategorie: 'multdivrund', gen: genGeteiltEinfachFrage },
+    { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
+    { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
+    { kategorie: 'multdivrund', gen: genMalGeteiltKetteFrage },
+    { kategorie: 'multdivrund', gen: genDoppeltHaelfteFrage },
+    // Aus dem Wiederholungsblatt "Klasse 3" (Rechenvorteile/Zahlenfolgen/Vergleiche).
+    { kategorie: 'rechenvorteile', gen: genRechenvorteilFrage },
+    { kategorie: 'rechenvorteile', gen: genZahlenfolgeFrage },
+    { kategorie: 'rechenvorteile', gen: genVergleichAddSubFrage }
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
   // gewichtFuerStat) - "schriftlich" (Plus/Minus untereinander u.a., siehe
   // AUFGABEN_BEREICHE) bewusst hoeher, auf Ulis Wunsch, dass Max vermehrt
   // schriftlich rechnen uebt statt nur gleichverteilt ueber alle Bereiche.
-  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.8 };
+  // "multdivrund" am 28.08.2026 ebenfalls hoeher gewichtet, weil das genau
+  // das Thema von Max' Mathearbeit naechste Woche ist (siehe Hausaufgaben-
+  // Fotos) - nach der Arbeit kann dieser Wert wieder auf 1 zurueckgesetzt werden.
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.8, multdivrund: 2 };
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);
