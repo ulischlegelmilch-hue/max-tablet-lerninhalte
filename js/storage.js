@@ -197,19 +197,12 @@ const Storage = (function () {
   }
 
   // Standard-Aufgabenzahl je Fach, falls keine Regel eine eigene `anzahl`
-  // vorgibt - entspricht den bisherigen fest verdrahteten Werten (Mathe
-  // ANZAHL_GEMISCHT=20, Deutsch-Rechtschreibung ANZAHL=10, Heimatkunde
-  // anzahlProQuiz()=10), damit sich am Verhalten ohne Regeln nichts aendert.
-  const FAECHER_STANDARD_ANZAHL = { mathe: 20, deutsch: 10, heimat: 10 };
-
-  // Uli-Wunsch 28.08.2026: "wenn max die mischaufgaben macht, sollen ab jetzt
-  // pro session 10 aufgaben abgefragt werden" - bewusst FEST verdrahtet statt
-  // ueber eine weitere Tagesplan-Regel geloest, damit es WIRKLICH IMMER 10
-  // sind (Tagesplan-Chip UND manueller Start ueber das Mathe-Menue), egal was
-  // die zu diesem Zeitpunkt schon bestehende lokale Wochenregel auf dem
-  // Tablet (Mo/Mi/Fr=5, So=20, siehe getTagesplanRegeln) fuer den jeweiligen
-  // Tag vorgibt - siehe getTagesPensumAnzahl.
-  const ANZAHL_MATHE_FEST = 10;
+  // vorgibt - Mathe am 28.08.2026 von 20 auf 10 gesenkt (Uli-Wunsch: "im
+  // Moment sollte es jeden Tag 10 Aufgaben umfassen"), bewusst weiterhin NUR
+  // der Standardwert (siehe getTagesPensumAnzahl) - eine Tagesplan-Regel mit
+  // eigener `anzahl` fuer Mathe soll das wie bei jedem anderen Fach weiterhin
+  // uebersteuern koennen ("es sollte per Regel umgangen werden koennen").
+  const FAECHER_STANDARD_ANZAHL = { mathe: 10, deutsch: 10, heimat: 10 };
 
   /** Sucht in EINER Regelliste alle heute zutreffenden Regeln und liefert sie
    *  als { fach: regel }-Objekt - pro Fach gewinnt die erste passende Regel in
@@ -246,11 +239,10 @@ const Storage = (function () {
   /** Wie viele Aufgaben umfasst eine Runde des angegebenen Fachs HEUTE? Gilt
    *  unabhaengig davon, ob Max ueber den Tagesplan-Chip oder das Fach-Menue
    *  selbst startet, damit "eine Runde X" immer gleich lang ist. Ohne
-   *  passende Regel gilt der Standardwert (siehe FAECHER_STANDARD_ANZAHL).
-   *  Mathe ist seit 28.08.2026 bewusst die Ausnahme: IMMER ANZAHL_MATHE_FEST,
-   *  auch wenn eine Tagesplan-Regel fuer Mathe eine eigene `anzahl` setzt. */
+   *  passende Regel gilt der Standardwert (siehe FAECHER_STANDARD_ANZAHL) -
+   *  gilt gleichermassen fuer alle Faecher, eine Tagesplan-Regel mit eigener
+   *  `anzahl` kann das jederzeit uebersteuern. */
   function getTagesPensumAnzahl(fach) {
-    if (fach === 'mathe') return ANZAHL_MATHE_FEST;
     const regel = findeHeutigeRegelnKombiniert()[fach];
     return (regel && regel.anzahl) || FAECHER_STANDARD_ANZAHL[fach];
   }
