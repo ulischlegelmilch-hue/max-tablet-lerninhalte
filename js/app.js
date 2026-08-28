@@ -598,6 +598,11 @@ const App = (function () {
   // verarbeiteQuizAntwort gesetzt, bevor ein 2. Versuch die Eingabe ueberschreibt,
   // und landet als falscheAntwort im verlauf-Eintrag (siehe abschlussFrage).
   let ersteFalscheAntwort = null;
+  // Bei MC-Fragen zusaetzlich der Index der zuerst angetippten (falschen)
+  // Option - ermoeglicht es Papas Auswertung, die echten Antwort-Buttons mit
+  // derselben richtig/falsch-Faerbung wie auf dem Tablet nachzubauen (siehe
+  // aufgabenVerlaufHtml im Webapp-Code), statt nur Text zu zeigen.
+  let ersterGegebenerIndex = null;
 
   function renderQuestion() {
     const f = session.fragen[session.index];
@@ -606,6 +611,7 @@ const App = (function () {
     versuch = 1;
     hilfeGenutzt = false;
     ersteFalscheAntwort = null;
+    ersterGegebenerIndex = null;
 
     let bodyHtml = '';
     if (f.lesetext) {
@@ -669,7 +675,7 @@ const App = (function () {
     const korrekt = i === f.richtigIndex;
     buttons[i].classList.add(korrekt ? 'richtig' : 'falsch');
     if (!korrekt) buttons[f.richtigIndex].classList.add('richtig');
-    verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f), f.optionen[i]);
+    verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f), f.optionen[i], i);
   }
 
   function renderKeypad(f) {
@@ -703,13 +709,16 @@ const App = (function () {
 
   // Zentrale Weiche fuer JEDE Antwort (MC wie numerisch). neuerVersuch() baut
   // die Eingabe-UI (Keypad/Optionen) fuer den 2. Versuch frisch auf.
-  function verarbeiteQuizAntwort(f, korrekt, richtigeAntwort, neuerVersuch, gegebeneAntwort) {
+  function verarbeiteQuizAntwort(f, korrekt, richtigeAntwort, neuerVersuch, gegebeneAntwort, gegebenerIndex) {
     const hatHilfe = typeof f.hilfe === 'string' && f.hilfe.length > 0;
 
     // Muss VOR dem 2.-Versuch-Abzweig passieren, sonst geht die Eingabe des
     // 1. (falschen) Versuchs verloren, sobald neuerVersuch() das Keypad/die
     // Optionen fuer den 2. Versuch neu aufbaut.
-    if (!korrekt && versuch === 1) ersteFalscheAntwort = gegebeneAntwort;
+    if (!korrekt && versuch === 1) {
+      ersteFalscheAntwort = gegebeneAntwort;
+      ersterGegebenerIndex = gegebenerIndex;
+    }
 
     if (!korrekt && hatHilfe && versuch === 1) {
       versuch = 2;
@@ -766,12 +775,31 @@ const App = (function () {
     // sass, sondern auch WELCHE falsche Zahl/Option Max gegeben hat - nur bei
     // MC/numerischen Fragen sinnvoll befuellt (Malfolgen-Karteikarten haben
     // gar keine "Eingabe", siehe Mathe.bewerteMalfolgenKarte).
-    session.verlauf.push({
+    // frageHtml/lesetextHtml/typ/optionen/richtigIndex/gegebenIndex zusaetzlich
+    // seit 28.08.2026 (2. Uli-Wunsch am selben Tag: "die Aufgaben ... anklick-
+    // bar machen, sodass ich [...] die Aufgabe so sehe wie Max" - die reine
+    // Klartext-Zeile allein wirkte z.B. bei "(mit Übertrag)"/"(ohne Übertrag)"
+    // ohne die echte Formatierung/Kontext verwirrend). frageHtml ist bewusst
+    // NICHT klartextFrage(...), sondern die rohe Frage MIT <br>/<span>-
+    // Formatierung, damit Papas Auswertung sie so darstellen kann wie auf dem
+    // Tablet. Bei MC-Fragen kommen optionen/richtigIndex/gegebenIndex dazu,
+    // damit dort echte Antwort-Buttons mit derselben Faerbung nachgebaut
+    // werden koennen statt nur Text.
+    const eintrag = {
       frage: klartextFrage(f.frage),
       ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig',
       richtigeAntwort: f.typ === 'mc' ? f.optionen[f.richtigIndex] : f.antwort,
-      falscheAntwort: ersteFalscheAntwort
-    });
+      falscheAntwort: ersteFalscheAntwort,
+      frageHtml: f.frage,
+      typ: f.typ
+    };
+    if (f.lesetext) eintrag.lesetextHtml = f.lesetext;
+    if (f.typ === 'mc') {
+      eintrag.optionen = f.optionen;
+      eintrag.richtigIndex = f.richtigIndex;
+      if (typeof ersterGegebenerIndex === 'number') eintrag.gegebenIndex = ersterGegebenerIndex;
+    }
+    session.verlauf.push(eintrag);
     if (!giltAlsGewusst && session.wiederholeFalsche) {
       const neuePosition = Math.min(session.fragen.length, session.index + 4);
       // Fragen mit neueVersion() (z.B. Tagesaufgabe) kommen mit NEUEN Zahlen
