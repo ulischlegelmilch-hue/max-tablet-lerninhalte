@@ -348,8 +348,16 @@ const Mathe = (function () {
     const stimmt = Math.random() < 0.5;
     let angezeigt = echtesErgebnis;
     if (!stimmt) {
+      // Abweichung bewusst so gewaehlt, dass der ANGEZEIGTE (falsche) Wert
+      // trotzdem < 1000 bleibt - fand das Schwierigkeits-Audit (siehe
+      // genVergleichAddSubFrage weiter oben, gleicher Abend): bei echtesErgebnis
+      // nahe 999 konnte die alte Abweichung von bis zu 90 einen vierstelligen
+      // "angezeigten" Wert erzeugen.
       const abweichung = rnd(1, 9) * (Math.random() < 0.5 ? 10 : 1);
-      angezeigt = echtesErgebnis + (Math.random() < 0.5 ? abweichung : -abweichung);
+      const raufGeht = echtesErgebnis + abweichung < 1000;
+      const runterGeht = echtesErgebnis - abweichung >= 0;
+      const raufWaehlen = raufGeht && (!runterGeht || Math.random() < 0.5);
+      angezeigt = raufWaehlen ? echtesErgebnis + abweichung : echtesErgebnis - abweichung;
     }
     const zeichen = plus ? '+' : '−';
     const a2 = rnd(200, 700), b2 = plus ? rnd(100, 999 - a2) : rnd(100, a2 - 10);
@@ -654,7 +662,7 @@ const Mathe = (function () {
 
   // ---- Fehlender Teiler/Dividend (360 : ▢ = 6, ▢ : 80 = 3, ...) - der
   // Quotient ist immer bekannt, Teiler ODER Dividend fehlt (Foto, Aufgabe 4).
-  const TEILER_OPTIONEN = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90];
+  const TEILER_OPTIONEN = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90, 24];
 
   function genFehlenderTeilerDividendFrage() {
     const teiler = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
@@ -1138,20 +1146,34 @@ const Mathe = (function () {
 
   // ---- Vergleiche mit </=/> bei Additions-/Subtraktionsaufgaben (366+34 ? 400,
   // 170+90 ? 60+210, ...) - wie genVergleichRechnungFrage, aber fuer +/− statt ×.
+  // Alle drei Zahlen (links, rechts als Zahl ODER als zweite Rechnung) per
+  // Wiederholung auf < 1000 begrenzt - fand das automatische Schwierigkeits-
+  // Audit (tests/pruefe_matheaufgaben_schwierigkeit.js, 01.09.2026) direkt
+  // nach den vier Live-Vorfaellen desselben Abends: "639 − 362 ___ 337" sieht
+  // harmlos aus, aber ${a}+${b} allein konnte schon bis 1100 gehen.
   function genVergleichAddSubFrage() {
-    const plus = Math.random() < 0.5;
-    const a = rnd(100, 700);
-    const b = plus ? rnd(10, 400) : rnd(10, a - 10);
-    const links = plus ? a + b : a - b;
+    let plus, a, b, links;
+    do {
+      plus = Math.random() < 0.5;
+      a = rnd(100, 700);
+      b = plus ? rnd(10, 400) : rnd(10, a - 10);
+      links = plus ? a + b : a - b;
+    } while (links >= 1000);
     const zahlRechts = Math.random() < 0.5;
     let rechts, rechtsText;
     if (zahlRechts) {
-      rechts = links + (Math.random() < 0.3 ? 0 : (rnd(1, 8) * 10 * (Math.random() < 0.5 ? 1 : -1)));
+      do {
+        rechts = links + (Math.random() < 0.3 ? 0 : (rnd(1, 8) * 10 * (Math.random() < 0.5 ? 1 : -1)));
+      } while (rechts < 0 || rechts >= 1000);
       rechtsText = `${rechts}`;
     } else {
-      const plus2 = Math.random() < 0.5;
-      const c = rnd(100, 700), d = plus2 ? rnd(10, 400) : rnd(10, c - 10);
-      rechts = plus2 ? c + d : c - d;
+      let plus2, c, d;
+      do {
+        plus2 = Math.random() < 0.5;
+        c = rnd(100, 700);
+        d = plus2 ? rnd(10, 400) : rnd(10, c - 10);
+        rechts = plus2 ? c + d : c - d;
+      } while (rechts >= 1000);
       rechtsText = `${c} ${plus2 ? '+' : '−'} ${d}`;
     }
     const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
@@ -1165,9 +1187,12 @@ const Mathe = (function () {
   }
 
   function hilfeVergleichAddSub() {
-    const a = rnd(100, 700), b = rnd(10, 400);
-    const links = a + b;
-    const rechts = links + rnd(1, 5) * 10;
+    let a, b, links, rechts;
+    do {
+      a = rnd(100, 700); b = rnd(10, 400);
+      links = a + b;
+      rechts = links + rnd(1, 5) * 10;
+    } while (rechts >= 1000);
     const zeichen = links < rechts ? '<' : links > rechts ? '>' : '=';
     return `<strong>Beispiel:</strong> ${a} + ${b} ___ ${rechts}<br>Rechne die linke Seite aus: ${a} + ${b} = ${links}<br>Vergleiche mit der Zahl rechts: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
   }
