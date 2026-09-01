@@ -576,13 +576,25 @@ const Mathe = (function () {
   // da genZehnerzahlenFrage oben nur "einstellig · Zehnerzahl" abdeckt.
   // Ergaenzt am 28.08.2026 fuer die Mathearbeit ueber "Multiplizieren und
   // Dividieren" (siehe Hausaufgaben-Foto: 20·30=600, 30·30=900, 50·10=500 ...).
+  //
+  // rnd(2,9) fuer BEIDE Faktoren (01.09.2026 urspruenglich so) konnte bis
+  // 90·90=8100 erzeugen - auf Uli-Feedback korrigiert: "er rechnet doch noch
+  // nicht mit 1000ern". Per-Zufallswahl-mit-Wiederholung (statt fixer
+  // Bereichseinschraenkung) gewaehlt, damit die Vielfalt nicht zu stark leidet
+  // und weiterhin auch "×10" vorkommt (wie im Hausaufgaben-Beispiel "50·10=500").
+  function zweiZehnerfaktorenUnter1000() {
+    let aZehn, bZehn;
+    do { aZehn = rnd(1, 9) * 10; bZehn = rnd(1, 9) * 10; } while (aZehn * bZehn >= 1000);
+    return [aZehn, bZehn];
+  }
+
   function genRundeZehnerMalFrage() {
-    const aZehn = rnd(2, 9) * 10, bZehn = rnd(2, 9) * 10;
+    const [aZehn, bZehn] = zweiZehnerfaktorenUnter1000();
     return { typ: 'numeric', frage: `${aZehn} · ${bZehn} = ?`, antwort: aZehn * bZehn, hilfe: hilfeRundeZehnerMal() };
   }
 
   function hilfeRundeZehnerMal() {
-    const aZehn = rnd(2, 9) * 10, bZehn = rnd(2, 9) * 10;
+    const [aZehn, bZehn] = zweiZehnerfaktorenUnter1000();
     const a = aZehn / 10, b = bZehn / 10;
     return `<strong>Beispiel:</strong> ${aZehn} · ${bZehn} = ?<br>Rechne erst ohne die Nullen: ${a} · ${b} = ${a * b}<br>Dann hänge beide Nullen wieder an: ${a * b}00<br><strong>Ergebnis: ${aZehn * bZehn}</strong>`;
   }
@@ -599,9 +611,21 @@ const Mathe = (function () {
   // nach der genMalGeteiltKetteFrage-Korrektur derselbe Grundfehler: zu breit
   // gestreute Zahlenraeume ohne zu pruefen, ob die noetige RUECKWAERTS-Rechnung
   // (hier: Division durch den bekannten Faktor) noch 4.-Klasse-Niveau ist.
+  // bekannterFaktor/fehlenderFaktor konnten beide Zehnerzahlen sein (bis
+  // 90·90=8100) - auf Uli-Feedback 01.09.2026 ("er rechnet doch noch nicht mit
+  // 1000ern") per Wiederholung auf Produkt < 1000 begrenzt, gleiche Technik
+  // wie bei genRundeZehnerMalFrage oben.
+  function bekannterUndFehlenderFaktorUnter1000() {
+    let bekannterFaktor, fehlenderFaktor;
+    do {
+      bekannterFaktor = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
+      fehlenderFaktor = rnd(2, 9) * 10;
+    } while (bekannterFaktor * fehlenderFaktor >= 1000);
+    return [bekannterFaktor, fehlenderFaktor];
+  }
+
   function genFehlenderFaktorFrage() {
-    const bekannterFaktor = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
-    const fehlenderFaktor = rnd(2, 9) * 10;
+    const [bekannterFaktor, fehlenderFaktor] = bekannterUndFehlenderFaktorUnter1000();
     const produkt = bekannterFaktor * fehlenderFaktor;
     const ersterFehlt = Math.random() < 0.5;
     const frageText = ersterFehlt ? `▢ · ${bekannterFaktor} = ${produkt}` : `${bekannterFaktor} · ▢ = ${produkt}`;
@@ -609,8 +633,7 @@ const Mathe = (function () {
   }
 
   function hilfeFehlenderFaktor() {
-    const bekannterFaktor = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
-    const fehlenderFaktor = rnd(2, 9) * 10;
+    const [bekannterFaktor, fehlenderFaktor] = bekannterUndFehlenderFaktorUnter1000();
     const produkt = bekannterFaktor * fehlenderFaktor;
     return `<strong>Beispiel:</strong> ${bekannterFaktor} · ▢ = ${produkt}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${bekannterFaktor} = ${fehlenderFaktor}<br><strong>Fehlende Zahl: ${fehlenderFaktor}</strong>`;
   }
@@ -704,18 +727,19 @@ const Mathe = (function () {
   // Diagramme auf dem Hausaufgaben-Blatt) - erster Wurf liess beliebige
   // Faktoren 2-9 UND bis zu 4 Schritte zu (z.B. "45 · 10 · 4 : 9 · 2 = ?" mit
   // Zwischenwert 1800 und einer Division, die exakt aufgehen musste), von Uli
-  // live am Tablet als "viel zu schwer" zurueckgemeldet (01.09.2026). Nach der
-  // Mathearbeit koennte man wieder vorsichtig mehr Vielfalt zulassen, aber
-  // dann in kleinen Schritten UND selbst durchgerechnet testen statt blind
-  // Bereiche zu erweitern.
+  // live am Tablet als "viel zu schwer" zurueckgemeldet (01.09.2026). Deckel
+  // fuer ×10/×100 danach zunaechst auf 9000 gesetzt (nur die Schrittanzahl/
+  // Faktorenvielfalt korrigiert, die absolute Obergrenze nicht bedacht) - auf
+  // weiteres Uli-Feedback ("er rechnet doch noch nicht mit 1000ern") auf 999
+  // gesenkt, damit KEIN Zwischen- oder Endwert der Kette vierstellig wird.
   function genMalGeteiltKetteFrage() {
     const start = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
     let wert = start;
     const schritte = [];
     for (let i = 0; i < 2; i++) {
       const moeglichkeiten = [];
-      if (wert * 10 <= 9000) moeglichkeiten.push({ text: '· 10', neu: wert * 10 });
-      if (wert * 100 <= 9000) moeglichkeiten.push({ text: '· 100', neu: wert * 100 });
+      if (wert * 10 <= 999) moeglichkeiten.push({ text: '· 10', neu: wert * 10 });
+      if (wert * 100 <= 999) moeglichkeiten.push({ text: '· 100', neu: wert * 100 });
       if (wert % 10 === 0 && wert / 10 >= 1) moeglichkeiten.push({ text: ': 10', neu: wert / 10 });
       if (wert % 100 === 0 && wert / 100 >= 1) moeglichkeiten.push({ text: ': 100', neu: wert / 100 });
       const wahl = moeglichkeiten[rnd(0, moeglichkeiten.length - 1)];
@@ -734,8 +758,12 @@ const Mathe = (function () {
   function genDoppeltHaelfteFrage() {
     const doppelt = Math.random() < 0.5;
     if (doppelt) {
-      const a = rnd(2, 9) * 10, b = rnd(2, 9);
-      const produkt = a * b;
+      // Wiederholung bis Produkt·2 < 1000 - unbegrenzt (a bis 90, b bis 9)
+      // konnte das verdoppelte Ergebnis auf bis zu 1620 kommen, auf Uli-
+      // Feedback 01.09.2026 ("er rechnet doch noch nicht mit 1000ern")
+      // begrenzt, gleiche Technik wie bei genRundeZehnerMalFrage oben.
+      let a, b, produkt;
+      do { a = rnd(2, 9) * 10; b = rnd(2, 9); produkt = a * b; } while (produkt * 2 >= 1000);
       return { typ: 'numeric', frage: `Welche Zahl ist das Doppelte des Produktes aus ${a} und ${b}?`, antwort: produkt * 2, hilfe: hilfeDoppeltHaelfte() };
     }
     // q bewusst auf 2/4/6/8/10 begrenzt (nicht bis 18) - sonst muss Max z.B.
@@ -749,7 +777,8 @@ const Mathe = (function () {
 
   function hilfeDoppeltHaelfte() {
     if (Math.random() < 0.5) {
-      const a = rnd(2, 9) * 10, b = rnd(2, 9), produkt = a * b;
+      let a, b, produkt;
+      do { a = rnd(2, 9) * 10; b = rnd(2, 9); produkt = a * b; } while (produkt * 2 >= 1000);
       return `<strong>Beispiel:</strong> Doppeltes des Produktes aus ${a} und ${b}?<br>Erst das Produkt ausrechnen: ${a} · ${b} = ${produkt}<br>Dann verdoppeln (·2): ${produkt} · 2 = ${produkt * 2}<br><strong>Ergebnis: ${produkt * 2}</strong>`;
     }
     const b = rnd(2, 9) * 10, q = rnd(1, 5) * 2, a = b * q;
