@@ -641,10 +641,14 @@ const Mathe = (function () {
   // Mehrfachauswahl, da 'numeric' nur eine einzelne Zahl abfragen kann. Ergaenzt
   // am 01.09.2026 fuer Max' Mathearbeit morgen (Hausaufgaben-Foto "Dividieren
   // mit Rest") - Teiler bewusst bis 10 (nicht nur kleines Einmaleins), da das
-  // Blatt u.a. ":10"-Aufgaben mit Rest zeigt.
+  // Blatt u.a. ":10"-Aufgaben mit Rest zeigt. Teiler/Quotient-Untergrenze
+  // bewusst auf 3 gesetzt (statt 2) - auf Uli-Wunsch "nicht die ganz einfachen,
+  // sondern die schwereren" sollen zweistellige Dividenden mit echtem
+  // Kopfrechen-Aufwand ueberwiegen, nicht der Trivialfall Teiler=2 (Rest kann
+  // dort nur 1 sein).
   function genDivisionMitRestFrage() {
-    const teiler = rnd(2, 10);
-    const quotient = rnd(2, 9);
+    const teiler = rnd(3, 10);
+    const quotient = rnd(3, 9);
     const rest = rnd(1, teiler - 1);
     const dividend = teiler * quotient + rest;
     return { typ: 'mc', frage: `${dividend} : ${teiler} = ?`, ...divisionMitRestOptionen(teiler, quotient, rest), hilfe: hilfeDivisionMitRest() };
@@ -672,8 +676,8 @@ const Mathe = (function () {
   }
 
   function hilfeDivisionMitRest() {
-    const teiler = rnd(2, 10);
-    const quotient = rnd(2, 9);
+    const teiler = rnd(3, 10);
+    const quotient = rnd(3, 9);
     const rest = rnd(1, teiler - 1);
     const dividend = teiler * quotient + rest;
     return `<strong>Beispiel:</strong> ${dividend} : ${teiler} = ?<br>Suche das größte Vielfache von ${teiler}, das nicht größer als ${dividend} ist: ${teiler} · ${quotient} = ${dividend - rest}<br>Rest: ${dividend} - ${dividend - rest} = ${rest}<br>Probe (Umkehraufgabe): ${quotient} · ${teiler} + ${rest} = ${dividend}<br><strong>Ergebnis: ${quotient} R ${rest}</strong>`;
@@ -1409,8 +1413,12 @@ const Mathe = (function () {
     { kategorie: 'schriftlich', gen: genStimmtDasFrage },
     { kategorie: 'schriftlich', gen: genSachaufgabeSubtraktion },
     { kategorie: 'schriftlich', gen: genEinkaufSumme },
-    { kategorie: 'zehnhundert', gen: genZehnHundertFrage },
-    { kategorie: 'zehnhundert', gen: genZehnHundertFrage },
+    // genZehnHundertFrage (nur einstellig ·10/·100 bzw. Umkehrung, reines
+    // "Null anhaengen") am 01.09.2026 auf Uli-Wunsch entfernt: "nicht die ganz
+    // einfachen, sondern die schwereren, damit es effektiv ist" - laut
+    // Hausaufgaben-Fotos beherrscht Max diese Stufe schon sicher. Nach der
+    // Mathearbeit morgen (02.09.2026) kann sie wieder rein, falls fuer den
+    // laufenden Betrieb (nicht nur Pruefungsvorbereitung) gewuenscht.
     { kategorie: 'zehnhundert', gen: genZehnerzahlenFrage },
     { kategorie: 'zehnhundert', gen: genVergleichRechnungFrage },
     { kategorie: 'zehnhundert', gen: genZahlZerlegenFrage },
@@ -1436,7 +1444,9 @@ const Mathe = (function () {
     { kategorie: 'multdivrund', gen: genRundeZehnerMalFrage },
     { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
     { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
-    { kategorie: 'multdivrund', gen: genGeteiltEinfachFrage },
+    // genGeteiltEinfachFrage (kleines Einmaleins rueckwaerts, 81:9 ohne Rest)
+    // am 01.09.2026 ebenfalls entfernt, gleicher Grund wie bei genZehnHundertFrage
+    // oben - zu einfach fuer effektive Pruefungsvorbereitung.
     { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
     { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
     { kategorie: 'multdivrund', gen: genMalGeteiltKetteFrage },
