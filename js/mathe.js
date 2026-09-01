@@ -637,42 +637,44 @@ const Mathe = (function () {
   }
 
   // ---- Division mit Rest (14:4=3R2, 56:10=5R6, ...) - fehlte bisher komplett,
-  // genGeteiltEinfachFrage oben deckt nur GLATTE Teilung ab. Format "Q R R" als
-  // Mehrfachauswahl, da 'numeric' nur eine einzelne Zahl abfragen kann. Ergaenzt
-  // am 01.09.2026 fuer Max' Mathearbeit morgen (Hausaufgaben-Foto "Dividieren
-  // mit Rest") - Teiler bewusst bis 10 (nicht nur kleines Einmaleins), da das
-  // Blatt u.a. ":10"-Aufgaben mit Rest zeigt. Teiler/Quotient-Untergrenze
-  // bewusst auf 3 gesetzt (statt 2) - auf Uli-Wunsch "nicht die ganz einfachen,
-  // sondern die schwereren" sollen zweistellige Dividenden mit echtem
-  // Kopfrechen-Aufwand ueberwiegen, nicht der Trivialfall Teiler=2 (Rest kann
-  // dort nur 1 sein).
-  function genDivisionMitRestFrage() {
-    const teiler = rnd(3, 10);
-    const quotient = rnd(3, 9);
-    const rest = rnd(1, teiler - 1);
+  // genGeteiltEinfachFrage oben deckt nur GLATTE Teilung ab. Ergaenzt am
+  // 01.09.2026 fuer Max' Mathearbeit morgen (Hausaufgaben-Foto "Dividieren mit
+  // Rest") - Teiler bewusst bis 10 (nicht nur kleines Einmaleins), da das Blatt
+  // u.a. ":10"-Aufgaben mit Rest zeigt. Teiler/Quotient-Untergrenze bewusst auf
+  // 3 gesetzt (statt 2) - auf Uli-Wunsch "nicht die ganz einfachen, sondern die
+  // schwereren" sollen zweistellige Dividenden mit echtem Kopfrechen-Aufwand
+  // ueberwiegen, nicht der Trivialfall Teiler=2 (Rest kann dort nur 1 sein).
+  //
+  // Erster Wurf fragte das Ergebnis "Q R R" als Mehrfachauswahl ab (da 'numeric'
+  // nur eine einzelne Zahl abfragen kann) - auf Uli-Feedback direkt danach
+  // korrigiert: "ich haette die Aufgaben aber nicht so, dass Max Antworten
+  // vorgegeben hat" (die Optionen liessen sich zu leicht erraten/eingrenzen).
+  // Die App hat keine UI fuer eine kombinierte "Q R R"-Zahleneingabe (Keypad in
+  // app.js liefert nur eine einzelne Zahl pro Frage) - daher jetzt ZWEI
+  // eigenstaendige Fragen mit freier Zifferneingabe statt einer kombinierten:
+  // einmal das Ergebnis ohne Rest, einmal nur der Rest. Beide zusammen decken
+  // exakt dieselbe Rechenfertigkeit ab, ohne dass irgendwo eine Antwort
+  // vorgegeben wird.
+  function genDivisionRestErgebnisFrage() {
+    const teiler = rnd(3, 10), quotient = rnd(3, 9), rest = rnd(1, teiler - 1);
     const dividend = teiler * quotient + rest;
-    return { typ: 'mc', frage: `${dividend} : ${teiler} = ?`, ...divisionMitRestOptionen(teiler, quotient, rest), hilfe: hilfeDivisionMitRest() };
+    return {
+      typ: 'numeric',
+      frage: `${dividend} : ${teiler} = ? Rest ...<br>Wie oft passt ${teiler} komplett in ${dividend}? (Rest erstmal weglassen)`,
+      antwort: quotient,
+      hilfe: hilfeDivisionMitRest()
+    };
   }
 
-  // Baut die 3 Antwortoptionen samt richtigem Index - typische Max-Fehler als
-  // Distraktoren (Rest um 1 daneben, Quotient um 1 daneben, Rest = Teiler).
-  function divisionMitRestOptionen(teiler, quotient, rest) {
-    const richtig = `${quotient} R ${rest}`;
-    const moeglich = [];
-    if (rest + 1 < teiler) moeglich.push(`${quotient} R ${rest + 1}`);
-    if (rest - 1 >= 0) moeglich.push(`${quotient} R ${rest - 1}`);
-    moeglich.push(`${quotient + 1} R ${rest}`);
-    if (quotient - 1 >= 1) moeglich.push(`${quotient - 1} R ${rest}`);
-    moeglich.push(`${quotient} R ${teiler}`);
-    const kandidaten = new Set([richtig]);
-    const pool = shuffle(moeglich.filter(m => !kandidaten.has(m)));
-    while (kandidaten.size < 3 && pool.length) kandidaten.add(pool.pop());
-    while (kandidaten.size < 3) {
-      const kand = `${Math.max(1, quotient + rnd(-1, 1))} R ${rnd(0, teiler)}`;
-      if (kand !== richtig) kandidaten.add(kand);
-    }
-    const optionen = shuffle([...kandidaten]);
-    return { optionen, richtigIndex: optionen.indexOf(richtig) };
+  function genDivisionRestRestFrage() {
+    const teiler = rnd(3, 10), quotient = rnd(3, 9), rest = rnd(1, teiler - 1);
+    const dividend = teiler * quotient + rest;
+    return {
+      typ: 'numeric',
+      frage: `${dividend} : ${teiler} = ${quotient} Rest ?<br>Wie groß ist der Rest?`,
+      antwort: rest,
+      hilfe: hilfeDivisionMitRest()
+    };
   }
 
   function hilfeDivisionMitRest() {
@@ -1407,7 +1409,11 @@ const Mathe = (function () {
     { kategorie: 'schriftlich', gen: genSubtraktionOhneUebertrag },
     { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
     { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
-    { kategorie: 'schriftlich', gen: genRechenketteFrage },
+    // genRechenketteFrage (3-4-gliedrige Kette mit dreistelligen Zahlen, z.B.
+    // "329 - 73 + 216 + 213 + 194 = ?") am 01.09.2026 auf Uli-Feedback entfernt,
+    // live am Tablet beobachtet: "solche Aufgaben sollten nicht vorkommen, die
+    // sind zu schwer" - zu lang/fehleranfaellig und ausserdem kein Thema der
+    // morgigen Mathearbeit. Kann nach der Arbeit wieder rein, falls gewuenscht.
     { kategorie: 'schriftlich', gen: genFehlendeZifferAddition },
     { kategorie: 'schriftlich', gen: genFehlendeZifferSubtraktion },
     { kategorie: 'schriftlich', gen: genStimmtDasFrage },
@@ -1425,9 +1431,10 @@ const Mathe = (function () {
     // Neu am 01.09.2026 fuer Max' Mathearbeit morgen (Thema laut Hausaufgaben-
     // Foto "Dividieren mit Rest") - mehrfach gelistet, da es der Kern des
     // Uebungsblatts ist und komplett neu (vorher gab's nur glatte Teilung).
-    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
-    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
-    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
+    { kategorie: 'divisionrest', gen: genDivisionRestErgebnisFrage },
+    { kategorie: 'divisionrest', gen: genDivisionRestErgebnisFrage },
+    { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
+    { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
     { kategorie: 'teilervielfache', gen: genVielfachesFrage },
     { kategorie: 'teilervielfache', gen: genTeilerFrage },
     { kategorie: 'teilervielfache', gen: genGemeinsamesVielfachesFrage },
