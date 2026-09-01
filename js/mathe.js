@@ -587,13 +587,20 @@ const Mathe = (function () {
     return `<strong>Beispiel:</strong> ${aZehn} · ${bZehn} = ?<br>Rechne erst ohne die Nullen: ${a} · ${b} = ${a * b}<br>Dann hänge beide Nullen wieder an: ${a * b}00<br><strong>Ergebnis: ${aZehn * bZehn}</strong>`;
   }
 
-  // ---- Fehlender Faktor (42 · ▢ = 420, ▢ · 30 = 900, ...) - ein Faktor ist
-  // eine "nette" zweistellige Zahl, der andere eine Zehnerzahl, beide
-  // Positionen koennen fehlen (siehe Hausaufgaben-Foto, Aufgabe 2).
-  const NETTE_ZWEISTELLIGE = [10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 32, 35, 36, 40, 42, 45, 48, 49, 50, 54, 56, 60, 63, 64, 70, 72, 80, 81, 90, 99];
-
+  // ---- Fehlender Faktor (7 · ▢ = 210, ▢ · 30 = 900, ...) - der bekannte
+  // Faktor ist entweder einstellig ODER eine Zehnerzahl (NIE eine beliebige
+  // zweistellige Zahl), damit sich die Umkehr-Division immer per "Null
+  // wegstreichen"-Trick oder kleinem Einmaleins loesen laesst.
+  //
+  // Erster Wurf zog den bekannten Faktor aus einer Liste beliebiger
+  // zweistelliger "netter" Zahlen (10-99, z.B. 24, 63, 81) - das erzeugte u.a.
+  // "▢ · 24 = 720" (720 : 24 im Kopf), von Uli live am Tablet als "viel zu
+  // schwer" zurueckgemeldet ("er ist in der 4. Klasse", 01.09.2026). Direkt
+  // nach der genMalGeteiltKetteFrage-Korrektur derselbe Grundfehler: zu breit
+  // gestreute Zahlenraeume ohne zu pruefen, ob die noetige RUECKWAERTS-Rechnung
+  // (hier: Division durch den bekannten Faktor) noch 4.-Klasse-Niveau ist.
   function genFehlenderFaktorFrage() {
-    const bekannterFaktor = NETTE_ZWEISTELLIGE[rnd(0, NETTE_ZWEISTELLIGE.length - 1)];
+    const bekannterFaktor = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
     const fehlenderFaktor = rnd(2, 9) * 10;
     const produkt = bekannterFaktor * fehlenderFaktor;
     const ersterFehlt = Math.random() < 0.5;
@@ -602,7 +609,7 @@ const Mathe = (function () {
   }
 
   function hilfeFehlenderFaktor() {
-    const bekannterFaktor = NETTE_ZWEISTELLIGE[rnd(0, NETTE_ZWEISTELLIGE.length - 1)];
+    const bekannterFaktor = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
     const fehlenderFaktor = rnd(2, 9) * 10;
     const produkt = bekannterFaktor * fehlenderFaktor;
     return `<strong>Beispiel:</strong> ${bekannterFaktor} · ▢ = ${produkt}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${bekannterFaktor} = ${fehlenderFaktor}<br><strong>Fehlende Zahl: ${fehlenderFaktor}</strong>`;
@@ -693,19 +700,24 @@ const Mathe = (function () {
 
   // ---- Rechenkette mit Malnehmen/Teilen (56 ·10 :8 ·3 :70 = ?) - wie
   // genRechenketteFrage, aber mit ×/÷ statt +/− (Foto, Aufgabe 5).
+  // Bewusst NUR ×10/×100/:10/:100 verkettet (2 Schritte, wie die Blumen-
+  // Diagramme auf dem Hausaufgaben-Blatt) - erster Wurf liess beliebige
+  // Faktoren 2-9 UND bis zu 4 Schritte zu (z.B. "45 · 10 · 4 : 9 · 2 = ?" mit
+  // Zwischenwert 1800 und einer Division, die exakt aufgehen musste), von Uli
+  // live am Tablet als "viel zu schwer" zurueckgemeldet (01.09.2026). Nach der
+  // Mathearbeit koennte man wieder vorsichtig mehr Vielfalt zulassen, aber
+  // dann in kleinen Schritten UND selbst durchgerechnet testen statt blind
+  // Bereiche zu erweitern.
   function genMalGeteiltKetteFrage() {
-    const start = rnd(2, 90);
+    const start = Math.random() < 0.5 ? rnd(2, 9) : rnd(2, 9) * 10;
     let wert = start;
     const schritte = [];
-    const anzahlSchritte = rnd(3, 4);
-    for (let i = 0; i < anzahlSchritte; i++) {
+    for (let i = 0; i < 2; i++) {
       const moeglichkeiten = [];
-      for (const k of [2, 3, 4, 5, 6, 7, 8, 9, 10]) {
-        if (wert * k <= 2000) moeglichkeiten.push({ text: `· ${k}`, neu: wert * k });
-      }
-      for (let k = 2; k <= 10; k++) {
-        if (wert % k === 0 && wert / k >= 2) moeglichkeiten.push({ text: `: ${k}`, neu: wert / k });
-      }
+      if (wert * 10 <= 9000) moeglichkeiten.push({ text: '· 10', neu: wert * 10 });
+      if (wert * 100 <= 9000) moeglichkeiten.push({ text: '· 100', neu: wert * 100 });
+      if (wert % 10 === 0 && wert / 10 >= 1) moeglichkeiten.push({ text: ': 10', neu: wert / 10 });
+      if (wert % 100 === 0 && wert / 100 >= 1) moeglichkeiten.push({ text: ': 100', neu: wert / 100 });
       const wahl = moeglichkeiten[rnd(0, moeglichkeiten.length - 1)];
       schritte.push(wahl.text);
       wert = wahl.neu;
@@ -714,8 +726,8 @@ const Mathe = (function () {
   }
 
   function hilfeMalGeteiltKette() {
-    const s0 = rnd(2, 9), s1 = s0 * 10, s2 = s1 / 2;
-    return `<strong>Beispiel:</strong> ${s0} · 10 : 2 = ?<br>Rechne Schritt für Schritt von links nach rechts:<br>${s0} · 10 = ${s1}<br>${s1} : 2 = ${s2}<br><strong>Ergebnis: ${s2}</strong>`;
+    const s0 = rnd(2, 9), s1 = s0 * 10, s2 = s1 * 10;
+    return `<strong>Beispiel:</strong> ${s0} · 10 · 10 = ?<br>Rechne Schritt für Schritt von links nach rechts:<br>${s0} · 10 = ${s1}<br>${s1} · 10 = ${s2}<br><strong>Ergebnis: ${s2}</strong>`;
   }
 
   // ---- Doppeltes/Hälfte von Produkt/Quotient (Foto, Aufgabe 6) ----
@@ -726,7 +738,11 @@ const Mathe = (function () {
       const produkt = a * b;
       return { typ: 'numeric', frage: `Welche Zahl ist das Doppelte des Produktes aus ${a} und ${b}?`, antwort: produkt * 2, hilfe: hilfeDoppeltHaelfte() };
     }
-    const b = rnd(2, 9) * 10, q = rnd(2, 9) * 2;
+    // q bewusst auf 2/4/6/8/10 begrenzt (nicht bis 18) - sonst muss Max z.B.
+    // 1620 : 90 rechnen (= 162 : 9 = 18, kein Einmaleins-Faktum mehr, siehe
+    // Uli-Feedback zu genFehlenderFaktorFrage weiter oben, gleicher Fehler).
+    // So bleibt a : b immer ein Wert bis 10, per "Null wegstreichen" loesbar.
+    const b = rnd(2, 9) * 10, q = rnd(1, 5) * 2;
     const a = b * q;
     return { typ: 'numeric', frage: `Welche Zahl ist die Hälfte des Quotienten aus ${a} und ${b}?`, antwort: q / 2, hilfe: hilfeDoppeltHaelfte() };
   }
@@ -736,7 +752,7 @@ const Mathe = (function () {
       const a = rnd(2, 9) * 10, b = rnd(2, 9), produkt = a * b;
       return `<strong>Beispiel:</strong> Doppeltes des Produktes aus ${a} und ${b}?<br>Erst das Produkt ausrechnen: ${a} · ${b} = ${produkt}<br>Dann verdoppeln (·2): ${produkt} · 2 = ${produkt * 2}<br><strong>Ergebnis: ${produkt * 2}</strong>`;
     }
-    const b = rnd(2, 9) * 10, q = rnd(2, 9) * 2, a = b * q;
+    const b = rnd(2, 9) * 10, q = rnd(1, 5) * 2, a = b * q;
     return `<strong>Beispiel:</strong> Hälfte des Quotienten aus ${a} und ${b}?<br>Erst den Quotienten ausrechnen: ${a} : ${b} = ${q}<br>Dann halbieren (:2): ${q} : 2 = ${q / 2}<br><strong>Ergebnis: ${q / 2}</strong>`;
   }
 
