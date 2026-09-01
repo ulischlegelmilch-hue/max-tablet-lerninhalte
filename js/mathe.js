@@ -548,13 +548,19 @@ const Mathe = (function () {
     return `<strong>Beispiel:</strong> ${a} · ${b} ___ ${c} · ${d}<br>Hier stehen auf beiden Seiten Rechnungen - du musst BEIDE ausrechnen: ${a} · ${b} = ${links}, ${c} · ${d} = ${rechts}<br>Jetzt vergleiche die Zahlen: ${links} ${zeichen} ${rechts}<br><strong>Richtiges Zeichen: ${zeichen}</strong>`;
   }
 
-  // Zahl in ein Produkt mit einer Zehnerzahl zerlegen: 420 = ▢ · 60
+  // Zahl in ein Produkt mit einer Zehnerzahl zerlegen: ▢ · 60 = 420
+  // Frage bewusst als "▢ · Zehnerzahl = Ergebnis" (nicht umgekehrt) - auf
+  // Uli-Feedback 01.09.2026 ("die Aufgaben ... sind verdreht, das Ergebnis
+  // kommt zuerst") korrigiert: vorher stand hier "produkt = ▢ · faktorZehn",
+  // also das Ergebnis VOR der Rechnung, anders als bei allen Geschwister-
+  // Aufgaben (genFehlenderFaktorFrage/genFehlenderTeilerDividendFrage), die
+  // konsequent "Rechnung = Ergebnis" schreiben.
   function genZahlZerlegenFrage() {
     const faktorKlein = rnd(2, 9), faktorZehn = rnd(2, 9) * 10;
     const produkt = faktorKlein * faktorZehn;
     return {
       typ: 'numeric',
-      frage: `${produkt} = ▢ · ${faktorZehn}.<br>Welche Zahl fehlt?`,
+      frage: `▢ · ${faktorZehn} = ${produkt}.<br>Welche Zahl fehlt?`,
       antwort: faktorKlein,
       hilfe: hilfeZahlZerlegen()
     };
@@ -563,7 +569,7 @@ const Mathe = (function () {
   function hilfeZahlZerlegen() {
     const faktorKlein = rnd(2, 9), faktorZehn = rnd(2, 9) * 10;
     const produkt = faktorKlein * faktorZehn;
-    return `<strong>Beispiel:</strong> ${produkt} = ▢ · ${faktorZehn}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${faktorZehn} = ${faktorKlein}<br><strong>Fehlende Zahl: ${faktorKlein}</strong>`;
+    return `<strong>Beispiel:</strong> ▢ · ${faktorZehn} = ${produkt}.<br>Rechne rückwärts mit Teilen: ${produkt} : ${faktorZehn} = ${faktorKlein}<br><strong>Fehlende Zahl: ${faktorKlein}</strong>`;
   }
 
   // ---- Zehnerzahl mal Zehnerzahl (20 · 30, 50 · 10, ...) - eigener Bereich,
