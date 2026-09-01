@@ -636,6 +636,49 @@ const Mathe = (function () {
     return `<strong>Beispiel:</strong> ${dividend} : ▢ = ${quotient}.<br>Rechne rückwärts mit Malnehmen: ${quotient} · ${teiler} = ${dividend}, also ist die fehlende Zahl ${teiler}.<br><strong>Fehlende Zahl: ${teiler}</strong>`;
   }
 
+  // ---- Division mit Rest (14:4=3R2, 56:10=5R6, ...) - fehlte bisher komplett,
+  // genGeteiltEinfachFrage oben deckt nur GLATTE Teilung ab. Format "Q R R" als
+  // Mehrfachauswahl, da 'numeric' nur eine einzelne Zahl abfragen kann. Ergaenzt
+  // am 01.09.2026 fuer Max' Mathearbeit morgen (Hausaufgaben-Foto "Dividieren
+  // mit Rest") - Teiler bewusst bis 10 (nicht nur kleines Einmaleins), da das
+  // Blatt u.a. ":10"-Aufgaben mit Rest zeigt.
+  function genDivisionMitRestFrage() {
+    const teiler = rnd(2, 10);
+    const quotient = rnd(2, 9);
+    const rest = rnd(1, teiler - 1);
+    const dividend = teiler * quotient + rest;
+    return { typ: 'mc', frage: `${dividend} : ${teiler} = ?`, ...divisionMitRestOptionen(teiler, quotient, rest), hilfe: hilfeDivisionMitRest() };
+  }
+
+  // Baut die 3 Antwortoptionen samt richtigem Index - typische Max-Fehler als
+  // Distraktoren (Rest um 1 daneben, Quotient um 1 daneben, Rest = Teiler).
+  function divisionMitRestOptionen(teiler, quotient, rest) {
+    const richtig = `${quotient} R ${rest}`;
+    const moeglich = [];
+    if (rest + 1 < teiler) moeglich.push(`${quotient} R ${rest + 1}`);
+    if (rest - 1 >= 0) moeglich.push(`${quotient} R ${rest - 1}`);
+    moeglich.push(`${quotient + 1} R ${rest}`);
+    if (quotient - 1 >= 1) moeglich.push(`${quotient - 1} R ${rest}`);
+    moeglich.push(`${quotient} R ${teiler}`);
+    const kandidaten = new Set([richtig]);
+    const pool = shuffle(moeglich.filter(m => !kandidaten.has(m)));
+    while (kandidaten.size < 3 && pool.length) kandidaten.add(pool.pop());
+    while (kandidaten.size < 3) {
+      const kand = `${Math.max(1, quotient + rnd(-1, 1))} R ${rnd(0, teiler)}`;
+      if (kand !== richtig) kandidaten.add(kand);
+    }
+    const optionen = shuffle([...kandidaten]);
+    return { optionen, richtigIndex: optionen.indexOf(richtig) };
+  }
+
+  function hilfeDivisionMitRest() {
+    const teiler = rnd(2, 10);
+    const quotient = rnd(2, 9);
+    const rest = rnd(1, teiler - 1);
+    const dividend = teiler * quotient + rest;
+    return `<strong>Beispiel:</strong> ${dividend} : ${teiler} = ?<br>Suche das größte Vielfache von ${teiler}, das nicht größer als ${dividend} ist: ${teiler} · ${quotient} = ${dividend - rest}<br>Rest: ${dividend} - ${dividend - rest} = ${rest}<br>Probe (Umkehraufgabe): ${quotient} · ${teiler} + ${rest} = ${dividend}<br><strong>Ergebnis: ${quotient} R ${rest}</strong>`;
+  }
+
   // ---- Rechenkette mit Malnehmen/Teilen (56 ·10 :8 ·3 :70 = ?) - wie
   // genRechenketteFrage, aber mit ×/÷ statt +/− (Foto, Aufgabe 5).
   function genMalGeteiltKetteFrage() {
@@ -1367,9 +1410,16 @@ const Mathe = (function () {
     { kategorie: 'schriftlich', gen: genSachaufgabeSubtraktion },
     { kategorie: 'schriftlich', gen: genEinkaufSumme },
     { kategorie: 'zehnhundert', gen: genZehnHundertFrage },
+    { kategorie: 'zehnhundert', gen: genZehnHundertFrage },
     { kategorie: 'zehnhundert', gen: genZehnerzahlenFrage },
     { kategorie: 'zehnhundert', gen: genVergleichRechnungFrage },
     { kategorie: 'zehnhundert', gen: genZahlZerlegenFrage },
+    // Neu am 01.09.2026 fuer Max' Mathearbeit morgen (Thema laut Hausaufgaben-
+    // Foto "Dividieren mit Rest") - mehrfach gelistet, da es der Kern des
+    // Uebungsblatts ist und komplett neu (vorher gab's nur glatte Teilung).
+    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
+    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
+    { kategorie: 'divisionrest', gen: genDivisionMitRestFrage },
     { kategorie: 'teilervielfache', gen: genVielfachesFrage },
     { kategorie: 'teilervielfache', gen: genTeilerFrage },
     { kategorie: 'teilervielfache', gen: genGemeinsamesVielfachesFrage },
@@ -1401,10 +1451,12 @@ const Mathe = (function () {
   // gewichtFuerStat) - "schriftlich" (Plus/Minus untereinander u.a., siehe
   // AUFGABEN_BEREICHE) bewusst hoeher, auf Ulis Wunsch, dass Max vermehrt
   // schriftlich rechnen uebt statt nur gleichverteilt ueber alle Bereiche.
-  // "multdivrund" am 28.08.2026 ebenfalls hoeher gewichtet, weil das genau
-  // das Thema von Max' Mathearbeit naechste Woche ist (siehe Hausaufgaben-
-  // Fotos) - nach der Arbeit kann dieser Wert wieder auf 1 zurueckgesetzt werden.
-  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.8, multdivrund: 2 };
+  // "multdivrund"/"zehnhundert"/"divisionrest" am 01.09.2026 hoeher gewichtet
+  // (Mathearbeit ist morgen, 02.09.2026, Thema laut Hausaufgaben-Fotos "Dividieren
+  // mit Rest" + "Multiplizieren/Dividieren durch 10 und 100") - nach der Arbeit
+  // koennen diese Werte wieder auf 1 zurueckgesetzt werden ("schriftlich" bleibt
+  // dauerhaft erhoeht, siehe Kommentar oben in AUFGABEN_BEREICHE).
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, multdivrund: 2, zehnhundert: 2.2, divisionrest: 2.5 };
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);
