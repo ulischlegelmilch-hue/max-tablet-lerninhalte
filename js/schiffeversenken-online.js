@@ -18,7 +18,7 @@
 // neu rendert.
 const SchiffeversenkenOnline = (function () {
   const E = SchiffeEngine;
-  const WS_URL = 'wss://max-tablet-backend.onrender.com/ws/schiffe';
+  const WS_URL = 'wss://max-tablet-api.paceforge-pi.co.uk/ws/schiffe';
   const MEINE_ROLLE = 'max';
   const GEGNER_ROLLE = 'papa';
   const RECONNECT_MS = 3000;

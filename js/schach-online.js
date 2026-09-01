@@ -15,7 +15,7 @@
 // Button, Home-Symbol, ...), ganz ohne dass diese Wege selbst etwas wissen
 // muessen.
 const SchachOnline = (function () {
-  const WS_URL = 'wss://max-tablet-backend.onrender.com/ws/schach';
+  const WS_URL = 'wss://max-tablet-api.paceforge-pi.co.uk/ws/schach';
   const MEINE_ROLLE = 'max';
   const RECONNECT_MS = 3000;
 

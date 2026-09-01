@@ -3,7 +3,7 @@
 // Kniff), aber eigener /ws/chat-Pfad mit eigenem Lebenszyklus - Chat und
 // Online-Schach lassen sich unabhaengig voneinander oeffnen/schliessen.
 const Chat = (function () {
-  const WS_URL = 'wss://max-tablet-backend.onrender.com/ws/chat';
+  const WS_URL = 'wss://max-tablet-api.paceforge-pi.co.uk/ws/chat';
   const MEINE_ROLLE = 'max';
   const RECONNECT_MS = 3000;
 

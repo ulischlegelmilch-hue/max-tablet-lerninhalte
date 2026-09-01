@@ -10,7 +10,7 @@
 // onLeaveScreen-Kniff: siehe ausfuehrlicher Kommentar in schach-online.js.
 const MaumauOnline = (function () {
   const E = MauMauEngine;
-  const WS_URL = 'wss://max-tablet-backend.onrender.com/ws/maumau';
+  const WS_URL = 'wss://max-tablet-api.paceforge-pi.co.uk/ws/maumau';
   const MEINE_ROLLE = 'max';
   const GEGNER_ROLLE = 'papa';
   const RECONNECT_MS = 3000;
