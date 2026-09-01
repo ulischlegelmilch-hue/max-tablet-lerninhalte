@@ -1394,14 +1394,16 @@ const Mathe = (function () {
   // Schwaeche-Bereichen, ohne dass er selbst etwas auswaehlen muss. Innerhalb eines
   // Bereichs mit mehreren Generatoren (z. B. "schriftlich") wird gleichverteilt
   // zufaellig einer davon benutzt - nur der Bereich selbst wird gewichtet. ----
+  // ACHTUNG 01.09.2026: Fuer den Tag vor Max' Mathearbeit (02.09.2026) auf
+  // Uli-Wunsch ("die Aufgaben, die ich geschickt habe, sollten aber heute
+  // vornehmlich dran sein") ALLE themenfremden Bereiche (schriftlich,
+  // teilervielfache, diagramme, aufgabenfamilien, rechenvorteile) komplett aus
+  // dem aktiven Pool genommen, nicht nur niedriger gewichtet - nur noch
+  // zehnhundert/divisionrest/multdivrund (die drei Themen der Hausaufgaben-
+  // Fotos) sind heute ueberhaupt waehlbar. NACH DER ARBEIT UNBEDINGT WIEDER
+  // EINKOMMENTIEREN, siehe Originalliste unten (bewusst nicht geloescht).
   const AUFGABEN_BEREICHE = [
-    // genAddSubFrage/genSubtraktionOhneUebertrag/genSubtraktionMitUebertrag
-    // (echtes "Plus/Minus untereinander", als normale Aufgabe gestellt -
-    // die Spaltenansicht gibt es nur in der Hilfe) bewusst mehrfach gelistet:
-    // innerhalb der Kategorie "schriftlich" wird gleich-
-    // verteilt zufaellig EIN Eintrag gewaehlt, mehr Eintraege = haeufiger dran,
-    // ohne die anderen schriftlich-Aufgabentypen (Rechenkette, Fehlende Ziffer,
-    // Stimmt-das, Sachaufgaben) ganz zu verdraengen.
+    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genAddSubFrage },
@@ -1409,16 +1411,12 @@ const Mathe = (function () {
     { kategorie: 'schriftlich', gen: genSubtraktionOhneUebertrag },
     { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
     { kategorie: 'schriftlich', gen: genSubtraktionMitUebertrag },
-    // genRechenketteFrage (3-4-gliedrige Kette mit dreistelligen Zahlen, z.B.
-    // "329 - 73 + 216 + 213 + 194 = ?") am 01.09.2026 auf Uli-Feedback entfernt,
-    // live am Tablet beobachtet: "solche Aufgaben sollten nicht vorkommen, die
-    // sind zu schwer" - zu lang/fehleranfaellig und ausserdem kein Thema der
-    // morgigen Mathearbeit. Kann nach der Arbeit wieder rein, falls gewuenscht.
     { kategorie: 'schriftlich', gen: genFehlendeZifferAddition },
     { kategorie: 'schriftlich', gen: genFehlendeZifferSubtraktion },
     { kategorie: 'schriftlich', gen: genStimmtDasFrage },
     { kategorie: 'schriftlich', gen: genSachaufgabeSubtraktion },
     { kategorie: 'schriftlich', gen: genEinkaufSumme },
+    */
     // genZehnHundertFrage (nur einstellig ·10/·100 bzw. Umkehrung, reines
     // "Null anhaengen") am 01.09.2026 auf Uli-Wunsch entfernt: "nicht die ganz
     // einfachen, sondern die schwereren, damit es effektiv ist" - laut
@@ -1435,6 +1433,7 @@ const Mathe = (function () {
     { kategorie: 'divisionrest', gen: genDivisionRestErgebnisFrage },
     { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
     { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
+    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'teilervielfache', gen: genVielfachesFrage },
     { kategorie: 'teilervielfache', gen: genTeilerFrage },
     { kategorie: 'teilervielfache', gen: genGemeinsamesVielfachesFrage },
@@ -1442,6 +1441,7 @@ const Mathe = (function () {
     { kategorie: 'diagramme', gen: genDiagrammFrage },
     { kategorie: 'diagramme', gen: genStreifentabelleFrage },
     { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage },
+    */
     // Neu am 28.08.2026 fuer die Mathearbeit "Multiplizieren und Dividieren"
     // (siehe Hausaufgaben-Fotos) - genRundeZehnerMalFrage/genFehlenderFaktorFrage/
     // genFehlenderTeilerDividendFrage mehrfach gelistet, da sie den Kern des
@@ -1458,10 +1458,11 @@ const Mathe = (function () {
     { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
     { kategorie: 'multdivrund', gen: genMalGeteiltKetteFrage },
     { kategorie: 'multdivrund', gen: genDoppeltHaelfteFrage },
-    // Aus dem Wiederholungsblatt "Klasse 3" (Rechenvorteile/Zahlenfolgen/Vergleiche).
+    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'rechenvorteile', gen: genRechenvorteilFrage },
     { kategorie: 'rechenvorteile', gen: genZahlenfolgeFrage },
     { kategorie: 'rechenvorteile', gen: genVergleichAddSubFrage }
+    */
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
