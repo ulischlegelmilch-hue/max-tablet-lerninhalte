@@ -662,7 +662,7 @@ const Mathe = (function () {
 
   // ---- Fehlender Teiler/Dividend (360 : ▢ = 6, ▢ : 80 = 3, ...) - der
   // Quotient ist immer bekannt, Teiler ODER Dividend fehlt (Foto, Aufgabe 4).
-  const TEILER_OPTIONEN = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90, 24];
+  const TEILER_OPTIONEN = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90];
 
   function genFehlenderTeilerDividendFrage() {
     const teiler = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
