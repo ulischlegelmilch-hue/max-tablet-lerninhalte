@@ -88,16 +88,25 @@ const Heimatkunde = (function () {
   // back die vollstaendige Antwort mit hervorgehobenem Kernbegriff.
   // ===========================================================================
 
+  // Rueckseiten-Erklaerungen 02.09.2026 um kurze, verstaendliche Zusatzsaetze
+  // ergaenzt (Uli schickte eine allgemeine UNICEF-Liste als Vorlage). WICHTIG:
+  // die 10 Rechte + ihre Reihenfolge bleiben unveraendert vom fotografierten
+  // Original-Zettel (das ist, was in Max' Hefter klebt und worauf die LK sich
+  // bezieht) - solche generischen UNICEF-Listen unterscheiden sich je nach
+  // Quelle (unicef.ch/at/de) in Zahl/Reihenfolge/Gruppierung der Rechte (z.B.
+  // "Behinderung" dort unter "Gleichbehandlung" statt als eigenes Recht Nr.10)
+  // und wurden deshalb NICHT 1:1 uebernommen, nur zum Vereinfachen der
+  // Erklaerungstexte genutzt, wo eine passende Entsprechung existierte.
   const LERNKARTEN_KINDERRECHTE = [
     { front: 'Jedes Kind hat das Recht auf einen ___.', back: 'Jedes Kind hat das Recht auf einen <strong>Namen</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong> - dazu gehört auch der Zugang zu medizinischer Versorgung.' },
+    { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong> - der Zugang zu Schule und Lernen muss für alle Kinder möglich sein.' },
+    { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong> - Zeit zum Spielen, Erholen und kreativ sein.' },
+    { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong> - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong> - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' },
     { front: 'Jedes Kind hat ein Recht auf ein sicheres ___.', back: 'Jedes Kind hat ein Recht auf ein sicheres <strong>Zuhause</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong> - es darf nicht zur Arbeit gezwungen werden, die seiner Gesundheit oder Bildung schadet.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong> - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' },
     { front: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', back: 'Kinder mit einer Behinderung haben ein Recht auf <strong>besondere</strong> Rechte.' }
   ];
 
