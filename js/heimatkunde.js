@@ -119,16 +119,29 @@ const Heimatkunde = (function () {
     },
     {
       typ: 'text',
-      frage: 'Wer durfte früher, bevor es die Schulpflicht gab, vor allem zur Schule gehen?',
-      antwort: 'reiche Leute',
-      antwortAlternativen: ['die Reichen', 'Reiche'],
-      hilfe: '<strong>Früher:</strong> Bevor es die Schulpflicht gab, durften vor allem <strong>reiche Leute</strong> zur Schule gehen.'
+      frage: 'Wer konnte früher, bevor es die Schulpflicht gab, oft nicht lesen, schreiben und rechnen?',
+      antwort: 'die armen Leute',
+      antwortAlternativen: ['arme Leute', 'die Armen'],
+      hilfe: '<strong>Früher:</strong> Es gab schon Schulen und Privatlehrer, aber viele Menschen lernten nur voneinander - <strong>die armen Leute</strong> konnten oft nicht lesen, schreiben und rechnen.'
     },
     {
       typ: 'text',
-      frage: 'Was sollte Schule laut deinem Heft sein, damit auch arme Kinder hingehen können? (ein Wort)',
-      antwort: 'kostenlos',
-      hilfe: '<strong>Kostenlos:</strong> Schule soll <strong>kostenlos</strong> sein, damit auch arme Kinder hingehen können.'
+      frage: 'Was gilt laut deinem Buch für den Schulbesuch in den staatlichen Schulen? Er darf nichts ___',
+      antwort: 'kosten',
+      antwortAlternativen: ['kostenlos'],
+      hilfe: '<strong>Kostenlos:</strong> Der Besuch der Schule darf nichts kosten - in den staatlichen Schulen bezahlen die Eltern kein Geld.'
+    },
+    {
+      typ: 'text',
+      frage: 'Wie heißen Schulen, bei denen die Eltern Schulgeld bezahlen müssen?',
+      antwort: 'Privatschulen',
+      hilfe: '<strong>Privatschulen:</strong> Bei Privatschulen zahlen die Eltern Schulgeld - anders als in staatlichen Schulen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Wie sollen Lehrer und Schüler laut deinem Buch miteinander umgehen?',
+      antwort: 'achtungsvoll',
+      hilfe: '<strong>Miteinander umgehen:</strong> Lehrer und Schüler gehen laut deinem Buch <strong>achtungsvoll</strong> miteinander um.'
     },
     {
       typ: 'text',
@@ -161,6 +174,43 @@ const Heimatkunde = (function () {
       antwort: 'Geld',
       antwortAlternativen: ['Geld verdienen'],
       hilfe: '<strong>Lernen und Beruf:</strong> Lernen ist wichtig, weil man damit später <strong>Geld</strong> verdient.'
+    },
+    // Ab hier: Fakten aus dem "Und wie geht es nach der Grundschule weiter?"-
+    // Schaubild (Schulen und ihre Abschlüsse, Thüringen) und dem Sachunterricht-
+    // Textabschnitt (Sfb S.10/11).
+    {
+      typ: 'text',
+      frage: 'Nenne EINE Schulform, die man nach der Grundschule in Thüringen besuchen kann.',
+      antwort: 'Gymnasium',
+      antwortAlternativen: ['Regelschule', 'Gemeinschaftsschule'],
+      hilfe: '<strong>Nach der Grundschule:</strong> Es geht z.B. weiter mit der <strong>Regelschule</strong>, der <strong>Gemeinschaftsschule</strong> oder dem <strong>Gymnasium</strong>.'
+    },
+    {
+      typ: 'text',
+      frage: 'Welche Schulform bereitet dich laut deinem Buch gut auf einen handwerklichen oder technischen Beruf vor?',
+      antwort: 'Regelschule',
+      hilfe: '<strong>Regelschule:</strong> Wer später einen handwerklichen, technischen oder praktischen Beruf lernen möchte, wird durch die <strong>Regelschule</strong> gut vorbereitet.'
+    },
+    {
+      typ: 'text',
+      frage: 'Was kannst du nach dem Abitur besuchen, um zu studieren?',
+      antwort: 'Universität',
+      antwortAlternativen: ['die Universität', 'Fachhochschule', 'die Fachhochschule'],
+      hilfe: '<strong>Nach dem Abitur:</strong> Mit dem Abitur können Jugendliche die Fachhochschule oder die <strong>Universität</strong> besuchen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Nach wie vielen Schuljahren macht man ungefähr das Abitur? (nur die Zahl)',
+      antwort: '12',
+      antwortAlternativen: ['13'],
+      hilfe: '<strong>Abitur:</strong> Das Abitur macht man nach <strong>12 oder 13</strong> Schuljahren.'
+    },
+    {
+      typ: 'text',
+      frage: 'Nenne EINES der neuen Fächer, auf die dich der Sachunterricht ab Klasse 5 vorbereitet.',
+      antwort: 'Geografie',
+      antwortAlternativen: ['Geschichte', 'Mensch-Natur-Technik', 'Mensch, Natur, Technik'],
+      hilfe: '<strong>Ab Klasse 5:</strong> Der Sachunterricht bereitet dich z.B. auf <strong>Geografie</strong>, Geschichte und Mensch-Natur-Technik vor.'
     }
   ];
 
@@ -168,11 +218,48 @@ const Heimatkunde = (function () {
     return pickN(SCHULE_FAKTEN, 1)[0];
   }
 
+  // Fakten aus den Kinderrechte-Seiten (Sfb S.24/25: "Jedes Kind hat Rechte",
+  // UN-Kinderrechtskonvention, UNICEF) - eigene kleine Bank, da inhaltlich
+  // Kontextwissen UM die Kinderrechte herum, nicht die Rechte selbst (die
+  // stehen schon in KINDERRECHTE oben).
+  const KINDERRECHTE_KONTEXT_FAKTEN = [
+    {
+      typ: 'numeric',
+      frage: 'In welchem Jahr wurde die UN-Kinderrechtskonvention (das Übereinkommen über die Rechte des Kindes) beschlossen?',
+      antwort: 1989,
+      hilfe: '<strong>UN-Kinderrechtskonvention:</strong> Die Vereinten Nationen beschlossen sie im Jahr <strong>1989</strong>.'
+    },
+    {
+      typ: 'text',
+      frage: 'Wie heißt das Kinderhilfswerk der Vereinten Nationen? (Abkürzung)',
+      antwort: 'UNICEF',
+      hilfe: '<strong>UNICEF:</strong> Das Kinderhilfswerk der Vereinten Nationen heißt <strong>UNICEF</strong> - es hilft Kindern und Müttern in Notsituationen.'
+    },
+    {
+      typ: 'numeric',
+      frage: 'In welchem Jahr wurden die Vereinten Nationen (UN) gegründet?',
+      antwort: 1945,
+      hilfe: '<strong>Vereinte Nationen:</strong> Die UN wurden im Jahr <strong>1945</strong> von 50 Staaten gegründet.'
+    },
+    {
+      typ: 'numeric',
+      frage: 'Wie viele Staaten gehören heute ungefähr der UN an? (die Zahl, ohne "über")',
+      antwort: 200,
+      hilfe: '<strong>Fast alle Länder:</strong> Heute gehören der UN über <strong>200</strong> Staaten an - fast alle Länder der Welt.'
+    }
+  ];
+
+  function genKinderrechteKontextFreitext() {
+    return pickN(KINDERRECHTE_KONTEXT_FAKTEN, 1)[0];
+  }
+
   const HEIMATKUNDE_LK_BEREICHE = [
     { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
     { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
     { kategorie: 'kinderrecht-nummer', gen: genKinderrechtNummerFreitext },
-    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext }
+    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
+    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
+    { kategorie: 'kinderrechte-kontext', gen: genKinderrechteKontextFreitext }
   ];
 
   function genSchulkundeAufgabe(anzahl) {
