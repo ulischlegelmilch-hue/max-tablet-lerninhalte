@@ -97,18 +97,56 @@ const Heimatkunde = (function () {
   // "Behinderung" dort unter "Gleichbehandlung" statt als eigenes Recht Nr.10)
   // und wurden deshalb NICHT 1:1 uebernommen, nur zum Vereinfachen der
   // Erklaerungstexte genutzt, wo eine passende Entsprechung existierte.
-  const LERNKARTEN_KINDERRECHTE = [
-    { front: 'Jedes Kind hat das Recht auf einen ___.', back: 'Jedes Kind hat das Recht auf einen <strong>Namen</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong> - dazu gehört auch der Zugang zu medizinischer Versorgung.' },
-    { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong> - der Zugang zu Schule und Lernen muss für alle Kinder möglich sein.' },
-    { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong> - Zeit zum Spielen, Erholen und kreativ sein.' },
-    { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong> - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong> - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' },
-    { front: 'Jedes Kind hat ein Recht auf ein sicheres ___.', back: 'Jedes Kind hat ein Recht auf ein sicheres <strong>Zuhause</strong>.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong> - es darf nicht zur Arbeit gezwungen werden, die seiner Gesundheit oder Bildung schadet.' },
-    { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong> - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' },
-    { front: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', back: 'Kinder mit einer Behinderung haben ein Recht auf <strong>besondere</strong> Rechte.' }
+  // 02.09.2026, Uli-Wunsch: bei Rechten mit ZWEI gleichwertigen Stichwoertern
+  // (z.B. "Gesundheit UND Umwelt") soll die Luecke nicht immer an derselben
+  // Stelle stehen - sonst koennte Max sich nur "die Luecke ist am Satzende"
+  // merken statt das ganze Recht zu verstehen. Rechte mit nur EINEM
+  // inhaltlichen Kernwort (Namen, Bildung, Zuhause, Ausbeutung, Behinderung)
+  // haben bewusst nur EINE Variante - ein zweites Wort dort zu blanken waere
+  // entweder trivial (nur ein Artikel) oder wuerde die Karte unerkennbar
+  // machen. Aufbau: pro Kinderrecht eine Liste von 1-2 {front,back}-Varianten,
+  // baueKinderrechteKarten() waehlt bei jedem Start EINE davon zufaellig.
+  const KINDERRECHTE_VARIANTEN = [
+    [
+      { front: 'Jedes Kind hat das Recht auf einen ___.', back: 'Jedes Kind hat das Recht auf einen <strong>Namen</strong>.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf ___ und eine saubere Umwelt.', back: 'Jedes Kind hat ein Recht auf <strong>Gesundheit</strong> und eine saubere Umwelt - dazu gehört auch der Zugang zu medizinischer Versorgung.' },
+      { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong> - dazu gehört auch der Zugang zu medizinischer Versorgung.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong> - der Zugang zu Schule und Lernen muss für alle Kinder möglich sein.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf ___ und Freizeit.', back: 'Jedes Kind hat ein Recht auf <strong>Spiele</strong> und Freizeit - Zeit zum Spielen, Erholen und kreativ sein.' },
+      { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong> - Zeit zum Spielen, Erholen und kreativ sein.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf ___ und Beteiligung.', back: 'Jedes Kind hat ein Recht auf <strong>Information</strong> und Beteiligung - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' },
+      { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong> - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf Schutz vor ___ und Privatsphäre.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Gewalt</strong> und Privatsphäre - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' },
+      { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong> - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf ein sicheres ___.', back: 'Jedes Kind hat ein Recht auf ein sicheres <strong>Zuhause</strong>.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong> - es darf nicht zur Arbeit gezwungen werden, die seiner Gesundheit oder Bildung schadet.' }
+    ],
+    [
+      { front: 'Jedes Kind hat ein Recht auf Schutz im ___ und auf der Flucht.', back: 'Jedes Kind hat ein Recht auf Schutz im <strong>Krieg</strong> und auf der Flucht - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' },
+      { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong> - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' }
+    ],
+    [
+      { front: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', back: 'Kinder mit einer Behinderung haben ein Recht auf <strong>besondere</strong> Rechte.' }
+    ]
   ];
+
+  function baueKinderrechteKarten() {
+    return KINDERRECHTE_VARIANTEN.map(varianten => pickN(varianten, 1)[0]);
+  }
 
   const LERNKARTEN_SCHULE = [
     { front: 'Seit wie vielen Jahren gibt es in Deutschland ungefähr die Schulpflicht für alle Kinder?', back: 'In Deutschland müssen schon seit ungefähr <strong>100 Jahren</strong> alle Kinder zur Schule gehen.' },
@@ -148,11 +186,15 @@ const Heimatkunde = (function () {
     { front: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?', back: 'In <strong>China</strong> ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.' }
   ];
 
+  // karten ist bei allen vier Themen eine FUNKTION (nicht das Array direkt) -
+  // bei Kinderrechte noetig, damit baueKinderrechteKarten() bei jedem Start
+  // frisch die Luecken-Variante wuerfeln kann; bei den anderen drei Themen nur
+  // der Einheitlichkeit halber (liefern schlicht das feste Array zurueck).
   const LERNTHEMEN = {
-    kinderrechte: { titel: 'Kinderrechte', icon: 'geschichten', karten: LERNKARTEN_KINDERRECHTE },
-    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: LERNKARTEN_SCHULE },
-    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: LERNKARTEN_UN },
-    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: LERNKARTEN_LAENDER }
+    kinderrechte: { titel: 'Kinderrechte', icon: 'geschichten', karten: baueKinderrechteKarten },
+    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE },
+    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN },
+    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER }
   };
 
   // Themenwahl VOR den Lernkarten - bewusst eigener Menuepunkt statt alles auf
@@ -180,7 +222,7 @@ const Heimatkunde = (function () {
 
   function starteLernkarten(thema) {
     const info = LERNTHEMEN[thema];
-    lkSession = { thema, titel: info.titel, karten: shuffle(info.karten), index: 0 };
+    lkSession = { thema, titel: info.titel, karten: shuffle(info.karten()), index: 0 };
     App.setLastStarter(() => starteLernkarten(thema));
     renderLernkarte();
   }

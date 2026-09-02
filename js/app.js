@@ -838,6 +838,12 @@ const App = (function () {
   function renderTextEingabe(f) {
     const input = document.getElementById('text-eingabe');
     const okBtn = document.getElementById('text-eingabe-ok');
+    // Beim 2. Versuch (nach falscher 1. Antwort) wird dasselbe <input> wieder-
+    // verwendet statt neu erzeugt - absenden() unten deaktiviert es beim
+    // Absenden, ohne das Reaktivieren hier blieb es beim 2. Versuch disabled
+    // und liess sich nicht mehr fokussieren -> keine Tastatur erschien mehr
+    // (Uli-Meldung 02.09.2026, live an einer Deutsch-Perfekt-Aufgabe entdeckt).
+    input.disabled = false;
     input.value = '';
     input.focus();
     const absenden = () => {

@@ -209,19 +209,30 @@ const Deutsch = (function () {
   // starteSchularbeitUeben() unten. Uli-Wunsch: "er sollte Arten dieser
   // Aufgaben loesen, aber kein Multiple Choice" - alle Generatoren hier nutzen
   // typ:'text' (freie Eingabe mit nativer Tastatur, siehe app.js
-  // renderTextEingabe), NICHT typ:'mc'.
+  // renderTextEingabe). AUSNAHME: genWortartFreitext nutzt seit 02.09.2026
+  // (Uli-Folgewunsch) bewusst typ:'mc' mit den immer gleichen 3 Kategorien
+  // als Antwortfelder - siehe Begruendung direkt bei der Funktion.
   // ===========================================================================
 
-  // Freitext-Variante von genWortarten: gleiche wortartenBank/HILFE_WORTARTEN,
-  // aber Max tippt die Wortart selbst statt sie anzutippen.
+  // Wortart bestimmen: Uli-Feedback 02.09.2026 "umständlich, die Wortart zu
+  // schreiben - wäre es nicht einfacher, verschiedene Antwortfelder zu
+  // geben?" - bewusste AUSNAHME vom "kein Multiple Choice"-Prinzip oben, weil
+  // die Kategorien (Nomen/Verb/Adjektiv) immer dieselben 3 sind und Max sie
+  // laengst auswendig kennt - Antippen statt Tippen testet hier exakt dasselbe
+  // Wissen (welche Wortart ist das Wort?), spart aber unnoetiges Eintippen.
+  // Bei allen ANDEREN Generatoren (Verbformen, ch-Woerter) bleibt es bei
+  // Freitext, da dort die moeglichen Antworten NICHT auf 3 feste Woerter
+  // begrenzt sind und Multiple Choice das Raten erleichtern wuerde.
   function genWortartFreitext() {
     const eintrag = pickN(wortartenBank, 1)[0];
     const wortart = pickN(['nomen', 'verb', 'adjektiv'], 1)[0];
     const antwort = wortart === 'nomen' ? 'Nomen' : wortart === 'verb' ? 'Verb' : 'Adjektiv';
+    const optionen = shuffle(['Nomen', 'Verb', 'Adjektiv']);
     return {
-      typ: 'text',
-      frage: `„${eintrag.satz}“<br>Welche Wortart hat das Wort <strong>${eintrag[wortart]}</strong>? (Nomen, Verb oder Adjektiv)`,
-      antwort,
+      typ: 'mc',
+      frage: `„${eintrag.satz}“<br>Welche Wortart hat das Wort <strong>${eintrag[wortart]}</strong>?`,
+      optionen,
+      richtigIndex: optionen.indexOf(antwort),
       hilfe: HILFE_WORTARTEN[wortart]
     };
   }
