@@ -74,7 +74,7 @@ const Heimatkunde = (function () {
     { nr: 3, recht: 'Bildung', stichwort: 'Bildung' },
     { nr: 4, recht: 'Spiele und Freizeit', stichwort: 'Freizeit', stichwortAlt: ['Spielen', 'Spiele'] },
     { nr: 5, recht: 'Information und Beteiligung', stichwort: 'Beteiligung', stichwortAlt: ['Information', 'Informationen'] },
-    { nr: 6, recht: 'Schutz vor Gewalt', stichwort: 'Gewalt' },
+    { nr: 6, recht: 'Schutz vor Gewalt und Privatsphäre', stichwort: 'Gewalt', stichwortAlt: ['Privatsphäre'] },
     { nr: 7, recht: 'ein sicheres Zuhause', stichwort: 'Zuhause' },
     { nr: 8, recht: 'Schutz vor Ausbeutung', stichwort: 'Ausbeutung' },
     { nr: 9, recht: 'Schutz im Krieg und auf der Flucht', stichwort: 'Krieg', stichwortAlt: ['Flucht'] },
@@ -119,9 +119,48 @@ const Heimatkunde = (function () {
     },
     {
       typ: 'text',
-      frage: 'Muss in Deutschland JEDES Kind zur Schule gehen - egal ob Junge oder Mädchen, egal welche Religion oder Herkunft? (Ja oder Nein)',
+      frage: 'Wer durfte früher, bevor es die Schulpflicht gab, vor allem zur Schule gehen?',
+      antwort: 'reiche Leute',
+      antwortAlternativen: ['die Reichen', 'Reiche'],
+      hilfe: '<strong>Früher:</strong> Bevor es die Schulpflicht gab, durften vor allem <strong>reiche Leute</strong> zur Schule gehen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Was sollte Schule laut deinem Heft sein, damit auch arme Kinder hingehen können? (ein Wort)',
+      antwort: 'kostenlos',
+      hilfe: '<strong>Kostenlos:</strong> Schule soll <strong>kostenlos</strong> sein, damit auch arme Kinder hingehen können.'
+    },
+    {
+      typ: 'text',
+      frage: 'Werden in Deutschland heute alle Kinder in der Schule gleich behandelt, egal ob arm oder reich? (Ja oder Nein)',
       antwort: 'Ja',
-      hilfe: '<strong>Gleichbehandlung:</strong> In Deutschland gilt die Schulpflicht für ALLE Kinder gleich - niemand wird wegen Geschlecht, Religion oder Herkunft ausgeschlossen.'
+      hilfe: '<strong>Gleichbehandlung:</strong> In Deutschland gilt die Schulpflicht für ALLE Kinder gleich - niemand wird ausgeschlossen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Wie nennt man das Recht auf Lernen? Lernen ist ein ___',
+      antwort: 'Kinderrecht',
+      hilfe: '<strong>Lernen ist ein Kinderrecht:</strong> Das Recht auf Lernen/Bildung ist eines der 10 Kinderrechte.'
+    },
+    {
+      typ: 'text',
+      frage: 'Was hilft dir das Lernen laut deinem Heft besser zu verstehen?',
+      antwort: 'die Welt',
+      antwortAlternativen: ['die Welt um dich herum', 'Welt'],
+      hilfe: '<strong>Lernen hilft:</strong> Lernen hilft dir, <strong>die Welt</strong> um dich herum zu verstehen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Was machst du laut deinem Heft mit deinem Wissen und Können?',
+      antwort: 'stark',
+      hilfe: '<strong>Stark werden:</strong> Mit deinem Wissen und Können machst du dich selbst <strong>stark</strong>.'
+    },
+    {
+      typ: 'text',
+      frage: 'Wozu brauchst du später als Erwachsener gutes Lernen, um im Job klarzukommen? (ein Wort)',
+      antwort: 'Geld',
+      antwortAlternativen: ['Geld verdienen'],
+      hilfe: '<strong>Lernen und Beruf:</strong> Lernen ist wichtig, weil man damit später <strong>Geld</strong> verdient.'
     }
   ];
 
