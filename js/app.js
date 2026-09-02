@@ -91,16 +91,17 @@ const App = (function () {
   // { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch',
   //   onclick: 'Deutsch.starteRechtschreibung()' } ZURUECKSETZEN.
   //
-  // ACHTUNG 02.09.2026: Gleiches Prinzip fuer Max' Heimat-&-Sachkunde-LK am
-  // 09.09.2026 ("weiterführende Schule und Kinderrechte") - bis dahin auf
-  // Heimatkunde.starteSchulkunde() umgebogen statt starteQuiz()
-  // (Verkehrszeichen). NACH DER LK UNBEDINGT WIEDER AUF
-  // { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde',
-  //   onclick: 'Heimatkunde.starteQuiz()' } ZURUECKSETZEN.
+  // Heimat & Sachkunde bewusst NICHT auf die neue LK-Vorbereitung umgebogen
+  // (anders als Mathe/Deutsch oben): die Heimatkunde-LK-Vorbereitung
+  // (Kinderrechte & Schule, 09.09.2026) besteht seit 02.09.2026 nur noch aus
+  // reinen Lernkarten zum Umdrehen (kein Quiz, keine Auto-Bewertung - Uli
+  // hoert Max die Fakten selbst ab, siehe ACHTUNG-Kommentar in
+  // heimatkunde.js). Ohne richtig/falsch laesst sich das nicht sinnvoll als
+  // Tagespensum zaehlen, deshalb bleibt die Pflicht-Kachel bei Verkehrszeichen.
   const TAGESPLAN_FACH_META = {
     mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
     deutsch: { icon: 'tagesaufgabe', titel: 'Schularbeit üben', fachName: 'Deutsch', onclick: 'Deutsch.starteSchularbeitUeben()' },
-    heimat: { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteSchulkunde()' }
+    heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
   };
 
   // Ungelesen-Badge auf der Chat-Kachel (siehe fernsync.js pruefeNeueChatNachricht

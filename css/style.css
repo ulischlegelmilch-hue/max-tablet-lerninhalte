@@ -817,6 +817,10 @@ html, body {
 }
 .karteikarte-frage { font-size: 62px; font-weight: 700; color: var(--ink); }
 .karteikarte-hinweis { margin-top: 14px; font-size: 15px; color: var(--ink-soft); }
+/* Lernkarten mit Satz-/Fakten-Text (Heimatkunde LK-Vorbereitung) statt kurzer
+   Zahlen wie bei den Malfolgen - deutlich kleinere Schrift, damit ganze
+   Saetze auf die Karte passen und umbrechen koennen. */
+.lernkarte-text { font-size: 20px; font-weight: 600; color: var(--ink); padding: 20px; line-height: 1.35; text-align: center; }
 .karteikarte-ergebnis { font-size: 78px; font-weight: 800; color: var(--accent-dark); }
 .karteikarte-bewertung {
   display: flex;

@@ -49,346 +49,185 @@ const Heimatkunde = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
-      { icon: 'geschichten', titel: 'Kinderrechte & Schule lernen', onclick: 'Heimatkunde.starteKinderrechteLernen()' },
-      { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule üben', onclick: 'Heimatkunde.starteSchulkunde()' }
+      { icon: 'tagesaufgabe', titel: 'LK üben: Kinderrechte & Schule', onclick: 'Heimatkunde.starteThemenwahl()' }
     ]));
   }
 
   // ===========================================================================
   // LK-Vorbereitung 02.09.2026 (Arbeit am 09.09.2026): "weiterführende Schule
-  // und Kinderrechte". Uli-Wunsch aus der Deutsch-Vorbereitung vom selben Tag
-  // gilt auch hier: freie Eingabe statt Multiple Choice (typ:'text'/'numeric',
-  // kein typ:'mc'). Die 10 Kinderrechte stammen 1:1 vom eingeklebten
-  // UNICEF-Zettel auf dem Foto - klar lesbar, hohe Sicherheit.
+  // und Kinderrechte" (Sfb S.8-11 + S.24/25, Thüringen-Lehrwerk).
   //
-  // WICHTIGE KORREKTUR (selber Tag): urspruenglich gab es zusaetzlich eine
-  // "welche Nummer hat Kinderrecht X"-Abfrage. Uli-Feedback: "ich denke es
-  // geht nicht darum, welches Recht an welcher Stelle kommt, sondern welche
-  // Kinderrechte es ueberhaupt gibt" - die Nummerierung ist fuer die Arbeit
-  // irrelevant, es zaehlt nur der INHALT. Deshalb komplett umgebaut: KEINE
-  // Nummer-Abfrage mehr (genKinderrechtNummerFreitext entfernt), stattdessen
-  // (1) ein reiner Lern-/Merk-Screen mit allen 10 Rechten zum Durchlesen
-  // (starteKinderrechteLernen, Vorbild: starteVerkehrszeichen) UND (2) eine
-  // Lueckentext-Abfrage zum tatsaechlichen WORTLAUT jedes Rechts (Vorbild:
-  // Deutsch chWoerterBank-Luecken aus der Deutsch-Vorbereitung vom selben Tag).
+  // GESCHICHTE DIESES ABSCHNITTS (mehrere Umbauten am selben Tag):
+  // 1) Erst typ:'mc'-Multiple-Choice - auf Uli-Wunsch (siehe Deutsch-
+  //    Vorbereitung vom selben Tag) verworfen zugunsten freier Eingabe.
+  // 2) Dann typ:'text'/'numeric'-Lueckentext-Quiz mit "welche Nummer hat
+  //    Kinderrecht X" - auf Uli-Feedback "es geht nicht darum, welches Recht
+  //    an welcher Stelle kommt" die Nummer-Abfrage entfernt, Rest blieb
+  //    Lueckentext.
+  // 3) FINALER UMBAU (dieser Stand): Uli ist mit dem Lueckentext-Ausfuellen
+  //    grundsaetzlich nicht zufrieden ("ich bin aber noch nicht zufrieden
+  //    damit, dass Max die Lücken mit Wörtern füllen muss") - er will Max
+  //    stattdessen selbst abhoeren ("ich höre ihn dann ab"). Die App soll nur
+  //    noch reine LERNKARTEN (Umdrehen, kein Eintippen, keine Auto-Bewertung)
+  //    anbieten, UND ausdruecklich nach Themengebiet GETRENNT ("trenne aber
+  //    die Themengebiete, sodass er sie einzeln lernen kann und nicht so viel
+  //    auf einmal") statt eines gemischten Pools. Das gesamte typ:'text'/
+  //    'numeric'-Quiz (genKinderrechtFreitext, genSchuleFaktenFreitext,
+  //    genKinderrechteKontextFreitext, genLaenderBildungFreitext,
+  //    HEIMATKUNDE_LK_BEREICHE, genSchulkundeAufgabe, starteSchulkunde) wurde
+  //    komplett entfernt statt nur ergaenzt - kein Grund, totes Quiz-Geruest
+  //    parallel zu den Lernkarten zu behalten. Aus demselben Grund ist
+  //    'heimat' jetzt NICHT mehr pensumFach-verknuepft mit diesem Bereich
+  //    (siehe TAGESPLAN_FACH_META.heimat in app.js, wieder auf
+  //    starteQuiz()/Verkehrszeichen zurueckgesetzt) - reines Lernkarten-
+  //    Durchklicken ohne richtig/falsch laesst sich nicht sinnvoll als
+  //    Tagespensum zaehlen.
   //
-  // Die Schulpflicht-/Kontext-Fakten stammen teils aus Max' eigener Mitschrift,
-  // teils (nach Korrektur) aus den echten fotografierten Lehrbuchseiten
-  // (Sfb S.8-11 + S.24/25) - siehe SCHULE_FAKTEN/KINDERRECHTE_KONTEXT_FAKTEN
-  // unten. Reflexionsfragen wie "Warum ist Lernen wichtig fuer dich?" sind
-  // bewusst NICHT als Quiz-Frage umgesetzt - persoenliche Meinungsfragen ohne
-  // eine einzelne "richtige" Antwort, dafuer ist der Freitext-Exakt-Vergleich
-  // ungeeignet.
+  // Alle vier Themen-Banken unten haben dieselbe Form {front, back} - front
+  // ist der Lernkarten-Vorderseiten-Text (Frage/Luecke zum selbst Erinnern),
+  // back die vollstaendige Antwort mit hervorgehobenem Kernbegriff.
   // ===========================================================================
-  const KINDERRECHTE = [
-    { recht: 'einen Namen', satz: 'Jedes Kind hat das Recht auf einen ___.', antwort: 'Namen' },
-    { recht: 'Gesundheit und eine saubere Umwelt', satz: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', antwort: 'Umwelt' },
-    { recht: 'Bildung', satz: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', antwort: 'Bildung' },
-    { recht: 'Spiele und Freizeit', satz: 'Jedes Kind hat ein Recht auf Spiele und ___.', antwort: 'Freizeit' },
-    { recht: 'Information und Beteiligung', satz: 'Jedes Kind hat ein Recht auf Information und ___.', antwort: 'Beteiligung' },
-    { recht: 'Schutz vor Gewalt und Privatsphäre', satz: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', antwort: 'Privatsphäre' },
-    { recht: 'ein sicheres Zuhause', satz: 'Jedes Kind hat ein Recht auf ein sicheres ___.', antwort: 'Zuhause' },
-    { recht: 'Schutz vor Ausbeutung', satz: 'Jedes Kind hat ein Recht auf Schutz vor ___.', antwort: 'Ausbeutung' },
-    { recht: 'Schutz im Krieg und auf der Flucht', satz: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', antwort: 'Flucht' },
-    { recht: 'besondere Rechte bei Behinderung', satz: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', antwort: 'besondere' }
+
+  const LERNKARTEN_KINDERRECHTE = [
+    { front: 'Jedes Kind hat das Recht auf einen ___.', back: 'Jedes Kind hat das Recht auf einen <strong>Namen</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf ein sicheres ___.', back: 'Jedes Kind hat ein Recht auf ein sicheres <strong>Zuhause</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong>.' },
+    { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong>.' },
+    { front: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', back: 'Kinder mit einer Behinderung haben ein Recht auf <strong>besondere</strong> Rechte.' }
   ];
 
-  // Reiner Lern-/Merk-Screen (kein Quiz) - Max soll sich erst die 10 Rechte im
-  // Wortlaut durchlesen koennen, bevor er sich abfragen laesst. Vorbild:
-  // starteVerkehrszeichen unten (Karten-Uebersicht + "Zum Quiz"-Button).
-  // Lern-/Merk-Screen fuer ALLES, was in starteSchulkunde() abgefragt wird
-  // (Kinderrechte, Schulpflicht/-system-Fakten, UN-Kontext) - nicht nur die
-  // Kinderrechte. Uli-Wunsch: "auch bei dem Rest muss er die Möglichkeit
-  // haben, die Sachen erst zu lernen". Die SCHULE_FAKTEN/KINDERRECHTE_KONTEXT_
-  // FAKTEN-hilfe-Texte sind bereits als vollstaendige Merksaetze formuliert
-  // (siehe deren Definition unten) - hier direkt als Lernkarten wiederverwendet,
-  // keine doppelte Datenhaltung noetig.
-  function starteKinderrechteLernen() {
-    // Bewusst KEINE Nummerierung ("Kinderrecht 1/2/3...") mehr auf den Karten -
-    // exakt dasselbe Uli-Feedback wie bei der Quiz-Umstellung greift auch hier
-    // ("es geht nicht darum, welches Recht an welcher Stelle kommt"), war beim
-    // ersten Bau dieses Lern-Screens noch uebersehen worden. Jede Karte jetzt
-    // ein eigenstaendiger, lesbarer Titel ("Recht auf ...") statt Index+Inhalt.
-    const rechteCards = KINDERRECHTE.map(k =>
-      `<div class="sign-card">
-         <div class="sign-name">Recht auf ${k.recht}</div>
-       </div>`
-    ).join('');
-    const schuleCards = SCHULE_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
-    const kontextCards = KINDERRECHTE_KONTEXT_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
-    const laenderCards = LAENDER_BILDUNG_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
+  const LERNKARTEN_SCHULE = [
+    { front: 'Seit wie vielen Jahren gibt es in Deutschland ungefähr die Schulpflicht für alle Kinder?', back: 'In Deutschland müssen schon seit ungefähr <strong>100 Jahren</strong> alle Kinder zur Schule gehen.' },
+    { front: 'Wer konnte früher, bevor es die Schulpflicht gab, oft nicht lesen, schreiben und rechnen?', back: 'Es gab schon Schulen und Privatlehrer, aber viele Menschen lernten nur voneinander - <strong>die armen Leute</strong> konnten oft nicht lesen, schreiben und rechnen.' },
+    { front: 'Was gilt für den Schulbesuch in den staatlichen Schulen?', back: 'Der Besuch der Schule darf nichts <strong>kosten</strong> - in den staatlichen Schulen bezahlen die Eltern kein Geld.' },
+    { front: 'Wie heißen Schulen, bei denen die Eltern Schulgeld bezahlen müssen?', back: 'Schulen, bei denen die Eltern Schulgeld bezahlen müssen, heißen <strong>Privatschulen</strong>.' },
+    { front: 'Wie sollen Lehrer und Schüler miteinander umgehen?', back: 'Lehrer und Schüler gehen <strong>achtungsvoll</strong> miteinander um.' },
+    { front: 'Werden in Deutschland heute alle Kinder in der Schule gleich behandelt?', back: 'In Deutschland gilt die Schulpflicht für <strong>ALLE</strong> Kinder gleich - niemand wird ausgeschlossen.' },
+    { front: 'Wie nennt man das Recht auf Lernen?', back: 'Lernen ist ein <strong>Kinderrecht</strong>.' },
+    { front: 'Wofür hilft dir das Lernen?', back: 'Lernen hilft dir, <strong>die Welt</strong> um dich herum zu verstehen.' },
+    { front: 'Was machst du mit deinem Wissen und Können?', back: 'Mit deinem Wissen und Können machst du dich selbst <strong>stark</strong>.' },
+    { front: 'Wozu brauchst du später als Erwachsener gutes Lernen?', back: 'Lernen ist wichtig, weil man damit später <strong>Geld</strong> verdient.' },
+    { front: 'Welche Schulformen kann man in Thüringen nach der Grundschule besuchen?', back: 'Es geht z.B. weiter mit der <strong>Regelschule</strong>, der <strong>Gemeinschaftsschule</strong> oder dem <strong>Gymnasium</strong>.' },
+    { front: 'Welche Schulform bereitet gut auf einen handwerklichen oder technischen Beruf vor?', back: 'Wer später einen handwerklichen, technischen oder praktischen Beruf lernen möchte, wird durch die <strong>Regelschule</strong> gut vorbereitet.' },
+    { front: 'Ist ein Wechsel von der Regelschule auf ein Gymnasium möglich?', back: 'Ja - ein Wechsel von einer Regelschule an ein Gymnasium ist mit den <strong>entsprechenden Leistungen</strong> möglich. Lehrer und Eltern beraten dabei gut.' },
+    { front: 'Was kannst du nach dem Abitur besuchen, um zu studieren?', back: 'Mit dem Abitur können Jugendliche die Fachhochschule oder die <strong>Universität</strong> besuchen.' },
+    { front: 'Nach wie vielen Schuljahren macht man ungefähr das Abitur?', back: 'Das Abitur macht man nach <strong>12 oder 13</strong> Schuljahren.' },
+    { front: 'Welche neuen Fächer bereitet dich der Sachunterricht ab Klasse 5 vor?', back: 'Der Sachunterricht bereitet dich z.B. auf <strong>Geografie</strong>, <strong>Geschichte</strong> und <strong>Mensch-Natur-Technik</strong> vor.' }
+  ];
 
+  const LERNKARTEN_UN = [
+    { front: 'In welchem Jahr erklärten die Vereinten Nationen die Menschenrechte für alle Menschen?', back: 'In der Erklärung der Vereinten Nationen von <strong>1948</strong> heißt es: Alle Menschen sind gleich und frei.' },
+    { front: 'Worauf hat laut der Menschenrechts-Erklärung jeder Mensch ein Recht?', back: 'Jeder hat das Recht auf <strong>Leben, Freiheit und Sicherheit</strong> der Person.' },
+    { front: 'In welchem Jahr wurden die Vereinten Nationen (UN) gegründet?', back: 'Die UN wurden im Jahr <strong>1945</strong> von 50 Staaten gegründet.' },
+    { front: 'Wie viele Staaten gehören heute ungefähr der UN an?', back: 'Heute gehören der UN über <strong>200</strong> Staaten an - fast alle Länder der Welt.' },
+    { front: 'In welchem Jahr wurde die UN-Kinderrechtskonvention beschlossen?', back: 'Die Vereinten Nationen beschlossen das Übereinkommen über die Rechte des Kindes im Jahr <strong>1989</strong>.' },
+    { front: 'Haben fast alle Staaten der Erde die Kinderrechtskonvention unterzeichnet?', back: 'Ja - <strong>fast alle Staaten</strong> der Erde haben den Vertrag über die Rechte der Kinder unterzeichnet. Trotzdem werden noch immer täglich Kinderrechte verletzt.' },
+    { front: 'Wie heißt das Kinderhilfswerk der Vereinten Nationen?', back: 'Das Kinderhilfswerk der Vereinten Nationen heißt <strong>UNICEF</strong> - es hilft Kindern und Müttern in Notsituationen.' },
+    { front: 'Nenne einen Beruf, den ausgebeutete Kinder laut deinem Buch ausüben müssen.', back: 'Im Buch arbeiten Kinder z.B. als <strong>Teppichweberin</strong> oder als <strong>Rikschafahrer</strong>.' }
+  ];
+
+  const LERNKARTEN_LAENDER = [
+    { front: 'In welchem Land herrschte fast 30 Jahre Krieg, sodass viele Menschen nicht lesen und schreiben lernten?', back: 'In <strong>Angola</strong> herrschte fast 30 Jahre Krieg - viele Menschen lernten nicht lesen und schreiben.' },
+    { front: 'Wie viele Jahre sollen Kinder in Angola jetzt mindestens die Schule besuchen?', back: 'Jetzt sollen alle Kinder in Angola mindestens <strong>6 Jahre</strong> eine Schule besuchen.' },
+    { front: 'In welchem Land will die Regierung allen Schulkindern ein Tablet oder einen Computer mit kostenlosem Lernstoff geben?', back: '<strong>Indien</strong> will als erstes Land allen Schulkindern Computer/Tablets mit kostenlosem Zugang zu Lernstoff geben.' },
+    { front: 'Wie viele Schülerinnen und Schüler sitzen in einer Klasse in China?', back: 'In China sitzen <strong>40</strong> Schülerinnen und Schüler in einer Klasse.' },
+    { front: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?', back: 'In <strong>China</strong> ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.' }
+  ];
+
+  const LERNTHEMEN = {
+    kinderrechte: { titel: 'Kinderrechte', icon: 'geschichten', karten: LERNKARTEN_KINDERRECHTE },
+    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: LERNKARTEN_SCHULE },
+    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: LERNKARTEN_UN },
+    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: LERNKARTEN_LAENDER }
+  };
+
+  // Themenwahl VOR den Lernkarten - bewusst eigener Menuepunkt statt alles auf
+  // einmal, damit Max sich immer nur EIN Themengebiet vornimmt (Uli-Wunsch).
+  // Eigener back-row statt App.subMenuHtml, weil dessen Zurueck-Button fix
+  // App.gotoHome() aufruft - hier soll Zurueck zur Heimatkunde-Startseite
+  // fuehren (eine Ebene hoch), nicht ganz nach Hause.
+  function starteThemenwahl() {
+    const karten = Object.keys(LERNTHEMEN).map(key => {
+      const t = LERNTHEMEN[key];
+      return `<div class="sub-card" onclick="Heimatkunde.starteLernkarten('${key}')"><span class="sub-icon">${Icons.svg(t.icon)}</span><span class="sub-label">${t.titel}</span></div>`;
+    }).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Lies dir die 10 Kinderrechte gut durch</div>
-      <div class="sign-grid">${rechteCards}</div>
-      <div class="welcome">Wissen über Schule</div>
-      <div class="sign-grid">${schuleCards}</div>
-      <div class="welcome">Wissen über die Vereinten Nationen</div>
-      <div class="sign-grid">${kontextCards}</div>
-      <div class="welcome">Recht auf Bildung in anderen Ländern</div>
-      <div class="sign-grid">${laenderCards}</div>
-      <div class="weiter-row"><span class="btn-primary" onclick="Heimatkunde.starteSchulkunde()">Zum Üben ➜</span></div>
+      <div class="welcome">Welches Thema willst du lernen?</div>
+      <div class="lese-text">Wähl ein Thema aus - danach hört Papa dich ab.</div>
+      <div class="sub-grid">${karten}</div>
     `);
   }
 
-  // Lueckentext zum WORTLAUT jedes Rechts (nicht mehr zur Nummer/Reihenfolge -
-  // siehe ACHTUNG-Kommentar oben). antwortAlternativen bewusst NICHT gesetzt:
-  // jede Luecke hat genau ein eindeutiges Wort aus dem festen Satzmuster.
-  function genKinderrechtFreitext() {
-    const eintrag = pickN(KINDERRECHTE, 1)[0];
-    const hilfeEintrag = pickN(KINDERRECHTE.filter(k => k !== eintrag), 1)[0];
-    return {
-      typ: 'text',
-      frage: `Ergänze das Kinderrecht:<br>${eintrag.satz}`,
-      antwort: eintrag.antwort,
-      hilfe: `<strong>Beispiel:</strong> ${hilfeEintrag.satz.replace('___', `<strong>${hilfeEintrag.antwort}</strong>`)}`
-    };
+  // Reine Lernkarten (Umdrehen per Tap) - KEIN Eintippen, KEINE Auto-Bewertung.
+  // Uli hoert Max die Fakten selbst ab, siehe ACHTUNG-Kommentar oben.
+  let lkSession = null;
+  let lkUmgedreht = false;
+
+  function starteLernkarten(thema) {
+    const info = LERNTHEMEN[thema];
+    lkSession = { thema, titel: info.titel, karten: shuffle(info.karten), index: 0 };
+    App.setLastStarter(() => starteLernkarten(thema));
+    renderLernkarte();
   }
 
-  const SCHULE_FAKTEN = [
-    {
-      typ: 'numeric',
-      frage: 'Seit wie vielen Jahren gibt es in Deutschland ungefähr die Schulpflicht für alle Kinder? (nur die Zahl)',
-      antwort: 100,
-      hilfe: '<strong>Schulpflicht:</strong> In Deutschland müssen schon seit ungefähr <strong>100 Jahren</strong> alle Kinder zur Schule gehen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wer konnte früher, bevor es die Schulpflicht gab, oft nicht lesen, schreiben und rechnen?',
-      antwort: 'die armen Leute',
-      antwortAlternativen: ['arme Leute', 'die Armen'],
-      hilfe: '<strong>Früher:</strong> Es gab schon Schulen und Privatlehrer, aber viele Menschen lernten nur voneinander - <strong>die armen Leute</strong> konnten oft nicht lesen, schreiben und rechnen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Was gilt laut deinem Buch für den Schulbesuch in den staatlichen Schulen? Er darf nichts ___',
-      antwort: 'kosten',
-      antwortAlternativen: ['kostenlos'],
-      hilfe: '<strong>Kostenlos:</strong> Der Besuch der Schule darf nichts kosten - in den staatlichen Schulen bezahlen die Eltern kein Geld.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wie heißen Schulen, bei denen die Eltern Schulgeld bezahlen müssen?',
-      antwort: 'Privatschulen',
-      hilfe: '<strong>Privatschulen:</strong> Bei Privatschulen zahlen die Eltern Schulgeld - anders als in staatlichen Schulen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wie sollen Lehrer und Schüler laut deinem Buch miteinander umgehen?',
-      antwort: 'achtungsvoll',
-      hilfe: '<strong>Miteinander umgehen:</strong> Lehrer und Schüler gehen laut deinem Buch <strong>achtungsvoll</strong> miteinander um.'
-    },
-    {
-      typ: 'text',
-      frage: 'Werden in Deutschland heute alle Kinder in der Schule gleich behandelt, egal ob arm oder reich? (Ja oder Nein)',
-      antwort: 'Ja',
-      hilfe: '<strong>Gleichbehandlung:</strong> In Deutschland gilt die Schulpflicht für ALLE Kinder gleich - niemand wird ausgeschlossen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wie nennt man das Recht auf Lernen? Lernen ist ein ___',
-      antwort: 'Kinderrecht',
-      hilfe: '<strong>Lernen ist ein Kinderrecht:</strong> Das Recht auf Lernen/Bildung ist eines der 10 Kinderrechte.'
-    },
-    {
-      typ: 'text',
-      frage: 'Was hilft dir das Lernen laut deinem Heft besser zu verstehen?',
-      antwort: 'die Welt',
-      antwortAlternativen: ['die Welt um dich herum', 'Welt'],
-      hilfe: '<strong>Lernen hilft:</strong> Lernen hilft dir, <strong>die Welt</strong> um dich herum zu verstehen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Was machst du laut deinem Heft mit deinem Wissen und Können?',
-      antwort: 'stark',
-      hilfe: '<strong>Stark werden:</strong> Mit deinem Wissen und Können machst du dich selbst <strong>stark</strong>.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wozu brauchst du später als Erwachsener gutes Lernen, um im Job klarzukommen? (ein Wort)',
-      antwort: 'Geld',
-      antwortAlternativen: ['Geld verdienen'],
-      hilfe: '<strong>Lernen und Beruf:</strong> Lernen ist wichtig, weil man damit später <strong>Geld</strong> verdient.'
-    },
-    // Ab hier: Fakten aus dem "Und wie geht es nach der Grundschule weiter?"-
-    // Schaubild (Schulen und ihre Abschlüsse, Thüringen) und dem Sachunterricht-
-    // Textabschnitt (Sfb S.10/11).
-    {
-      typ: 'text',
-      frage: 'Nenne EINE Schulform, die man nach der Grundschule in Thüringen besuchen kann.',
-      antwort: 'Gymnasium',
-      antwortAlternativen: ['Regelschule', 'Gemeinschaftsschule'],
-      hilfe: '<strong>Nach der Grundschule:</strong> Es geht z.B. weiter mit der <strong>Regelschule</strong>, der <strong>Gemeinschaftsschule</strong> oder dem <strong>Gymnasium</strong>.'
-    },
-    {
-      typ: 'text',
-      frage: 'Welche Schulform bereitet dich laut deinem Buch gut auf einen handwerklichen oder technischen Beruf vor?',
-      antwort: 'Regelschule',
-      hilfe: '<strong>Regelschule:</strong> Wer später einen handwerklichen, technischen oder praktischen Beruf lernen möchte, wird durch die <strong>Regelschule</strong> gut vorbereitet.'
-    },
-    {
-      typ: 'text',
-      frage: 'Was kannst du nach dem Abitur besuchen, um zu studieren?',
-      antwort: 'Universität',
-      antwortAlternativen: ['die Universität', 'Fachhochschule', 'die Fachhochschule'],
-      hilfe: '<strong>Nach dem Abitur:</strong> Mit dem Abitur können Jugendliche die Fachhochschule oder die <strong>Universität</strong> besuchen.'
-    },
-    {
-      typ: 'text',
-      frage: 'Nach wie vielen Schuljahren macht man ungefähr das Abitur? (nur die Zahl)',
-      antwort: '12',
-      antwortAlternativen: ['13'],
-      hilfe: '<strong>Abitur:</strong> Das Abitur macht man nach <strong>12 oder 13</strong> Schuljahren.'
-    },
-    {
-      typ: 'text',
-      frage: 'Nenne EINES der neuen Fächer, auf die dich der Sachunterricht ab Klasse 5 vorbereitet.',
-      antwort: 'Geografie',
-      antwortAlternativen: ['Geschichte', 'Mensch-Natur-Technik', 'Mensch, Natur, Technik'],
-      hilfe: '<strong>Ab Klasse 5:</strong> Der Sachunterricht bereitet dich z.B. auf <strong>Geografie</strong>, Geschichte und Mensch-Natur-Technik vor.'
+  function renderLernkarte() {
+    lkUmgedreht = false;
+    const karte = lkSession.karten[lkSession.index];
+    const nr = lkSession.index + 1;
+    const total = lkSession.karten.length;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="progress-row"><span>Karte ${nr} / ${total}</span><span>${lkSession.titel.toUpperCase()}</span></div>
+      <div class="karteikarte" onclick="Heimatkunde.karteUmdrehen()">
+        <div class="karteikarte-inner" id="karteikarte-inner">
+          <div class="karteikarte-seite karteikarte-vorne">
+            <div class="lernkarte-text">${karte.front}</div>
+            <div class="karteikarte-hinweis">Tippen zum Umdrehen</div>
+          </div>
+          <div class="karteikarte-seite karteikarte-hinten">
+            <div class="lernkarte-text">${karte.back}</div>
+          </div>
+        </div>
+      </div>
+      <div class="karteikarte-bewertung" id="karteikarte-bewertung">
+        <div class="btn-primary" onclick="Heimatkunde.naechsteLernkarte()">Weiter ➜</div>
+      </div>
+    `);
+  }
+
+  function karteUmdrehen() {
+    if (lkUmgedreht) return;
+    lkUmgedreht = true;
+    document.getElementById('karteikarte-inner').classList.add('umgedreht');
+    document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
+  }
+
+  function naechsteLernkarte() {
+    if (!lkUmgedreht) return;
+    lkSession.index++;
+    if (lkSession.index >= lkSession.karten.length) {
+      renderLernkartenErgebnis();
+    } else {
+      renderLernkarte();
     }
-  ];
-
-  function genSchuleFaktenFreitext() {
-    return pickN(SCHULE_FAKTEN, 1)[0];
   }
 
-  // Fakten aus den Kinderrechte-Seiten (Sfb S.24/25: "Jedes Kind hat Rechte",
-  // UN-Kinderrechtskonvention, UNICEF) - eigene kleine Bank, da inhaltlich
-  // Kontextwissen UM die Kinderrechte herum, nicht die Rechte selbst (die
-  // stehen schon in KINDERRECHTE oben).
-  const KINDERRECHTE_KONTEXT_FAKTEN = [
-    {
-      typ: 'numeric',
-      frage: 'In welchem Jahr wurde die UN-Kinderrechtskonvention (das Übereinkommen über die Rechte des Kindes) beschlossen?',
-      antwort: 1989,
-      hilfe: '<strong>UN-Kinderrechtskonvention:</strong> Die Vereinten Nationen beschlossen sie im Jahr <strong>1989</strong>.'
-    },
-    {
-      typ: 'text',
-      frage: 'Wie heißt das Kinderhilfswerk der Vereinten Nationen? (Abkürzung)',
-      antwort: 'UNICEF',
-      hilfe: '<strong>UNICEF:</strong> Das Kinderhilfswerk der Vereinten Nationen heißt <strong>UNICEF</strong> - es hilft Kindern und Müttern in Notsituationen.'
-    },
-    {
-      typ: 'numeric',
-      frage: 'In welchem Jahr wurden die Vereinten Nationen (UN) gegründet?',
-      antwort: 1945,
-      hilfe: '<strong>Vereinte Nationen:</strong> Die UN wurden im Jahr <strong>1945</strong> von 50 Staaten gegründet.'
-    },
-    {
-      typ: 'numeric',
-      frage: 'Wie viele Staaten gehören heute ungefähr der UN an? (die Zahl, ohne "über")',
-      antwort: 200,
-      hilfe: '<strong>Fast alle Länder:</strong> Heute gehören der UN über <strong>200</strong> Staaten an - fast alle Länder der Welt.'
-    },
-    // Nachtrag (Sfb S.24, Haupttext "Jedes Kind hat Rechte" - beim ersten
-    // Durchgang uebersehen, erst bei Uli-Nachfrage "ist jetzt alles drin"
-    // aufgefallen): die Erklaerung der Menschenrechte von 1948 stand nur im
-    // Fliesstext, nicht in der "Interessant"-Box, und wurde deshalb zuerst
-    // uebersprungen.
-    {
-      typ: 'numeric',
-      frage: 'In welchem Jahr erklärten die Vereinten Nationen die Menschenrechte für alle Menschen?',
-      antwort: 1948,
-      hilfe: '<strong>Menschenrechte:</strong> In der Erklärung der Vereinten Nationen von <strong>1948</strong> heißt es: Alle Menschen sind gleich und frei.'
-    },
-    {
-      typ: 'text',
-      frage: 'Jeder Mensch hat laut der Menschenrechts-Erklärung ein Recht auf Leben, Freiheit und ___.',
-      antwort: 'Sicherheit',
-      antwortAlternativen: ['Sicherheit der Person'],
-      hilfe: '<strong>Menschenrechte:</strong> Jeder hat das Recht auf Leben, Freiheit und <strong>Sicherheit</strong> der Person.'
-    },
-    {
-      typ: 'text',
-      frage: 'Nenne einen Beruf, den ausgebeutete Kinder laut deinem Buch ausüben müssen.',
-      antwort: 'Teppichweberin',
-      antwortAlternativen: ['Rikschafahrer', 'Teppichweber'],
-      hilfe: '<strong>Ausbeutung:</strong> Im Buch arbeiten Kinder z.B. als <strong>Teppichweberin</strong> oder als Rikschafahrer.'
-    }
-  ];
-
-  function genKinderrechteKontextFreitext() {
-    return pickN(KINDERRECHTE_KONTEXT_FAKTEN, 1)[0];
-  }
-
-  // Laender-Beispiele zum Recht auf Bildung (Sfb S.9, "Angola-Afrika",
-  // "Indien-Asien", "China-Asien") - fehlten beim ersten Durchgang komplett,
-  // per Uli-Nachfrage "ist jetzt alles drin" nachtraeglich ergaenzt.
-  const LAENDER_BILDUNG_FAKTEN = [
-    {
-      typ: 'text',
-      frage: 'In welchem Land herrschte fast 30 Jahre Krieg, sodass viele Menschen nicht lesen und schreiben lernten?',
-      antwort: 'Angola',
-      hilfe: '<strong>Angola:</strong> In Angola herrschte fast 30 Jahre Krieg - viele Menschen lernten nicht lesen und schreiben.'
-    },
-    {
-      typ: 'numeric',
-      frage: 'Wie viele Jahre sollen Kinder in Angola jetzt mindestens die Schule besuchen? (nur die Zahl)',
-      antwort: 6,
-      hilfe: '<strong>Angola heute:</strong> Jetzt sollen alle Kinder mindestens <strong>6 Jahre</strong> eine Schule besuchen.'
-    },
-    {
-      typ: 'text',
-      frage: 'In welchem Land will die Regierung allen Schulkindern ein Tablet oder einen Computer mit kostenlosem Lernstoff geben?',
-      antwort: 'Indien',
-      hilfe: '<strong>Indien:</strong> Um allen Kindern das Recht auf Bildung zu sichern, will die Regierung von <strong>Indien</strong> Computer/Tablets mit kostenlosem Zugang zu Lernstoff geben.'
-    },
-    {
-      typ: 'numeric',
-      frage: 'Wie viele Schülerinnen und Schüler sitzen laut deinem Buch in einer Klasse in China? (nur die Zahl)',
-      antwort: 40,
-      hilfe: '<strong>China:</strong> In der Klasse von Chian sitzen <strong>40</strong> Schülerinnen und Schüler.'
-    },
-    {
-      typ: 'text',
-      frage: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?',
-      antwort: 'China',
-      hilfe: '<strong>China:</strong> In China ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.'
-    }
-  ];
-
-  function genLaenderBildungFreitext() {
-    return pickN(LAENDER_BILDUNG_FAKTEN, 1)[0];
-  }
-
-  const HEIMATKUNDE_LK_BEREICHE = [
-    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
-    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
-    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
-    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
-    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
-    { kategorie: 'kinderrechte-kontext', gen: genKinderrechteKontextFreitext },
-    { kategorie: 'laender-bildung', gen: genLaenderBildungFreitext }
-  ];
-
-  function genSchulkundeAufgabe(anzahl) {
-    const fragen = [];
-    for (let i = 0; i < anzahl; i++) {
-      fragen.push(pickN(HEIMATKUNDE_LK_BEREICHE, 1)[0].gen());
-    }
-    return fragen;
-  }
-
-  function starteSchulkunde() {
-    const AKTIVITAET = 'heimat-schulkunde';
-    const starter = () => {
-      const ANZAHL = Storage.getTagesPensumAnzahl('heimat');
-      const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Kinderrechte & Schule', aktivitaet: AKTIVITAET, pensumFach: 'heimat' };
-      if (offen && offen.index > 0 && offen.index < ANZAHL) {
-        config.anzeigeOffset = offen.index;
-        config.startRichtigCount = offen.richtigCount;
-        config.startSessionSterne = offen.sessionSterne;
-        config.startVerlauf = offen.verlauf || [];
-        App.startQuizSession('heimat', genSchulkundeAufgabe(ANZAHL - offen.index), config);
-      } else {
-        App.startQuizSession('heimat', genSchulkundeAufgabe(ANZAHL), config);
-      }
-    };
-    App.setLastStarter(starter); starter();
+  function renderLernkartenErgebnis() {
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Geschafft! 🎉</div>
+      <div class="lese-text">Du hast alle Karten zu "${lkSession.titel}" durchgesehen.</div>
+      <div class="weiter-row">
+        <span class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal von vorne</span>
+        <span class="btn-primary" style="margin-left:12px;" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</span>
+      </div>
+    `);
   }
 
   function starteVerkehrszeichen() {
@@ -432,5 +271,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteKinderrechteLernen, starteSchulkunde };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte };
 })();
