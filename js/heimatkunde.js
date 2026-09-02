@@ -48,8 +48,119 @@ const Heimatkunde = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
-      { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' }
+      { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
+      { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule', onclick: 'Heimatkunde.starteSchulkunde()' }
     ]));
+  }
+
+  // ===========================================================================
+  // LK-Vorbereitung 02.09.2026 (Arbeit am 09.09.2026): "weiterführende Schule
+  // und Kinderrechte". Uli-Wunsch aus der Deutsch-Vorbereitung vom selben Tag
+  // gilt auch hier: freie Eingabe statt Multiple Choice (typ:'text'/'numeric',
+  // kein typ:'mc'). Die 10 Kinderrechte stammen 1:1 (Nummer+Wortlaut) von dem
+  // eingeklebten UNICEF-Zettel auf dem Foto - klar lesbar, hohe Sicherheit.
+  // Die Schulpflicht-Fakten stammen aus Max' eigener Mitschrift zur
+  // "weiterführenden Schule"-Seite - dort war ein großer Teil der Handschrift
+  // nicht sicher zu entziffern, daher BEWUSST nur die zwei Fakten uebernommen,
+  // bei denen die Mitschrift eindeutig war (Schulpflicht seit ~100 Jahren,
+  // Gleichbehandlung aller Kinder). Der Rest der Seite (Reflexionsfragen wie
+  // "Warum ist Lernen wichtig fuer dich?") ist bewusst NICHT als Quiz-Frage
+  // umgesetzt - das sind persoenliche Meinungsfragen ohne eine einzelne
+  // "richtige" Antwort, dafuer ist der Freitext-Exakt-Vergleich ungeeignet.
+  // ===========================================================================
+  const KINDERRECHTE = [
+    { nr: 1, recht: 'einen Namen', stichwort: 'Namen' },
+    { nr: 2, recht: 'Gesundheit und eine saubere Umwelt', stichwort: 'Gesundheit', stichwortAlt: ['Umwelt'] },
+    { nr: 3, recht: 'Bildung', stichwort: 'Bildung' },
+    { nr: 4, recht: 'Spiele und Freizeit', stichwort: 'Freizeit', stichwortAlt: ['Spielen', 'Spiele'] },
+    { nr: 5, recht: 'Information und Beteiligung', stichwort: 'Beteiligung', stichwortAlt: ['Information', 'Informationen'] },
+    { nr: 6, recht: 'Schutz vor Gewalt', stichwort: 'Gewalt' },
+    { nr: 7, recht: 'ein sicheres Zuhause', stichwort: 'Zuhause' },
+    { nr: 8, recht: 'Schutz vor Ausbeutung', stichwort: 'Ausbeutung' },
+    { nr: 9, recht: 'Schutz im Krieg und auf der Flucht', stichwort: 'Krieg', stichwortAlt: ['Flucht'] },
+    { nr: 10, recht: 'besondere Rechte bei Behinderung', stichwort: 'Behinderung' }
+  ];
+
+  // Nummer -> Stichwort: freie Texteingabe, mehrere Stichworte pro Recht
+  // erlaubt (antwortAlternativen, siehe app.js textAntwortKorrekt), da z.B.
+  // "Umwelt" genauso richtig ist wie "Gesundheit" fuer Kinderrecht 2. Als
+  // weitere Alternative auch der volle Wortlaut (recht) selbst zugelassen.
+  function genKinderrechtStichwortFreitext() {
+    const eintrag = pickN(KINDERRECHTE, 1)[0];
+    const hilfeEintrag = pickN(KINDERRECHTE.filter(k => k !== eintrag), 1)[0];
+    return {
+      typ: 'text',
+      frage: `Wie lautet Kinderrecht Nummer <strong>${eintrag.nr}</strong>? (Ein Stichwort reicht)`,
+      antwort: eintrag.stichwort,
+      antwortAlternativen: [...(eintrag.stichwortAlt || []), eintrag.recht],
+      hilfe: `<strong>Beispiel:</strong> Kinderrecht Nummer ${hilfeEintrag.nr} ist das Recht auf <strong>${hilfeEintrag.recht}</strong>.`
+    };
+  }
+
+  // Stichwort -> Nummer: nutzt das bestehende Ziffern-Keypad (typ:'numeric'),
+  // keine eigene Logik noetig.
+  function genKinderrechtNummerFreitext() {
+    const eintrag = pickN(KINDERRECHTE, 1)[0];
+    const hilfeEintrag = pickN(KINDERRECHTE.filter(k => k !== eintrag), 1)[0];
+    return {
+      typ: 'numeric',
+      frage: `Welche Nummer hat das Kinderrecht auf <strong>${eintrag.recht}</strong>?`,
+      antwort: eintrag.nr,
+      hilfe: `<strong>Beispiel:</strong> Das Recht auf ${hilfeEintrag.recht} ist Kinderrecht Nummer <strong>${hilfeEintrag.nr}</strong>.`
+    };
+  }
+
+  const SCHULE_FAKTEN = [
+    {
+      typ: 'numeric',
+      frage: 'Seit wie vielen Jahren gibt es in Deutschland ungefähr die Schulpflicht für alle Kinder? (nur die Zahl)',
+      antwort: 100,
+      hilfe: '<strong>Schulpflicht:</strong> In Deutschland müssen schon seit ungefähr <strong>100 Jahren</strong> alle Kinder zur Schule gehen.'
+    },
+    {
+      typ: 'text',
+      frage: 'Muss in Deutschland JEDES Kind zur Schule gehen - egal ob Junge oder Mädchen, egal welche Religion oder Herkunft? (Ja oder Nein)',
+      antwort: 'Ja',
+      hilfe: '<strong>Gleichbehandlung:</strong> In Deutschland gilt die Schulpflicht für ALLE Kinder gleich - niemand wird wegen Geschlecht, Religion oder Herkunft ausgeschlossen.'
+    }
+  ];
+
+  function genSchuleFaktenFreitext() {
+    return pickN(SCHULE_FAKTEN, 1)[0];
+  }
+
+  const HEIMATKUNDE_LK_BEREICHE = [
+    { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
+    { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
+    { kategorie: 'kinderrecht-nummer', gen: genKinderrechtNummerFreitext },
+    { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext }
+  ];
+
+  function genSchulkundeAufgabe(anzahl) {
+    const fragen = [];
+    for (let i = 0; i < anzahl; i++) {
+      fragen.push(pickN(HEIMATKUNDE_LK_BEREICHE, 1)[0].gen());
+    }
+    return fragen;
+  }
+
+  function starteSchulkunde() {
+    const AKTIVITAET = 'heimat-schulkunde';
+    const starter = () => {
+      const ANZAHL = Storage.getTagesPensumAnzahl('heimat');
+      const offen = Storage.getOffeneSession(AKTIVITAET);
+      const config = { titel: 'Kinderrechte & Schule', aktivitaet: AKTIVITAET, pensumFach: 'heimat' };
+      if (offen && offen.index > 0 && offen.index < ANZAHL) {
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
+        App.startQuizSession('heimat', genSchulkundeAufgabe(ANZAHL - offen.index), config);
+      } else {
+        App.startQuizSession('heimat', genSchulkundeAufgabe(ANZAHL), config);
+      }
+    };
+    App.setLastStarter(starter); starter();
   }
 
   function starteVerkehrszeichen() {
@@ -93,5 +204,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteSchulkunde };
 })();

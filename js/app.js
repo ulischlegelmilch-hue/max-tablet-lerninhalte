@@ -90,10 +90,17 @@ const App = (function () {
   // zum Mathe-Vorgehen vom 01.09.2026. NACH DER ARBEIT UNBEDINGT WIEDER AUF
   // { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch',
   //   onclick: 'Deutsch.starteRechtschreibung()' } ZURUECKSETZEN.
+  //
+  // ACHTUNG 02.09.2026: Gleiches Prinzip fuer Max' Heimat-&-Sachkunde-LK am
+  // 09.09.2026 ("weiterführende Schule und Kinderrechte") - bis dahin auf
+  // Heimatkunde.starteSchulkunde() umgebogen statt starteQuiz()
+  // (Verkehrszeichen). NACH DER LK UNBEDINGT WIEDER AUF
+  // { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde',
+  //   onclick: 'Heimatkunde.starteQuiz()' } ZURUECKSETZEN.
   const TAGESPLAN_FACH_META = {
     mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
     deutsch: { icon: 'tagesaufgabe', titel: 'Schularbeit üben', fachName: 'Deutsch', onclick: 'Deutsch.starteSchularbeitUeben()' },
-    heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
+    heimat: { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteSchulkunde()' }
   };
 
   // Ungelesen-Badge auf der Chat-Kachel (siehe fernsync.js pruefeNeueChatNachricht
@@ -817,6 +824,16 @@ const App = (function () {
     return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
+  // Optional f.antwortAlternativen (Array weiterer akzeptierter Antworten) -
+  // nur wo es echt mehrere gleichwertig richtige Stichworte gibt (z.B.
+  // Heimatkunde-Kinderrechte "Gesundheit" ODER "Umwelt" fuer dasselbe Recht),
+  // nicht als generelle Fuzzy-Matching-Funktion gedacht.
+  function textAntwortKorrekt(eingabeText, f) {
+    const norm = normalisiereAntwortText(eingabeText);
+    if (norm === normalisiereAntwortText(f.antwort)) return true;
+    return Array.isArray(f.antwortAlternativen) && f.antwortAlternativen.some(alt => normalisiereAntwortText(alt) === norm);
+  }
+
   function renderTextEingabe(f) {
     const input = document.getElementById('text-eingabe');
     const okBtn = document.getElementById('text-eingabe-ok');
@@ -827,7 +844,7 @@ const App = (function () {
       if (eingabeText.trim() === '') return;
       input.disabled = true;
       okBtn.onclick = null;
-      const korrekt = normalisiereAntwortText(eingabeText) === normalisiereAntwortText(f.antwort);
+      const korrekt = textAntwortKorrekt(eingabeText, f);
       verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderTextEingabe(f), eingabeText);
     };
     okBtn.onclick = absenden;
