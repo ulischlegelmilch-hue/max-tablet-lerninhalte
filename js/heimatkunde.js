@@ -49,7 +49,8 @@ const Heimatkunde = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
-      { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule', onclick: 'Heimatkunde.starteSchulkunde()' }
+      { icon: 'geschichten', titel: 'Kinderrechte lernen', onclick: 'Heimatkunde.starteKinderrechteLernen()' },
+      { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule üben', onclick: 'Heimatkunde.starteSchulkunde()' }
     ]));
   }
 
@@ -57,56 +58,71 @@ const Heimatkunde = (function () {
   // LK-Vorbereitung 02.09.2026 (Arbeit am 09.09.2026): "weiterführende Schule
   // und Kinderrechte". Uli-Wunsch aus der Deutsch-Vorbereitung vom selben Tag
   // gilt auch hier: freie Eingabe statt Multiple Choice (typ:'text'/'numeric',
-  // kein typ:'mc'). Die 10 Kinderrechte stammen 1:1 (Nummer+Wortlaut) von dem
-  // eingeklebten UNICEF-Zettel auf dem Foto - klar lesbar, hohe Sicherheit.
-  // Die Schulpflicht-Fakten stammen aus Max' eigener Mitschrift zur
-  // "weiterführenden Schule"-Seite - dort war ein großer Teil der Handschrift
-  // nicht sicher zu entziffern, daher BEWUSST nur die zwei Fakten uebernommen,
-  // bei denen die Mitschrift eindeutig war (Schulpflicht seit ~100 Jahren,
-  // Gleichbehandlung aller Kinder). Der Rest der Seite (Reflexionsfragen wie
-  // "Warum ist Lernen wichtig fuer dich?") ist bewusst NICHT als Quiz-Frage
-  // umgesetzt - das sind persoenliche Meinungsfragen ohne eine einzelne
-  // "richtige" Antwort, dafuer ist der Freitext-Exakt-Vergleich ungeeignet.
+  // kein typ:'mc'). Die 10 Kinderrechte stammen 1:1 vom eingeklebten
+  // UNICEF-Zettel auf dem Foto - klar lesbar, hohe Sicherheit.
+  //
+  // WICHTIGE KORREKTUR (selber Tag): urspruenglich gab es zusaetzlich eine
+  // "welche Nummer hat Kinderrecht X"-Abfrage. Uli-Feedback: "ich denke es
+  // geht nicht darum, welches Recht an welcher Stelle kommt, sondern welche
+  // Kinderrechte es ueberhaupt gibt" - die Nummerierung ist fuer die Arbeit
+  // irrelevant, es zaehlt nur der INHALT. Deshalb komplett umgebaut: KEINE
+  // Nummer-Abfrage mehr (genKinderrechtNummerFreitext entfernt), stattdessen
+  // (1) ein reiner Lern-/Merk-Screen mit allen 10 Rechten zum Durchlesen
+  // (starteKinderrechteLernen, Vorbild: starteVerkehrszeichen) UND (2) eine
+  // Lueckentext-Abfrage zum tatsaechlichen WORTLAUT jedes Rechts (Vorbild:
+  // Deutsch chWoerterBank-Luecken aus der Deutsch-Vorbereitung vom selben Tag).
+  //
+  // Die Schulpflicht-/Kontext-Fakten stammen teils aus Max' eigener Mitschrift,
+  // teils (nach Korrektur) aus den echten fotografierten Lehrbuchseiten
+  // (Sfb S.8-11 + S.24/25) - siehe SCHULE_FAKTEN/KINDERRECHTE_KONTEXT_FAKTEN
+  // unten. Reflexionsfragen wie "Warum ist Lernen wichtig fuer dich?" sind
+  // bewusst NICHT als Quiz-Frage umgesetzt - persoenliche Meinungsfragen ohne
+  // eine einzelne "richtige" Antwort, dafuer ist der Freitext-Exakt-Vergleich
+  // ungeeignet.
   // ===========================================================================
   const KINDERRECHTE = [
-    { nr: 1, recht: 'einen Namen', stichwort: 'Namen' },
-    { nr: 2, recht: 'Gesundheit und eine saubere Umwelt', stichwort: 'Gesundheit', stichwortAlt: ['Umwelt'] },
-    { nr: 3, recht: 'Bildung', stichwort: 'Bildung' },
-    { nr: 4, recht: 'Spiele und Freizeit', stichwort: 'Freizeit', stichwortAlt: ['Spielen', 'Spiele'] },
-    { nr: 5, recht: 'Information und Beteiligung', stichwort: 'Beteiligung', stichwortAlt: ['Information', 'Informationen'] },
-    { nr: 6, recht: 'Schutz vor Gewalt und Privatsphäre', stichwort: 'Gewalt', stichwortAlt: ['Privatsphäre'] },
-    { nr: 7, recht: 'ein sicheres Zuhause', stichwort: 'Zuhause' },
-    { nr: 8, recht: 'Schutz vor Ausbeutung', stichwort: 'Ausbeutung' },
-    { nr: 9, recht: 'Schutz im Krieg und auf der Flucht', stichwort: 'Krieg', stichwortAlt: ['Flucht'] },
-    { nr: 10, recht: 'besondere Rechte bei Behinderung', stichwort: 'Behinderung' }
+    { recht: 'einen Namen', satz: 'Jedes Kind hat das Recht auf einen ___.', antwort: 'Namen' },
+    { recht: 'Gesundheit und eine saubere Umwelt', satz: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', antwort: 'Umwelt' },
+    { recht: 'Bildung', satz: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', antwort: 'Bildung' },
+    { recht: 'Spiele und Freizeit', satz: 'Jedes Kind hat ein Recht auf Spiele und ___.', antwort: 'Freizeit' },
+    { recht: 'Information und Beteiligung', satz: 'Jedes Kind hat ein Recht auf Information und ___.', antwort: 'Beteiligung' },
+    { recht: 'Schutz vor Gewalt und Privatsphäre', satz: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', antwort: 'Privatsphäre' },
+    { recht: 'ein sicheres Zuhause', satz: 'Jedes Kind hat ein Recht auf ein sicheres ___.', antwort: 'Zuhause' },
+    { recht: 'Schutz vor Ausbeutung', satz: 'Jedes Kind hat ein Recht auf Schutz vor ___.', antwort: 'Ausbeutung' },
+    { recht: 'Schutz im Krieg und auf der Flucht', satz: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', antwort: 'Flucht' },
+    { recht: 'besondere Rechte bei Behinderung', satz: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', antwort: 'besondere' }
   ];
 
-  // Nummer -> Stichwort: freie Texteingabe, mehrere Stichworte pro Recht
-  // erlaubt (antwortAlternativen, siehe app.js textAntwortKorrekt), da z.B.
-  // "Umwelt" genauso richtig ist wie "Gesundheit" fuer Kinderrecht 2. Als
-  // weitere Alternative auch der volle Wortlaut (recht) selbst zugelassen.
-  function genKinderrechtStichwortFreitext() {
+  // Reiner Lern-/Merk-Screen (kein Quiz) - Max soll sich erst die 10 Rechte im
+  // Wortlaut durchlesen koennen, bevor er sich abfragen laesst. Vorbild:
+  // starteVerkehrszeichen unten (Karten-Uebersicht + "Zum Quiz"-Button).
+  function starteKinderrechteLernen() {
+    const cards = KINDERRECHTE.map((k, i) =>
+      `<div class="sign-card">
+         <div class="sign-name">Kinderrecht ${i + 1}</div>
+         <div class="sign-bedeutung">${k.recht}</div>
+       </div>`
+    ).join('');
+
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Lies dir die 10 Kinderrechte gut durch</div>
+      <div class="sign-grid">${cards}</div>
+      <div class="weiter-row"><span class="btn-primary" onclick="Heimatkunde.starteSchulkunde()">Zum Üben ➜</span></div>
+    `);
+  }
+
+  // Lueckentext zum WORTLAUT jedes Rechts (nicht mehr zur Nummer/Reihenfolge -
+  // siehe ACHTUNG-Kommentar oben). antwortAlternativen bewusst NICHT gesetzt:
+  // jede Luecke hat genau ein eindeutiges Wort aus dem festen Satzmuster.
+  function genKinderrechtFreitext() {
     const eintrag = pickN(KINDERRECHTE, 1)[0];
     const hilfeEintrag = pickN(KINDERRECHTE.filter(k => k !== eintrag), 1)[0];
     return {
       typ: 'text',
-      frage: `Wie lautet Kinderrecht Nummer <strong>${eintrag.nr}</strong>? (Ein Stichwort reicht)`,
-      antwort: eintrag.stichwort,
-      antwortAlternativen: [...(eintrag.stichwortAlt || []), eintrag.recht],
-      hilfe: `<strong>Beispiel:</strong> Kinderrecht Nummer ${hilfeEintrag.nr} ist das Recht auf <strong>${hilfeEintrag.recht}</strong>.`
-    };
-  }
-
-  // Stichwort -> Nummer: nutzt das bestehende Ziffern-Keypad (typ:'numeric'),
-  // keine eigene Logik noetig.
-  function genKinderrechtNummerFreitext() {
-    const eintrag = pickN(KINDERRECHTE, 1)[0];
-    const hilfeEintrag = pickN(KINDERRECHTE.filter(k => k !== eintrag), 1)[0];
-    return {
-      typ: 'numeric',
-      frage: `Welche Nummer hat das Kinderrecht auf <strong>${eintrag.recht}</strong>?`,
-      antwort: eintrag.nr,
-      hilfe: `<strong>Beispiel:</strong> Das Recht auf ${hilfeEintrag.recht} ist Kinderrecht Nummer <strong>${hilfeEintrag.nr}</strong>.`
+      frage: `Ergänze das Kinderrecht:<br>${eintrag.satz}`,
+      antwort: eintrag.antwort,
+      hilfe: `<strong>Beispiel:</strong> ${hilfeEintrag.satz.replace('___', `<strong>${hilfeEintrag.antwort}</strong>`)}`
     };
   }
 
@@ -254,9 +270,9 @@ const Heimatkunde = (function () {
   }
 
   const HEIMATKUNDE_LK_BEREICHE = [
-    { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
-    { kategorie: 'kinderrecht-stichwort', gen: genKinderrechtStichwortFreitext },
-    { kategorie: 'kinderrecht-nummer', gen: genKinderrechtNummerFreitext },
+    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
+    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
+    { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
     { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
     { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
     { kategorie: 'kinderrechte-kontext', gen: genKinderrechteKontextFreitext }
@@ -330,5 +346,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteSchulkunde };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteKinderrechteLernen, starteSchulkunde };
 })();
