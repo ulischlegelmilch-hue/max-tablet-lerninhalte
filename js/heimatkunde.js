@@ -104,10 +104,14 @@ const Heimatkunde = (function () {
   // (siehe deren Definition unten) - hier direkt als Lernkarten wiederverwendet,
   // keine doppelte Datenhaltung noetig.
   function starteKinderrechteLernen() {
-    const rechteCards = KINDERRECHTE.map((k, i) =>
+    // Bewusst KEINE Nummerierung ("Kinderrecht 1/2/3...") mehr auf den Karten -
+    // exakt dasselbe Uli-Feedback wie bei der Quiz-Umstellung greift auch hier
+    // ("es geht nicht darum, welches Recht an welcher Stelle kommt"), war beim
+    // ersten Bau dieses Lern-Screens noch uebersehen worden. Jede Karte jetzt
+    // ein eigenstaendiger, lesbarer Titel ("Recht auf ...") statt Index+Inhalt.
+    const rechteCards = KINDERRECHTE.map(k =>
       `<div class="sign-card">
-         <div class="sign-name">Kinderrecht ${i + 1}</div>
-         <div class="sign-bedeutung">${k.recht}</div>
+         <div class="sign-name">Recht auf ${k.recht}</div>
        </div>`
     ).join('');
     const schuleCards = SCHULE_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
