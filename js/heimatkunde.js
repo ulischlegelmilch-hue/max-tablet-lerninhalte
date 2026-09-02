@@ -116,6 +116,7 @@ const Heimatkunde = (function () {
     ).join('');
     const schuleCards = SCHULE_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
     const kontextCards = KINDERRECHTE_KONTEXT_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
+    const laenderCards = LAENDER_BILDUNG_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -125,6 +126,8 @@ const Heimatkunde = (function () {
       <div class="sign-grid">${schuleCards}</div>
       <div class="welcome">Wissen über die Vereinten Nationen</div>
       <div class="sign-grid">${kontextCards}</div>
+      <div class="welcome">Recht auf Bildung in anderen Ländern</div>
+      <div class="sign-grid">${laenderCards}</div>
       <div class="weiter-row"><span class="btn-primary" onclick="Heimatkunde.starteSchulkunde()">Zum Üben ➜</span></div>
     `);
   }
@@ -279,11 +282,76 @@ const Heimatkunde = (function () {
       frage: 'Wie viele Staaten gehören heute ungefähr der UN an? (die Zahl, ohne "über")',
       antwort: 200,
       hilfe: '<strong>Fast alle Länder:</strong> Heute gehören der UN über <strong>200</strong> Staaten an - fast alle Länder der Welt.'
+    },
+    // Nachtrag (Sfb S.24, Haupttext "Jedes Kind hat Rechte" - beim ersten
+    // Durchgang uebersehen, erst bei Uli-Nachfrage "ist jetzt alles drin"
+    // aufgefallen): die Erklaerung der Menschenrechte von 1948 stand nur im
+    // Fliesstext, nicht in der "Interessant"-Box, und wurde deshalb zuerst
+    // uebersprungen.
+    {
+      typ: 'numeric',
+      frage: 'In welchem Jahr erklärten die Vereinten Nationen die Menschenrechte für alle Menschen?',
+      antwort: 1948,
+      hilfe: '<strong>Menschenrechte:</strong> In der Erklärung der Vereinten Nationen von <strong>1948</strong> heißt es: Alle Menschen sind gleich und frei.'
+    },
+    {
+      typ: 'text',
+      frage: 'Jeder Mensch hat laut der Menschenrechts-Erklärung ein Recht auf Leben, Freiheit und ___.',
+      antwort: 'Sicherheit',
+      antwortAlternativen: ['Sicherheit der Person'],
+      hilfe: '<strong>Menschenrechte:</strong> Jeder hat das Recht auf Leben, Freiheit und <strong>Sicherheit</strong> der Person.'
+    },
+    {
+      typ: 'text',
+      frage: 'Nenne einen Beruf, den ausgebeutete Kinder laut deinem Buch ausüben müssen.',
+      antwort: 'Teppichweberin',
+      antwortAlternativen: ['Rikschafahrer', 'Teppichweber'],
+      hilfe: '<strong>Ausbeutung:</strong> Im Buch arbeiten Kinder z.B. als <strong>Teppichweberin</strong> oder als Rikschafahrer.'
     }
   ];
 
   function genKinderrechteKontextFreitext() {
     return pickN(KINDERRECHTE_KONTEXT_FAKTEN, 1)[0];
+  }
+
+  // Laender-Beispiele zum Recht auf Bildung (Sfb S.9, "Angola-Afrika",
+  // "Indien-Asien", "China-Asien") - fehlten beim ersten Durchgang komplett,
+  // per Uli-Nachfrage "ist jetzt alles drin" nachtraeglich ergaenzt.
+  const LAENDER_BILDUNG_FAKTEN = [
+    {
+      typ: 'text',
+      frage: 'In welchem Land herrschte fast 30 Jahre Krieg, sodass viele Menschen nicht lesen und schreiben lernten?',
+      antwort: 'Angola',
+      hilfe: '<strong>Angola:</strong> In Angola herrschte fast 30 Jahre Krieg - viele Menschen lernten nicht lesen und schreiben.'
+    },
+    {
+      typ: 'numeric',
+      frage: 'Wie viele Jahre sollen Kinder in Angola jetzt mindestens die Schule besuchen? (nur die Zahl)',
+      antwort: 6,
+      hilfe: '<strong>Angola heute:</strong> Jetzt sollen alle Kinder mindestens <strong>6 Jahre</strong> eine Schule besuchen.'
+    },
+    {
+      typ: 'text',
+      frage: 'In welchem Land will die Regierung allen Schulkindern ein Tablet oder einen Computer mit kostenlosem Lernstoff geben?',
+      antwort: 'Indien',
+      hilfe: '<strong>Indien:</strong> Um allen Kindern das Recht auf Bildung zu sichern, will die Regierung von <strong>Indien</strong> Computer/Tablets mit kostenlosem Zugang zu Lernstoff geben.'
+    },
+    {
+      typ: 'numeric',
+      frage: 'Wie viele Schülerinnen und Schüler sitzen laut deinem Buch in einer Klasse in China? (nur die Zahl)',
+      antwort: 40,
+      hilfe: '<strong>China:</strong> In der Klasse von Chian sitzen <strong>40</strong> Schülerinnen und Schüler.'
+    },
+    {
+      typ: 'text',
+      frage: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?',
+      antwort: 'China',
+      hilfe: '<strong>China:</strong> In China ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.'
+    }
+  ];
+
+  function genLaenderBildungFreitext() {
+    return pickN(LAENDER_BILDUNG_FAKTEN, 1)[0];
   }
 
   const HEIMATKUNDE_LK_BEREICHE = [
@@ -292,7 +360,8 @@ const Heimatkunde = (function () {
     { kategorie: 'kinderrecht', gen: genKinderrechtFreitext },
     { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
     { kategorie: 'schule-fakten', gen: genSchuleFaktenFreitext },
-    { kategorie: 'kinderrechte-kontext', gen: genKinderrechteKontextFreitext }
+    { kategorie: 'kinderrechte-kontext', gen: genKinderrechteKontextFreitext },
+    { kategorie: 'laender-bildung', gen: genLaenderBildungFreitext }
   ];
 
   function genSchulkundeAufgabe(anzahl) {
