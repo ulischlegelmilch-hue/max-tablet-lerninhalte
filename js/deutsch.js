@@ -13,7 +13,8 @@ const Deutsch = (function () {
     App.render(App.subMenuHtml('Deutsch – was übst du?', [
       { icon: 'rechtschreibung', titel: 'Rechtschreibung', onclick: 'Deutsch.starteRechtschreibung()' },
       { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' },
-      { icon: 'wortarten', titel: 'Wortarten erkennen', onclick: 'Deutsch.starteWortarten()' }
+      { icon: 'wortarten', titel: 'Wortarten erkennen', onclick: 'Deutsch.starteWortarten()' },
+      { icon: 'tagesaufgabe', titel: 'Schularbeit üben', onclick: 'Deutsch.starteSchularbeitUeben()' }
     ]));
   }
 
@@ -202,6 +203,162 @@ const Deutsch = (function () {
     });
   }
 
+  // ===========================================================================
+  // Schularbeit-Vorbereitung 02.09.2026 (Arbeit am 08.09.2026): Wortarten,
+  // Verben-Grundform, Praesens/Praeteritum/Perfekt, Woerter mit ch - siehe
+  // starteSchularbeitUeben() unten. Uli-Wunsch: "er sollte Arten dieser
+  // Aufgaben loesen, aber kein Multiple Choice" - alle Generatoren hier nutzen
+  // typ:'text' (freie Eingabe mit nativer Tastatur, siehe app.js
+  // renderTextEingabe), NICHT typ:'mc'.
+  // ===========================================================================
+
+  // Freitext-Variante von genWortarten: gleiche wortartenBank/HILFE_WORTARTEN,
+  // aber Max tippt die Wortart selbst statt sie anzutippen.
+  function genWortartFreitext() {
+    const eintrag = pickN(wortartenBank, 1)[0];
+    const wortart = pickN(['nomen', 'verb', 'adjektiv'], 1)[0];
+    const antwort = wortart === 'nomen' ? 'Nomen' : wortart === 'verb' ? 'Verb' : 'Adjektiv';
+    return {
+      typ: 'text',
+      frage: `„${eintrag.satz}“<br>Welche Wortart hat das Wort <strong>${eintrag[wortart]}</strong>? (Nomen, Verb oder Adjektiv)`,
+      antwort,
+      hilfe: HILFE_WORTARTEN[wortart]
+    };
+  }
+
+  // Verben mit Grundform + Praesens/Praeteritum/Perfekt fuer zwei Personen
+  // (er/sie/es und wir - bewusst nicht alle 6 Personen, siehe Projektnotiz:
+  // damit jede Form von Hand gegen die Hausaufgaben-Fotos und die deutsche
+  // Standard-Konjugation gegengeprueft werden kann statt eine Konjugations-
+  // Automatik zu bauen, die grammatisch falsche Formen erzeugen koennte).
+  // Bewusst eine Mischung aus regelmaessigen (-te/-t, z.B. "leuchten") und
+  // unregelmaessigen/starken Verben (z.B. "gehen", "sprechen") sowie
+  // haben- UND sein-Perfekt, da genau das der Kern der Arbeit ist.
+  const verbFormenBank = [
+    { grundform: 'gehen', formen: { er: { praesens: 'geht', praeteritum: 'ging', perfekt: 'ist gegangen' }, wir: { praesens: 'gehen', praeteritum: 'gingen', perfekt: 'sind gegangen' } } },
+    { grundform: 'renovieren', formen: { er: { praesens: 'renoviert', praeteritum: 'renovierte', perfekt: 'hat renoviert' }, wir: { praesens: 'renovieren', praeteritum: 'renovierten', perfekt: 'haben renoviert' } } },
+    { grundform: 'unterstützen', formen: { er: { praesens: 'unterstützt', praeteritum: 'unterstützte', perfekt: 'hat unterstützt' }, wir: { praesens: 'unterstützen', praeteritum: 'unterstützten', perfekt: 'haben unterstützt' } } },
+    { grundform: 'helfen', formen: { er: { praesens: 'hilft', praeteritum: 'half', perfekt: 'hat geholfen' }, wir: { praesens: 'helfen', praeteritum: 'halfen', perfekt: 'haben geholfen' } } },
+    { grundform: 'staunen', formen: { er: { praesens: 'staunt', praeteritum: 'staunte', perfekt: 'hat gestaunt' }, wir: { praesens: 'staunen', praeteritum: 'staunten', perfekt: 'haben gestaunt' } } },
+    { grundform: 'sein', formen: { er: { praesens: 'ist', praeteritum: 'war', perfekt: 'ist gewesen' }, wir: { praesens: 'sind', praeteritum: 'waren', perfekt: 'sind gewesen' } } },
+    { grundform: 'hängen', formen: { er: { praesens: 'hängt', praeteritum: 'hing', perfekt: 'hat gehangen' }, wir: { praesens: 'hängen', praeteritum: 'hingen', perfekt: 'haben gehangen' } } },
+    { grundform: 'haben', formen: { er: { praesens: 'hat', praeteritum: 'hatte', perfekt: 'hat gehabt' }, wir: { praesens: 'haben', praeteritum: 'hatten', perfekt: 'haben gehabt' } } },
+    { grundform: 'stehen', formen: { er: { praesens: 'steht', praeteritum: 'stand', perfekt: 'hat gestanden' }, wir: { praesens: 'stehen', praeteritum: 'standen', perfekt: 'haben gestanden' } } },
+    { grundform: 'erhalten', formen: { er: { praesens: 'erhält', praeteritum: 'erhielt', perfekt: 'hat erhalten' }, wir: { praesens: 'erhalten', praeteritum: 'erhielten', perfekt: 'haben erhalten' } } },
+    { grundform: 'gestalten', formen: { er: { praesens: 'gestaltet', praeteritum: 'gestaltete', perfekt: 'hat gestaltet' }, wir: { praesens: 'gestalten', praeteritum: 'gestalteten', perfekt: 'haben gestaltet' } } },
+    { grundform: 'leuchten', formen: { er: { praesens: 'leuchtet', praeteritum: 'leuchtete', perfekt: 'hat geleuchtet' }, wir: { praesens: 'leuchten', praeteritum: 'leuchteten', perfekt: 'haben geleuchtet' } } },
+    { grundform: 'sprechen', formen: { er: { praesens: 'spricht', praeteritum: 'sprach', perfekt: 'hat gesprochen' }, wir: { praesens: 'sprechen', praeteritum: 'sprachen', perfekt: 'haben gesprochen' } } },
+    { grundform: 'wechseln', formen: { er: { praesens: 'wechselt', praeteritum: 'wechselte', perfekt: 'hat gewechselt' }, wir: { praesens: 'wechseln', praeteritum: 'wechselten', perfekt: 'haben gewechselt' } } },
+    { grundform: 'zeichnen', formen: { er: { praesens: 'zeichnet', praeteritum: 'zeichnete', perfekt: 'hat gezeichnet' }, wir: { praesens: 'zeichnen', praeteritum: 'zeichneten', perfekt: 'haben gezeichnet' } } },
+    { grundform: 'wachsen', formen: { er: { praesens: 'wächst', praeteritum: 'wuchs', perfekt: 'ist gewachsen' }, wir: { praesens: 'wachsen', praeteritum: 'wuchsen', perfekt: 'sind gewachsen' } } },
+    { grundform: 'kriechen', formen: { er: { praesens: 'kriecht', praeteritum: 'kroch', perfekt: 'ist gekrochen' }, wir: { praesens: 'kriechen', praeteritum: 'krochen', perfekt: 'sind gekrochen' } } },
+    { grundform: 'klingeln', formen: { er: { praesens: 'klingelt', praeteritum: 'klingelte', perfekt: 'hat geklingelt' }, wir: { praesens: 'klingeln', praeteritum: 'klingelten', perfekt: 'haben geklingelt' } } },
+    { grundform: 'springen', formen: { er: { praesens: 'springt', praeteritum: 'sprang', perfekt: 'ist gesprungen' }, wir: { praesens: 'springen', praeteritum: 'sprangen', perfekt: 'sind gesprungen' } } },
+    { grundform: 'bringen', formen: { er: { praesens: 'bringt', praeteritum: 'brachte', perfekt: 'hat gebracht' }, wir: { praesens: 'bringen', praeteritum: 'brachten', perfekt: 'haben gebracht' } } },
+    { grundform: 'warten', formen: { er: { praesens: 'wartet', praeteritum: 'wartete', perfekt: 'hat gewartet' }, wir: { praesens: 'warten', praeteritum: 'warteten', perfekt: 'haben gewartet' } } },
+    { grundform: 'begrüßen', formen: { er: { praesens: 'begrüßt', praeteritum: 'begrüßte', perfekt: 'hat begrüßt' }, wir: { praesens: 'begrüßen', praeteritum: 'begrüßten', perfekt: 'haben begrüßt' } } },
+    { grundform: 'zeigen', formen: { er: { praesens: 'zeigt', praeteritum: 'zeigte', perfekt: 'hat gezeigt' }, wir: { praesens: 'zeigen', praeteritum: 'zeigten', perfekt: 'haben gezeigt' } } },
+    { grundform: 'wünschen', formen: { er: { praesens: 'wünscht', praeteritum: 'wünschte', perfekt: 'hat gewünscht' }, wir: { praesens: 'wünschen', praeteritum: 'wünschten', perfekt: 'haben gewünscht' } } }
+  ];
+
+  const ZEITFORM_LABEL = { praesens: 'Präsens (Gegenwart)', praeteritum: 'Präteritum (1. Vergangenheit)', perfekt: 'Perfekt (2. Vergangenheit)' };
+  const PERSON_LABEL = { er: 'er/sie/es', wir: 'wir' };
+  const ZEITFORMEN = ['praesens', 'praeteritum', 'perfekt'];
+  const PERSONEN = ['er', 'wir'];
+
+  function genVerbGrundformFreitext() {
+    const eintrag = pickN(verbFormenBank, 1)[0];
+    const person = pickN(PERSONEN, 1)[0];
+    const zeitform = pickN(ZEITFORMEN, 1)[0];
+    const form = eintrag.formen[person][zeitform];
+    const hilfeEintrag = pickN(verbFormenBank.filter(v => v !== eintrag), 1)[0];
+    const hilfeForm = hilfeEintrag.formen[person][zeitform];
+    return {
+      typ: 'text',
+      frage: `Wie heißt die Grundform (der Infinitiv) dieses Verbs?<br><strong>${PERSON_LABEL[person]} ${form}</strong>`,
+      antwort: eintrag.grundform,
+      hilfe: `<strong>Grundform finden:</strong> „${PERSON_LABEL[person]} ${hilfeForm}“ → die Grundform ist <strong>${hilfeEintrag.grundform}</strong> (frage dich: was tut er/sie/es bzw. was tun wir? → „…en“).`
+    };
+  }
+
+  function genVerbZeitformFreitext() {
+    const eintrag = pickN(verbFormenBank, 1)[0];
+    const person = pickN(PERSONEN, 1)[0];
+    const zeitform = pickN(ZEITFORMEN, 1)[0];
+    const antwort = eintrag.formen[person][zeitform];
+    const hilfeEintrag = pickN(verbFormenBank.filter(v => v !== eintrag), 1)[0];
+    const hilfeForm = hilfeEintrag.formen[person][zeitform];
+    return {
+      typ: 'text',
+      frage: `Schreibe die richtige Form von <strong>„${eintrag.grundform}“</strong> im <strong>${ZEITFORM_LABEL[zeitform]}</strong>:<br>${PERSON_LABEL[person]} ___`,
+      antwort,
+      hilfe: `<strong>${ZEITFORM_LABEL[zeitform]}</strong> von „${hilfeEintrag.grundform}“: ${PERSON_LABEL[person]} <strong>${hilfeForm}</strong>.`
+    };
+  }
+
+  // Luecken-Saetze zu Woertern mit "ch" (Verben/Substantive/Adjektive aus den
+  // Hausaufgaben-Fotos). Jeder Satz bewusst so formuliert, dass genau EIN
+  // Wort eindeutig richtig ist (kein "koennte auch X sein").
+  const chWoerterBank = [
+    { satz: 'Der Radfahrer muss immer auf den Verkehr ___.', antwort: 'achten' },
+    { satz: 'Wir wollen bei unserem Ausflug die alte Burg ___.', antwort: 'besichtigen' },
+    { satz: 'Sie blieb stehen, um das Bild in Ruhe zu ___.', antwort: 'betrachten' },
+    { satz: 'Der Wächter muss die ganze Nacht ___.', antwort: 'wachen' },
+    { satz: 'Die Blumen im Garten ___ herrlich.', antwort: 'riechen' },
+    { satz: 'Die Kinder ___ laut über den Witz.', antwort: 'lachen' },
+    { satz: 'Mama will heute Abend Nudeln ___.', antwort: 'kochen' },
+    { satz: 'Bitte ___ mir das Salz!', antwort: 'reichen' },
+    { satz: 'Im Sommer möchte ich im See ___.', antwort: 'tauchen' },
+    { satz: 'Wir ___ noch mehr Zeit für diese Aufgabe.', antwort: 'brauchen' },
+    { satz: 'Der trockene Ast könnte bei dem Sturm leicht ___.', antwort: 'brechen' },
+    { satz: 'Die wütende Katze fängt an zu ___.', antwort: 'fauchen' },
+    { satz: 'Im Winter kann man auf die kalten Hände ___.', antwort: 'hauchen' },
+    { satz: 'Jeden Morgen um sieben Uhr will Max ___.', antwort: 'erwachen' },
+    { satz: 'Max möchte ein Bild vom Wald ___.', antwort: 'zeichnen' },
+    { satz: 'In der ersten Stunde haben wir das ___ Mathe.', antwort: 'Fach' },
+    { satz: 'Der Fußballplatz hat eine große grüne ___.', antwort: 'Fläche' },
+    { satz: 'Im alten Pullover war ein kleines ___.', antwort: 'Loch' },
+    { satz: 'Unser ___ hat einen freundlichen Hund.', antwort: 'Nachbar' },
+    { satz: 'Am Montag beginnt eine neue ___.', antwort: 'Woche' },
+    { satz: 'Bei Regen bleiben wir unter dem ___ trocken.', antwort: 'Dach' },
+    { satz: 'Der große Vogel mit den langen Beinen heißt ___.', antwort: 'Kranich' },
+    { satz: 'Die Aufgabe war nicht schwer, sondern ganz ___.', antwort: 'einfach' },
+    { satz: 'Pünktlichkeit ist mir sehr ___.', antwort: 'wichtig' },
+    { satz: 'Ist das ___ wahr?', antwort: 'wirklich' }
+  ];
+
+  function genWoerterMitChFreitext() {
+    const eintrag = pickN(chWoerterBank, 1)[0];
+    const hilfeEintrag = pickN(chWoerterBank.filter(w => w !== eintrag), 1)[0];
+    return {
+      typ: 'text',
+      frage: `Ergänze das fehlende Wort mit „ch“:<br>${eintrag.satz}`,
+      antwort: eintrag.antwort,
+      hilfe: `<strong>Beispiel:</strong> ${hilfeEintrag.satz.replace('___', hilfeEintrag.antwort)}`
+    };
+  }
+
+  // Pool fuer starteSchularbeitUeben() - bewusst OHNE Mathes Stats-Gewichtung
+  // (KATEGORIE_BASISGEWICHT/gewichtFuerStat, siehe mathe.js): reine
+  // Gleichverteilung reicht fuer dieses kurzfristige Feature.
+  // verbzeitform doppelt gelistet, da Praesens/Praeteritum/Perfekt das
+  // groesste Thema der Arbeit ist.
+  const DEUTSCH_SCHULARBEIT_BEREICHE = [
+    { kategorie: 'wortarten', gen: genWortartFreitext },
+    { kategorie: 'verbgrundform', gen: genVerbGrundformFreitext },
+    { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
+    { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
+    { kategorie: 'chwoerter', gen: genWoerterMitChFreitext }
+  ];
+
+  function genSchularbeitAufgabe(anzahl) {
+    const fragen = [];
+    for (let i = 0; i < anzahl; i++) {
+      fragen.push(pickN(DEUTSCH_SCHULARBEIT_BEREICHE, 1)[0].gen());
+    }
+    return fragen;
+  }
+
   // aktivitaet-Schluessel fuer Storage.getOffeneSession/setOffeneSession -
   // ermoeglicht Fortsetzen einer unterbrochenen Aufgabenfolge am selben Tag
   // (siehe App.startQuizSession und Mathe.starteTagesaufgabe fuers Vorbild).
@@ -271,5 +428,27 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteRechtschreibung, starteLesen, starteWortarten };
+  // pensumFach:'deutsch' verknuepft (wie Rechtschreibung) - siehe ACHTUNG-
+  // Kommentar bei TAGESPLAN_FACH_META.deutsch in app.js: bis zur Arbeit am
+  // 08.09.2026 ist DIES die taegliche Pflicht-Kachel auf dem Home-Screen.
+  function starteSchularbeitUeben() {
+    const AKTIVITAET = 'deutsch-schularbeit';
+    const starter = () => {
+      const ANZAHL = Storage.getTagesPensumAnzahl('deutsch');
+      const offen = Storage.getOffeneSession(AKTIVITAET);
+      const config = { titel: 'Schularbeit üben', aktivitaet: AKTIVITAET, pensumFach: 'deutsch' };
+      if (offen && offen.index > 0 && offen.index < ANZAHL) {
+        config.anzeigeOffset = offen.index;
+        config.startRichtigCount = offen.richtigCount;
+        config.startSessionSterne = offen.sessionSterne;
+        config.startVerlauf = offen.verlauf || [];
+        App.startQuizSession('deutsch', genSchularbeitAufgabe(ANZAHL - offen.index), config);
+      } else {
+        App.startQuizSession('deutsch', genSchularbeitAufgabe(ANZAHL), config);
+      }
+    };
+    App.setLastStarter(starter); starter();
+  }
+
+  return { renderMenu, starteRechtschreibung, starteLesen, starteWortarten, starteSchularbeitUeben };
 })();

@@ -893,6 +893,26 @@ html, body {
 .key-btn.ok { background: #EAF7ED; border-color: #5DB876; color: #1D6B36; grid-column: span 2; }
 .key-btn.del { background: #FCEFE1; border-color: #E0A552; color: #94590E; }
 
+/* Freitext-Eingabe (z.B. Deutsch-Grammatik) - echtes <input>, zeigt die native Tastatur */
+.text-eingabe-zeile {
+  display: flex;
+  gap: 9px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.text-eingabe-feld {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 600;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 14px;
+  min-width: 0;
+}
+.text-eingabe-zeile .key-btn.ok { grid-column: unset; padding: 0 20px; }
+
 .feedback {
   margin-top: 14px;
   font-size: 20px;

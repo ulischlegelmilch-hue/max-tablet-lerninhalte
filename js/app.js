@@ -83,9 +83,16 @@ const App = (function () {
   // gesperrt wird.
   const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
 
+  // ACHTUNG 02.09.2026: Fuer Max' Deutsch-Schularbeit am 08.09.2026 (Wortarten,
+  // Verben-Grundform, Praesens/Praeteritum/Perfekt, Woerter mit ch) die
+  // taegliche Pflicht-Kachel bis dahin auf die neue Uebungsform umgebogen
+  // (Deutsch.starteSchularbeitUeben() statt starteRechtschreibung()), analog
+  // zum Mathe-Vorgehen vom 01.09.2026. NACH DER ARBEIT UNBEDINGT WIEDER AUF
+  // { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch',
+  //   onclick: 'Deutsch.starteRechtschreibung()' } ZURUECKSETZEN.
   const TAGESPLAN_FACH_META = {
     mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
-    deutsch: { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' },
+    deutsch: { icon: 'tagesaufgabe', titel: 'Schularbeit üben', fachName: 'Deutsch', onclick: 'Deutsch.starteSchularbeitUeben()' },
     heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
   };
 
@@ -709,6 +716,13 @@ const App = (function () {
         <div class="zahl-anzeige" id="zahl-anzeige">&nbsp;</div>
         <div class="keypad" id="keypad"></div>
       `;
+    } else if (f.typ === 'text') {
+      bodyHtml += `
+        <div class="text-eingabe-zeile">
+          <input type="text" id="text-eingabe" class="text-eingabe-feld" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <div class="key-btn ok" id="text-eingabe-ok">OK</div>
+        </div>
+      `;
     } else {
       bodyHtml += `<div class="optionen" id="optionen"></div>`;
     }
@@ -727,6 +741,8 @@ const App = (function () {
 
     if (f.typ === 'numeric') {
       renderKeypad(f);
+    } else if (f.typ === 'text') {
+      renderTextEingabe(f);
     } else {
       renderOptionen(f);
     }
@@ -790,6 +806,34 @@ const App = (function () {
       };
       pad.appendChild(btn);
     });
+  }
+
+  // Freitext-Antwort (typ:'text') - im Gegensatz zum Keypad ein echtes
+  // <input>, damit die native Android-Tastatur der WebView erscheint (kein
+  // eigenes Buchstaben-Keypad noetig). Vergleich tolerant gegenueber
+  // Gross-/Kleinschreibung und Leerraum (normalisiereAntwortText), da hier
+  // Wissen ueber Wortarten/Verbformen abgefragt wird, nicht Rechtschreibung.
+  function normalisiereAntwortText(s) {
+    return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function renderTextEingabe(f) {
+    const input = document.getElementById('text-eingabe');
+    const okBtn = document.getElementById('text-eingabe-ok');
+    input.value = '';
+    input.focus();
+    const absenden = () => {
+      const eingabeText = input.value;
+      if (eingabeText.trim() === '') return;
+      input.disabled = true;
+      okBtn.onclick = null;
+      const korrekt = normalisiereAntwortText(eingabeText) === normalisiereAntwortText(f.antwort);
+      verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderTextEingabe(f), eingabeText);
+    };
+    okBtn.onclick = absenden;
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') absenden();
+    };
   }
 
   // Zentrale Weiche fuer JEDE Antwort (MC wie numerisch). neuerVersuch() baut
