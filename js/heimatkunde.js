@@ -49,7 +49,7 @@ const Heimatkunde = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
-      { icon: 'geschichten', titel: 'Kinderrechte lernen', onclick: 'Heimatkunde.starteKinderrechteLernen()' },
+      { icon: 'geschichten', titel: 'Kinderrechte & Schule lernen', onclick: 'Heimatkunde.starteKinderrechteLernen()' },
       { icon: 'tagesaufgabe', titel: 'Kinderrechte & Schule üben', onclick: 'Heimatkunde.starteSchulkunde()' }
     ]));
   }
@@ -96,18 +96,31 @@ const Heimatkunde = (function () {
   // Reiner Lern-/Merk-Screen (kein Quiz) - Max soll sich erst die 10 Rechte im
   // Wortlaut durchlesen koennen, bevor er sich abfragen laesst. Vorbild:
   // starteVerkehrszeichen unten (Karten-Uebersicht + "Zum Quiz"-Button).
+  // Lern-/Merk-Screen fuer ALLES, was in starteSchulkunde() abgefragt wird
+  // (Kinderrechte, Schulpflicht/-system-Fakten, UN-Kontext) - nicht nur die
+  // Kinderrechte. Uli-Wunsch: "auch bei dem Rest muss er die Möglichkeit
+  // haben, die Sachen erst zu lernen". Die SCHULE_FAKTEN/KINDERRECHTE_KONTEXT_
+  // FAKTEN-hilfe-Texte sind bereits als vollstaendige Merksaetze formuliert
+  // (siehe deren Definition unten) - hier direkt als Lernkarten wiederverwendet,
+  // keine doppelte Datenhaltung noetig.
   function starteKinderrechteLernen() {
-    const cards = KINDERRECHTE.map((k, i) =>
+    const rechteCards = KINDERRECHTE.map((k, i) =>
       `<div class="sign-card">
          <div class="sign-name">Kinderrecht ${i + 1}</div>
          <div class="sign-bedeutung">${k.recht}</div>
        </div>`
     ).join('');
+    const schuleCards = SCHULE_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
+    const kontextCards = KINDERRECHTE_KONTEXT_FAKTEN.map(f => `<div class="sign-card"><div class="sign-bedeutung">${f.hilfe}</div></div>`).join('');
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Lies dir die 10 Kinderrechte gut durch</div>
-      <div class="sign-grid">${cards}</div>
+      <div class="sign-grid">${rechteCards}</div>
+      <div class="welcome">Wissen über Schule</div>
+      <div class="sign-grid">${schuleCards}</div>
+      <div class="welcome">Wissen über die Vereinten Nationen</div>
+      <div class="sign-grid">${kontextCards}</div>
       <div class="weiter-row"><span class="btn-primary" onclick="Heimatkunde.starteSchulkunde()">Zum Üben ➜</span></div>
     `);
   }
