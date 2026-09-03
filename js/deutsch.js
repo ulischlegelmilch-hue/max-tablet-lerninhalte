@@ -324,7 +324,7 @@ const Deutsch = (function () {
     { satz: 'Der trockene Ast könnte bei dem Sturm leicht ___.', antwort: 'brechen' },
     { satz: 'Die wütende Katze fängt an zu ___.', antwort: 'fauchen' },
     { satz: 'Im Winter kann man auf die kalten Hände ___.', antwort: 'hauchen' },
-    { satz: 'Jeden Morgen um sieben Uhr will Max ___.', antwort: 'erwachen' },
+    { satz: 'Die Hausaufgaben muss Max noch heute ___.', antwort: 'machen' },
     { satz: 'Max möchte ein Bild vom Wald ___.', antwort: 'zeichnen' },
     { satz: 'In der ersten Stunde haben wir das ___ Mathe.', antwort: 'Fach' },
     { satz: 'Der Fußballplatz hat eine große grüne ___.', antwort: 'Fläche' },
@@ -332,10 +332,10 @@ const Deutsch = (function () {
     { satz: 'Unser ___ hat einen freundlichen Hund.', antwort: 'Nachbar' },
     { satz: 'Am Montag beginnt eine neue ___.', antwort: 'Woche' },
     { satz: 'Bei Regen bleiben wir unter dem ___ trocken.', antwort: 'Dach' },
-    { satz: 'Der große Vogel mit den langen Beinen heißt ___.', antwort: 'Kranich' },
+    { satz: 'Im Herbst fliegt dieser Vogel rufend in einer V-Formation nach Süden: der ___.', antwort: 'Kranich' },
     { satz: 'Die Aufgabe war nicht schwer, sondern ganz ___.', antwort: 'einfach' },
     { satz: 'Pünktlichkeit ist mir sehr ___.', antwort: 'wichtig' },
-    { satz: 'Ist das ___ wahr?', antwort: 'wirklich' }
+    { satz: 'Die Kinder ___ im Wald nach bunten Pilzen.', antwort: 'suchen' }
   ];
 
   function genWoerterMitChFreitext() {
