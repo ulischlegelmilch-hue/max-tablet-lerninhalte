@@ -280,12 +280,37 @@ const Heimatkunde = (function () {
   let lkSession = null;
   let lkUmgedreht = false;
 
+  // "heimatkunde-<thema>" als Storage.getOffeneSession-Schluessel (nur fuer
+  // bewertung:true-Themen genutzt) - eigener Schluessel pro Thema, da Schule/
+  // UN/Laender unabhaengig voneinander unterbrochen/fortgesetzt werden koennen.
+  function aktivitaetFuerThema(thema) { return 'heimatkunde-' + thema; }
+
+  // Setzt eine unterbrochene bewertung:true-Sitzung fort, WENN eine vom
+  // selben Kalendertag existiert (siehe Storage.getOffeneSession - am
+  // naechsten Tag wird bewusst neu angefangen, gleiches Prinzip wie bei
+  // Mathe.starteMalfolgenKarten). Anders als dort wird hier nicht neu aus
+  // einem Pool gezogen, sondern das GESAMTE damalige Kartendeck (inkl. der
+  // durch Gewichtung mehrfach vorkommenden Karten) 1:1 weiterverwendet - bei
+  // nur 5-16 Basiskarten pro Thema ist das einfacher und genauer als
+  // Malfolgens Pool-Nachziehen, das fuer 100 Fakten gebaut wurde (06.09.2026,
+  // Uli-Wunsch "Lernstand ... gespeichert").
   function starteLernkarten(thema) {
     const info = LERNTHEMEN[thema];
-    const karten = info.bewertung
-      ? baueBewertetesKartendeck(thema, info.karten())
-      : shuffle(info.karten());
-    lkSession = { thema, titel: info.titel, bewertung: !!info.bewertung, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
+    if (info.bewertung) {
+      const offen = Storage.getOffeneSession(aktivitaetFuerThema(thema));
+      if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length) {
+        lkSession = {
+          thema, titel: info.titel, bewertung: true, karten: offen.karten, index: offen.index,
+          richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
+        };
+      } else {
+        const karten = baueBewertetesKartendeck(thema, info.karten());
+        lkSession = { thema, titel: info.titel, bewertung: true, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
+      }
+    } else {
+      const karten = shuffle(info.karten());
+      lkSession = { thema, titel: info.titel, bewertung: false, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
+    }
     App.setLastStarter(() => starteLernkarten(thema));
     renderLernkarte();
   }
@@ -347,6 +372,10 @@ const Heimatkunde = (function () {
   // Storage.meldeLernkartenErgebnis wirkt sich erst in KUENFTIGEN Sitzungen
   // aus (haeufigere Wiedervorlage ueber baueBewertetesKartendeck), nicht
   // sofort in dieser Sitzung - gleiches Prinzip wie bei den Malfolgen.
+  // Zusaetzlich wird nach jeder Karte der Zwischenstand gespeichert (siehe
+  // starteLernkarten/aktivitaetFuerThema), damit ein unterbrochener Durchlauf
+  // (App zu, Tablet gesperrt) an derselben Stelle weitergeht statt neu
+  // anzufangen.
   function bewerteLernkarte(korrekt) {
     if (!lkUmgedreht) return;
     const karte = lkSession.karten[lkSession.index];
@@ -355,7 +384,18 @@ const Heimatkunde = (function () {
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
     lkSession.verlauf.push({ frage: karte.front, ergebnis: korrekt ? 'richtig' : 'falsch' });
     App.updateTopbar();
-    rueckeZurNaechstenKarteVor();
+    lkSession.index++;
+    const aktivitaet = aktivitaetFuerThema(lkSession.thema);
+    if (lkSession.index >= lkSession.karten.length) {
+      Storage.loescheOffeneSession(aktivitaet);
+      renderLernkartenErgebnis();
+    } else {
+      Storage.setOffeneSession(aktivitaet, {
+        karten: lkSession.karten, index: lkSession.index,
+        richtig: lkSession.richtig, sterne: lkSession.sterne, verlauf: lkSession.verlauf
+      });
+      renderLernkarte();
+    }
   }
 
   function renderLernkartenErgebnis() {
@@ -380,10 +420,50 @@ const Heimatkunde = (function () {
         <div class="result-title">${lkSession.richtig} von ${total} gewusst!</div>
         <div class="result-sterne">Du hast ${lkSession.sterne} ⭐ verdient</div>
         <div class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal üben</div>
+        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Heimatkunde.renderLernkartenUebersicht('${lkSession.thema}')">Fortschritt ansehen</div>
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</div>
       </div>
     `);
     FernSync.meldeLernsetErledigt(`${lkSession.titel} lernen`, `${lkSession.richtig} von ${total} gewusst`, lkSession.sterne, 'heimat', lkSession.verlauf);
+  }
+
+  // ---- Fortschritts-Uebersicht fuer bewertung:true-Themen, Pendant zu
+  // Mathe.renderMalfolgenUebersicht: pro Karte ein farbiger Punkt je nachdem,
+  // wie oft sie zuletzt in Folge richtig war (gleiche Status-Logik wie
+  // malfolgenFaktStatus dort). Rein informativ, keine eigene Logik/Punkte. ----
+  function lernkartenStatus(stat) {
+    if (!stat) return 'neu';
+    return (stat.serie || 0) >= 2 ? 'sicher' : 'uebung';
+  }
+
+  function renderLernkartenUebersicht(thema) {
+    const info = LERNTHEMEN[thema];
+    const karten = info.karten();
+    const stats = Storage.getLernkartenStats(thema);
+    let sicher = 0;
+    const zeilenHtml = karten.map((karte, i) => {
+      const status = lernkartenStatus(stats[i]);
+      if (status === 'sicher') sicher++;
+      return `<div class="uebersicht-heimat-zeile">
+        <span class="uebersicht-punkt uebersicht-punkt-${status}"></span>
+        <span class="uebersicht-heimat-text">${karte.front}</span>
+      </div>`;
+    }).join('');
+    const gesamt = karten.length;
+    const alleSicher = gesamt > 0 && sicher === gesamt;
+
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Dein Fortschritt bei "${info.titel}"</div>
+      ${alleSicher ? `<div class="uebersicht-banner-fertig">🎉 Du kannst alles bei "${info.titel}" sicher!</div>` : ''}
+      <div class="lese-text"><strong>${sicher} von ${gesamt}</strong> Karten sitzen sicher.</div>
+      <div class="uebersicht-legende">
+        <span><span class="uebersicht-punkt uebersicht-punkt-sicher"></span> sitzt sicher</span>
+        <span><span class="uebersicht-punkt uebersicht-punkt-uebung"></span> wird noch geübt</span>
+        <span><span class="uebersicht-punkt uebersicht-punkt-neu"></span> noch nie dran gewesen</span>
+      </div>
+      <div class="uebersicht-liste">${zeilenHtml}</div>
+    `);
   }
 
   function starteVerkehrszeichen() {
@@ -427,5 +507,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht };
 })();

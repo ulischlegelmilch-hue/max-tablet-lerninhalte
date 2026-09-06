@@ -774,6 +774,19 @@ html, body {
 .uebersicht-punkt-sicher { background: #5DB876; }
 .uebersicht-punkt-offen { background: transparent; border: 2px solid var(--accent); }
 
+/* Heimatkunde-Lernkarten-Fortschritt (siehe heimatkunde.js
+   renderLernkartenUebersicht): eine Zeile pro Karte statt Mathes Chip-Gruppen,
+   da hier ganze Saetze statt einzelner Zahlen dargestellt werden. Nutzt
+   dieselben .uebersicht-punkt-* Statusfarben/.uebersicht-liste/.uebersicht-
+   legende/.uebersicht-banner-fertig wie die Malfolgen-Uebersicht oben. */
+.uebersicht-heimat-zeile {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; box-shadow: var(--shadow-sm);
+}
+.uebersicht-heimat-zeile .uebersicht-punkt { flex: 0 0 auto; }
+.uebersicht-heimat-text { font-size: 14px; color: var(--ink); line-height: 1.4; }
+
 /* Malfolgen-Karteikarten (siehe mathe.js starteMalfolgenKarten): 3D-Flip per
    CSS-Transform statt Bild-Austausch - Vorder-/Rueckseite liegen uebereinander
    und werden per rotateY gedreht, backface-visibility blendet die jeweils
