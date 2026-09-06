@@ -12,6 +12,7 @@ const Heimatkunde = (function () {
     return a;
   }
   function pickN(arr, n) { return shuffle(arr).slice(0, n); }
+  function rnd(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
   function img(datei) {
     return `<img class="sign-img" src="images/verkehrszeichen/${datei}" alt="Verkehrszeichen">`;
@@ -190,12 +191,71 @@ const Heimatkunde = (function () {
   // bei Kinderrechte noetig, damit baueKinderrechteKarten() bei jedem Start
   // frisch die Luecken-Variante wuerfeln kann; bei den anderen drei Themen nur
   // der Einheitlichkeit halber (liefern schlicht das feste Array zurueck).
+  //
+  // bewertung:true (06.09.2026, Uli-Wunsch): bei Schule/UN/Laender markiert
+  // Max selbst richtig/falsch (wie Mathes Malfolgen-Karteikarten), falsche
+  // Karten werden dadurch in kuenftigen Sitzungen haeufiger vorgelegt (siehe
+  // baueBewertetesKartendeck unten). Kinderrechte bleibt BEWUSST ohne
+  // Bewertung - dort hoert weiterhin Papa Max in seiner eigenen Eltern-App ab
+  // (dort seit 06.09.2026 als abhakbare Liste, siehe backend/webapp), ein
+  // Selbst-Markieren durch Max waere dort unpassend/doppelt.
   const LERNTHEMEN = {
     kinderrechte: { titel: 'Kinderrechte', icon: 'geschichten', karten: baueKinderrechteKarten },
-    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE },
-    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN },
-    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER }
+    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE, bewertung: true },
+    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN, bewertung: true },
+    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER, bewertung: true }
   };
+
+  // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
+  // vom Prinzip aus Mathe.baueMalfolgenDeck/gewichtFuerStat/
+  // mischeOhneNachbarWiederholung uebernommen (siehe dort fuer die
+  // ausfuehrliche Begruendung) - Unterschied: die Heimatkunde-Themen haben
+  // nur 5-16 Karten statt bis zu 100 Malfolgen-Fakten, ein sitzungs-
+  // uebergreifendes Rest-Deck (Storage.malfolgenDeck-Pendant) ist dafuer nicht
+  // noetig - pro Sitzungsstart wird einfach frisch anhand der bisherigen
+  // Statistik gewichtet gemischt. ----
+  function gewichtFuerLernkartenStat(stat) {
+    if (!stat) return 3;
+    const serieBonus = Math.min(stat.serie || 0, 4);
+    return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
+  }
+
+  function mischeOhneNachbarWiederholung(arr) {
+    const gruppen = new Map();
+    for (const x of arr) gruppen.set(x, (gruppen.get(x) || 0) + 1);
+    let eintraege = shuffle([...gruppen.entries()]);
+
+    const ergebnis = [];
+    let vorheriger = null;
+    while (ergebnis.length < arr.length) {
+      eintraege.sort((a, b) => b[1] - a[1]);
+      const maxCount = eintraege[0][1];
+      const kandidaten = eintraege.filter(([wert, anzahl]) => anzahl === maxCount && wert !== vorheriger);
+      const pool = kandidaten.length > 0 ? kandidaten : eintraege.filter(([wert]) => wert !== vorheriger);
+      const gewaehlt = pool.length > 0 ? pool[rnd(0, pool.length - 1)] : eintraege[0];
+      const wert = gewaehlt[0];
+      ergebnis.push(wert);
+      vorheriger = wert;
+      const eintrag = eintraege.find(e => e[0] === wert);
+      eintrag[1]--;
+      eintraege = eintraege.filter(e => e[1] > 0);
+    }
+    return ergebnis;
+  }
+
+  // Liefert die Session-Karten fuer ein bewertung:true-Thema: jede Karte
+  // bekommt _idx (ihre feste Position im Original-Array, siehe
+  // Storage.meldeLernkartenErgebnis) und schwache Karten (siehe
+  // gewichtFuerLernkartenStat) kommen mehrfach (bis zu 5x) vor.
+  function baueBewertetesKartendeck(thema, karten) {
+    const stats = Storage.getLernkartenStats(thema);
+    const indexDeck = [];
+    karten.forEach((karte, i) => {
+      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stats[i]) / 3)));
+      for (let n = 0; n < kopien; n++) indexDeck.push(i);
+    });
+    return mischeOhneNachbarWiederholung(indexDeck).map(i => Object.assign({ _idx: i }, karten[i]));
+  }
 
   // Themenwahl VOR den Lernkarten - bewusst eigener Menuepunkt statt alles auf
   // einmal, damit Max sich immer nur EIN Themengebiet vornimmt (Uli-Wunsch).
@@ -210,7 +270,7 @@ const Heimatkunde = (function () {
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Welches Thema willst du lernen?</div>
-      <div class="lese-text">Wähl ein Thema aus - danach hört Papa dich ab.</div>
+      <div class="lese-text">Wähl ein Thema aus - bei Kinderrechten hört Papa dich ab, bei den anderen markierst du nach dem Umdrehen selbst, ob du es gewusst hast.</div>
       <div class="sub-grid">${karten}</div>
     `);
   }
@@ -222,7 +282,10 @@ const Heimatkunde = (function () {
 
   function starteLernkarten(thema) {
     const info = LERNTHEMEN[thema];
-    lkSession = { thema, titel: info.titel, karten: shuffle(info.karten()), index: 0 };
+    const karten = info.bewertung
+      ? baueBewertetesKartendeck(thema, info.karten())
+      : shuffle(info.karten());
+    lkSession = { thema, titel: info.titel, bewertung: !!info.bewertung, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
     App.setLastStarter(() => starteLernkarten(thema));
     renderLernkarte();
   }
@@ -232,6 +295,10 @@ const Heimatkunde = (function () {
     const karte = lkSession.karten[lkSession.index];
     const nr = lkSession.index + 1;
     const total = lkSession.karten.length;
+    const bewertungHtml = lkSession.bewertung
+      ? `<div class="btn-bewertung btn-falsch" onclick="Heimatkunde.bewerteLernkarte(false)">✘ Nicht gewusst</div>
+         <div class="btn-bewertung btn-richtig" onclick="Heimatkunde.bewerteLernkarte(true)">✔ Richtig gewusst</div>`
+      : `<div class="btn-primary" onclick="Heimatkunde.naechsteLernkarte()">Weiter ➜</div>`;
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="progress-row"><span>Karte ${nr} / ${total}</span><span>${lkSession.titel.toUpperCase()}</span></div>
@@ -247,7 +314,7 @@ const Heimatkunde = (function () {
         </div>
       </div>
       <div class="karteikarte-bewertung" id="karteikarte-bewertung">
-        <div class="btn-primary" onclick="Heimatkunde.naechsteLernkarte()">Weiter ➜</div>
+        ${bewertungHtml}
       </div>
     `);
   }
@@ -259,8 +326,9 @@ const Heimatkunde = (function () {
     document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
   }
 
-  function naechsteLernkarte() {
-    if (!lkUmgedreht) return;
+  // Gemeinsamer "naechste Karte oder fertig"-Schritt fuer beide Lernkarten-
+  // Arten (Kinderrechte-"Weiter" wie bewertung:true-Themen).
+  function rueckeZurNaechstenKarteVor() {
     lkSession.index++;
     if (lkSession.index >= lkSession.karten.length) {
       renderLernkartenErgebnis();
@@ -269,16 +337,53 @@ const Heimatkunde = (function () {
     }
   }
 
+  function naechsteLernkarte() {
+    if (!lkUmgedreht) return;
+    rueckeZurNaechstenKarteVor();
+  }
+
+  // Nur fuer bewertung:true-Themen (Schule/UN/Laender) - Max markiert nach
+  // dem Umdrehen selbst richtig/falsch, wie bei Mathe.bewerteMalfolgenKarte.
+  // Storage.meldeLernkartenErgebnis wirkt sich erst in KUENFTIGEN Sitzungen
+  // aus (haeufigere Wiedervorlage ueber baueBewertetesKartendeck), nicht
+  // sofort in dieser Sitzung - gleiches Prinzip wie bei den Malfolgen.
+  function bewerteLernkarte(korrekt) {
+    if (!lkUmgedreht) return;
+    const karte = lkSession.karten[lkSession.index];
+    Storage.meldeLernkartenErgebnis(lkSession.thema, karte._idx, korrekt);
+    const gained = Storage.addAntwort('heimat', korrekt, 1);
+    if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
+    lkSession.verlauf.push({ frage: karte.front, ergebnis: korrekt ? 'richtig' : 'falsch' });
+    App.updateTopbar();
+    rueckeZurNaechstenKarteVor();
+  }
+
   function renderLernkartenErgebnis() {
+    if (!lkSession.bewertung) {
+      App.render(`
+        <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
+        <div class="welcome">Geschafft! 🎉</div>
+        <div class="lese-text">Du hast alle Karten zu "${lkSession.titel}" durchgesehen.</div>
+        <div class="weiter-row">
+          <span class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal von vorne</span>
+          <span class="btn-primary" style="margin-left:12px;" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</span>
+        </div>
+      `);
+      return;
+    }
+    const total = lkSession.karten.length;
+    const emoji = lkSession.richtig === total ? '🏆' : lkSession.richtig / total >= 0.7 ? '🎉' : '🙂';
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Geschafft! 🎉</div>
-      <div class="lese-text">Du hast alle Karten zu "${lkSession.titel}" durchgesehen.</div>
-      <div class="weiter-row">
-        <span class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal von vorne</span>
-        <span class="btn-primary" style="margin-left:12px;" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</span>
+      <div class="result-card">
+        <div class="result-emoji">${emoji}</div>
+        <div class="result-title">${lkSession.richtig} von ${total} gewusst!</div>
+        <div class="result-sterne">Du hast ${lkSession.sterne} ⭐ verdient</div>
+        <div class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal üben</div>
+        <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</div>
       </div>
     `);
+    FernSync.meldeLernsetErledigt(`${lkSession.titel} lernen`, `${lkSession.richtig} von ${total} gewusst`, lkSession.sterne, 'heimat', lkSession.verlauf);
   }
 
   function starteVerkehrszeichen() {
@@ -322,5 +427,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte };
 })();

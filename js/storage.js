@@ -495,6 +495,35 @@ const Storage = (function () {
     save(state);
   }
 
+  /** Karteikarten-Statistik fuer die Heimatkunde-Lernkarten Schule/UN/Laender
+   *  (NICHT Kinderrechte - die bleiben reine Umdreh-Karten ohne Bewertung,
+   *  siehe heimatkunde.js) - gleiches Prinzip wie getMalfolgenStats/
+   *  meldeMalfolgenErgebnis: wie oft eine Karte falsch war und wie viele Male
+   *  in Folge zuletzt richtig, damit schwache Karten in kuenftigen Lernkarten-
+   *  Sitzungen haeufiger drankommen (06.09.2026, Uli-Wunsch "orientiere dich
+   *  an den Malfolgen"). Statistik ist je Thema getrennt (kartenIndex ist nur
+   *  innerhalb eines Themas eindeutig), state.heimatkundeLernkarten[thema] ist
+   *  ein Objekt kartenIndex -> {falsch, serie}, wie bei state.malfolgen.
+   */
+  function getLernkartenStats(thema) {
+    if (!state.heimatkundeLernkarten) state.heimatkundeLernkarten = {};
+    if (!state.heimatkundeLernkarten[thema]) state.heimatkundeLernkarten[thema] = {};
+    return state.heimatkundeLernkarten[thema];
+  }
+
+  function meldeLernkartenErgebnis(thema, kartenIndex, korrekt) {
+    const stats = getLernkartenStats(thema);
+    const stat = stats[kartenIndex] || { falsch: 0, serie: 0 };
+    if (korrekt) {
+      stat.serie = (stat.serie || 0) + 1;
+    } else {
+      stat.falsch = (stat.falsch || 0) + 1;
+      stat.serie = 0;
+    }
+    stats[kartenIndex] = stat;
+    save(state);
+  }
+
   function leererTaktikEintrag() {
     return { rating: TAKTIK_START_RATING, richtig: 0, falsch: 0, zuletztGeloest: [] };
   }
@@ -896,6 +925,7 @@ const Storage = (function () {
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
     getBelohnungsVerlauf, loeseBelohnungEin,
     getMalfolgenDeck, setMalfolgenDeck,
+    getLernkartenStats, meldeLernkartenErgebnis,
     getOffeneSession, setOffeneSession, loescheOffeneSession,
     getOffeneLernsetMeldungen, pushOffeneLernsetMeldung, entferneErsteOffeneLernsetMeldung
   };
