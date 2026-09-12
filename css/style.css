@@ -829,6 +829,9 @@ html, body {
   border-color: var(--accent);
 }
 .karteikarte-frage { font-size: 62px; font-weight: 700; color: var(--ink); }
+/* Countdown auf der Vorderseite (12.09.2026) - bewusst neutrale Farbe (kein Rot/
+   Warnton), zaehlt einfach nur sichtbar mit, keine Bestrafungs-Optik. */
+.karteikarte-countdown { margin-top: 10px; font-size: 22px; font-weight: 700; color: var(--ink-soft); }
 .karteikarte-hinweis { margin-top: 14px; font-size: 15px; color: var(--ink-soft); }
 /* Lernkarten mit Satz-/Fakten-Text (Heimatkunde LK-Vorbereitung) statt kurzer
    Zahlen wie bei den Malfolgen - deutlich kleinere Schrift, damit ganze

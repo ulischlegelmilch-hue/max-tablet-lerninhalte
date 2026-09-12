@@ -83,24 +83,14 @@ const App = (function () {
   // gesperrt wird.
   const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
 
-  // ACHTUNG 02.09.2026: Fuer Max' Deutsch-Schularbeit am 08.09.2026 (Wortarten,
-  // Verben-Grundform, Praesens/Praeteritum/Perfekt, Woerter mit ch) die
-  // taegliche Pflicht-Kachel bis dahin auf die neue Uebungsform umgebogen
-  // (Deutsch.starteSchularbeitUeben() statt starteRechtschreibung()), analog
-  // zum Mathe-Vorgehen vom 01.09.2026. NACH DER ARBEIT UNBEDINGT WIEDER AUF
-  // { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch',
-  //   onclick: 'Deutsch.starteRechtschreibung()' } ZURUECKSETZEN.
-  //
-  // Heimat & Sachkunde bewusst NICHT auf die neue LK-Vorbereitung umgebogen
-  // (anders als Mathe/Deutsch oben): die Heimatkunde-LK-Vorbereitung
-  // (Kinderrechte & Schule, 09.09.2026) besteht seit 02.09.2026 nur noch aus
-  // reinen Lernkarten zum Umdrehen (kein Quiz, keine Auto-Bewertung - Uli
-  // hoert Max die Fakten selbst ab, siehe ACHTUNG-Kommentar in
-  // heimatkunde.js). Ohne richtig/falsch laesst sich das nicht sinnvoll als
-  // Tagespensum zaehlen, deshalb bleibt die Pflicht-Kachel bei Verkehrszeichen.
+  // 12.09.2026: Deutsch-Schularbeit-Vorbereitung (Wortarten/Verbformen/ch-
+  // Woerter, Arbeit war am 08.09.2026) ist vorbei - Pflicht-Kachel zurueck auf
+  // Rechtschreibung (frueherer ACHTUNG-Kommentar hier war der Reminder dafuer).
+  // "Schularbeit üben" bleibt als eigene Kachel im Deutsch-Menue erhalten, ist
+  // nur kein taegliches Pflichtpensum mehr.
   const TAGESPLAN_FACH_META = {
     mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
-    deutsch: { icon: 'tagesaufgabe', titel: 'Schularbeit üben', fachName: 'Deutsch', onclick: 'Deutsch.starteSchularbeitUeben()' },
+    deutsch: { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' },
     heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
   };
 
@@ -821,8 +811,12 @@ const App = (function () {
   // eigenes Buchstaben-Keypad noetig). Vergleich tolerant gegenueber
   // Gross-/Kleinschreibung und Leerraum (normalisiereAntwortText), da hier
   // Wissen ueber Wortarten/Verbformen abgefragt wird, nicht Rechtschreibung.
-  function normalisiereAntwortText(s) {
-    return String(s).trim().toLowerCase().replace(/\s+/g, ' ');
+  // Optionales f.grossKleinPruefen:true (12.09.2026, Deutsch Anredepronomen
+  // Sie/Ihre/Ihnen vs. sie/ihre/ihnen) schaltet das Kleinschreiben AUS - dort
+  // ist die Gross-/Kleinschreibung selbst das Pruefziel, nicht nur Beiwerk.
+  function normalisiereAntwortText(s, grossKleinPruefen) {
+    const getrimmt = String(s).trim().replace(/\s+/g, ' ');
+    return grossKleinPruefen ? getrimmt : getrimmt.toLowerCase();
   }
 
   // Optional f.antwortAlternativen (Array weiterer akzeptierter Antworten) -
@@ -830,9 +824,9 @@ const App = (function () {
   // Heimatkunde-Kinderrechte "Gesundheit" ODER "Umwelt" fuer dasselbe Recht),
   // nicht als generelle Fuzzy-Matching-Funktion gedacht.
   function textAntwortKorrekt(eingabeText, f) {
-    const norm = normalisiereAntwortText(eingabeText);
-    if (norm === normalisiereAntwortText(f.antwort)) return true;
-    return Array.isArray(f.antwortAlternativen) && f.antwortAlternativen.some(alt => normalisiereAntwortText(alt) === norm);
+    const norm = normalisiereAntwortText(eingabeText, f.grossKleinPruefen);
+    if (norm === normalisiereAntwortText(f.antwort, f.grossKleinPruefen)) return true;
+    return Array.isArray(f.antwortAlternativen) && f.antwortAlternativen.some(alt => normalisiereAntwortText(alt, f.grossKleinPruefen) === norm);
   }
 
   function renderTextEingabe(f) {

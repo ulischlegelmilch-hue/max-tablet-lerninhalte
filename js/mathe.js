@@ -762,6 +762,135 @@ const Mathe = (function () {
     return `<strong>Beispiel:</strong> ${s0} · 10 · 10 = ?<br>Rechne Schritt für Schritt von links nach rechts:<br>${s0} · 10 = ${s1}<br>${s1} · 10 = ${s2}<br><strong>Ergebnis: ${s2}</strong>`;
   }
 
+  // ---- Rechenkette mit GEMISCHTEN Rechenzeichen (350 : 50 · 60 − 80 + 240 = ?,
+  // Foto "Setze das richtige Zeichen ein"/Blumenketten, 12.09.2026) - anders
+  // als genMalGeteiltKetteFrage oben (nur ×10/×100/:10/:100, 2 Schritte) sind
+  // hier alle vier Zeichen gemischt und 3-4 Schritte erlaubt, weil Max laut
+  // Foto genau solche Ketten in der Schule schon selbststaendig loest (grüne
+  // Haken auf dem Foto). Jeder Schritt wird trotzdem nur aus Optionen
+  // gewaehlt, die den Zwischenwert positiv UND < 1000 halten (":" nur bei
+  // glatter Teilbarkeit durch 2-9) - dieselbe Sicherheitslogik wie bei allen
+  // anderen Ketten-/Faktoren-Generatoren in dieser Datei.
+  function moeglicheKettenSchritte(wert) {
+    const optionen = [];
+    const plusDelta = rnd(1, 9) * 10;
+    if (wert + plusDelta < 1000) optionen.push({ text: `+ ${plusDelta}`, neu: wert + plusDelta });
+    const minusDelta = rnd(1, 9) * 10;
+    if (wert - minusDelta >= 10) optionen.push({ text: `− ${minusDelta}`, neu: wert - minusDelta });
+    for (let f = 2; f <= 9; f++) {
+      if (wert * f < 1000) optionen.push({ text: `· ${f}`, neu: wert * f });
+    }
+    for (let f = 2; f <= 9; f++) {
+      if (wert % f === 0 && wert / f >= 2) optionen.push({ text: `: ${f}`, neu: wert / f });
+    }
+    return optionen.length ? optionen : [{ text: '+ 10', neu: wert + 10 }];
+  }
+
+  function genRechenketteFrage() {
+    const start = rnd(2, 9) * 10;
+    let wert = start;
+    const anzeige = [];
+    const anzahlSchritte = rnd(3, 4);
+    for (let i = 0; i < anzahlSchritte; i++) {
+      const optionen = moeglicheKettenSchritte(wert);
+      const wahl = optionen[rnd(0, optionen.length - 1)];
+      anzeige.push(wahl.text);
+      wert = wahl.neu;
+    }
+    return {
+      typ: 'numeric',
+      frage: `Rechenkette: Starte bei ${start}.<br>${anzeige.join(' ')} = ?`,
+      antwort: wert,
+      hilfe: hilfeRechenkette()
+    };
+  }
+
+  function hilfeRechenkette() {
+    const start = rnd(2, 9) * 10;
+    let wert = start;
+    const anzeige = [];
+    const zwischenwerte = [];
+    for (let i = 0; i < 3; i++) {
+      const optionen = moeglicheKettenSchritte(wert);
+      const wahl = optionen[rnd(0, optionen.length - 1)];
+      anzeige.push(wahl.text);
+      wert = wahl.neu;
+      zwischenwerte.push(wert);
+    }
+    return `<strong>Beispiel:</strong> Starte bei ${start}.<br>${anzeige.join(' ')} = ?<br>Rechne Schritt für Schritt von links nach rechts:<br>` +
+      `${start} ${anzeige[0]} = ${zwischenwerte[0]}<br>${zwischenwerte[0]} ${anzeige[1]} = ${zwischenwerte[1]}<br>${zwischenwerte[1]} ${anzeige[2]} = ${zwischenwerte[2]}<br>` +
+      `<strong>Ergebnis: ${zwischenwerte[2]}</strong>`;
+  }
+
+  // ---- Setze das richtige Rechenzeichen ein (90 ▢ 9 = 810, Foto Aufgabe 2,
+  // 12.09.2026) - gegeben sind BEIDE Zahlen und das Ergebnis, gesucht ist nur
+  // das Rechenzeichen (+, −, ·, :) dazwischen. ▢ steht hier bewusst fuer die
+  // fehlende STELLE (das Zeichen), nicht fuer eine Zahl - deshalb greift das
+  // ▢-Rueckwaerts-Audit in tests/pruefe_matheaufgaben_schwierigkeit.js hier
+  // nicht (das prueft nur "▢ · Zahl = Zahl"-Faelle mit einer unbekannten
+  // ZAHL). Eindeutigkeit wird trotzdem selbst geprueft: nur Zahlenpaare, bei
+  // denen GENAU EIN Zeichen zum Ergebnis passt, werden verwendet.
+  const RECHENZEICHEN = ['+', '−', '·', ':'];
+
+  function zeichenAufgabeZutaten() {
+    let a, b, op, ergebnis, kandidaten;
+    do {
+      op = RECHENZEICHEN[rnd(0, 3)];
+      if (op === '+') {
+        a = rnd(50, 900);
+        b = rnd(5, Math.min(400, 999 - a));
+      } else if (op === '−') {
+        a = rnd(100, 999);
+        b = rnd(10, a - 10);
+      } else if (op === '·') {
+        const klein = rnd(2, 9);
+        let gross;
+        do { gross = rnd(2, 99); } while (klein * gross >= 1000);
+        [a, b] = Math.random() < 0.5 ? [klein, gross] : [gross, klein];
+      } else {
+        b = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
+        const quotient = rnd(2, 9);
+        a = b * quotient;
+      }
+      ergebnis = op === '+' ? a + b : op === '−' ? a - b : op === '·' ? a * b : a / b;
+      kandidaten = [a + b, a - b, a * b, b !== 0 ? a / b : NaN];
+    } while (kandidaten.filter(v => v === ergebnis).length > 1);
+    return [a, b, op, ergebnis];
+  }
+
+  function genRechenzeichenFrage() {
+    const [a, b, op, ergebnis] = zeichenAufgabeZutaten();
+    return {
+      typ: 'mc',
+      frage: `${a} ▢ ${b} = ${ergebnis}<br>Welches Rechenzeichen fehlt?`,
+      optionen: RECHENZEICHEN,
+      richtigIndex: RECHENZEICHEN.indexOf(op),
+      hilfe: hilfeRechenzeichen(op)
+    };
+  }
+
+  function hilfeRechenzeichen(op) {
+    if (op === '+') {
+      const a = rnd(50, 900), b = rnd(5, Math.min(400, 999 - a));
+      return `<strong>Beispiel:</strong> ${a} ▢ ${b} = ${a + b}<br>Das Ergebnis ist GRÖSSER als beide Zahlen - das spricht für Plus.<br>${a} + ${b} = ${a + b} - passt!<br><strong>Richtiges Zeichen: +</strong>`;
+    }
+    if (op === '−') {
+      const a = rnd(100, 999), b = rnd(10, a - 10);
+      return `<strong>Beispiel:</strong> ${a} ▢ ${b} = ${a - b}<br>Das Ergebnis ist KLEINER als die erste Zahl - das spricht für Minus.<br>${a} − ${b} = ${a - b} - passt!<br><strong>Richtiges Zeichen: −</strong>`;
+    }
+    if (op === '·') {
+      const klein = rnd(2, 9);
+      let gross;
+      do { gross = rnd(2, 99); } while (klein * gross >= 1000);
+      const [a, b] = Math.random() < 0.5 ? [klein, gross] : [gross, klein];
+      return `<strong>Beispiel:</strong> ${a} ▢ ${b} = ${a * b}<br>Das Ergebnis ist VIEL GRÖSSER als beide Zahlen - das spricht für Mal.<br>${a} · ${b} = ${a * b} - passt!<br><strong>Richtiges Zeichen: ·</strong>`;
+    }
+    const teiler = TEILER_OPTIONEN[rnd(0, TEILER_OPTIONEN.length - 1)];
+    const quotient = rnd(2, 9);
+    const dividend = teiler * quotient;
+    return `<strong>Beispiel:</strong> ${dividend} ▢ ${teiler} = ${quotient}<br>Das Ergebnis ist KLEINER als die erste Zahl - probiere Geteilt: ${dividend} : ${teiler} = ${quotient} - passt!<br><strong>Richtiges Zeichen: :</strong>`;
+  }
+
   // ---- Doppeltes/Hälfte von Produkt/Quotient (Foto, Aufgabe 6) ----
   function genDoppeltHaelfteFrage() {
     const doppelt = Math.random() < 0.5;
@@ -1305,6 +1434,38 @@ const Mathe = (function () {
   // Deck-Gewichtung trotzdem weiter Richtung schwacher Fakten.
   let mfSession = null;
   let mfUmgedreht = false;
+  // Countdown auf der Vorderseite (Uli-Wunsch 12.09.2026): nach
+  // MALFOLGEN_COUNTDOWN_SEKUNDEN dreht sich die Karte VON SELBST um, Max muss
+  // dann ehrlich "Nicht gewusst" anklicken, falls er in der Zeit nicht drauf
+  // gekommen ist - keine automatische Falsch-Wertung, keine Farbe/Warnung am
+  // Countdown selbst (bewusst neutral, siehe [[feedback_...]]-Prinzip "Rückmeldung
+  // ohne Bestrafung" aus dem vorherigen Gespraech). Manuelles Umdrehen vor
+  // Ablauf bleibt weiterhin jederzeit moeglich und stoppt den Countdown.
+  const MALFOLGEN_COUNTDOWN_SEKUNDEN = 10;
+  let mfCountdownTimer = null;
+
+  function stoppeMalfolgenCountdown() {
+    if (mfCountdownTimer) {
+      clearInterval(mfCountdownTimer);
+      mfCountdownTimer = null;
+    }
+  }
+
+  function starteMalfolgenCountdown() {
+    stoppeMalfolgenCountdown();
+    let verbleibend = MALFOLGEN_COUNTDOWN_SEKUNDEN;
+    mfCountdownTimer = setInterval(() => {
+      const el = document.getElementById('karteikarte-countdown');
+      if (!el) { stoppeMalfolgenCountdown(); return; } // Karte nicht mehr sichtbar (z.B. "Zurück" geklickt)
+      verbleibend--;
+      if (verbleibend <= 0) {
+        stoppeMalfolgenCountdown();
+        karteUmdrehen();
+      } else {
+        el.textContent = verbleibend;
+      }
+    }, 1000);
+  }
 
   // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
   // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
@@ -1343,6 +1504,7 @@ const Mathe = (function () {
         <div class="karteikarte-inner" id="karteikarte-inner">
           <div class="karteikarte-seite karteikarte-vorne">
             <div class="karteikarte-frage">${a} × ${b}</div>
+            <div class="karteikarte-countdown" id="karteikarte-countdown">${MALFOLGEN_COUNTDOWN_SEKUNDEN}</div>
             <div class="karteikarte-hinweis">Tippen zum Umdrehen</div>
           </div>
           <div class="karteikarte-seite karteikarte-hinten">
@@ -1355,11 +1517,13 @@ const Mathe = (function () {
         <div class="btn-bewertung btn-richtig" onclick="Mathe.bewerteMalfolgenKarte(true)">✔ Richtig gewusst</div>
       </div>
     `);
+    starteMalfolgenCountdown();
   }
 
   function karteUmdrehen() {
     if (mfUmgedreht) return;
     mfUmgedreht = true;
+    stoppeMalfolgenCountdown();
     document.getElementById('karteikarte-inner').classList.add('umgedreht');
     document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
   }
@@ -1470,16 +1634,10 @@ const Mathe = (function () {
   // Schwaeche-Bereichen, ohne dass er selbst etwas auswaehlen muss. Innerhalb eines
   // Bereichs mit mehreren Generatoren (z. B. "schriftlich") wird gleichverteilt
   // zufaellig einer davon benutzt - nur der Bereich selbst wird gewichtet. ----
-  // ACHTUNG 01.09.2026: Fuer den Tag vor Max' Mathearbeit (02.09.2026) auf
-  // Uli-Wunsch ("die Aufgaben, die ich geschickt habe, sollten aber heute
-  // vornehmlich dran sein") ALLE themenfremden Bereiche (schriftlich,
-  // teilervielfache, diagramme, aufgabenfamilien, rechenvorteile) komplett aus
-  // dem aktiven Pool genommen, nicht nur niedriger gewichtet - nur noch
-  // zehnhundert/divisionrest/multdivrund (die drei Themen der Hausaufgaben-
-  // Fotos) sind heute ueberhaupt waehlbar. NACH DER ARBEIT UNBEDINGT WIEDER
-  // EINKOMMENTIEREN, siehe Originalliste unten (bewusst nicht geloescht).
+  // 12.09.2026: Mathearbeit "Dividieren mit Rest"/"10er/100er" (02.09.2026) ist
+  // laengst vorbei - alle damals pausierten Themenbereiche wieder eingekommentiert
+  // (frueherer ACHTUNG-Kommentar hier war der Reminder dafuer).
   const AUFGABEN_BEREICHE = [
-    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genAddSubFrage },
     { kategorie: 'schriftlich', gen: genAddSubFrage },
@@ -1492,24 +1650,13 @@ const Mathe = (function () {
     { kategorie: 'schriftlich', gen: genStimmtDasFrage },
     { kategorie: 'schriftlich', gen: genSachaufgabeSubtraktion },
     { kategorie: 'schriftlich', gen: genEinkaufSumme },
-    */
-    // genZehnHundertFrage (nur einstellig ·10/·100 bzw. Umkehrung, reines
-    // "Null anhaengen") am 01.09.2026 auf Uli-Wunsch entfernt: "nicht die ganz
-    // einfachen, sondern die schwereren, damit es effektiv ist" - laut
-    // Hausaufgaben-Fotos beherrscht Max diese Stufe schon sicher. Nach der
-    // Mathearbeit morgen (02.09.2026) kann sie wieder rein, falls fuer den
-    // laufenden Betrieb (nicht nur Pruefungsvorbereitung) gewuenscht.
     { kategorie: 'zehnhundert', gen: genZehnerzahlenFrage },
     { kategorie: 'zehnhundert', gen: genVergleichRechnungFrage },
     { kategorie: 'zehnhundert', gen: genZahlZerlegenFrage },
-    // Neu am 01.09.2026 fuer Max' Mathearbeit morgen (Thema laut Hausaufgaben-
-    // Foto "Dividieren mit Rest") - mehrfach gelistet, da es der Kern des
-    // Uebungsblatts ist und komplett neu (vorher gab's nur glatte Teilung).
     { kategorie: 'divisionrest', gen: genDivisionRestErgebnisFrage },
     { kategorie: 'divisionrest', gen: genDivisionRestErgebnisFrage },
     { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
     { kategorie: 'divisionrest', gen: genDivisionRestRestFrage },
-    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'teilervielfache', gen: genVielfachesFrage },
     { kategorie: 'teilervielfache', gen: genTeilerFrage },
     { kategorie: 'teilervielfache', gen: genGemeinsamesVielfachesFrage },
@@ -1517,40 +1664,37 @@ const Mathe = (function () {
     { kategorie: 'diagramme', gen: genDiagrammFrage },
     { kategorie: 'diagramme', gen: genStreifentabelleFrage },
     { kategorie: 'aufgabenfamilien', gen: genAufgabenfamilieFrage },
-    */
-    // Neu am 28.08.2026 fuer die Mathearbeit "Multiplizieren und Dividieren"
-    // (siehe Hausaufgaben-Fotos) - genRundeZehnerMalFrage/genFehlenderFaktorFrage/
-    // genFehlenderTeilerDividendFrage mehrfach gelistet, da sie den Kern des
-    // Uebungsblatts treffen; genMalGeteiltKetteFrage/genDoppeltHaelfteFrage
-    // (Zusatzaufgaben auf dem Blatt) je einmal.
     { kategorie: 'multdivrund', gen: genRundeZehnerMalFrage },
     { kategorie: 'multdivrund', gen: genRundeZehnerMalFrage },
     { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
     { kategorie: 'multdivrund', gen: genFehlenderFaktorFrage },
-    // genGeteiltEinfachFrage (kleines Einmaleins rueckwaerts, 81:9 ohne Rest)
-    // am 01.09.2026 ebenfalls entfernt, gleicher Grund wie bei genZehnHundertFrage
-    // oben - zu einfach fuer effektive Pruefungsvorbereitung.
     { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
     { kategorie: 'multdivrund', gen: genFehlenderTeilerDividendFrage },
     { kategorie: 'multdivrund', gen: genMalGeteiltKetteFrage },
     { kategorie: 'multdivrund', gen: genDoppeltHaelfteFrage },
-    /* Themenfremd, bis nach der Mathearbeit pausiert (siehe ACHTUNG oben):
     { kategorie: 'rechenvorteile', gen: genRechenvorteilFrage },
     { kategorie: 'rechenvorteile', gen: genZahlenfolgeFrage },
-    { kategorie: 'rechenvorteile', gen: genVergleichAddSubFrage }
-    */
+    { kategorie: 'rechenvorteile', gen: genVergleichAddSubFrage },
+    // Neu am 12.09.2026 aus aktuellem Schulstoff (Foto "Setze das richtige
+    // Zeichen ein"/Blumenketten) - Schwerpunkt-Thema laut Uli, deshalb mehrfach
+    // gelistet (siehe auch KATEGORIE_BASISGEWICHT oben fuer die Gewichtung).
+    { kategorie: 'rechenzeichen', gen: genRechenzeichenFrage },
+    { kategorie: 'rechenzeichen', gen: genRechenzeichenFrage },
+    { kategorie: 'rechenketten', gen: genRechenketteFrage },
+    { kategorie: 'rechenketten', gen: genRechenketteFrage }
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
   // gewichtFuerStat) - "schriftlich" (Plus/Minus untereinander u.a., siehe
   // AUFGABEN_BEREICHE) bewusst hoeher, auf Ulis Wunsch, dass Max vermehrt
   // schriftlich rechnen uebt statt nur gleichverteilt ueber alle Bereiche.
-  // "multdivrund"/"zehnhundert"/"divisionrest" am 01.09.2026 hoeher gewichtet
-  // (Mathearbeit ist morgen, 02.09.2026, Thema laut Hausaufgaben-Fotos "Dividieren
-  // mit Rest" + "Multiplizieren/Dividieren durch 10 und 100") - nach der Arbeit
-  // koennen diese Werte wieder auf 1 zurueckgesetzt werden ("schriftlich" bleibt
-  // dauerhaft erhoeht, siehe Kommentar oben in AUFGABEN_BEREICHE).
-  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, multdivrund: 2, zehnhundert: 2.2, divisionrest: 2.5 };
+  // multdivrund/zehnhundert/divisionrest waren fuer die Mathearbeit vom
+  // 02.09.2026 befristet hoeher gewichtet - 12.09.2026 wieder auf normal (1)
+  // zurueckgesetzt, "schriftlich" bleibt wie geplant dauerhaft erhoeht.
+  // rechenzeichen/rechenketten (12.09.2026) sind aktueller Schulstoff, kein
+  // Klassenarbeits-Termin diesmal - deshalb dauerhaft hoeher gewichtet (kein
+  // Revert-Datum noetig), aber alle anderen Themen bleiben normal waehlbar.
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, rechenzeichen: 2, rechenketten: 2 };
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);

@@ -352,14 +352,104 @@ const Deutsch = (function () {
   // Pool fuer starteSchularbeitUeben() - bewusst OHNE Mathes Stats-Gewichtung
   // (KATEGORIE_BASISGEWICHT/gewichtFuerStat, siehe mathe.js): reine
   // Gleichverteilung reicht fuer dieses kurzfristige Feature.
+  // ---- Anredepronomen Sie/Ihre/Ihnen (gross) vs. sie/ihre (klein) - Foto
+  // "Briefe schreiben"/"Eine E-Mail schreiben", 12.09.2026, kein Klassenarbeits-
+  // Termin diesmal, sondern aktueller Schulstoff. Saetze bewusst NICHT 1:1 aus
+  // dem (teils schwer lesbaren, handschriftlich ueberklebten) Foto abgetippt,
+  // sondern von den eindeutig gedruckten Vorbildern abgeleitet (MERKE-DIR-Kasten
+  // "Wir bitten Sie um Ihre Hilfe. Ich wünsche Ihnen ein schönes Wochenende!"
+  // sowie Max' eigene, bereits korrekt bewertete E-Mail-Luecken) - jeder Satz
+  // hat dadurch eine sicher belegte, eindeutige Loesung.
+  // f.grossKleinPruefen:true (siehe genAnredepronomenFrage) macht die Pruefung
+  // in app.js case-sensitiv - hier IST die Gross-/Kleinschreibung die Aufgabe.
+  const anredepronomenBank = [
+    { satz: 'Wir bitten ___ um Ihre Hilfe.', antwort: 'Sie' },
+    { satz: 'Wir bitten Sie um ___ Hilfe.', antwort: 'Ihre' },
+    { satz: 'Ich wünsche ___ ein schönes Wochenende!', antwort: 'Ihnen' },
+    { satz: 'Liebe Frau Müller, wir haben eine Frage an ___.', antwort: 'Sie' },
+    { satz: 'Kommen ___ gut nach Hause, Herr Holz!', antwort: 'Sie' },
+    { satz: 'Vielen Dank für ___ schnelle Antwort, Frau Müller.', antwort: 'Ihre' },
+    { satz: 'Wir schreiben ___, weil wir eine Bitte haben.', antwort: 'Ihnen' },
+    { satz: 'Viele Grüße, ___ Klasse 4a', antwort: 'Ihre' },
+    { satz: 'Die Eltern haben ___ Unterstützung zugesagt.', antwort: 'ihre' },
+    { satz: 'Die Schüler haben ___ Bücher mitgebracht.', antwort: 'ihre' },
+    { satz: 'Max und Lena haben ___ Hausaufgaben schon fertig.', antwort: 'ihre' },
+    { satz: 'Die Kinder haben ___ Spielzeug aufgeräumt.', antwort: 'ihre' }
+  ];
+
+  function genAnredepronomenFrage() {
+    const eintrag = pickN(anredepronomenBank, 1)[0];
+    const istGewoehnlichesPronomen = eintrag.antwort === eintrag.antwort.toLowerCase();
+    return {
+      typ: 'text',
+      grossKleinPruefen: true,
+      frage: `Setze das richtige Wort ein (auf Groß-/Kleinschreibung achten!):<br>${eintrag.satz}`,
+      antwort: eintrag.antwort,
+      hilfe: istGewoehnlichesPronomen
+        ? `Hier ist von ANDEREN Leuten die Rede (nicht von der Person, die den Brief bekommt) - ein ganz normales Wort für "sie", deshalb klein: „${eintrag.antwort}"`
+        : `Das ist ein ANREDEPRONOMEN - es spricht die Person direkt an, die den Brief/die Karte bekommt. Auf Karten und Briefen wird das IMMER großgeschrieben: „${eintrag.antwort}"`
+    };
+  }
+
+  // ---- Persönlicher oder förmlicher Brief? (Foto "Persönlicher und förmlicher
+  // Brief", 12.09.2026) - genau 2 feste Kategorien, deshalb bewusst typ:'mc'
+  // statt Freitext (gleiche Ausnahme wie genWortartFreitext oben). Phrasen +
+  // Zuordnung 1:1 von Max' eigenem, bereits korrigiertem Arbeitsblatt uebernommen
+  // (gruen=persönlich/rot=förmlich markiert), keine eigene Einschaetzung noetig.
+  const briefStilBank = [
+    { phrase: 'Mit freundlichen Grüßen', stil: 'förmlich' },
+    { phrase: 'Hey Madeleine!', stil: 'persönlich' },
+    { phrase: 'Hallo Timo, ...', stil: 'persönlich' },
+    { phrase: 'Ich freue mich auf deine Antwort.', stil: 'persönlich' },
+    { phrase: 'Wie geht es dir?', stil: 'persönlich' },
+    { phrase: 'Sehr geehrte Damen und Herren, ...', stil: 'förmlich' },
+    { phrase: 'Hochachtungsvoll', stil: 'förmlich' },
+    { phrase: 'Ich hoffe, es geht dir gut.', stil: 'persönlich' },
+    { phrase: 'Ich schreibe Ihnen, weil ...', stil: 'förmlich' },
+    { phrase: 'Hiermit möchte ich meinen Handyvertrag kündigen.', stil: 'förmlich' },
+    { phrase: 'Liebe Sophie, ...', stil: 'persönlich' },
+    { phrase: 'Ich habe mich sehr über deinen Brief gefreut!', stil: 'persönlich' },
+    { phrase: 'Bitte senden Sie mir eine schriftliche Bestätigung zu.', stil: 'förmlich' },
+    { phrase: 'Ich kann leider nicht zu deiner Geburtstagsparty kommen.', stil: 'persönlich' },
+    { phrase: 'Sehr geehrte Frau Müller, ...', stil: 'förmlich' },
+    { phrase: 'Ich wünsche dir einen schönen Tag.', stil: 'persönlich' },
+    { phrase: 'Auf eine Einladung zu einem persönlichen Gespräch freue ich mich.', stil: 'förmlich' },
+    { phrase: 'Melde dich bitte bei mir, falls du nicht kommen kannst.', stil: 'persönlich' },
+    { phrase: 'Ich bitte Sie, mein Fehlen zu entschuldigen.', stil: 'förmlich' },
+    { phrase: 'Bis bald!', stil: 'persönlich' }
+  ];
+
+  function genBriefStilFrage() {
+    const eintrag = pickN(briefStilBank, 1)[0];
+    const optionen = ['persönlich', 'förmlich'];
+    return {
+      typ: 'mc',
+      frage: `Ist das persönlich oder förmlich?<br>„${eintrag.phrase}"`,
+      optionen,
+      richtigIndex: optionen.indexOf(eintrag.stil),
+      hilfe: eintrag.stil === 'förmlich'
+        ? `Das klingt höflich-distanziert und nutzt "Sie/Ihnen" oder feste Floskeln - typisch für einen Brief an Fremde/Aemter/Firmen: <strong>förmlich</strong>.`
+        : `Das klingt wie zu einem Freund/einer Freundin gesprochen (Anrede mit "du") - typisch für persönliche Briefe/Nachrichten: <strong>persönlich</strong>.`
+    };
+  }
+
   // verbzeitform doppelt gelistet, da Praesens/Praeteritum/Perfekt das
-  // groesste Thema der Arbeit ist.
+  // groesste Thema der Arbeit ist. anredepronomen/briefstil (12.09.2026)
+  // mehrfach gelistet, da das laut Uli der aktuelle Schwerpunkt ist (aktueller
+  // Schulstoff, keine bevorstehende Arbeit) - die aelteren Themen bleiben
+  // trotzdem mit dabei, nur seltener.
   const DEUTSCH_SCHULARBEIT_BEREICHE = [
     { kategorie: 'wortarten', gen: genWortartFreitext },
     { kategorie: 'verbgrundform', gen: genVerbGrundformFreitext },
     { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
     { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
-    { kategorie: 'chwoerter', gen: genWoerterMitChFreitext }
+    { kategorie: 'chwoerter', gen: genWoerterMitChFreitext },
+    { kategorie: 'anredepronomen', gen: genAnredepronomenFrage },
+    { kategorie: 'anredepronomen', gen: genAnredepronomenFrage },
+    { kategorie: 'anredepronomen', gen: genAnredepronomenFrage },
+    { kategorie: 'briefstil', gen: genBriefStilFrage },
+    { kategorie: 'briefstil', gen: genBriefStilFrage },
+    { kategorie: 'briefstil', gen: genBriefStilFrage }
   ];
 
   function genSchularbeitAufgabe(anzahl) {
