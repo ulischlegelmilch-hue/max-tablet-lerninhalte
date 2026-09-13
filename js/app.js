@@ -83,14 +83,13 @@ const App = (function () {
   // gesperrt wird.
   const GESCHICHTEN_STATUS_PRAEFIX = { neu: 'Lesen: ', weiter: 'Weiterlesen: ', nochmal: 'Nochmal lesen: ' };
 
-  // 12.09.2026: Deutsch-Schularbeit-Vorbereitung (Wortarten/Verbformen/ch-
-  // Woerter, Arbeit war am 08.09.2026) ist vorbei - Pflicht-Kachel zurueck auf
-  // Rechtschreibung (frueherer ACHTUNG-Kommentar hier war der Reminder dafuer).
-  // "Schularbeit üben" bleibt als eigene Kachel im Deutsch-Menue erhalten, ist
-  // nur kein taegliches Pflichtpensum mehr.
+  // 13.09.2026: Deutsch hat keine getrennten Themenbereiche mehr (siehe
+  // deutsch.js renderMenu/DEUTSCH_UEBEN_BEREICHE - Uli wollte nur noch EINE
+  // Kategorie) - Pflicht-Kachel zeigt deshalb jetzt auf die eine gemeinsame
+  // Aufgaben-Funktion, genau wie bei Mathe.
   const TAGESPLAN_FACH_META = {
     mathe: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Mathe', onclick: 'Mathe.starteTagesaufgabe()' },
-    deutsch: { icon: 'rechtschreibung', titel: 'Rechtschreibung üben', fachName: 'Deutsch', onclick: 'Deutsch.starteRechtschreibung()' },
+    deutsch: { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', fachName: 'Deutsch', onclick: 'Deutsch.starteDeutschUeben()' },
     heimat: { icon: 'verkehrszeichen', titel: 'Verkehrszeichen üben', fachName: 'Heimat & Sachkunde', onclick: 'Heimatkunde.starteQuiz()' }
   };
 

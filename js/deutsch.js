@@ -9,12 +9,19 @@ const Deutsch = (function () {
   }
   function pickN(arr, n) { return shuffle(arr).slice(0, n); }
 
+  // 13.09.2026 Uli-Wunsch: "innerhalb des Deutschordners sollte es keine
+  // Themenbereiche geben, ich möchte da nur eine Kategorie" - die bisherigen
+  // getrennten Kacheln Rechtschreibung/Wortarten erkennen/Schularbeit üben
+  // sind deshalb zu EINER Kachel "Gemischte Aufgaben üben" verschmolzen (siehe
+  // DEUTSCH_UEBEN_BEREICHE/starteDeutschUeben unten - mischt alle drei Themen
+  // plus die neuen Briefe-Themen in einem gemeinsamen Pool). "Lesen &
+  // Verstehen" bleibt bewusst als EIGENE Kachel bestehen: es ist strukturell
+  // etwas anderes (ein Lesetext mit mehreren Fragen zusammen statt einzelner
+  // Quiz-Fragen) und laesst sich nicht einfach in denselben Frage-Pool mischen.
   function renderMenu() {
     App.render(App.subMenuHtml('Deutsch – was übst du?', [
-      { icon: 'rechtschreibung', titel: 'Rechtschreibung', onclick: 'Deutsch.starteRechtschreibung()' },
-      { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' },
-      { icon: 'wortarten', titel: 'Wortarten erkennen', onclick: 'Deutsch.starteWortarten()' },
-      { icon: 'tagesaufgabe', titel: 'Schularbeit üben', onclick: 'Deutsch.starteSchularbeitUeben()' }
+      { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', onclick: 'Deutsch.starteDeutschUeben()' },
+      { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }
     ]));
   }
 
@@ -64,6 +71,13 @@ const Deutsch = (function () {
       optionen: item.optionen,
       richtigIndex: item.richtig
     }));
+  }
+
+  // Einzelfrage-Wrapper fuer den gemeinsamen Deutsch-Pool (DEUTSCH_UEBEN_BEREICHE
+  // unten) - genRechtschreibung(anzahl) liefert normalerweise ein ganzes Array,
+  // der Pool braucht aber pro Aufruf genau EINE Frage wie alle anderen gen-Funktionen.
+  function genRechtschreibFrage() {
+    return genRechtschreibung(1)[0];
   }
 
   // Lesetexte mit je 2 Verständnisfragen
@@ -203,10 +217,20 @@ const Deutsch = (function () {
     });
   }
 
+  // Einzelfrage-Wrapper fuer den gemeinsamen Deutsch-Pool (DEUTSCH_UEBEN_BEREICHE
+  // unten), gleiche Begruendung wie bei genRechtschreibFrage oben. Testet eine
+  // andere Blickrichtung als genWortartFreitext (dort: "welche Wortart hat DIESES
+  // Wort", hier: "welches Wort IST die genannte Wortart") - beide bleiben deshalb
+  // nebeneinander im Pool fuer mehr Abwechslung.
+  function genWortartenSucheFrage() {
+    return genWortarten(1)[0];
+  }
+
   // ===========================================================================
-  // Schularbeit-Vorbereitung 02.09.2026 (Arbeit am 08.09.2026): Wortarten,
-  // Verben-Grundform, Praesens/Praeteritum/Perfekt, Woerter mit ch - siehe
-  // starteSchularbeitUeben() unten. Uli-Wunsch: "er sollte Arten dieser
+  // Schularbeit-Vorbereitung 02.09.2026 (Arbeit war am 08.09.2026): Wortarten,
+  // Verben-Grundform, Praesens/Praeteritum/Perfekt, Woerter mit ch - seit
+  // 13.09.2026 Teil von DEUTSCH_UEBEN_BEREICHE/starteDeutschUeben() weiter
+  // unten (siehe dortiger Kommentar). Uli-Wunsch: "er sollte Arten dieser
   // Aufgaben loesen, aber kein Multiple Choice" - alle Generatoren hier nutzen
   // typ:'text' (freie Eingabe mit nativer Tastatur, siehe app.js
   // renderTextEingabe). AUSNAHME: genWortartFreitext nutzt seit 02.09.2026
@@ -349,8 +373,9 @@ const Deutsch = (function () {
     };
   }
 
-  // Pool fuer starteSchularbeitUeben() - bewusst OHNE Mathes Stats-Gewichtung
-  // (KATEGORIE_BASISGEWICHT/gewichtFuerStat, siehe mathe.js): reine
+  // Pool fuer starteDeutschUeben() (frueher starteSchularbeitUeben) - bewusst
+  // OHNE Mathes Stats-Gewichtung (KATEGORIE_BASISGEWICHT/gewichtFuerStat,
+  // siehe mathe.js): reine
   // Gleichverteilung reicht fuer dieses kurzfristige Feature.
   // ---- Anredepronomen Sie/Ihre/Ihnen (gross) vs. sie/ihre (klein) - Foto
   // "Briefe schreiben"/"Eine E-Mail schreiben", 12.09.2026, kein Klassenarbeits-
@@ -433,13 +458,18 @@ const Deutsch = (function () {
     };
   }
 
-  // verbzeitform doppelt gelistet, da Praesens/Praeteritum/Perfekt das
-  // groesste Thema der Arbeit ist. anredepronomen/briefstil (12.09.2026)
-  // mehrfach gelistet, da das laut Uli der aktuelle Schwerpunkt ist (aktueller
-  // Schulstoff, keine bevorstehende Arbeit) - die aelteren Themen bleiben
-  // trotzdem mit dabei, nur seltener.
-  const DEUTSCH_SCHULARBEIT_BEREICHE = [
+  // 13.09.2026: Alle bisher getrennten Themenbereiche (Rechtschreibung,
+  // Wortarten erkennen, Schularbeit-Vorbereitung) zu EINEM gemeinsamen Pool
+  // verschmolzen (siehe renderMenu oben - Uli wollte keine Themenbereiche mehr,
+  // nur eine Kategorie). anredepronomen/briefstil (Foto "Briefe schreiben",
+  // 12.09.2026) bleiben als Schwerpunkt mehrfach gelistet, alle aelteren Themen
+  // (Rechtschreibung, Adjektive/Substantive/Verben aus wortarten/verbformen,
+  // Perfekt/Praesens/Praeteritum aus verbzeitform, ch-Woerter) sind weiterhin
+  // mit dabei, nur seltener.
+  const DEUTSCH_UEBEN_BEREICHE = [
+    { kategorie: 'rechtschreibung', gen: genRechtschreibFrage },
     { kategorie: 'wortarten', gen: genWortartFreitext },
+    { kategorie: 'wortarten', gen: genWortartenSucheFrage },
     { kategorie: 'verbgrundform', gen: genVerbGrundformFreitext },
     { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
     { kategorie: 'verbzeitform', gen: genVerbZeitformFreitext },
@@ -452,10 +482,10 @@ const Deutsch = (function () {
     { kategorie: 'briefstil', gen: genBriefStilFrage }
   ];
 
-  function genSchularbeitAufgabe(anzahl) {
+  function genDeutschUebenAufgabe(anzahl) {
     const fragen = [];
     for (let i = 0; i < anzahl; i++) {
-      fragen.push(pickN(DEUTSCH_SCHULARBEIT_BEREICHE, 1)[0].gen());
+      fragen.push(pickN(DEUTSCH_UEBEN_BEREICHE, 1)[0].gen());
     }
     return fragen;
   }
@@ -463,22 +493,24 @@ const Deutsch = (function () {
   // aktivitaet-Schluessel fuer Storage.getOffeneSession/setOffeneSession -
   // ermoeglicht Fortsetzen einer unterbrochenen Aufgabenfolge am selben Tag
   // (siehe App.startQuizSession und Mathe.starteTagesaufgabe fuers Vorbild).
-  function starteRechtschreibung() {
-    const AKTIVITAET = 'deutsch-rechtschreibung';
+  // Ersetzt seit 13.09.2026 die drei fruaheren getrennten Start-Funktionen
+  // starteRechtschreibung/starteWortarten/starteSchularbeitUeben (siehe
+  // renderMenu oben) - ist jetzt auch die taegliche Pflicht-Kachel auf dem
+  // Home-Screen (siehe TAGESPLAN_FACH_META.deutsch in app.js).
+  function starteDeutschUeben() {
+    const AKTIVITAET = 'deutsch-ueben';
     const starter = () => {
-      // Von Uli im Eltern-Bereich einstellbar (Tagesplan-Regeln, siehe
-      // Storage.getTagesPensumAnzahl) - ohne Regel Standard 10.
       const ANZAHL = Storage.getTagesPensumAnzahl('deutsch');
       const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Rechtschreibung', aktivitaet: AKTIVITAET, pensumFach: 'deutsch' };
+      const config = { titel: 'Gemischte Aufgaben üben', aktivitaet: AKTIVITAET, pensumFach: 'deutsch' };
       if (offen && offen.index > 0 && offen.index < ANZAHL) {
         config.anzeigeOffset = offen.index;
         config.startRichtigCount = offen.richtigCount;
         config.startSessionSterne = offen.sessionSterne;
         config.startVerlauf = offen.verlauf || [];
-        App.startQuizSession('deutsch', genRechtschreibung(ANZAHL - offen.index), config);
+        App.startQuizSession('deutsch', genDeutschUebenAufgabe(ANZAHL - offen.index), config);
       } else {
-        App.startQuizSession('deutsch', genRechtschreibung(ANZAHL), config);
+        App.startQuizSession('deutsch', genDeutschUebenAufgabe(ANZAHL), config);
       }
     };
     App.setLastStarter(starter); starter();
@@ -508,48 +540,5 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  // Bewusst NICHT pensumFach-verknuepft (wie schon Lesen & Verstehen) - eine
-  // freiwillige Zusatzuebung, keine Tagesplan-Pflicht.
-  function starteWortarten() {
-    const AKTIVITAET = 'deutsch-wortarten';
-    const ANZAHL = 10;
-    const starter = () => {
-      const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Wortarten erkennen', aktivitaet: AKTIVITAET };
-      if (offen && offen.index > 0 && offen.index < ANZAHL) {
-        config.anzeigeOffset = offen.index;
-        config.startRichtigCount = offen.richtigCount;
-        config.startSessionSterne = offen.sessionSterne;
-        config.startVerlauf = offen.verlauf || [];
-        App.startQuizSession('deutsch', genWortarten(ANZAHL - offen.index), config);
-      } else {
-        App.startQuizSession('deutsch', genWortarten(ANZAHL), config);
-      }
-    };
-    App.setLastStarter(starter); starter();
-  }
-
-  // pensumFach:'deutsch' verknuepft (wie Rechtschreibung) - siehe ACHTUNG-
-  // Kommentar bei TAGESPLAN_FACH_META.deutsch in app.js: bis zur Arbeit am
-  // 08.09.2026 ist DIES die taegliche Pflicht-Kachel auf dem Home-Screen.
-  function starteSchularbeitUeben() {
-    const AKTIVITAET = 'deutsch-schularbeit';
-    const starter = () => {
-      const ANZAHL = Storage.getTagesPensumAnzahl('deutsch');
-      const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Schularbeit üben', aktivitaet: AKTIVITAET, pensumFach: 'deutsch' };
-      if (offen && offen.index > 0 && offen.index < ANZAHL) {
-        config.anzeigeOffset = offen.index;
-        config.startRichtigCount = offen.richtigCount;
-        config.startSessionSterne = offen.sessionSterne;
-        config.startVerlauf = offen.verlauf || [];
-        App.startQuizSession('deutsch', genSchularbeitAufgabe(ANZAHL - offen.index), config);
-      } else {
-        App.startQuizSession('deutsch', genSchularbeitAufgabe(ANZAHL), config);
-      }
-    };
-    App.setLastStarter(starter); starter();
-  }
-
-  return { renderMenu, starteRechtschreibung, starteLesen, starteWortarten, starteSchularbeitUeben };
+  return { renderMenu, starteDeutschUeben, starteLesen };
 })();
