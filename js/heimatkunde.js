@@ -327,17 +327,17 @@ const Heimatkunde = (function () {
     { front: 'Warum brauchst du Sicherheitsabstand?', back: 'Auffahren passiert schneller, als du denkst - etwa wenn der Vordermann eine <strong>Vollbremsung</strong> macht.' }
   ];
 
-  // Heft S.19 + Sfb S.76 (Nr. 7)
+  // Heft S.19 (Reihenfolge der 5 Schritte gilt laut Uli 24.09.2026 nach dem HEFT, nicht nach
+  // dem Buch S.76 - die Buch-Reihenfolge wurde bewusst entfernt)
   const LERNKARTEN_RAD_HINDERNIS = [
     { front: 'Ein parkendes Fahrzeug oder eine Baustelle versperrt den Weg. Was musst du beim Vorbeifahren tun?', back: 'Du musst beim Vorbeifahren deine <strong>Fahrspur verlassen</strong>.' },
-    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 1: Was machst du zuerst?', back: '<strong>Umschauen</strong>.' },
-    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 2: Was kommt nach dem Umschauen?', back: '<strong>Handzeichen links</strong> geben.' },
-    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 3: Was kommt nach dem Handzeichen links?', back: '<strong>Links einordnen</strong>; wenn Gegenverkehr kommt, <strong>Vorrang gewähren</strong>.' },
-    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 4: Was hältst du beim Vorbeifahren?', back: '<strong>Sicherheitsabstand</strong> halten.' },
-    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 5: Was machst du zum Schluss?', back: '<strong>Handzeichen rechts</strong> geben und <strong>wieder rechts einordnen</strong>.' },
-    { front: 'Nenne alle 5 Schritte beim Vorbeifahren an einem Hindernis (Heft) in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen links</strong> geben<br>3. <strong>Links einordnen</strong>; bei Gegenverkehr Vorrang gewähren<br>4. <strong>Sicherheitsabstand</strong> halten<br>5. <strong>Handzeichen rechts</strong> geben und wieder rechts einordnen' },
+    { front: 'Vorbeifahren am Hindernis - Schritt 1: Was machst du zuerst?', back: '<strong>Umschauen</strong>.' },
+    { front: 'Vorbeifahren am Hindernis - Schritt 2: Was kommt nach dem Umschauen?', back: '<strong>Handzeichen links</strong> geben.' },
+    { front: 'Vorbeifahren am Hindernis - Schritt 3: Was kommt nach dem Handzeichen links?', back: '<strong>Links einordnen</strong>; wenn Gegenverkehr kommt, <strong>Vorrang gewähren</strong>.' },
+    { front: 'Vorbeifahren am Hindernis - Schritt 4: Was hältst du beim Vorbeifahren?', back: '<strong>Sicherheitsabstand</strong> halten.' },
+    { front: 'Vorbeifahren am Hindernis - Schritt 5: Was machst du zum Schluss?', back: '<strong>Handzeichen rechts</strong> geben und <strong>wieder rechts einordnen</strong>.' },
+    { front: 'Nenne alle 5 Schritte beim Vorbeifahren an einem Hindernis in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen links</strong> geben<br>3. <strong>Links einordnen</strong>; bei Gegenverkehr Vorrang gewähren<br>4. <strong>Sicherheitsabstand</strong> halten<br>5. <strong>Handzeichen rechts</strong> geben und wieder rechts einordnen' },
     { front: 'Du musst beim Vorbeifahren auf die Gegenfahrbahn ausweichen und es kommt Gegenverkehr. Was tust du?', back: 'Du musst <strong>warten</strong> und den Gegenverkehr vorbeifahren lassen. Erst wenn niemand mehr kommt, darfst du fahren. Schau dich vor dem Losfahren <strong>unbedingt um</strong>, ob hinter dir jemand kommt.' },
-    { front: 'Hindernis umfahren (Buch S. 76) - Nenne die 5 Schritte in der richtigen Reihenfolge.', back: '1. Auf den <strong>Gegenverkehr</strong> achten<br>2. <strong>Schulterblick</strong> über die linke Schulter<br>3. <strong>Handzeichen nach links</strong><br>4. Am Hindernis <strong>vorbeifahren</strong><br>5. <strong>Handzeichen nach rechts</strong>, einordnen' },
     { front: 'Über welche Schulter machst du vor dem Ausweichen den Schulterblick?', back: 'Über die <strong>linke</strong> Schulter.' }
   ];
 
@@ -349,7 +349,7 @@ const Heimatkunde = (function () {
     { front: 'Mehrere Fahrzeuge kommen gleichzeitig an eine Kreuzung. Wer darf zuerst fahren?', back: 'Der, der <strong>kein anderes Fahrzeug sieht</strong>, wenn er nach <strong>rechts</strong> schaut.' },
     { front: 'Du kommst an einer Kreuzung ohne Ampel und ohne Verkehrszeichen an. Ein Auto kommt von rechts. Wer hat Vorfahrt?', back: 'Das Auto von <strong>rechts</strong> hat Vorfahrt - du musst warten.' },
     { front: radImg('102_kreuzung_rechts.svg') + 'Was bedeutet dieses Schild?', back: 'Die Kreuzung ohne Ampel und Vorfahrtszeichen ist sehr gefährlich - auch hier gilt <strong>„rechts vor links“</strong>.' },
-    { front: 'Wann gilt „rechts vor links“ NICHT? Nenne die Ausnahmen (Buch).', back: 'Bei <strong>Wald- oder Feldwegen</strong> sowie <strong>Einfahrten</strong>.' },
+    { front: 'Wann gilt „rechts vor links“ NICHT? Nenne die Ausnahmen.', back: 'Bei <strong>Wald- oder Feldwegen</strong> sowie <strong>Einfahrten</strong>.' },
     { front: 'Niemals Vorfahrt hat, wer ... (Teil 1)', back: 'Wer aus einer Seitenstraße kommt, die über einen <strong>abgesenkten Bordstein</strong> führt, oder wer einen <strong>verkehrsberuhigten Bereich</strong> verlässt.' },
     { front: 'Niemals Vorfahrt hat, wer ... (Teil 2)', back: 'Wer aus <strong>Hofeinfahrten, Grundstücken, Parkplätzen oder Tankstellen</strong> auf die Fahrbahn fährt.' },
     { front: 'Niemals Vorfahrt hat, wer ... (Teil 3)', back: 'Wer aus einem <strong>Feldweg</strong> oder <strong>Park</strong> kommt.' },
