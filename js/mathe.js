@@ -36,6 +36,7 @@ const Mathe = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
+      { icon: 'klammern', titel: 'Punkt vor Strich & Klammern', onclick: 'Mathe.renderRechenregelnMenu()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
@@ -1627,6 +1628,595 @@ const Mathe = (function () {
     `);
   }
 
+  // ============================================================
+  // Punkt vor Strich & Klammern (24.09.2026) - Mathearbeit-Vorbereitung.
+  // Grundlage: Uli schickte Buch-/Heftseiten (SB S.8-9, UeH S.5, FO S.4 + ein
+  // Arbeitsblatt "Achte auf die Rechenregeln und schreibe den vollstaendigen
+  // Rechenweg auf!" + Max' Heft). Das Niveau dort: Zehner-/Hunderterzahlen,
+  // Ergebnisse < 1000 (z.B. 424 + 6 · 3, 340 − 72 : 8, (290 − 20) : 9,
+  // 6 · (120 − 60), 7 · (83 − 76) + 4 · 3), dazu "Setze die Klammern an die
+  // richtige Stelle", "Setze das richtige Zeichen" mit Klammer-Termen,
+  // Woerter-Aufgaben ("Multipliziere die Summe aus 46 und 14 mit 7") und
+  // Sachaufgaben mit Klammern.
+  //
+  // Alle Aufgaben hier entstehen als TEXT-Ausdruck (z.B. "(43 + 7) · 3") und
+  // werden mit dem kleinen Auswerter unten (werteAus) gerechnet - so stimmt die
+  // Loesung garantiert nach den echten Regeln, und jede Zwischenrechnung wird
+  // dabei streng geprueft: nur ganze Zahlen (Division muss aufgehen), nie
+  // negativ, nie >= 1000 (siehe tests/pruefe_matheaufgaben_schwierigkeit.js).
+  // Die Hilfe zeigt den Rechenweg genau so, wie ihn die Schule aufschreiben
+  // laesst (Klammer zuerst -> Punkt vor Strich -> Strich).
+  // ============================================================
+  const SICHERE_TEILER = [2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90];
+
+  function tokenisiere(text) {
+    return text.match(/\d+|[+−·:()]/g).map(t => (/\d/.test(t) ? Number(t) : t));
+  }
+
+  function ausdruckText(tokens) {
+    let s = '';
+    tokens.forEach((t, i) => {
+      if (i > 0 && t !== ')' && tokens[i - 1] !== '(') s += ' ';
+      s += t;
+    });
+    return s;
+  }
+
+  // Rechnet nach den echten Regeln (Klammer, Punkt vor Strich). Liefert null,
+  // sobald irgendein Zwischenwert nicht ganzzahlig, negativ oder >= 1000 ist.
+  function werteAus(tokens) {
+    let pos = 0, ok = true;
+    const pruefe = w => { if (!Number.isInteger(w) || w < 0 || w >= 1000) ok = false; return w; };
+    function ausdruck() {
+      let w = term();
+      while (ok && (tokens[pos] === '+' || tokens[pos] === '−')) {
+        const op = tokens[pos++];
+        const r = term();
+        w = pruefe(op === '+' ? w + r : w - r);
+      }
+      return w;
+    }
+    function term() {
+      let w = faktor();
+      while (ok && (tokens[pos] === '·' || tokens[pos] === ':')) {
+        const op = tokens[pos++];
+        const r = faktor();
+        if (op === '·') w = pruefe(w * r);
+        else if (r === 0 || w % r !== 0) ok = false;
+        else w = pruefe(w / r);
+      }
+      return w;
+    }
+    function faktor() {
+      if (tokens[pos] === '(') {
+        pos++;
+        const w = ausdruck();
+        pos++;
+        return w;
+      }
+      return pruefe(tokens[pos++]);
+    }
+    const w = ausdruck();
+    return ok && pos === tokens.length ? w : null;
+  }
+
+  // Typischer Fehler 1: "einfach von links nach rechts" (Punkt vor Strich und
+  // Klammern ignoriert).
+  function werteLinksNachRechts(tokens) {
+    const t = tokens.filter(x => x !== '(' && x !== ')');
+    let w = t[0];
+    for (let i = 1; i < t.length; i += 2) {
+      const op = t[i], r = t[i + 1];
+      if (op === '+') w += r;
+      else if (op === '−') w -= r;
+      else if (op === '·') w *= r;
+      else if (r === 0 || w % r !== 0) return null;
+      else w /= r;
+      if (w < 0 || w >= 1000) return null;
+    }
+    return w;
+  }
+
+  // Typischer Fehler 2: Klammern uebersehen (aber Punkt vor Strich beachtet).
+  function werteOhneKlammern(tokens) {
+    return werteAus(tokens.filter(x => x !== '(' && x !== ')'));
+  }
+
+  function hatPunktUndStrich(tokens) {
+    return tokens.some(t => t === '·' || t === ':') && tokens.some(t => t === '+' || t === '−');
+  }
+
+  // ---- Rechenweg wie in der Schule: Klammer zuerst -> Punkt vor Strich -> Strich ----
+  function reduziereKlammern(tokens) {
+    const neu = [];
+    let i = 0;
+    while (i < tokens.length) {
+      if (tokens[i] === '(') {
+        let j = i + 1;
+        while (j < tokens.length && tokens[j] !== ')' && tokens[j] !== '(') j++;
+        if (tokens[j] === ')') {
+          neu.push(werteAus(tokens.slice(i + 1, j)));
+          i = j + 1;
+          continue;
+        }
+      }
+      neu.push(tokens[i]);
+      i++;
+    }
+    return neu;
+  }
+
+  function reduzierePunkt(tokens) {
+    const neu = [];
+    let i = 0;
+    while (i < tokens.length) {
+      if (typeof tokens[i] === 'number' && (tokens[i + 1] === '·' || tokens[i + 1] === ':')) {
+        let w = tokens[i], j = i + 1;
+        while (tokens[j] === '·' || tokens[j] === ':') {
+          w = tokens[j] === '·' ? w * tokens[j + 1] : w / tokens[j + 1];
+          j += 2;
+        }
+        neu.push(w);
+        i = j;
+      } else {
+        neu.push(tokens[i]);
+        i++;
+      }
+    }
+    return neu;
+  }
+
+  function reduziereStrichEinmal(tokens) {
+    const i = tokens.findIndex(t => t === '+' || t === '−');
+    const w = tokens[i] === '+' ? tokens[i - 1] + tokens[i + 1] : tokens[i - 1] - tokens[i + 1];
+    return [...tokens.slice(0, i - 1), w, ...tokens.slice(i + 2)];
+  }
+
+  function rechenwegSchritte(text) {
+    let t = tokenisiere(text);
+    const schritte = [];
+    while (t.includes('(')) {
+      t = reduziereKlammern(t);
+      schritte.push({ text: ausdruckText(t), label: 'Klammer zuerst' });
+    }
+    if (t.length > 1 && t.some(x => x === '·' || x === ':')) {
+      t = reduzierePunkt(t);
+      schritte.push({ text: ausdruckText(t), label: 'Punkt vor Strich' });
+    }
+    while (t.length > 1) {
+      t = reduziereStrichEinmal(t);
+      schritte.push({ text: ausdruckText(t), label: 'Strich' });
+    }
+    return { schritte, wert: t[0] };
+  }
+
+  // Ein Rechenweg in einer Zeile: "3 · 4 + 7 · 5 = 12 + 35 = 47"
+  function rechenwegKette(text) {
+    const { schritte } = rechenwegSchritte(text);
+    return [text, ...schritte.map(s => s.text)].join(' = ');
+  }
+
+  function hilfeRechenweg(text) {
+    const { schritte } = rechenwegSchritte(text);
+    const zeilen = schritte.map((s, i) => {
+      const zeile = `= ${s.text} <em>(${s.label})</em>`;
+      return i === schritte.length - 1 ? `<strong>${zeile}</strong>` : zeile;
+    });
+    return `<strong>Beispiel:</strong> ${text}<br>Erst Klammern, dann Punkt vor Strich, zuletzt Strich (von links nach rechts):<br>${zeilen.join('<br>')}`;
+  }
+
+  // ---- Zahlen-Bausteine ----
+  function grosseZahl() { return Math.random() < 0.5 ? rnd(11, 99) : rnd(100, 900); }
+  function kleineZahl() { return rnd(2, 99); }
+
+  // [Faktor, Faktor]: meist kleines Einmaleins, oft Zehnerzahl dabei (3 · 60)
+  function malAufgabe() {
+    return rnd(1, 10) <= 6 ? [rnd(2, 9), rnd(2, 9)] : [rnd(2, 9), rnd(2, 9) * 10];
+  }
+
+  // [Dividend, Teiler, Quotient] - Teiler immer aus dem sicheren Satz
+  // (Einmaleins/Zehnerzahl), Ergebnis ggf. per "Null wegstreichen" (420 : 7 = 60).
+  function quotientAufgabe() {
+    const art = rnd(1, 10);
+    let c, q;
+    if (art <= 5) { c = rnd(2, 9); q = rnd(2, 9); }
+    else if (art <= 7) { c = rnd(2, 9); q = rnd(2, 9) * 10; }
+    else if (art <= 9) { c = rnd(2, 9) * 10; q = rnd(2, 9); }
+    else { c = rnd(2, 9); q = rnd(10, 24); }
+    return [c * q, c, q];
+  }
+
+  function summeZahlen() {
+    const r = rnd(1, 3);
+    if (r === 1) return [rnd(2, 9) * 10, rnd(1, 9) * 10];
+    if (r === 2) return [rnd(11, 60), rnd(2, 20)];
+    return [rnd(2, 30), rnd(2, 30)];
+  }
+
+  function differenzZahlen() {
+    const r = rnd(1, 3);
+    if (r === 1) { const b = rnd(2, 9) * 10; return [b + rnd(1, 9) * 10, b]; }
+    if (r === 2) { const b = rnd(2, 60); return [b + rnd(2, 40), b]; }
+    const b = rnd(2, 20); return [b + rnd(2, 9), b];
+  }
+
+  // ---- Punkt vor Strich ----
+  const PVS_MAKER = [
+    () => { const [b, c] = malAufgabe(); return `${grosseZahl()} + ${b} · ${c}`; },                       // 424 + 6 · 3
+    () => { const [b, c] = malAufgabe(); return `${b * c + rnd(5, 400)} − ${b} · ${c}`; },                // 153 − 5 · 8
+    () => { const [a, b] = malAufgabe(); return `${a} · ${b} + ${kleineZahl()}`; },                       // 5 · 70 + 63
+    () => { const [a, b] = malAufgabe(); return `${a} · ${b} − ${rnd(1, Math.min(99, a * b - 1))}`; },    // 3 · 60 − 42
+    () => { const [n, c] = quotientAufgabe(); return `${grosseZahl()} + ${n} : ${c}`; },                  // 421 + 360 : 40
+    () => { const [n, c, q] = quotientAufgabe(); return `${q + rnd(5, 400)} − ${n} : ${c}`; },            // 340 − 72 : 8
+    () => { const [n, c] = quotientAufgabe(); return `${n} : ${c} + ${kleineZahl()}`; },                  // 98 : 7 + 86
+    () => { const [n, c, q] = quotientAufgabe(); return `${n} : ${c} − ${rnd(1, Math.max(1, q - 1))}`; }, // 88 : 4 − 17
+    () => {                                                                                                // 3 · 4 + 7 · 5 / 5 · 8 − 6 · 3
+      let [a, b] = [rnd(2, 9), rnd(2, 9)], [c, d] = [rnd(2, 9), rnd(2, 9)];
+      if (Math.random() < 0.5) return `${a} · ${b} + ${c} · ${d}`;
+      if (a * b < c * d) [a, b, c, d] = [c, d, a, b];
+      return `${a} · ${b} − ${c} · ${d}`;
+    },
+    () => {                                                                                                // 48 : 8 + 81 : 9 / 140 : 14 − 64 : 8
+      let [n1, c1, q1] = quotientAufgabe(), [n2, c2, q2] = quotientAufgabe();
+      if (Math.random() < 0.5) return `${n1} : ${c1} + ${n2} : ${c2}`;
+      if (q1 < q2) [n1, c1, n2, c2] = [n2, c2, n1, c1];
+      return `${n1} : ${c1} − ${n2} : ${c2}`;
+    },
+    () => {                                                                                                // gleichrangig: von links nach rechts
+      const a = grosseZahl();
+      return Math.random() < 0.5 ? `${a} − ${rnd(2, 60)} + ${kleineZahl()}` : `${a} + ${rnd(2, 60)} − ${rnd(2, 60)}`;
+    },
+    () => {                                                                                                // 8 − 5 + 9 · 4
+      const [c, d] = malAufgabe();
+      return Math.random() < 0.5 ? `${rnd(20, 90)} − ${rnd(2, 19)} + ${c} · ${d}` : `${rnd(20, 90)} + ${c} · ${d} − ${rnd(2, 19)}`;
+    }
+  ];
+
+  // ---- Klammern ----
+  const KL_MAKER = [
+    () => { const [a, b] = summeZahlen(); return `(${a} + ${b}) · ${rnd(2, 9)}`; },                        // (43 + 7) · 3
+    () => { const [a, b] = summeZahlen(); return `${rnd(2, 9)} · (${a} + ${b})`; },                        // 4 · (19 + 6)
+    () => { const [a, b] = differenzZahlen(); return `(${a} − ${b}) · ${rnd(2, 9)}`; },                    // (66 − 26) · 5
+    () => { const [a, b] = differenzZahlen(); return `${rnd(2, 9)} · (${a} − ${b})`; },                    // 6 · (120 − 60)
+    () => {                                                                                                 // (320 + 40) : 60
+      const [gesamt, c] = quotientAufgabe();
+      const a = rnd(1, gesamt - 1);
+      return `(${a} + ${gesamt - a}) : ${c}`;
+    },
+    () => {                                                                                                 // (56 − 12) : 4
+      const [gesamt, c] = quotientAufgabe(), b = rnd(2, 100);
+      return `(${gesamt + b} − ${b}) : ${c}`;
+    },
+    () => {                                                                                                 // 72 : (36 − 28)
+      const d = rnd(2, 9), q = rnd(2, 12), b = rnd(10, 90);
+      return `${d * q} : (${b + d} − ${b})`;
+    },
+    () => {                                                                                                 // 600 : (13 + 7)
+      const d = SICHERE_TEILER[rnd(0, SICHERE_TEILER.length - 1)], q = rnd(2, 9);
+      const a = rnd(1, d - 1);
+      return `${d * q} : (${a} + ${d - a})`;
+    },
+    () => { const [b, c] = summeZahlen(); return `${b + c + rnd(5, 300)} − (${b} + ${c})`; },              // 200 − (30 + 20)
+    () => { const [b, c] = differenzZahlen(); return `${b + rnd(5, 300)} − (${b} − ${c})`; }               // 300 − (60 − 20)
+  ];
+
+  // ---- Alles gemischt (wie Arbeitsblatt f/g: (19 + 6) : 5 + 8 · 4) ----
+  const RG_MAKER = [
+    () => {                                                                                                 // (19 + 6) : 5 + 8 · 4
+      const c = rnd(2, 9), q = rnd(2, 9), gesamt = c * q, a = rnd(1, gesamt - 1);
+      const [d, e] = malAufgabe();
+      return `(${a} + ${gesamt - a}) : ${c} + ${d} · ${e}`;
+    },
+    () => {                                                                                                 // 7 · (83 − 76) + 4 · 3
+      const c = rnd(2, 9), b = rnd(10, 80), a = b + rnd(2, 9);
+      const [d, e] = [rnd(2, 9), rnd(2, 9)];
+      return `${c} · (${a} − ${b}) + ${d} · ${e}`;
+    },
+    () => {                                                                                                 // 60 + (45 − 30) · 4
+      const b = rnd(20, 90), c = b - rnd(2, 20);
+      return `${rnd(10, 200)} + (${b} − ${c}) · ${rnd(2, 9)}`;
+    },
+    () => { const [a, b] = summeZahlen(); return `(${a} + ${b}) · ${rnd(2, 9)} − ${rnd(2, 50)}`; },
+    () => {
+      const [n, c] = quotientAufgabe(), [a, b] = summeZahlen();
+      return `${n} : ${c} + (${a} + ${b}) · ${rnd(2, 5)}`;
+    }
+  ];
+
+  // Baut per Wiederholung einen gueltigen Ausdruck. art:
+  //  'pvs'      - bei gemischten Raengen muss "links nach rechts" ein ANDERES
+  //               (falsches) Ergebnis liefern, sonst waere die Regel egal
+  //  'klammern' - ohne die Klammern muss ein anderes Ergebnis herauskommen
+  function baueAusdruck(makers, art, nichtDieser) {
+    for (let versuch = 0; versuch < 800; versuch++) {
+      const text = makers[rnd(0, makers.length - 1)]();
+      if (text === nichtDieser) continue;
+      const tokens = tokenisiere(text);
+      const wert = werteAus(tokens);
+      if (wert === null) continue;
+      if (art === 'pvs' && hatPunktUndStrich(tokens) && werteLinksNachRechts(tokens) === wert) continue;
+      if (art === 'klammern' && werteOhneKlammern(tokens) === wert) continue;
+      return { text, tokens, wert };
+    }
+    return { text: '6 + 3 · 4', tokens: tokenisiere('6 + 3 · 4'), wert: 18 };
+  }
+
+  function genPunktVorStrichFrage() {
+    const a = baueAusdruck(PVS_MAKER, 'pvs');
+    const bsp = baueAusdruck(PVS_MAKER, 'pvs', a.text);
+    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+  }
+
+  function genKlammernFrage() {
+    const a = baueAusdruck(KL_MAKER, 'klammern');
+    const bsp = baueAusdruck(KL_MAKER, 'klammern', a.text);
+    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+  }
+
+  function genRechenregelnGemischtFrage() {
+    const a = baueAusdruck(RG_MAKER, 'klammern');
+    const bsp = baueAusdruck(RG_MAKER, 'klammern', a.text);
+    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+  }
+
+  // ---- Fehler finden: jemand hat falsch gerechnet, Max rechnet richtig ----
+  const FEHLER_NAMEN = ['Tim', 'Lena', 'Ben', 'Mia', 'Paul', 'Emma', 'Noah', 'Lea'];
+
+  function fehlerFrage(makers, art) {
+    for (let versuch = 0; versuch < 200; versuch++) {
+      const a = baueAusdruck(makers, art);
+      const falsch = art === 'pvs' ? werteLinksNachRechts(a.tokens) : werteOhneKlammern(a.tokens);
+      if (falsch === null || falsch === a.wert) continue;
+      const bsp = baueAusdruck(makers, art, a.text);
+      const grund = art === 'pvs' ? 'Punkt vor Strich vergessen' : 'die Klammern übersehen';
+      const name = FEHLER_NAMEN[rnd(0, FEHLER_NAMEN.length - 1)];
+      return {
+        typ: 'numeric',
+        frage: `${name} rechnet:<br>${a.text} = ${falsch}<br>Das ist falsch! Was ist das richtige Ergebnis?`,
+        antwort: a.wert,
+        hilfe: `<strong>Tipp:</strong> Hier wurde ${grund}.<br>` + hilfeRechenweg(bsp.text)
+      };
+    }
+    return art === 'pvs' ? genPunktVorStrichFrage() : genKlammernFrage();
+  }
+
+  function genFehlerPunktVorStrichFrage() { return fehlerFrage(PVS_MAKER, 'pvs'); }
+  function genFehlerKlammernFrage() { return fehlerFrage(KL_MAKER, 'klammern'); }
+
+  // ---- "Setze die Klammern an die richtige Stelle" (Buch: 44 + 26 · 4 = 280) ----
+  // Genau ZWEI Moeglichkeiten (Klammer um die erste oder um die zweite
+  // Rechnung), genau eine stimmt. Wie im Buch darf die richtige Klammer auch
+  // um die Punktrechnung stehen (340 − (40 : 8) = 335) - sie aendert dann
+  // nichts, ist aber trotzdem die gefragte "richtige Stelle".
+  function klammernSetzenZutaten() {
+    for (let versuch = 0; versuch < 800; versuch++) {
+      const form = rnd(1, 6);
+      let a, b, c, o1, o2;
+      if (form === 1) { [b, c] = malAufgabe(); a = grosseZahl(); o1 = '+'; o2 = '·'; }
+      else if (form === 2) { [b, c] = malAufgabe(); a = b * c + rnd(5, 300); o1 = '−'; o2 = '·'; }
+      else if (form === 3) { const [n, cc, q] = quotientAufgabe(); b = n; c = cc; a = cc * rnd(2, 60); o1 = '+'; o2 = ':'; }
+      else if (form === 4) { const [n, cc, q] = quotientAufgabe(); b = n; c = cc; a = cc * (q + rnd(1, 40)); o1 = '−'; o2 = ':'; }
+      else if (form === 5) { [a, b] = malAufgabe(); c = kleineZahl(); o1 = '·'; o2 = '+'; }
+      else { [a, b] = malAufgabe(); c = rnd(1, Math.max(1, b - 1)); o1 = '·'; o2 = '−'; }
+      const links = `(${a} ${o1} ${b}) ${o2} ${c}`;
+      const rechts = `${a} ${o1} (${b} ${o2} ${c})`;
+      const wl = werteAus(tokenisiere(links)), wr = werteAus(tokenisiere(rechts));
+      if (wl === null || wr === null || wl === wr) continue;
+      return { text: `${a} ${o1} ${b} ${o2} ${c}`, links, rechts, wl, wr };
+    }
+    return { text: '6 + 3 · 4', links: '(6 + 3) · 4', rechts: '6 + (3 · 4)', wl: 36, wr: 18 };
+  }
+
+  function genKlammernSetzenFrage() {
+    const z = klammernSetzenZutaten();
+    const bsp = klammernSetzenZutaten();
+    const zielLinks = Math.random() < 0.5;
+    const ziel = zielLinks ? z.wl : z.wr;
+    const optionen = Math.random() < 0.5 ? [z.links, z.rechts] : [z.rechts, z.links];
+    const richtig = zielLinks ? z.links : z.rechts;
+    return {
+      typ: 'mc',
+      frage: `${z.text} = ${ziel}<br>Wohin gehört die Klammer?`,
+      optionen,
+      richtigIndex: optionen.indexOf(richtig),
+      hilfe: `<strong>Beispiel:</strong> ${bsp.text} = ${bsp.wl}<br>Probiere beide Möglichkeiten aus:<br>` +
+        `${rechenwegKette(bsp.links)}<br>${rechenwegKette(bsp.rechts)}<br>` +
+        `<strong>${bsp.wl} kommt bei ${bsp.links} heraus.</strong>`
+    };
+  }
+
+  // ---- Setze das richtige Zeichen (Buch: 4 · (90 − 40) ___ 250) ----
+  function genKlammerVergleichFrage() {
+    for (let versuch = 0; versuch < 200; versuch++) {
+      const a = baueAusdruck(KL_MAKER, 'klammern');
+      const r = rnd(0, 2);
+      const n = r === 1 ? a.wert : r === 0 ? a.wert + rnd(1, 9) * 10 : a.wert - rnd(1, 9) * 10;
+      if (n < 1 || n >= 1000) continue;
+      const zeichen = a.wert < n ? '<' : a.wert > n ? '>' : '=';
+      const bsp = baueAusdruck(KL_MAKER, 'klammern', a.text);
+      return {
+        typ: 'mc',
+        frage: `${a.text} ___ ${n}`,
+        optionen: ['<', '=', '>'],
+        richtigIndex: ['<', '=', '>'].indexOf(zeichen),
+        hilfe: `<strong>Tipp:</strong> Rechne zuerst die linke Seite aus, dann vergleiche mit der Zahl rechts.<br>` + hilfeRechenweg(bsp.text)
+      };
+    }
+    return genKlammernFrage();
+  }
+
+  // ---- Woerter in Rechnungen uebersetzen (Buch Nr. 4: "Multipliziere die
+  // Summe aus den Zahlen 46 und 14 mit der Zahl 7") ----
+  function wortAusdruck() {
+    for (let versuch = 0; versuch < 400; versuch++) {
+      const art = rnd(1, 4);
+      let a, b, c, satz, text;
+      if (art === 1) {
+        [a, b] = summeZahlen(); c = rnd(2, 9);
+        satz = `Multipliziere die Summe aus den Zahlen ${a} und ${b} mit der Zahl ${c}.`;
+        text = `(${a} + ${b}) · ${c}`;
+      } else if (art === 2) {
+        [a, b] = differenzZahlen(); c = rnd(2, 9);
+        satz = `Multipliziere die Differenz aus den Zahlen ${a} und ${b} mit der Zahl ${c}.`;
+        text = `(${a} − ${b}) · ${c}`;
+      } else if (art === 3) {
+        const [gesamt, teiler] = quotientAufgabe();
+        a = rnd(1, gesamt - 1); b = gesamt - a; c = teiler;
+        satz = `Dividiere die Summe aus den Zahlen ${a} und ${b} durch die Zahl ${c}.`;
+        text = `(${a} + ${b}) : ${c}`;
+      } else {
+        const [gesamt, teiler] = quotientAufgabe();
+        b = rnd(2, 100); a = gesamt + b; c = teiler;
+        satz = `Dividiere die Differenz aus den Zahlen ${a} und ${b} durch die Zahl ${c}.`;
+        text = `(${a} − ${b}) : ${c}`;
+      }
+      const wert = werteAus(tokenisiere(text));
+      if (wert !== null) return { satz, text, wert };
+    }
+    return { satz: 'Multipliziere die Summe aus den Zahlen 46 und 14 mit der Zahl 7.', text: '(46 + 14) · 7', wert: 420 };
+  }
+
+  function genWortAusdruckFrage() {
+    const a = wortAusdruck();
+    let bsp = wortAusdruck();
+    for (let i = 0; i < 20 && bsp.satz === a.satz; i++) bsp = wortAusdruck();
+    return {
+      typ: 'numeric',
+      frage: `${a.satz}<br>Wie lautet das Ergebnis?`,
+      antwort: a.wert,
+      hilfe: `<strong>Wörter:</strong> Summe = Ergebnis einer Plus-Aufgabe, Differenz = Ergebnis einer Minus-Aufgabe. Die Summe oder Differenz kommt in eine <strong>Klammer</strong>!<br>` +
+        `"${bsp.satz}" heißt: ${bsp.text}<br>` + hilfeRechenweg(bsp.text)
+    };
+  }
+
+  // ---- Sachaufgaben mit Klammern (Buch Nr. 5-7) ----
+  const KLAMMER_SACHAUFGABEN = [
+    () => {
+      const a = rnd(8, 20), b = rnd(5, 20), c = rnd(2, 9);
+      return { frage: `In der Arbeitsgemeinschaft „Lustiges Basteln“ sind ${a} Mädchen und ${b} Jungen. Für jedes Kind wurde für ${c} Euro Bastelmaterial gekauft. Wie viel musste insgesamt bezahlt werden?`, ausdruck: `(${a} + ${b}) · ${c}`, form: '(Mädchen + Jungen) · Euro pro Kind' };
+    },
+    () => {
+      const a = rnd(8, 25), b = rnd(5, 15), n = rnd(3, Math.floor(999 / (a + b)));
+      return { frage: `Eine Sporthose kostet ${a} Euro und ein T-Shirt ${b} Euro. Insgesamt hat die neue Sportkleidung ${(a + b) * n} Euro gekostet. Für wie viele Sportler wurde Sportkleidung gekauft?`, ausdruck: `${(a + b) * n} : (${a} + ${b})`, form: 'Gesamtpreis : (Preis Hose + Preis T-Shirt)' };
+    },
+    () => {
+      const a = rnd(3, 8), b = rnd(2, 4), c = rnd(2, 5), n = rnd(15, 45);
+      return { frage: `Die Lehrerin sammelt für den Wandertag von jedem Kind ${a} Euro für das Mittagessen, ${b} Euro für die Getränke und ${c} Euro für die Bahnfahrt ein. An der Wanderfahrt nehmen ${n} Kinder teil. Wie viel Geld hat die Lehrerin insgesamt eingesammelt?`, ausdruck: `${n} · (${a} + ${b} + ${c})`, form: 'Kinder · (Essen + Getränke + Bahn)' };
+    },
+    () => {
+      const a = rnd(6, 20), b = rnd(6, 20), c = rnd(2, 9);
+      return { frage: `Im Bus sitzen vorne ${a} Kinder und hinten ${b} Kinder. Jedes Kind bekommt ${c} Kekse. Wie viele Kekse werden gebraucht?`, ausdruck: `(${a} + ${b}) · ${c}`, form: '(Kinder vorne + Kinder hinten) · Kekse pro Kind' };
+    },
+    () => {
+      const c = rnd(2, 9), q = rnd(2, 9), b = rnd(5, 40);
+      return { frage: `Lena hat ${c * q + b} Euro. Sie kauft ein Buch für ${b} Euro. Den Rest teilt sie gerecht unter ${c} Kindern auf. Wie viel Euro bekommt jedes Kind?`, ausdruck: `(${c * q + b} − ${b}) : ${c}`, form: '(Geld − Buch) : Anzahl Kinder' };
+    },
+    () => {
+      const n = rnd(12, 30), a = rnd(3, 9), b = rnd(2, 8);
+      return { frage: `Für einen Ausflug bezahlt jedes der ${n} Kinder ${a} Euro für den Bus und ${b} Euro für den Eintritt. Wie viel kostet der Ausflug für alle Kinder zusammen?`, ausdruck: `${n} · (${a} + ${b})`, form: 'Kinder · (Bus + Eintritt)' };
+    }
+  ];
+
+  function genKlammerSachaufgabeFrage() {
+    for (let versuch = 0; versuch < 100; versuch++) {
+      const idx = waehleOhneWiederholung('klammer-sachaufgabe', KLAMMER_SACHAUFGABEN.length, 3);
+      const s = KLAMMER_SACHAUFGABEN[idx]();
+      const wert = werteAus(tokenisiere(s.ausdruck));
+      if (wert === null) continue;
+      const bsp = KLAMMER_SACHAUFGABEN[idx]();
+      if (werteAus(tokenisiere(bsp.ausdruck)) === null) continue;
+      return {
+        typ: 'numeric',
+        frage: s.frage,
+        antwort: wert,
+        hilfe: `<strong>Tipp:</strong> Schreibe die Rechnung mit Klammern auf: ${s.form}.<br>Beispiel mit anderen Zahlen:<br>` + hilfeRechenweg(bsp.ausdruck).replace('<strong>Beispiel:</strong> ', '')
+      };
+    }
+    return genKlammernFrage();
+  }
+
+  // ---- Bereiche fuer "Punkt vor Strich & Klammern" - UND (mit erhoehtem
+  // Gewicht, siehe KATEGORIE_BASISGEWICHT) Teil der "Gemischten Aufgaben", weil
+  // das aktueller Schulstoff ist (Foto-Regel: neuer Stoff = Schwerpunkt). ----
+  const RECHENREGELN_BEREICHE = [
+    { kategorie: 'punktstrich', gen: genPunktVorStrichFrage },
+    { kategorie: 'punktstrich', gen: genPunktVorStrichFrage },
+    { kategorie: 'punktstrich', gen: genPunktVorStrichFrage },
+    { kategorie: 'punktstrich', gen: genFehlerPunktVorStrichFrage },
+    { kategorie: 'klammern', gen: genKlammernFrage },
+    { kategorie: 'klammern', gen: genKlammernFrage },
+    { kategorie: 'klammern', gen: genKlammernSetzenFrage },
+    { kategorie: 'klammern', gen: genKlammerVergleichFrage },
+    { kategorie: 'klammern', gen: genFehlerKlammernFrage },
+    { kategorie: 'klammern', gen: genWortAusdruckFrage },
+    { kategorie: 'klammern', gen: genKlammerSachaufgabeFrage },
+    { kategorie: 'rechenregeln', gen: genRechenregelnGemischtFrage },
+    { kategorie: 'rechenregeln', gen: genRechenregelnGemischtFrage }
+  ];
+
+  const RECHENREGELN_MODI = {
+    punktstrich: { titel: 'Punkt vor Strich üben', kategorien: ['punktstrich'] },
+    klammern: { titel: 'Klammern üben', kategorien: ['klammern'] },
+    gemischt: { titel: 'Rechenregeln gemischt', kategorien: ['punktstrich', 'klammern', 'rechenregeln'] }
+  };
+
+  function genRechenregelnUebung(modus, anzahl) {
+    const kategorien = RECHENREGELN_MODI[modus].kategorien;
+    const pool = RECHENREGELN_BEREICHE.filter(b => kategorien.includes(b.kategorie));
+    const fragen = [];
+    let letzte = null;
+    while (fragen.length < anzahl) {
+      const b = pool[rnd(0, pool.length - 1)];
+      if (b.gen === letzte && Math.random() < 0.8) continue; // gleiche Aufgabenart nicht ständig hintereinander
+      letzte = b.gen;
+      fragen.push(erzeugeFrage(b.kategorie, b.gen));
+    }
+    return fragen;
+  }
+
+  function starteRechenregelnUebung(modus) {
+    const starter = () => App.startQuizSession('mathe', genRechenregelnUebung(modus, 10), {
+      titel: RECHENREGELN_MODI[modus].titel,
+      wiederholeFalsche: true,
+      pensumFach: 'mathe'
+    });
+    App.setLastStarter(starter);
+    starter();
+  }
+
+  function renderRechenregelnMenu() {
+    const kachel = (icon, titel, onclick) =>
+      `<div class="sub-card" onclick="${onclick}"><span class="sub-icon">${Icons.svg(icon)}</span><span class="sub-label">${titel}</span></div>`;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Punkt vor Strich & Klammern</div>
+      <div class="lese-text">Schau dir erst die Regeln an, dann kannst du üben.</div>
+      <div class="sub-grid">
+        ${kachel('lesen', 'Regeln ansehen', 'Mathe.zeigeRechenregeln()')}
+        ${kachel('malfolgen', 'Punkt vor Strich üben', "Mathe.starteRechenregelnUebung('punktstrich')")}
+        ${kachel('klammern', 'Klammern üben', "Mathe.starteRechenregelnUebung('klammern')")}
+        ${kachel('tagesaufgabe', 'Alles gemischt üben', "Mathe.starteRechenregelnUebung('gemischt')")}
+      </div>
+    `);
+  }
+
+  // Regel-Bildschirm - alle Rechenwege werden vom Auswerter erzeugt (nie von
+  // Hand getippt), damit ein Beispiel nicht falsch sein kann.
+  function zeigeRechenregeln() {
+    const karte = (titel, inhalt) => `<div class="regel-karte" style="margin-bottom:16px;"><strong>${titel}</strong><div style="margin-top:8px;line-height:1.7;">${inhalt}</div></div>`;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderRechenregelnMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Die Rechenregeln</div>
+      ${karte('Reihenfolge - immer so:', '1. <strong>Klammern</strong> zuerst<br>2. <strong>Punkt</strong>rechnung (· und :) vor<br>3. <strong>Strich</strong>rechnung (+ und −)<br>Gleiche Rechenzeichen rechnest du von links nach rechts.')}
+      ${karte('Punkt vor Strich', `${rechenwegKette('3 · 4 + 7 · 5')}<br>${rechenwegKette('8 − 5 + 9 · 4')}<br>${rechenwegKette('48 : 8 + 81 : 9')}`)}
+      ${karte('Klammern zuerst', `${rechenwegKette('(19 + 6) : 5 + 8 · 4')}<br>${rechenwegKette('7 · (83 − 76) + 4 · 3')}<br>${rechenwegKette('(66 − 26) · 5')}`)}
+      ${karte('Klammern setzen', `<strong>44 + 26 · 4 = 280</strong> - wohin gehört die Klammer?<br>Ohne Klammer: ${rechenwegKette('44 + 26 · 4')} - das stimmt nicht.<br>Mit Klammer: ${rechenwegKette('(44 + 26) · 4')} - passt!<br><br>Manchmal steht die Klammer um die Punktrechnung: <strong>340 − (40 : 8) = 335</strong>. Sie ändert nichts, ist aber trotzdem richtig.`)}
+      ${karte('Wörter für Rechnungen', '<strong>Summe</strong> = Ergebnis von +<br><strong>Differenz</strong> = Ergebnis von −<br><strong>Produkt</strong> = Ergebnis von ·<br><strong>Quotient</strong> = Ergebnis von :<br>"Multipliziere die Summe aus 46 und 14 mit 7" = ' + rechenwegKette('(46 + 14) · 7'))}
+      <div class="lese-text">Schreibe in der Schule immer den <strong>vollständigen Rechenweg</strong> auf!</div>
+      <div class="weiter-row"><span class="btn-primary" onclick="Mathe.starteRechenregelnUebung('gemischt')">Jetzt üben ➜</span></div>
+    `);
+  }
+
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
   // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
   // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
@@ -1681,7 +2271,11 @@ const Mathe = (function () {
     { kategorie: 'rechenzeichen', gen: genRechenzeichenFrage },
     { kategorie: 'rechenzeichen', gen: genRechenzeichenFrage },
     { kategorie: 'rechenketten', gen: genRechenketteFrage },
-    { kategorie: 'rechenketten', gen: genRechenketteFrage }
+    { kategorie: 'rechenketten', gen: genRechenketteFrage },
+    // Neu am 24.09.2026 (Mathearbeit "Punkt vor Strich & Klammern", eigener
+    // Bereich im Mathe-Menue, siehe RECHENREGELN_BEREICHE) - zusaetzlich
+    // dauerhaft im gemeinsamen Pool, siehe KATEGORIE_BASISGEWICHT.
+    ...RECHENREGELN_BEREICHE
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
@@ -1694,7 +2288,10 @@ const Mathe = (function () {
   // rechenzeichen/rechenketten (12.09.2026) sind aktueller Schulstoff, kein
   // Klassenarbeits-Termin diesmal - deshalb dauerhaft hoeher gewichtet (kein
   // Revert-Datum noetig), aber alle anderen Themen bleiben normal waehlbar.
-  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, rechenzeichen: 2, rechenketten: 2 };
+  // punktstrich/klammern/rechenregeln (24.09.2026): aktueller Stoff der Mathearbeit,
+  // je 1.5 (zusammen ~ein Drittel der Gemischten Aufgaben) - kein Revert-Datum,
+  // die Gewichte hier bei Bedarf einfach auf 1 setzen.
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, rechenzeichen: 2, rechenketten: 2, punktstrich: 1.5, klammern: 1.5, rechenregeln: 1.5 };
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);
@@ -1779,6 +2376,7 @@ const Mathe = (function () {
 
   return {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
-    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht
+    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
+    renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung
   };
 })();
