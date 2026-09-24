@@ -50,7 +50,8 @@ const Heimatkunde = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
-      { icon: 'tagesaufgabe', titel: 'LK üben: Kinderrechte & Schule', onclick: 'Heimatkunde.starteThemenwahl()' }
+      { icon: 'fahrrad', titel: 'Radfahrausbildung', onclick: "Heimatkunde.starteThemenwahl('rad')" },
+      { icon: 'tagesaufgabe', titel: 'LK üben: Kinderrechte & Schule', onclick: "Heimatkunde.starteThemenwahl('lk')" }
     ]));
   }
 
@@ -187,6 +188,175 @@ const Heimatkunde = (function () {
     { front: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?', back: 'In <strong>China</strong> ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.' }
   ];
 
+  // ===========================================================================
+  // Radfahrausbildung (24.09.2026): Max hat gerade die Radfahrausbildung
+  // (Thueringen, Arbeitsheft "Die Radfahrausbildung" der Deutschen Verkehrswacht,
+  // 3./4. Klasse + Sfb-Buchseite 76 "Auf dem Weg"). Gleiche Lernkarten-Mechanik
+  // wie die LK-Themen (bewertung:true), eigene Themengruppe 'rad', ein Thema
+  // pro Heft-Doppelseite bzw. Sachgebiet (Uli-Wunsch: nicht alles auf einmal).
+  //
+  // Inhalte sind 1:1 aus den Heftseiten S.5-21 + Sfb S.76 uebernommen. Bei den
+  // Multiple-Choice-Aufgaben des Hefts ("Was ist richtig?") sind die Karten
+  // aus dem Heft-/Regeltext abgeleitet, NICHT aus den (ggf. falschen) Kreuzen
+  // in Max' Heft. Nicht uebernommen: reine Offene-Fragen/Diskussionen, das
+  // Ei-/Melonen-Experiment, Foto-Zuordnungsaufgaben ohne Text-Kern und die
+  // "Kann das passieren?"-Tabelle mit unklarer Loesung (nur eindeutige Zeilen).
+  // ===========================================================================
+  // Fuer Fortschritts-Uebersicht/Papa-Verlauf: Schild-Bilder aus dem Kartentext
+  // durch ein Platzhalterwort ersetzen (dort wird nur Text angezeigt).
+  function textOhneBild(html) { return html.replace(/<img[^>]*>(<br>)?/g, '(Schild) '); }
+
+  function radImg(datei) {
+    return `<img class="sign-img" style="width:84px;height:84px;" src="images/verkehrszeichen/${datei}" alt="Verkehrszeichen"><br>`;
+  }
+
+  // Heft S.6/7
+  const LERNKARTEN_RAD_FAHRRAD = [
+    { front: 'Welche Teile muss jedes Fahrrad haben, das im Straßenverkehr fährt?', back: 'Die <strong>Bremsen</strong> für Vorder- und Hinterrad, die <strong>Beleuchtung</strong>, die <strong>Reflektoren</strong> und eine <strong>Klingel</strong>.' },
+    { front: 'Welche Teile sind nützlich, aber nicht vorgeschrieben?', back: 'Schutzbleche, Kettenschutz, Flickzeug, Gepäckträger, Luftpumpe und Fahrradständer sind <strong>sehr nützlich, aber nicht vorgeschrieben</strong>.' },
+    { front: 'Wann haben Sattel und Lenker die richtige Höhe?', back: 'Wenn du mit beiden <strong>Fußspitzen</strong> noch den Boden erreichst.' },
+    { front: 'Wie weit dürfen Sattel und Lenker herausgezogen werden?', back: 'Nur so weit, dass die <strong>Sicherheitsmarkierung</strong> noch nicht zu sehen ist.' },
+    { front: 'Was gilt für das Gepäck auf dem Gepäckträger?', back: 'Dein Fahrrad ist <strong>kein Packesel</strong> - nimm nie zu schwere Sachen auf dem Gepäckträger mit.' },
+    { front: 'Wie viele Bremsen braucht dein Rad mindestens?', back: 'Mindestens <strong>zwei unabhängige Bremsen</strong>: eine für vorne, eine für hinten.' },
+    { front: 'Was ist noch besser als zwei Bremsen? (2 + 1 = 3)', back: '<strong>Drei Bremsen</strong>: zwei Handbremsen (je eine für Vorder- und Hinterrad) sowie eine <strong>Rücktrittbremse</strong>.' },
+    { front: 'Wie müssen die Handbremshebel eingestellt sein?', back: 'Auch bei starkem Bremsen dürfen die Bremshebel den <strong>Lenkergriff nicht berühren</strong>.' },
+    { front: 'Mit welchen Bremsklötzen darfst du nie fahren?', back: 'Fahre nie mit <strong>abgenutzten Bremsklötzen</strong>!' },
+    { front: 'Ein Pkw setzt vor dir rückwärts aus einer Einfahrt aus. Du musst bremsen! Was ist am sichersten?', back: 'Ich benutze <strong>alle Bremsen gleichzeitig</strong>.' }
+  ];
+
+  // Heft S.8
+  const LERNKARTEN_RAD_SICHT = [
+    { front: 'Welche Teile müssen bei Dunkelheit immer an deinem Fahrrad sein und funktionieren? (Teil 1)', back: '<strong>Vorderlicht</strong> (Scheinwerfer), <strong>rotes Rücklicht</strong>, <strong>Dynamo</strong> (auch Akku oder Batterie erlaubt).' },
+    { front: 'Welche Teile müssen bei Dunkelheit immer an deinem Fahrrad sein und funktionieren? (Teil 2 - Reflektoren)', back: '<strong>Speichenrückstrahler</strong> (je 2 Stück pro Vorder- und Hinterrad) oder Leuchtstreifen oder Speichensticks, <strong>Pedalrückstrahler</strong>, <strong>weißer Reflektor</strong> vorne, <strong>großer roter Reflektor</strong> der Kategorie „Z“ hinten.' },
+    { front: 'Wie viele Speichenrückstrahler gehören an ein Rad?', back: '<strong>Je 2 Stück</strong> pro Vorder- und Hinterrad (oder Leuchtstreifen oder Speichensticks).' },
+    { front: 'Der Dynamo liefert den Strom fürs Licht. Was ist außerdem erlaubt?', back: 'Auch ein <strong>Akku</strong> oder eine <strong>Batterie</strong> ist erlaubt.' },
+    { front: 'Rücklicht und roter Reflektor hinten: Können sie zusammen in einem Teil sein?', back: 'Ja, Rücklicht und Reflektor können <strong>integriert</strong> sein.' },
+    { front: 'Dein Vorderlicht funktioniert nicht. „Egal, einmal kann ich schon ohne Licht fahren!“ Was sagst du dazu?', back: 'Falsch! <strong>Alle Lampen am Rad müssen funktionieren</strong> - nur so sehen dich Autofahrer im Dunkeln schon von Weitem.' },
+    { front: 'Auf welche Entfernung sieht man einen dunkel gekleideten Fußgänger/Radfahrer im Dunkeln?', back: 'Erst auf <strong>25 bis 30 Meter</strong> - oft zu spät, um einen Unfall zu vermeiden. (Bremsweg bei 50 km/h = 40 Meter!)' },
+    { front: 'Auf welche Entfernung erkennt man eine Person mit heller Kleidung?', back: 'Auf <strong>40 bis 50 Meter</strong>.' },
+    { front: 'Auf welche Entfernung werden Kleidung mit Reflexmaterial und ein gut reflektierendes Fahrrad gesehen?', back: 'Schon auf <strong>130 bis 160 Meter</strong>.' },
+    { front: 'Wie heißt der Merksatz zur Sichtbarkeit?', back: '<strong>Mehr Sichtbarkeit = mehr Sicherheit</strong>. Helle Kleidung mit Reflektoren ist schon von Weitem zu sehen.' }
+  ];
+
+  // Heft S.9 + S.10/11
+  const LERNKARTEN_RAD_HELM = [
+    { front: 'Um wie viel Prozent senkt ein Fahrradhelm das Risiko von Kopfverletzungen?', back: 'Um <strong>80 Prozent</strong> - ein Helm kann dein Leben retten. Deshalb immer einen Helm tragen!' },
+    { front: 'Wie sitzt der Helm richtig? Nenne 4 Punkte.', back: '1. <strong>Waagerechter</strong> Sitz<br>2. Die beiden Riemen bilden ein <strong>Dreieck</strong><br>3. Kinnriemen <strong>stramm</strong> ziehen<br>4. <strong>Kopfring</strong> richtig einstellen' },
+    { front: 'Wie soll der Helm auf deinem Kopf sitzen?', back: '<strong>Waagerecht</strong> - er muss fest sitzen, darf aber nicht drücken.' },
+    { front: 'Welche Form bilden die beiden Riemen des Helms?', back: 'Ein <strong>Dreieck</strong>.' },
+    { front: 'Wie sollst du den Kinnriemen ziehen?', back: '<strong>Stramm</strong> ziehen.' },
+    { front: 'Woran erkennst du einen geprüften Helm?', back: 'An einem <strong>Prüfsiegel</strong> im Helm.' },
+    { front: 'Was musst du beim Spielen mit dem Helm tun?', back: 'Der Helm schützt beim Radfahren. Beim Spielen musst du ihn immer <strong>abnehmen</strong>!' },
+    { front: 'Was sollst du mit einem Helm nach einem Aufprall tun?', back: 'Ein Helm sollte nach einem Aufprall <strong>nicht mehr getragen</strong> werden.' },
+    { front: 'Woran schließt du dein Fahrrad an?', back: 'Immer mit dem <strong>Rahmen</strong> an einen <strong>festen Gegenstand</strong>, z.B. Fahrradständer, Laternenmast oder festes Gitter.' },
+    { front: 'Warum schließt du nie nur das Vorderrad an?', back: 'Das Vorderrad lässt sich oft mit <strong>zwei Handgriffen</strong> vom Fahrrad lösen - dann bleibt nur das Rad am Schloss.' },
+    { front: 'Was raten Experten beim Schloss?', back: '<strong>Nicht am Schloss sparen!</strong> Geeignet ist ein stabiles Bügel- oder Panzerkabelschloss. Ganz billige Schlösser werden von Dieben schnell erkannt und leicht geknackt.' },
+    { front: 'Wo lässt du dein Fahrrad nachts stehen?', back: 'Nie auf der Straße! Am besten mit einem Schloss gesichert in einem <strong>geschlossenen Raum</strong> (Keller, Garage).' },
+    { front: 'Wo trägst du alle Angaben zu deinem Fahrrad ein?', back: 'In einen <strong>Fahrradpass</strong>.' }
+  ];
+
+  // Heft S.5
+  const LERNKARTEN_RAD_GLEICHGEWICHT = [
+    { front: 'Was musst du können, um sicher Fahrrad zu fahren?', back: 'Du musst selbst im <strong>Gleichgewicht</strong> sein, andere <strong>wahrnehmen</strong> und deine <strong>Absichten mitteilen</strong> können.' },
+    { front: 'Welche Dinge musst du beim Radfahren gleichzeitig machen?', back: 'Aufsteigen, anfahren, treten, Handzeichen geben, bremsen oder in einer Gruppe fahren - und dich dabei auf den <strong>Straßenverkehr konzentrieren</strong>.' },
+    { front: 'Womit ist das Gleichgewicht eng verbunden?', back: 'Das Gleichgewicht ist dein allumfassender Sinn und eng mit <strong>Augen und Ohren</strong> verbunden.' },
+    { front: 'Nenne Beispiele, bei denen du dein Gleichgewicht beim Radfahren brauchst.', back: 'Schnell fahren, nach links und rechts schauen (Blick über die Schulter), geradeaus und Kurven fahren, <strong>Handzeichen geben</strong> („Fahren mit einer Hand“), auf unebenen oder nassen Wegen fahren, den Verkehr beobachten oder Geräusche hören.' },
+    { front: 'Wie kannst du dein Gleichgewicht trainieren?', back: 'Beim <strong>Bewegen und beim Sport</strong>.' }
+  ];
+
+  // Heft S.12/13 - Regeln (Schilder siehe LERNKARTEN_RAD_SCHILDER)
+  const LERNKARTEN_RAD_WEGE = [
+    { front: 'Bis zu welchem Geburtstag MUSST du als Kind auf dem Gehweg fahren?', back: 'Bis zum <strong>8. Geburtstag</strong> musst du auf dem Gehweg fahren.' },
+    { front: 'Bis zu welchem Geburtstag DARFST du als Kind auf dem Gehweg fahren?', back: 'Bis zum <strong>10. Geburtstag</strong> darfst du auf dem Gehweg fahren.' },
+    { front: 'Was gilt für die Radfahrer auf dem Gehweg?', back: 'Die Radfahrer müssen <strong>Rücksicht auf Fußgänger</strong> nehmen.' },
+    { front: 'Was gilt nach dem 10. Geburtstag? Wo musst du fahren?', back: 'Es gelten die <strong>normalen Regeln für Radfahrer</strong>: Ist ein Radweg da, musst du den Radweg auf der <strong>rechten Seite</strong> benutzen. Ist keiner da, musst du auf der <strong>Fahrbahn an der rechten Seite</strong> fahren.' },
+    { front: 'Welche drei Arten von Wegen gibt es für Radfahrer?', back: '1. Wege, auf denen du fahren <strong>musst</strong><br>2. Wege, auf denen du fahren <strong>darfst</strong><br>3. Wege, auf denen du <strong>nicht</strong> fahren darfst' },
+    { front: 'Azra schiebt ihr Rad über den Zebrastreifen. Ist das richtig?', back: 'Ja - sie muss <strong>absteigen</strong> und ihr Rad <strong>schieben</strong>.' }
+  ];
+
+  // Heft S.12/13 - Schilder (Bilder aus images/verkehrszeichen)
+  const LERNKARTEN_RAD_SCHILDER = [
+    { front: radImg('237_radweg.svg') + 'Was bedeutet dieses Schild für dich als Radfahrer?', back: 'Hier <strong>muss</strong> ich fahren: Ich muss den <strong>Radweg benutzen</strong> und darf nicht auf der Fahrbahn fahren.' },
+    { front: radImg('241_getrennter_rad_gehweg.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Getrennter Rad- und Gehweg</strong>: Radfahrer und Fußgänger benutzen nebeneinander ihre <strong>eigenen Spuren</strong>.' },
+    { front: radImg('240_geh_radweg.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Gemeinsamer Geh- und Radweg</strong>: Sie haben den gleichen Weg. Hier müssen Radfahrer <strong>besondere Rücksicht</strong> nehmen.' },
+    { front: 'Was trennt Radfahrer auf der Fahrbahn von den Autos?', back: '<strong>Radfahrstreifen</strong> oder <strong>Schutzstreifen</strong> auf der Fahrbahn trennen die Radfahrer von den Autos.' },
+    { front: radImg('244_fahrradstrasse.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Fahrradstraße</strong> - eine Straße nur für Radfahrer. Hier dürfen sie immer nebeneinander fahren.' },
+    { front: radImg('239_gehweg.svg') + 'Was bedeutet dieses Schild? Darfst du hier Rad fahren?', back: 'Der Gehweg ist <strong>ausschließlich für Fußgänger</strong> da. Ausnahme: <strong>Kinder bis zum 10. Lebensjahr</strong> dürfen hier Rad fahren.' },
+    { front: 'Ein Gehweg hat das Zusatzschild „Radfahrer frei“. Darfst du hier fahren?', back: 'Ja, diesen Weg <strong>darf</strong> ich benutzen. Ich kann aber auch auf der Fahrbahn fahren. Oft sind solche Wege in einem schlechten Zustand.' },
+    { front: 'Was erlaubt ein Zusatzschild „Radfahrer frei“ Radfahrern oft noch?', back: 'Radfahrern <strong>gegen die Fahrtrichtung der Einbahnstraße</strong>, <strong>in Fußgängerzonen</strong> und <strong>in eine Einfahrt</strong> (Einfahrtverbot) zu fahren.' },
+    { front: radImg('242_fussgaengerzone.svg') + 'Darfst du in einer Fußgängerzone Rad fahren?', back: 'Auch in der Fußgängerzone ist Rad fahren <strong>verboten</strong> - außer ein Zusatzschild erlaubt es.' },
+    { front: radImg('325_verkehrsberuhigt_beginn.svg') + 'Wer darf den verkehrsberuhigten Bereich benutzen?', back: '<strong>Alle Verkehrsteilnehmer</strong> dürfen ihn benutzen. Alle dürfen nur <strong>Schrittgeschwindigkeit</strong> fahren.' },
+    { front: radImg('330_autobahn.svg') + radImg('331_kraftfahrstrasse.svg') + 'Dürfen Radfahrer hier fahren?', back: 'Nein - auf <strong>Autobahnen</strong> und <strong>Kraftfahrzeugstraßen</strong> dürfen Radfahrer nicht fahren.' },
+    { front: radImg('250_verbot_alle_fahrzeuge.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Verbot für alle Fahrzeuge</strong> - gilt auch für Radfahrer.' },
+    { front: radImg('254_verbot_radfahrer.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Verboten für Radfahrer</strong> - gilt ausschließlich für Radfahrer.' },
+    { front: radImg('267_verbot_einfahrt.svg') + 'Was bedeutet dieses Schild?', back: '<strong>Einfahrtverbot für alle</strong> - gilt auch für Radfahrer.' }
+  ];
+
+  // Heft S.14-16
+  const LERNKARTEN_RAD_RUECKSICHT = [
+    { front: 'Du fährst Rad und kommst an einen Zebrastreifen. Fußgänger wollen die Straße überqueren. Was tust du?', back: 'Ich muss <strong>anhalten</strong> und die Fußgänger <strong>vorbeilassen</strong>.' },
+    { front: 'An der Haltestelle warten Fußgänger auf die Bahn oder steigen aus. Was tust du als Radfahrer?', back: 'Ich <strong>halte an und warte</strong>, bis die Türen geschlossen sind. Als Radfahrer muss ich hier <strong>besonders Rücksicht</strong> nehmen.' },
+    { front: 'Du fährst im verkehrsberuhigten Bereich. Was ist richtig?', back: 'Ich darf hier Rad fahren, muss aber <strong>auf Autos achten</strong> und <strong>Rücksicht</strong> auf die anderen Verkehrsteilnehmer nehmen.' },
+    { front: 'Du fährst auf dem Gehweg an Geschäften, Restaurants und Eisdielen vorbei. Worauf achtest du?', back: 'Ich fahre <strong>nicht zu dicht an Hauseingängen</strong> vorbei. Besonders dort muss ich mit Leuten rechnen, die <strong>auf den Gehweg treten</strong>.' },
+    { front: 'In Parks ist viel los. Ein Ball rollt über den Weg. Womit musst du rechnen?', back: 'Dass <strong>jemand hinterherläuft</strong>.' },
+    { front: 'Was machen kleine Kinder in Parks oft?', back: 'Sie laufen <strong>plötzlich los</strong> und achten nicht auf Radfahrer.' },
+    { front: 'Achten Spaziergänger immer auf Radfahrer?', back: 'Nein - Spaziergänger achten <strong>nicht immer</strong> auf Radfahrer.' },
+    { front: 'Was ist bei Inline-Skatern zu beachten?', back: 'Sie sind sehr schnell, brauchen viel Platz, und ich kann sie <strong>nicht hören</strong>, wenn sie von hinten kommen.' },
+    { front: 'Was ist bei Menschen mit Rollatoren zu beachten?', back: 'Sie <strong>bleiben öfter stehen</strong> und machen Pausen.' },
+    { front: 'Was ist bei Fußgängern in einer Gruppe oft so?', back: 'Häufig stehen sie <strong>zusammen und versperren den Weg</strong>.' }
+  ];
+
+  // Heft S.17
+  const LERNKARTEN_RAD_ANFAHREN = [
+    { front: 'Warum ist das Losfahren in den fließenden Verkehr gefährlich?', back: 'Durch <strong>falsches Anfahren</strong> passieren jedes Jahr viele Unfälle.' },
+    { front: 'Anfahren - Schritt 1: Was machst du zuerst?', back: 'Ich sehe nach <strong>links und rechts</strong> und schaue, ob Gehweg und Fahrbahn frei sind. Wenn jemand kommt, nehme ich <strong>Rücksicht und warte</strong>.' },
+    { front: 'Anfahren - Schritt 2: Wie stellst du dich hin?', back: 'Ich stelle mich <strong>neben das Fahrrad</strong> und achte darauf, dass ein <strong>Pedal oben</strong> ist.' },
+    { front: 'Anfahren - Schritt 3: Was machst du, bevor du losfährst?', back: 'Ich <strong>prüfe, ob die Fahrbahn frei ist</strong>, und gebe ein <strong>Handzeichen</strong>.' },
+    { front: 'Anfahren - Schritt 4: Wie fährst du los?', back: 'Ich nehme <strong>beide Hände an den Lenker</strong> und fahre <strong>zügig</strong> an. Dabei passe ich auf, dass ich in der <strong>Spur</strong> bleibe.' },
+    { front: 'Nenne die 4 Schritte beim Anfahren in der richtigen Reihenfolge.', back: '1. Nach links und rechts sehen, Rücksicht nehmen und warten<br>2. Neben das Fahrrad stellen, Pedal oben<br>3. Prüfen, ob die Fahrbahn frei ist, Handzeichen geben<br>4. Beide Hände an den Lenker, zügig anfahren, in der Spur bleiben' },
+    { front: 'Du willst von einem Grundstück oder Gehweg nach links fahren. Was musst du tun?', back: 'Du musst erst dein Fahrrad über den Gehweg und die Fahrbahn auf die <strong>andere Straßenseite schieben</strong>. Dort kannst du wie beschrieben losfahren.' }
+  ];
+
+  // Heft S.18
+  const LERNKARTEN_RAD_RECHTS = [
+    { front: 'Wo müssen alle auf Straßen und Radwegen fahren?', back: 'Alle müssen <strong>rechts</strong> fahren.' },
+    { front: 'In welchen 3 Situationen musst oder darfst du die rechte Seite verlassen?', back: '1. Wenn du an einem <strong>Hindernis vorbeifahren</strong> musst<br>2. Wenn ihr <strong>zu zweit nebeneinander</strong> in einem verkehrsberuhigten Bereich oder auf einer Fahrradstraße fahren wollt<br>3. Wenn du dich zum <strong>Linksabbiegen links einordnen</strong> willst' },
+    { front: 'Wie fahrt ihr zu zweit am sichersten?', back: '<strong>Hintereinander</strong>. Ausnahmen sind Spielstraßen und Fahrradstraßen.' },
+    { front: 'Wie groß soll der Abstand zur Bordsteinkante sein?', back: '<strong>50 bis 100 cm</strong>, je nach Situation.' },
+    { front: 'Wie viel Sicherheitsabstand hältst du zu jemandem vor dir?', back: 'So viel, dass du <strong>gut anhalten</strong> kannst, ohne aufzufahren. <strong>Drei Radlängen</strong> sind sicher.' },
+    { front: 'Warum brauchst du Sicherheitsabstand?', back: 'Auffahren passiert schneller, als du denkst - etwa wenn der Vordermann eine <strong>Vollbremsung</strong> macht.' }
+  ];
+
+  // Heft S.19 + Sfb S.76 (Nr. 7)
+  const LERNKARTEN_RAD_HINDERNIS = [
+    { front: 'Ein parkendes Fahrzeug oder eine Baustelle versperrt den Weg. Was musst du beim Vorbeifahren tun?', back: 'Du musst beim Vorbeifahren deine <strong>Fahrspur verlassen</strong>.' },
+    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 1: Was machst du zuerst?', back: '<strong>Umschauen</strong>.' },
+    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 2: Was kommt nach dem Umschauen?', back: '<strong>Handzeichen links</strong> geben.' },
+    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 3: Was kommt nach dem Handzeichen links?', back: '<strong>Links einordnen</strong>; wenn Gegenverkehr kommt, <strong>Vorrang gewähren</strong>.' },
+    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 4: Was hältst du beim Vorbeifahren?', back: '<strong>Sicherheitsabstand</strong> halten.' },
+    { front: 'Vorbeifahren am Hindernis (Heft) - Schritt 5: Was machst du zum Schluss?', back: '<strong>Handzeichen rechts</strong> geben und <strong>wieder rechts einordnen</strong>.' },
+    { front: 'Nenne alle 5 Schritte beim Vorbeifahren an einem Hindernis (Heft) in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen links</strong> geben<br>3. <strong>Links einordnen</strong>; bei Gegenverkehr Vorrang gewähren<br>4. <strong>Sicherheitsabstand</strong> halten<br>5. <strong>Handzeichen rechts</strong> geben und wieder rechts einordnen' },
+    { front: 'Du musst beim Vorbeifahren auf die Gegenfahrbahn ausweichen und es kommt Gegenverkehr. Was tust du?', back: 'Du musst <strong>warten</strong> und den Gegenverkehr vorbeifahren lassen. Erst wenn niemand mehr kommt, darfst du fahren. Schau dich vor dem Losfahren <strong>unbedingt um</strong>, ob hinter dir jemand kommt.' },
+    { front: 'Hindernis umfahren (Buch S. 76) - Nenne die 5 Schritte in der richtigen Reihenfolge.', back: '1. Auf den <strong>Gegenverkehr</strong> achten<br>2. <strong>Schulterblick</strong> über die linke Schulter<br>3. <strong>Handzeichen nach links</strong><br>4. Am Hindernis <strong>vorbeifahren</strong><br>5. <strong>Handzeichen nach rechts</strong>, einordnen' },
+    { front: 'Über welche Schulter machst du vor dem Ausweichen den Schulterblick?', back: 'Über die <strong>linke</strong> Schulter.' }
+  ];
+
+  // Heft S.20/21 + Sfb S.76 (Nr. 6/8)
+  const LERNKARTEN_RAD_VORFAHRT = [
+    { front: 'Wo gilt die Vorfahrtsregel „rechts vor links“?', back: 'An Kreuzungen oder <strong>Einmündungen</strong>, wo es <strong>keine Ampeln und keine Verkehrszeichen</strong> gibt.' },
+    { front: 'Was bedeutet „rechts vor links“?', back: 'Wer von <strong>rechts</strong> kommt, hat Vorfahrt.' },
+    { front: 'Was ist eine Einmündung?', back: 'Eine Stelle, an der eine Straße in eine andere Straße <strong>mündet</strong> (hineinführt).' },
+    { front: 'Mehrere Fahrzeuge kommen gleichzeitig an eine Kreuzung. Wer darf zuerst fahren?', back: 'Der, der <strong>kein anderes Fahrzeug sieht</strong>, wenn er nach <strong>rechts</strong> schaut.' },
+    { front: 'Du kommst an einer Kreuzung ohne Ampel und ohne Verkehrszeichen an. Ein Auto kommt von rechts. Wer hat Vorfahrt?', back: 'Das Auto von <strong>rechts</strong> hat Vorfahrt - du musst warten.' },
+    { front: radImg('102_kreuzung_rechts.svg') + 'Was bedeutet dieses Schild?', back: 'Die Kreuzung ohne Ampel und Vorfahrtszeichen ist sehr gefährlich - auch hier gilt <strong>„rechts vor links“</strong>.' },
+    { front: 'Wann gilt „rechts vor links“ NICHT? Nenne die Ausnahmen (Buch).', back: 'Bei <strong>Wald- oder Feldwegen</strong> sowie <strong>Einfahrten</strong>.' },
+    { front: 'Niemals Vorfahrt hat, wer ... (Teil 1)', back: 'Wer aus einer Seitenstraße kommt, die über einen <strong>abgesenkten Bordstein</strong> führt, oder wer einen <strong>verkehrsberuhigten Bereich</strong> verlässt.' },
+    { front: 'Niemals Vorfahrt hat, wer ... (Teil 2)', back: 'Wer aus <strong>Hofeinfahrten, Grundstücken, Parkplätzen oder Tankstellen</strong> auf die Fahrbahn fährt.' },
+    { front: 'Niemals Vorfahrt hat, wer ... (Teil 3)', back: 'Wer aus einem <strong>Feldweg</strong> oder <strong>Park</strong> kommt.' },
+    { front: 'Du hast Vorfahrt. Worauf musst du als Radfahrer trotzdem besonders achten?', back: 'Darauf, <strong>gesehen zu werden</strong>. Autofahrer übersehen dich manchmal: Halte dich immer <strong>bremsbereit</strong> und suche <strong>Blickkontakt</strong>, auch wenn du Vorfahrt hast!' },
+    { front: 'Eine Straßenbahn hält an einer Haltestelle an. Was musst du als Radfahrer tun?', back: 'Du musst als Radfahrer auch <strong>stehen bleiben</strong>.' }
+  ];
+
   // karten ist bei allen vier Themen eine FUNKTION (nicht das Array direkt) -
   // bei Kinderrechte noetig, damit baueKinderrechteKarten() bei jedem Start
   // frisch die Luecken-Variante wuerfeln kann; bei den anderen drei Themen nur
@@ -200,10 +370,21 @@ const Heimatkunde = (function () {
   // (dort seit 06.09.2026 als abhakbare Liste, siehe backend/webapp), ein
   // Selbst-Markieren durch Max waere dort unpassend/doppelt.
   const LERNTHEMEN = {
-    kinderrechte: { titel: 'Kinderrechte', icon: 'geschichten', karten: baueKinderrechteKarten },
-    schule: { titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE, bewertung: true },
-    un: { titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN, bewertung: true },
-    laender: { titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER, bewertung: true }
+    kinderrechte: { gruppe: 'lk', titel: 'Kinderrechte', icon: 'geschichten', karten: baueKinderrechteKarten },
+    schule: { gruppe: 'lk', titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE, bewertung: true },
+    un: { gruppe: 'lk', titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN, bewertung: true },
+    laender: { gruppe: 'lk', titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER, bewertung: true },
+    rad_fahrrad: { gruppe: 'rad', titel: 'Verkehrssicheres Fahrrad', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_FAHRRAD, bewertung: true },
+    rad_sicht: { gruppe: 'rad', titel: 'Sehen & gesehen werden', icon: 'koordinaten', karten: () => LERNKARTEN_RAD_SICHT, bewertung: true },
+    rad_helm: { gruppe: 'rad', titel: 'Helm & Schloss', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_HELM, bewertung: true },
+    rad_gleichgewicht: { gruppe: 'rad', titel: 'Gleichgewicht', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_GLEICHGEWICHT, bewertung: true },
+    rad_wege: { gruppe: 'rad', titel: 'Wo darf ich fahren?', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_WEGE, bewertung: true },
+    rad_schilder: { gruppe: 'rad', titel: 'Schilder für Radfahrer', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_SCHILDER, bewertung: true },
+    rad_ruecksicht: { gruppe: 'rad', titel: 'Rücksicht auf Fußgänger', icon: 'heimat', karten: () => LERNKARTEN_RAD_RUECKSICHT, bewertung: true },
+    rad_anfahren: { gruppe: 'rad', titel: 'Anfahren', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_ANFAHREN, bewertung: true },
+    rad_rechts: { gruppe: 'rad', titel: 'Rechts fahren & Abstand', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_RECHTS, bewertung: true },
+    rad_hindernis: { gruppe: 'rad', titel: 'Hindernis umfahren', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_HINDERNIS, bewertung: true },
+    rad_vorfahrt: { gruppe: 'rad', titel: 'Vorfahrt & Warten', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_VORFAHRT, bewertung: true }
   };
 
   // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
@@ -262,15 +443,25 @@ const Heimatkunde = (function () {
   // Eigener back-row statt App.subMenuHtml, weil dessen Zurueck-Button fix
   // App.gotoHome() aufruft - hier soll Zurueck zur Heimatkunde-Startseite
   // fuehren (eine Ebene hoch), nicht ganz nach Hause.
-  function starteThemenwahl() {
-    const karten = Object.keys(LERNTHEMEN).map(key => {
+  // Merkt sich die zuletzt gewaehlte Themengruppe ('lk' oder 'rad'), damit alle
+  // Zurueck-/"Anderes Thema"-Buttons ohne Argument wieder dieselbe Gruppe zeigen.
+  let themenGruppe = 'lk';
+  const GRUPPEN_INFO = {
+    lk: { titel: 'Welches Thema willst du lernen?', text: 'Wähl ein Thema aus - bei Kinderrechten hört Papa dich ab, bei den anderen markierst du nach dem Umdrehen selbst, ob du es gewusst hast.' },
+    rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.' }
+  };
+
+  function starteThemenwahl(gruppe) {
+    if (gruppe) themenGruppe = gruppe;
+    const gi = GRUPPEN_INFO[themenGruppe];
+    const karten = Object.keys(LERNTHEMEN).filter(key => LERNTHEMEN[key].gruppe === themenGruppe).map(key => {
       const t = LERNTHEMEN[key];
       return `<div class="sub-card" onclick="Heimatkunde.starteLernkarten('${key}')"><span class="sub-icon">${Icons.svg(t.icon)}</span><span class="sub-label">${t.titel}</span></div>`;
     }).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Welches Thema willst du lernen?</div>
-      <div class="lese-text">Wähl ein Thema aus - bei Kinderrechten hört Papa dich ab, bei den anderen markierst du nach dem Umdrehen selbst, ob du es gewusst hast.</div>
+      <div class="welcome">${gi.titel}</div>
+      <div class="lese-text">${gi.text}</div>
       <div class="sub-grid">${karten}</div>
     `);
   }
@@ -382,7 +573,7 @@ const Heimatkunde = (function () {
     Storage.meldeLernkartenErgebnis(lkSession.thema, karte._idx, korrekt);
     const gained = Storage.addAntwort('heimat', korrekt, 1);
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
-    lkSession.verlauf.push({ frage: karte.front, ergebnis: korrekt ? 'richtig' : 'falsch' });
+    lkSession.verlauf.push({ frage: textOhneBild(karte.front), ergebnis: korrekt ? 'richtig' : 'falsch' });
     App.updateTopbar();
     lkSession.index++;
     const aktivitaet = aktivitaetFuerThema(lkSession.thema);
@@ -446,7 +637,7 @@ const Heimatkunde = (function () {
       if (status === 'sicher') sicher++;
       return `<div class="uebersicht-heimat-zeile">
         <span class="uebersicht-punkt uebersicht-punkt-${status}"></span>
-        <span class="uebersicht-heimat-text">${karte.front}</span>
+        <span class="uebersicht-heimat-text">${textOhneBild(karte.front)}</span>
       </div>`;
     }).join('');
     const gesamt = karten.length;
