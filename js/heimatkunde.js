@@ -50,150 +50,24 @@ const Heimatkunde = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
-      { icon: 'fahrrad', titel: 'Radfahrausbildung', onclick: "Heimatkunde.starteThemenwahl('rad')" },
-      { icon: 'tagesaufgabe', titel: 'LK üben: Kinderrechte & Schule', onclick: "Heimatkunde.starteThemenwahl('lk')" }
+      { icon: 'fahrrad', titel: 'Radfahrausbildung', onclick: "Heimatkunde.starteThemenwahl('rad')" }
     ]));
   }
 
   // ===========================================================================
-  // LK-Vorbereitung 02.09.2026 (Arbeit am 09.09.2026): "weiterführende Schule
-  // und Kinderrechte" (Sfb S.8-11 + S.24/25, Thüringen-Lehrwerk).
-  //
-  // GESCHICHTE DIESES ABSCHNITTS (mehrere Umbauten am selben Tag):
-  // 1) Erst typ:'mc'-Multiple-Choice - auf Uli-Wunsch (siehe Deutsch-
-  //    Vorbereitung vom selben Tag) verworfen zugunsten freier Eingabe.
-  // 2) Dann typ:'text'/'numeric'-Lueckentext-Quiz mit "welche Nummer hat
-  //    Kinderrecht X" - auf Uli-Feedback "es geht nicht darum, welches Recht
-  //    an welcher Stelle kommt" die Nummer-Abfrage entfernt, Rest blieb
-  //    Lueckentext.
-  // 3) FINALER UMBAU (dieser Stand): Uli ist mit dem Lueckentext-Ausfuellen
-  //    grundsaetzlich nicht zufrieden ("ich bin aber noch nicht zufrieden
-  //    damit, dass Max die Lücken mit Wörtern füllen muss") - er will Max
-  //    stattdessen selbst abhoeren ("ich höre ihn dann ab"). Die App soll nur
-  //    noch reine LERNKARTEN (Umdrehen, kein Eintippen, keine Auto-Bewertung)
-  //    anbieten, UND ausdruecklich nach Themengebiet GETRENNT ("trenne aber
-  //    die Themengebiete, sodass er sie einzeln lernen kann und nicht so viel
-  //    auf einmal") statt eines gemischten Pools. Das gesamte typ:'text'/
-  //    'numeric'-Quiz (genKinderrechtFreitext, genSchuleFaktenFreitext,
-  //    genKinderrechteKontextFreitext, genLaenderBildungFreitext,
-  //    HEIMATKUNDE_LK_BEREICHE, genSchulkundeAufgabe, starteSchulkunde) wurde
-  //    komplett entfernt statt nur ergaenzt - kein Grund, totes Quiz-Geruest
-  //    parallel zu den Lernkarten zu behalten. Aus demselben Grund ist
-  //    'heimat' jetzt NICHT mehr pensumFach-verknuepft mit diesem Bereich
-  //    (siehe TAGESPLAN_FACH_META.heimat in app.js, wieder auf
-  //    starteQuiz()/Verkehrszeichen zurueckgesetzt) - reines Lernkarten-
-  //    Durchklicken ohne richtig/falsch laesst sich nicht sinnvoll als
-  //    Tagespensum zaehlen.
-  //
-  // Alle vier Themen-Banken unten haben dieselbe Form {front, back} - front
-  // ist der Lernkarten-Vorderseiten-Text (Frage/Luecke zum selbst Erinnern),
-  // back die vollstaendige Antwort mit hervorgehobenem Kernbegriff.
-  // ===========================================================================
-
-  // Rueckseiten-Erklaerungen 02.09.2026 um kurze, verstaendliche Zusatzsaetze
-  // ergaenzt (Uli schickte eine allgemeine UNICEF-Liste als Vorlage). WICHTIG:
-  // die 10 Rechte + ihre Reihenfolge bleiben unveraendert vom fotografierten
-  // Original-Zettel (das ist, was in Max' Hefter klebt und worauf die LK sich
-  // bezieht) - solche generischen UNICEF-Listen unterscheiden sich je nach
-  // Quelle (unicef.ch/at/de) in Zahl/Reihenfolge/Gruppierung der Rechte (z.B.
-  // "Behinderung" dort unter "Gleichbehandlung" statt als eigenes Recht Nr.10)
-  // und wurden deshalb NICHT 1:1 uebernommen, nur zum Vereinfachen der
-  // Erklaerungstexte genutzt, wo eine passende Entsprechung existierte.
-  // 02.09.2026, Uli-Wunsch: bei Rechten mit ZWEI gleichwertigen Stichwoertern
-  // (z.B. "Gesundheit UND Umwelt") soll die Luecke nicht immer an derselben
-  // Stelle stehen - sonst koennte Max sich nur "die Luecke ist am Satzende"
-  // merken statt das ganze Recht zu verstehen. Rechte mit nur EINEM
-  // inhaltlichen Kernwort (Namen, Bildung, Zuhause, Ausbeutung, Behinderung)
-  // haben bewusst nur EINE Variante - ein zweites Wort dort zu blanken waere
-  // entweder trivial (nur ein Artikel) oder wuerde die Karte unerkennbar
-  // machen. Aufbau: pro Kinderrecht eine Liste von 1-2 {front,back}-Varianten,
-  // baueKinderrechteKarten() waehlt bei jedem Start EINE davon zufaellig.
-  const KINDERRECHTE_VARIANTEN = [
-    [
-      { front: 'Jedes Kind hat das Recht auf einen ___.', back: 'Jedes Kind hat das Recht auf einen <strong>Namen</strong>.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf ___ und eine saubere Umwelt.', back: 'Jedes Kind hat ein Recht auf <strong>Gesundheit</strong> und eine saubere Umwelt - dazu gehört auch der Zugang zu medizinischer Versorgung.' },
-      { front: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere ___.', back: 'Jedes Kind hat ein Recht auf Gesundheit und eine saubere <strong>Umwelt</strong> - dazu gehört auch der Zugang zu medizinischer Versorgung.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf ___ (Schule und Lernen).', back: 'Jedes Kind hat ein Recht auf <strong>Bildung</strong> - der Zugang zu Schule und Lernen muss für alle Kinder möglich sein.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf ___ und Freizeit.', back: 'Jedes Kind hat ein Recht auf <strong>Spiele</strong> und Freizeit - Zeit zum Spielen, Erholen und kreativ sein.' },
-      { front: 'Jedes Kind hat ein Recht auf Spiele und ___.', back: 'Jedes Kind hat ein Recht auf Spiele und <strong>Freizeit</strong> - Zeit zum Spielen, Erholen und kreativ sein.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf ___ und Beteiligung.', back: 'Jedes Kind hat ein Recht auf <strong>Information</strong> und Beteiligung - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' },
-      { front: 'Jedes Kind hat ein Recht auf Information und ___.', back: 'Jedes Kind hat ein Recht auf Information und <strong>Beteiligung</strong> - es darf seine Meinung sagen und wird bei Entscheidungen mit einbezogen.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf Schutz vor ___ und Privatsphäre.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Gewalt</strong> und Privatsphäre - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' },
-      { front: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor Gewalt und <strong>Privatsphäre</strong> - es soll vor Missbrauch, Vernachlässigung und jeder Form von Gewalt geschützt werden.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf ein sicheres ___.', back: 'Jedes Kind hat ein Recht auf ein sicheres <strong>Zuhause</strong>.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf Schutz vor ___.', back: 'Jedes Kind hat ein Recht auf Schutz vor <strong>Ausbeutung</strong> - es darf nicht zur Arbeit gezwungen werden, die seiner Gesundheit oder Bildung schadet.' }
-    ],
-    [
-      { front: 'Jedes Kind hat ein Recht auf Schutz im ___ und auf der Flucht.', back: 'Jedes Kind hat ein Recht auf Schutz im <strong>Krieg</strong> und auf der Flucht - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' },
-      { front: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der ___.', back: 'Jedes Kind hat ein Recht auf Schutz im Krieg und auf der <strong>Flucht</strong> - es darf nicht selbst an einem Krieg teilnehmen und muss in Gefahr besonders geschützt werden.' }
-    ],
-    [
-      { front: 'Kinder mit einer Behinderung haben ein Recht auf ___ Rechte.', back: 'Kinder mit einer Behinderung haben ein Recht auf <strong>besondere</strong> Rechte.' }
-    ]
-  ];
-
-  function baueKinderrechteKarten() {
-    return KINDERRECHTE_VARIANTEN.map(varianten => pickN(varianten, 1)[0]);
-  }
-
-  const LERNKARTEN_SCHULE = [
-    { front: 'Seit wie vielen Jahren gibt es in Deutschland ungefähr die Schulpflicht für alle Kinder?', back: 'In Deutschland müssen schon seit ungefähr <strong>100 Jahren</strong> alle Kinder zur Schule gehen.' },
-    { front: 'Wer konnte früher, bevor es die Schulpflicht gab, oft nicht lesen, schreiben und rechnen?', back: 'Es gab schon Schulen und Privatlehrer, aber viele Menschen lernten nur voneinander - <strong>die armen Leute</strong> konnten oft nicht lesen, schreiben und rechnen.' },
-    { front: 'Was gilt für den Schulbesuch in den staatlichen Schulen?', back: 'Der Besuch der Schule darf nichts <strong>kosten</strong> - in den staatlichen Schulen bezahlen die Eltern kein Geld.' },
-    { front: 'Wie heißen Schulen, bei denen die Eltern Schulgeld bezahlen müssen?', back: 'Schulen, bei denen die Eltern Schulgeld bezahlen müssen, heißen <strong>Privatschulen</strong>.' },
-    { front: 'Wie sollen Lehrer und Schüler miteinander umgehen?', back: 'Lehrer und Schüler gehen <strong>achtungsvoll</strong> miteinander um.' },
-    { front: 'Werden in Deutschland heute alle Kinder in der Schule gleich behandelt?', back: 'In Deutschland gilt die Schulpflicht für <strong>ALLE</strong> Kinder gleich - niemand wird ausgeschlossen.' },
-    { front: 'Wie nennt man das Recht auf Lernen?', back: 'Lernen ist ein <strong>Kinderrecht</strong>.' },
-    { front: 'Wofür hilft dir das Lernen?', back: 'Lernen hilft dir, <strong>die Welt</strong> um dich herum zu verstehen.' },
-    { front: 'Was machst du mit deinem Wissen und Können?', back: 'Mit deinem Wissen und Können machst du dich selbst <strong>stark</strong>.' },
-    { front: 'Wozu brauchst du später als Erwachsener gutes Lernen?', back: 'Lernen ist wichtig, weil man damit später <strong>Geld</strong> verdient.' },
-    { front: 'Welche Schulformen kann man in Thüringen nach der Grundschule besuchen?', back: 'Es geht z.B. weiter mit der <strong>Regelschule</strong>, der <strong>Gemeinschaftsschule</strong> oder dem <strong>Gymnasium</strong>.' },
-    { front: 'Welche Schulform bereitet gut auf einen handwerklichen oder technischen Beruf vor?', back: 'Wer später einen handwerklichen, technischen oder praktischen Beruf lernen möchte, wird durch die <strong>Regelschule</strong> gut vorbereitet.' },
-    { front: 'Ist ein Wechsel von der Regelschule auf ein Gymnasium möglich?', back: 'Ja - ein Wechsel von einer Regelschule an ein Gymnasium ist mit den <strong>entsprechenden Leistungen</strong> möglich. Lehrer und Eltern beraten dabei gut.' },
-    { front: 'Was kannst du nach dem Abitur besuchen, um zu studieren?', back: 'Mit dem Abitur können Jugendliche die Fachhochschule oder die <strong>Universität</strong> besuchen.' },
-    { front: 'Nach wie vielen Schuljahren macht man ungefähr das Abitur?', back: 'Das Abitur macht man nach <strong>12 oder 13</strong> Schuljahren.' },
-    { front: 'Welche neuen Fächer bereitet dich der Sachunterricht ab Klasse 5 vor?', back: 'Der Sachunterricht bereitet dich z.B. auf <strong>Geografie</strong>, <strong>Geschichte</strong> und <strong>Mensch-Natur-Technik</strong> vor.' }
-  ];
-
-  const LERNKARTEN_UN = [
-    { front: 'In welchem Jahr erklärten die Vereinten Nationen die Menschenrechte für alle Menschen?', back: 'In der Erklärung der Vereinten Nationen von <strong>1948</strong> heißt es: Alle Menschen sind gleich und frei.' },
-    { front: 'Worauf hat laut der Menschenrechts-Erklärung jeder Mensch ein Recht?', back: 'Jeder hat das Recht auf <strong>Leben, Freiheit und Sicherheit</strong> der Person.' },
-    { front: 'In welchem Jahr wurden die Vereinten Nationen (UN) gegründet?', back: 'Die UN wurden im Jahr <strong>1945</strong> von 50 Staaten gegründet.' },
-    { front: 'Wie viele Staaten gehören heute ungefähr der UN an?', back: 'Heute gehören der UN über <strong>200</strong> Staaten an - fast alle Länder der Welt.' },
-    { front: 'In welchem Jahr wurde die UN-Kinderrechtskonvention beschlossen?', back: 'Die Vereinten Nationen beschlossen das Übereinkommen über die Rechte des Kindes im Jahr <strong>1989</strong>.' },
-    { front: 'Haben fast alle Staaten der Erde die Kinderrechtskonvention unterzeichnet?', back: 'Ja - <strong>fast alle Staaten</strong> der Erde haben den Vertrag über die Rechte der Kinder unterzeichnet. Trotzdem werden noch immer täglich Kinderrechte verletzt.' },
-    { front: 'Wie heißt das Kinderhilfswerk der Vereinten Nationen?', back: 'Das Kinderhilfswerk der Vereinten Nationen heißt <strong>UNICEF</strong> - es hilft Kindern und Müttern in Notsituationen.' },
-    { front: 'Nenne einen Beruf, den ausgebeutete Kinder laut deinem Buch ausüben müssen.', back: 'Im Buch arbeiten Kinder z.B. als <strong>Teppichweberin</strong> oder als <strong>Rikschafahrer</strong>.' }
-  ];
-
-  const LERNKARTEN_LAENDER = [
-    { front: 'In welchem Land herrschte fast 30 Jahre Krieg, sodass viele Menschen nicht lesen und schreiben lernten?', back: 'In <strong>Angola</strong> herrschte fast 30 Jahre Krieg - viele Menschen lernten nicht lesen und schreiben.' },
-    { front: 'Wie viele Jahre sollen Kinder in Angola jetzt mindestens die Schule besuchen?', back: 'Jetzt sollen alle Kinder in Angola mindestens <strong>6 Jahre</strong> eine Schule besuchen.' },
-    { front: 'In welchem Land will die Regierung allen Schulkindern ein Tablet oder einen Computer mit kostenlosem Lernstoff geben?', back: '<strong>Indien</strong> will als erstes Land allen Schulkindern Computer/Tablets mit kostenlosem Zugang zu Lernstoff geben.' },
-    { front: 'Wie viele Schülerinnen und Schüler sitzen in einer Klasse in China?', back: 'In China sitzen <strong>40</strong> Schülerinnen und Schüler in einer Klasse.' },
-    { front: 'In welchem Land ist der Unterricht sehr streng geregelt und die Kinder lernen viel auswendig?', back: 'In <strong>China</strong> ist der Schulbesuch streng geregelt, die Klassen sind still, die Kinder lernen viel auswendig.' }
-  ];
-
-  // ===========================================================================
   // Radfahrausbildung (24.09.2026): Max hat gerade die Radfahrausbildung
   // (Thueringen, Arbeitsheft "Die Radfahrausbildung" der Deutschen Verkehrswacht,
-  // 3./4. Klasse + Sfb-Buchseite 76 "Auf dem Weg"). Gleiche Lernkarten-Mechanik
-  // wie die LK-Themen (bewertung:true), eigene Themengruppe 'rad', ein Thema
-  // pro Heft-Doppelseite bzw. Sachgebiet (Uli-Wunsch: nicht alles auf einmal).
+  // 3./4. Klasse + Sfb-Buchseite 76 "Auf dem Weg"). Karteikarten-Mechanik mit
+  // Selbst-Bewertung (bewertung:true, siehe baueBewertetesKartendeck weiter
+  // unten), eigene Themengruppe 'rad', ein Thema pro Heft-Doppelseite bzw.
+  // Sachgebiet (Uli-Wunsch: nicht alles auf einmal).
+  //
+  // 27.09.2026, Uli-Wunsch: die LK-Vorbereitung "Kinderrechte & Schule" (die
+  // urspruengliche Vorlage fuer diese bewertung:true-Mechanik, siehe Git-
+  // Historie) ist abgeschlossen und wurde komplett entfernt (Themen
+  // kinderrechte/schule/un/laender + eigener Menuepunkt). Die 1:1-Kopie im
+  // Papa-Backend (backend/webapp/index.html, HSK_KARTEN_KINDERRECHTE/SCHULE/
+  // UN/LAENDER) wurde im selben Zug mitentfernt.
   //
   // Inhalte sind 1:1 aus den Heftseiten S.5-21 + Sfb S.76 uebernommen. Bei den
   // Multiple-Choice-Aufgaben des Hefts ("Was ist richtig?") sind die Karten
@@ -357,23 +231,18 @@ const Heimatkunde = (function () {
     { front: 'Eine Straßenbahn hält an einer Haltestelle an. Was musst du als Radfahrer tun?', back: 'Du musst als Radfahrer auch <strong>stehen bleiben</strong>.' }
   ];
 
-  // karten ist bei allen vier Themen eine FUNKTION (nicht das Array direkt) -
-  // bei Kinderrechte noetig, damit baueKinderrechteKarten() bei jedem Start
-  // frisch die Luecken-Variante wuerfeln kann; bei den anderen drei Themen nur
-  // der Einheitlichkeit halber (liefern schlicht das feste Array zurueck).
+  // karten ist bei allen Themen eine FUNKTION (nicht das Array direkt) - bei
+  // den meisten nur der Einheitlichkeit halber (liefern schlicht das feste
+  // Array zurueck), bei rad_falsch aber echt noetig, damit sammleFalscheRad-
+  // Karten() bei jedem Start frisch ueber die aktuellen Statistiken aller
+  // anderen rad_*-Themen sammelt (siehe unten).
   //
-  // bewertung:true (06.09.2026, Uli-Wunsch): bei Schule/UN/Laender markiert
-  // Max selbst richtig/falsch (wie Mathes Malfolgen-Karteikarten), falsche
-  // Karten werden dadurch in kuenftigen Sitzungen haeufiger vorgelegt (siehe
-  // baueBewertetesKartendeck unten). Kinderrechte bleibt BEWUSST ohne
-  // Bewertung - dort hoert weiterhin Papa Max in seiner eigenen Eltern-App ab
-  // (dort seit 06.09.2026 als abhakbare Liste, siehe backend/webapp), ein
-  // Selbst-Markieren durch Max waere dort unpassend/doppelt.
+  // bewertung:true (06.09.2026, Uli-Wunsch, urspruenglich fuer die
+  // inzwischen entfernte LK-Vorbereitung eingefuehrt): Max markiert selbst
+  // richtig/falsch (wie Mathes Malfolgen-Karteikarten), falsche Karten werden
+  // dadurch in kuenftigen Sitzungen haeufiger vorgelegt (siehe
+  // baueBewertetesKartendeck unten).
   const LERNTHEMEN = {
-    kinderrechte: { gruppe: 'lk', titel: 'Kinderrechte', icon: 'geschichten', karten: baueKinderrechteKarten },
-    schule: { gruppe: 'lk', titel: 'Schule', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SCHULE, bewertung: true },
-    un: { gruppe: 'lk', titel: 'Vereinte Nationen', icon: 'heimat', karten: () => LERNKARTEN_UN, bewertung: true },
-    laender: { gruppe: 'lk', titel: 'Bildung weltweit', icon: 'koordinaten', karten: () => LERNKARTEN_LAENDER, bewertung: true },
     rad_fahrrad: { gruppe: 'rad', titel: 'Verkehrssicheres Fahrrad', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_FAHRRAD, bewertung: true },
     rad_sicht: { gruppe: 'rad', titel: 'Sehen & gesehen werden', icon: 'koordinaten', karten: () => LERNKARTEN_RAD_SICHT, bewertung: true },
     rad_helm: { gruppe: 'rad', titel: 'Helm & Schloss', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_HELM, bewertung: true },
@@ -384,7 +253,17 @@ const Heimatkunde = (function () {
     rad_anfahren: { gruppe: 'rad', titel: 'Anfahren', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_ANFAHREN, bewertung: true },
     rad_rechts: { gruppe: 'rad', titel: 'Rechts fahren & Abstand', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_RECHTS, bewertung: true },
     rad_hindernis: { gruppe: 'rad', titel: 'Hindernis umfahren', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_HINDERNIS, bewertung: true },
-    rad_vorfahrt: { gruppe: 'rad', titel: 'Vorfahrt & Warten', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_VORFAHRT, bewertung: true }
+    rad_vorfahrt: { gruppe: 'rad', titel: 'Vorfahrt & Warten', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_VORFAHRT, bewertung: true },
+    // 27.09.2026, Uli-Wunsch: eigenes Thema, das die aktuell falsch
+    // markierten Karten AUS ALLEN anderen rad_*-Themen sammelt und haeufiger
+    // abfragt - siehe sammleFalscheRadKarten/baueFalscheKartenDeck weiter
+    // unten. karten() liefert hier absichtlich rohe {front,back,_quellThema,
+    // _quellIdx}-Objekte statt eines festen Arrays; bewertung:true bleibt
+    // gesetzt, damit starteThemenwahl/renderLernkarte es wie jedes andere
+    // Thema behandeln (nur starteLernkarten hat unten einen Sonderfall fuer
+    // den Deck-Aufbau, weil die Gewichtung sich auf die QUELL-Statistik
+    // stuetzen muss, nicht auf eine eigene 'rad_falsch'-Statistik).
+    rad_falsch: { gruppe: 'rad', titel: 'Falsche Karten wiederholen', icon: 'drehen', karten: sammleFalscheRadKarten, bewertung: true }
   };
 
   // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
@@ -438,16 +317,70 @@ const Heimatkunde = (function () {
     return mischeOhneNachbarWiederholung(indexDeck).map(i => Object.assign({ _idx: i }, karten[i]));
   }
 
+  // ---- "Falsche Karten wiederholen" (27.09.2026, Uli-Wunsch): Max arbeitet
+  // die Radfahrausbildung-Themen einzeln durch, soll aber zusaetzlich EIN
+  // Thema haben, in dem alle bislang falsch beantworteten Karten aus ALLEN
+  // rad_*-Themen gesammelt und haeufiger abgefragt werden - ZUSAETZLICH zum
+  // normalen (einfachen) Vorkommen in ihrem jeweiligen Herkunftsthema, nicht
+  // als Ersatz dafuer. Deshalb ist rad_falsch keine eigene Kartenbank: es
+  // liest nur die per-Thema-Statistik (Storage.getLernkartenStats), die
+  // ohnehin schon durch das normale Lernen in den einzelnen Themen entsteht,
+  // und merkt sich pro gesammelter Karte, aus welchem Thema/Index sie stammt
+  // (_quellThema/_quellIdx). bewerteLernkarte() unten meldet ein Ergebnis
+  // aus dieser Sitzung deshalb auch an die QUELL-Statistik zurueck (nicht an
+  // eine eigene 'rad_falsch'-Statistik) - so wirkt sich richtiges Wiederholen
+  // hier auch auf die Fortschritts-Uebersicht des Herkunftsthemas aus, und
+  // eine Karte verschwindet aus rad_falsch, sobald sie dort wieder zwei Mal
+  // in Folge sicher sitzt (siehe lernkartenStatus/serie-Schwelle).
+  //
+  // "Falsch" = mindestens einmal falsch markiert UND noch nicht wieder zwei
+  // Mal in Folge richtig (dieselbe Schwelle wie lernkartenStatus 'uebung' vs.
+  // 'sicher', nur zusaetzlich auf stat.falsch>0 eingeschraenkt - eine Karte,
+  // die einfach noch nie falsch war, aber erst einmal richtig beantwortet
+  // wurde, ist keine "falsche Karte").
+  function sammleFalscheRadKarten() {
+    const ergebnis = [];
+    Object.keys(LERNTHEMEN).forEach(key => {
+      const info = LERNTHEMEN[key];
+      if (info.gruppe !== 'rad' || key === 'rad_falsch') return;
+      const stats = Storage.getLernkartenStats(key);
+      info.karten().forEach((karte, i) => {
+        const stat = stats[i];
+        if (stat && (stat.falsch || 0) > 0 && (stat.serie || 0) < 2) {
+          ergebnis.push({ front: karte.front, back: karte.back, _quellThema: key, _quellIdx: i });
+        }
+      });
+    });
+    return ergebnis;
+  }
+
+  // Wie baueBewertetesKartendeck, aber die Gewichtung (wie oft eine Karte in
+  // dieser Sitzung vorkommt) stuetzt sich auf die STATISTIK DES HERKUNFTS-
+  // THEMAS (karte._quellThema/_quellIdx), nicht auf eine eigene 'rad_falsch'-
+  // Statistik, die es bewusst nicht gibt (siehe Kommentar oben).
+  function baueFalscheKartenDeck() {
+    const karten = sammleFalscheRadKarten();
+    const indexDeck = [];
+    karten.forEach((karte, i) => {
+      const stat = Storage.getLernkartenStats(karte._quellThema)[karte._quellIdx];
+      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stat) / 3)));
+      for (let n = 0; n < kopien; n++) indexDeck.push(i);
+    });
+    return mischeOhneNachbarWiederholung(indexDeck).map(i => Object.assign({ _idx: i }, karten[i]));
+  }
+
   // Themenwahl VOR den Lernkarten - bewusst eigener Menuepunkt statt alles auf
   // einmal, damit Max sich immer nur EIN Themengebiet vornimmt (Uli-Wunsch).
   // Eigener back-row statt App.subMenuHtml, weil dessen Zurueck-Button fix
   // App.gotoHome() aufruft - hier soll Zurueck zur Heimatkunde-Startseite
   // fuehren (eine Ebene hoch), nicht ganz nach Hause.
-  // Merkt sich die zuletzt gewaehlte Themengruppe ('lk' oder 'rad'), damit alle
-  // Zurueck-/"Anderes Thema"-Buttons ohne Argument wieder dieselbe Gruppe zeigen.
-  let themenGruppe = 'lk';
+  // Merkt sich die zuletzt gewaehlte Themengruppe, damit alle Zurueck-/
+  // "Anderes Thema"-Buttons ohne Argument wieder dieselbe Gruppe zeigen.
+  // Aktuell gibt es nur noch 'rad' (die LK-Vorbereitung mit Gruppe 'lk' wurde
+  // 27.09.2026 entfernt) - GRUPPEN_INFO bleibt trotzdem ein Objekt statt
+  // fixer Werte, falls spaeter eine weitere Themengruppe dazukommt.
+  let themenGruppe = 'rad';
   const GRUPPEN_INFO = {
-    lk: { titel: 'Welches Thema willst du lernen?', text: 'Wähl ein Thema aus - bei Kinderrechten hört Papa dich ab, bei den anderen markierst du nach dem Umdrehen selbst, ob du es gewusst hast.' },
     rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.' }
   };
 
@@ -472,8 +405,9 @@ const Heimatkunde = (function () {
   let lkUmgedreht = false;
 
   // "heimatkunde-<thema>" als Storage.getOffeneSession-Schluessel (nur fuer
-  // bewertung:true-Themen genutzt) - eigener Schluessel pro Thema, da Schule/
-  // UN/Laender unabhaengig voneinander unterbrochen/fortgesetzt werden koennen.
+  // bewertung:true-Themen genutzt) - eigener Schluessel pro Thema, da die
+  // rad_*-Themen unabhaengig voneinander unterbrochen/fortgesetzt werden
+  // koennen.
   function aktivitaetFuerThema(thema) { return 'heimatkunde-' + thema; }
 
   // Setzt eine unterbrochene bewertung:true-Sitzung fort, WENN eine vom
@@ -485,6 +419,13 @@ const Heimatkunde = (function () {
   // nur 5-16 Basiskarten pro Thema ist das einfacher und genauer als
   // Malfolgens Pool-Nachziehen, das fuer 100 Fakten gebaut wurde (06.09.2026,
   // Uli-Wunsch "Lernstand ... gespeichert").
+  //
+  // rad_falsch (27.09.2026) braucht denselben Fortsetzen-Mechanismus, aber
+  // beim NEUEN Deck-Aufbau baueFalscheKartenDeck() statt baueBewertetesKarten-
+  // deck(thema, ...) - siehe Kommentar dort. Zusaetzlich: hat Max aktuell gar
+  // keine falschen Karten, gibt es keine sinnvolle Sitzung zu starten -
+  // renderKeineFalschenKarten() zeigt dann eine freundliche Leer-Meldung statt
+  // einer kaputten 0-Karten-Sitzung.
   function starteLernkarten(thema) {
     const info = LERNTHEMEN[thema];
     if (info.bewertung) {
@@ -495,7 +436,11 @@ const Heimatkunde = (function () {
           richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
         };
       } else {
-        const karten = baueBewertetesKartendeck(thema, info.karten());
+        const karten = thema === 'rad_falsch' ? baueFalscheKartenDeck() : baueBewertetesKartendeck(thema, info.karten());
+        if (karten.length === 0) {
+          renderKeineFalschenKarten();
+          return;
+        }
         lkSession = { thema, titel: info.titel, bewertung: true, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
       }
     } else {
@@ -504,6 +449,14 @@ const Heimatkunde = (function () {
     }
     App.setLastStarter(() => starteLernkarten(thema));
     renderLernkarte();
+  }
+
+  function renderKeineFalschenKarten() {
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Klasse! 🎉</div>
+      <div class="lese-text">Du hast aktuell keine falschen Karten zum Wiederholen - mach einfach in den anderen Themen weiter.</div>
+    `);
   }
 
   function renderLernkarte() {
@@ -543,7 +496,7 @@ const Heimatkunde = (function () {
   }
 
   // Gemeinsamer "naechste Karte oder fertig"-Schritt fuer beide Lernkarten-
-  // Arten (Kinderrechte-"Weiter" wie bewertung:true-Themen).
+  // Arten (reines Umdrehen mit "Weiter"-Button vs. bewertung:true-Themen).
   function rueckeZurNaechstenKarteVor() {
     lkSession.index++;
     if (lkSession.index >= lkSession.karten.length) {
@@ -558,19 +511,27 @@ const Heimatkunde = (function () {
     rueckeZurNaechstenKarteVor();
   }
 
-  // Nur fuer bewertung:true-Themen (Schule/UN/Laender) - Max markiert nach
-  // dem Umdrehen selbst richtig/falsch, wie bei Mathe.bewerteMalfolgenKarte.
-  // Storage.meldeLernkartenErgebnis wirkt sich erst in KUENFTIGEN Sitzungen
-  // aus (haeufigere Wiedervorlage ueber baueBewertetesKartendeck), nicht
-  // sofort in dieser Sitzung - gleiches Prinzip wie bei den Malfolgen.
-  // Zusaetzlich wird nach jeder Karte der Zwischenstand gespeichert (siehe
-  // starteLernkarten/aktivitaetFuerThema), damit ein unterbrochener Durchlauf
-  // (App zu, Tablet gesperrt) an derselben Stelle weitergeht statt neu
-  // anzufangen.
+  // Nur fuer bewertung:true-Themen - Max markiert nach dem Umdrehen selbst
+  // richtig/falsch, wie bei Mathe.bewerteMalfolgenKarte. Storage.melde-
+  // LernkartenErgebnis wirkt sich erst in KUENFTIGEN Sitzungen aus
+  // (haeufigere Wiedervorlage ueber baueBewertetesKartendeck), nicht sofort
+  // in dieser Sitzung - gleiches Prinzip wie bei den Malfolgen. Zusaetzlich
+  // wird nach jeder Karte der Zwischenstand gespeichert (siehe starteLern-
+  // karten/aktivitaetFuerThema), damit ein unterbrochener Durchlauf (App zu,
+  // Tablet gesperrt) an derselben Stelle weitergeht statt neu anzufangen.
+  //
+  // In rad_falsch (27.09.2026) tragen die Karten _quellThema/_quellIdx (siehe
+  // sammleFalscheRadKarten) - das Ergebnis muss dann an die STATISTIK DES
+  // HERKUNFTSTHEMAS gemeldet werden, nicht an eine eigene 'rad_falsch'-
+  // Statistik, sonst wuerde die Fortschritts-Uebersicht des Herkunftsthemas
+  // nichts von der Wiederholung hier erfahren und die Karte wuerde nie aus
+  // rad_falsch verschwinden, egal wie oft Max sie hier richtig markiert.
   function bewerteLernkarte(korrekt) {
     if (!lkUmgedreht) return;
     const karte = lkSession.karten[lkSession.index];
-    Storage.meldeLernkartenErgebnis(lkSession.thema, karte._idx, korrekt);
+    const zielThema = karte._quellThema || lkSession.thema;
+    const zielIdx = karte._quellThema ? karte._quellIdx : karte._idx;
+    Storage.meldeLernkartenErgebnis(zielThema, zielIdx, korrekt);
     const gained = Storage.addAntwort('heimat', korrekt, 1);
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
     lkSession.verlauf.push({ frage: textOhneBild(karte.front), ergebnis: korrekt ? 'richtig' : 'falsch' });
@@ -630,10 +591,15 @@ const Heimatkunde = (function () {
   function renderLernkartenUebersicht(thema) {
     const info = LERNTHEMEN[thema];
     const karten = info.karten();
-    const stats = Storage.getLernkartenStats(thema);
     let sicher = 0;
+    // rad_falsch hat keine eigene Statistik (siehe sammleFalscheRadKarten) -
+    // pro Karte wird stattdessen die Statistik ihres Herkunftsthemas
+    // nachgeschlagen (_quellThema/_quellIdx).
     const zeilenHtml = karten.map((karte, i) => {
-      const status = lernkartenStatus(stats[i]);
+      const stat = karte._quellThema
+        ? Storage.getLernkartenStats(karte._quellThema)[karte._quellIdx]
+        : Storage.getLernkartenStats(thema)[i];
+      const status = lernkartenStatus(stat);
       if (status === 'sicher') sicher++;
       return `<div class="uebersicht-heimat-zeile">
         <span class="uebersicht-punkt uebersicht-punkt-${status}"></span>

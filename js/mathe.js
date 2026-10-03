@@ -37,6 +37,7 @@ const Mathe = (function () {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'klammern', titel: 'Punkt vor Strich & Klammern', onclick: 'Mathe.renderRechenregelnMenu()' },
+      { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
@@ -1639,6 +1640,11 @@ const Mathe = (function () {
   // Woerter-Aufgaben ("Multipliziere die Summe aus 46 und 14 mit 7") und
   // Sachaufgaben mit Klammern.
   //
+  // (27.09.2026 kurz entfernt, 29.09.2026 auf Uli-Wunsch wieder eingefuegt -
+  // "mit dem Schwierigkeitsgrad der bekannten": die Zahlenraeume unten waren
+  // unveraendert, entsprechen also weiterhin dem oben beschriebenen Niveau
+  // dieser Sektion, siehe KLAMMER_SACHAUFGABEN weiter unten.)
+  //
   // Alle Aufgaben hier entstehen als TEXT-Ausdruck (z.B. "(43 + 7) · 3") und
   // werden mit dem kleinen Auswerter unten (werteAus) gerechnet - so stimmt die
   // Loesung garantiert nach den echten Regeln, und jede Zwischenrechnung wird
@@ -2217,6 +2223,157 @@ const Mathe = (function () {
     `);
   }
 
+  // ============================================================
+  // Rechenarten & Fachbegriffe (03.10.2026) - Uli-Wunsch: Max soll sicher
+  // wissen, dass Addition/Subtraktion/Multiplikation/Division den Zeichen
+  // +/−/·/: entsprechen, UND wie die einzelnen Zahlen und das Ergebnis jeder
+  // Rechenart heissen (Summand + Summand = Summe, Minuend − Subtrahend =
+  // Differenz, Faktor · Faktor = Produkt, Dividend : Divisor = Quotient).
+  // Eigener Mathe-Menuepunkt nach demselben Muster wie "Punkt vor Strich &
+  // Klammern" (Begriffe-ansehen-Lernscreen VOR dem Uben - siehe Projektlehre
+  // vom 02.09.2026: ein Lern-Screen vor dem Quiz fehlte dort anfangs und
+  // wurde erst auf Nachfrage nachgezogen).
+  // ============================================================
+  const RECHENARTEN_INFO = {
+    '+': { name: 'Addition', operand1: 'Summand', operand2: 'Summand', operandAlt: ['Summanden'], ergebnis: 'Summe', ergebnisArtikel: 'die' },
+    '−': { name: 'Subtraktion', operand1: 'Minuend', operand2: 'Subtrahend', ergebnis: 'Differenz', ergebnisArtikel: 'die' },
+    '·': { name: 'Multiplikation', operand1: 'Faktor', operand2: 'Faktor', operandAlt: ['Faktoren'], ergebnis: 'Produkt', ergebnisArtikel: 'das' },
+    ':': { name: 'Division', operand1: 'Dividend', operand2: 'Divisor', ergebnis: 'Quotient', ergebnisArtikel: 'der' }
+  };
+
+  // ---- Rechenzeichen <-> Name der Rechenart ----
+  function genRechenartNameFrage() {
+    const zeichen = RECHENZEICHEN[rnd(0, 3)];
+    const info = RECHENARTEN_INFO[zeichen];
+    return {
+      typ: 'text',
+      frage: `Wie heißt die Rechenart mit dem Zeichen „${zeichen}“?`,
+      antwort: info.name,
+      hilfe: `<strong>Die vier Rechenarten:</strong><br>+ = Addition<br>− = Subtraktion<br>· = Multiplikation<br>: = Division<br><strong>Richtig: ${info.name}</strong>`
+    };
+  }
+
+  // MC statt Freitext, weil die Antwort hier ein TIPP-schwieriges Zeichen
+  // sein kann (· ist auf keiner Standard-Tastatur) - gleiches Prinzip wie
+  // beim bestehenden genRechenzeichenFrage weiter oben.
+  function genRechenzeichenNameFrage() {
+    const zeichen = RECHENZEICHEN[rnd(0, 3)];
+    const info = RECHENARTEN_INFO[zeichen];
+    const optionen = RECHENZEICHEN.slice();
+    return {
+      typ: 'mc',
+      frage: `Welches Rechenzeichen gehört zur ${info.name}?`,
+      optionen,
+      richtigIndex: optionen.indexOf(zeichen),
+      hilfe: `<strong>Die vier Rechenarten:</strong><br>Addition = +<br>Subtraktion = −<br>Multiplikation = ·<br>Division = :<br><strong>Richtig: ${zeichen}</strong>`
+    };
+  }
+
+  // ---- Wie heissen die beiden Zahlen und das Ergebnis einer Rechnung? ----
+  // Nutzt zeichenAufgabeZutaten() (siehe oben, selbe Zahlenraeume wie beim
+  // bestehenden Rechenzeichen-Raten) fuer eine echte, zufaellige Rechnung -
+  // gefragt wird nach EINEM ihrer drei Teile (die beiden Zahlen oder das
+  // Ergebnis), nie abstrakt ohne Beispiel.
+  function hilfeFachbegriff(a, b, op, ergebnis) {
+    const info = RECHENARTEN_INFO[op];
+    const zahlenErklaerung = info.operandAlt
+      ? `${a} und ${b} heißen die <strong>${info.operandAlt[0]}</strong>`
+      : `${a} heißt der <strong>${info.operand1}</strong>, ${b} heißt der <strong>${info.operand2}</strong>`;
+    return `<strong>${a} ${op} ${b} = ${ergebnis}</strong><br>${zahlenErklaerung}, ${ergebnis} ist ${info.ergebnisArtikel} <strong>${info.ergebnis}</strong>.`;
+  }
+
+  function genFachbegriffFrage() {
+    const [a, b, op, ergebnis] = zeichenAufgabeZutaten();
+    const info = RECHENARTEN_INFO[op];
+    const gleichung = `${a} ${op} ${b} = ${ergebnis}`;
+    const hilfe = hilfeFachbegriff(a, b, op, ergebnis);
+    const teil = ['operand1', 'operand2', 'ergebnis'][rnd(0, 2)];
+    if (teil === 'operand1') {
+      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${a} in dieser Rechnung?`, antwort: info.operand1, antwortAlternativen: info.operandAlt, hilfe };
+    }
+    if (teil === 'operand2') {
+      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${b} in dieser Rechnung?`, antwort: info.operand2, antwortAlternativen: info.operandAlt, hilfe };
+    }
+    return { typ: 'text', frage: `${gleichung}<br>Wie heißt das Ergebnis (${ergebnis}) in dieser Rechnung?`, antwort: info.ergebnis, hilfe };
+  }
+
+  const FACHBEGRIFFE_MODI = {
+    rechenarten: { titel: 'Rechenarten üben', kategorien: ['rechenart'] },
+    fachbegriffe: { titel: 'Fachbegriffe üben', kategorien: ['fachbegriff'] },
+    gemischt: { titel: 'Alles gemischt üben', kategorien: ['rechenart', 'fachbegriff'] }
+  };
+
+  const FACHBEGRIFFE_BEREICHE = [
+    { kategorie: 'rechenart', gen: genRechenartNameFrage },
+    { kategorie: 'rechenart', gen: genRechenartNameFrage },
+    { kategorie: 'rechenart', gen: genRechenzeichenNameFrage },
+    { kategorie: 'rechenart', gen: genRechenzeichenNameFrage },
+    { kategorie: 'fachbegriff', gen: genFachbegriffFrage },
+    { kategorie: 'fachbegriff', gen: genFachbegriffFrage },
+    { kategorie: 'fachbegriff', gen: genFachbegriffFrage },
+    { kategorie: 'fachbegriff', gen: genFachbegriffFrage }
+  ];
+
+  function genFachbegriffeUebung(modus, anzahl) {
+    const kategorien = FACHBEGRIFFE_MODI[modus].kategorien;
+    const pool = FACHBEGRIFFE_BEREICHE.filter(b => kategorien.includes(b.kategorie));
+    const fragen = [];
+    let letzte = null;
+    while (fragen.length < anzahl) {
+      const b = pool[rnd(0, pool.length - 1)];
+      if (b.gen === letzte && Math.random() < 0.8) continue; // gleiche Aufgabenart nicht ständig hintereinander
+      letzte = b.gen;
+      fragen.push(erzeugeFrage(b.kategorie, b.gen));
+    }
+    return fragen;
+  }
+
+  function starteFachbegriffeUebung(modus) {
+    const starter = () => App.startQuizSession('mathe', genFachbegriffeUebung(modus, 10), {
+      titel: FACHBEGRIFFE_MODI[modus].titel,
+      wiederholeFalsche: true,
+      pensumFach: 'mathe'
+    });
+    App.setLastStarter(starter);
+    starter();
+  }
+
+  function renderFachbegriffeMenu() {
+    const kachel = (icon, titel, onclick) =>
+      `<div class="sub-card" onclick="${onclick}"><span class="sub-icon">${Icons.svg(icon)}</span><span class="sub-label">${titel}</span></div>`;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Rechenarten & Fachbegriffe</div>
+      <div class="lese-text">Schau dir erst die Begriffe an, dann kannst du üben.</div>
+      <div class="sub-grid">
+        ${kachel('lesen', 'Begriffe ansehen', 'Mathe.zeigeFachbegriffe()')}
+        ${kachel('wortarten', 'Rechenarten üben', "Mathe.starteFachbegriffeUebung('rechenarten')")}
+        ${kachel('wortarten', 'Fachbegriffe üben', "Mathe.starteFachbegriffeUebung('fachbegriffe')")}
+        ${kachel('tagesaufgabe', 'Alles gemischt üben', "Mathe.starteFachbegriffeUebung('gemischt')")}
+      </div>
+    `);
+  }
+
+  // Begriffs-Uebersicht - die Beispielergebnisse werden wie bei zeigeRechen-
+  // regeln() aus echter Rechnung berechnet (nie von Hand eingetippt), damit
+  // kein Beispiel falsch sein kann.
+  function zeigeFachbegriffe() {
+    const karte = (titel, inhalt) => `<div class="regel-karte" style="margin-bottom:16px;"><strong>${titel}</strong><div style="margin-top:8px;line-height:1.7;">${inhalt}</div></div>`;
+    const BEISPIELE = { '+': [34, 15], '−': [49, 15], '·': [6, 7], ':': [42, 6] };
+    const zeile = (zeichen) => {
+      const [a, b] = BEISPIELE[zeichen];
+      const ergebnis = zeichen === '+' ? a + b : zeichen === '−' ? a - b : zeichen === '·' ? a * b : a / b;
+      return karte(`${RECHENARTEN_INFO[zeichen].name} (${zeichen})`, hilfeFachbegriff(a, b, zeichen, ergebnis));
+    };
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderFachbegriffeMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Rechenarten & ihre Fachbegriffe</div>
+      ${zeile('+')}${zeile('−')}${zeile('·')}${zeile(':')}
+      <div class="lese-text">Merke dir: Bei <strong>Plus</strong> und <strong>Mal</strong> heißen beide Zahlen GLEICH (Summand/Faktor). Bei <strong>Minus</strong> und <strong>Geteilt</strong> hat jede Zahl einen EIGENEN Namen!</div>
+      <div class="weiter-row"><span class="btn-primary" onclick="Mathe.starteFachbegriffeUebung('gemischt')">Jetzt üben ➜</span></div>
+    `);
+  }
+
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
   // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
   // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
@@ -2275,7 +2432,12 @@ const Mathe = (function () {
     // Neu am 24.09.2026 (Mathearbeit "Punkt vor Strich & Klammern", eigener
     // Bereich im Mathe-Menue, siehe RECHENREGELN_BEREICHE) - zusaetzlich
     // dauerhaft im gemeinsamen Pool, siehe KATEGORIE_BASISGEWICHT.
-    ...RECHENREGELN_BEREICHE
+    ...RECHENREGELN_BEREICHE,
+    // Neu am 03.10.2026 (Rechenarten & Fachbegriffe, eigener Bereich im
+    // Mathe-Menue, siehe FACHBEGRIFFE_BEREICHE) - zusaetzlich im gemeinsamen
+    // Pool, normale Gewichtung (kein Schwerpunkt-Grund wie bei den anderen
+    // Foto-Stoff-Themen, daher kein Eintrag in KATEGORIE_BASISGEWICHT).
+    ...FACHBEGRIFFE_BEREICHE
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
@@ -2377,6 +2539,7 @@ const Mathe = (function () {
   return {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
     starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
-    renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung
+    renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
+    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung
   };
 })();
