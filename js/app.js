@@ -165,53 +165,40 @@ const App = (function () {
         <span class="fth-text"><span class="fth-titel">${GESCHICHTEN_STATUS_PRAEFIX[offen.status]}${offen.titel}</span><span class="fth-sub">Extra zum Lesen</span></span>
       </div>`;
 
+    const smItem = (accent, icon, label, sub, onclick, badge) => `
+      <div class="sm-item" onclick="${onclick}">
+        <span class="sm-icon icon-${accent}">${Icons.svg(icon)}${badge ? '<span class="menu-badge"></span>' : ''}</span>
+        <span class="sm-text"><span class="sm-label">${label}</span><span class="sm-sub">${sub}</span></span>
+      </div>`;
+    const ungelesen = chatUngelesen();
+
+    // Startseite: links Seitenmenue (Bereiche in Gruppen), rechts das Dashboard
     render(`
-      <div class="home-greeting">
-        <div class="home-avatar">M</div>
-        <div>
-          <div class="home-greeting-hallo">Hallo Max!</div>
-          <div class="home-streak">${Icons.svg('streak')} ${streakText}</div>
-        </div>
-      </div>
+      <div class="home-layout">
+        <nav class="home-seitenmenue">
+          <div class="home-gruppe-titel">Lernen</div>
+          ${smItem('mathe', 'mathe', 'Mathe', `${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst`, 'Mathe.renderMenu()')}
+          ${smItem('deutsch', 'deutsch', 'Deutsch', `${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst`, 'Deutsch.renderMenu()')}
+          ${smItem('heimat', 'heimat', 'Heimat &amp; Sachkunde', `${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst`, 'Heimatkunde.renderMenu()')}
+          ${smItem('geschichten', 'geschichten', 'Geschichten', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen`, 'Geschichten.renderMenu()')}
+          <div class="home-gruppe-titel">Spielen &amp; mehr</div>
+          ${smItem('spiele', 'spielen', 'Spiele', 'Schach, Schiffe, Mau-Mau', 'App.renderSpieleMenu()')}
+          ${smItem('chat', 'chat', 'Chat mit Papa', ungelesen ? '🔴 Neue Nachricht!' : 'Nachricht schreiben', 'Chat.starteAnsicht()', ungelesen)}
+          ${smItem('belohnung', 'geschenk', 'Belohnungen', `${Storage.getGuthaben()} ⭐ gesammelt`, 'Belohnungen.renderMenu()')}
+        </nav>
+        <main class="home-haupt">
+          <div class="home-greeting">
+            <div class="home-avatar">M</div>
+            <div>
+              <div class="home-greeting-hallo">Hallo Max!</div>
+              <div class="home-streak">${Icons.svg('streak')} ${streakText}</div>
+            </div>
+          </div>
 
-      ${FernSync.zusatzaufgabenHtml()}
+          ${FernSync.zusatzaufgabenHtml()}
 
-      ${Ferientraining.homeKarteHtml(extraHtml)}
-
-      <div class="home-gruppe-titel">Lernen</div>
-      <div class="menu-grid">
-        <div class="menu-card accent-mathe" onclick="Mathe.renderMenu()">
-          <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span>
-          <span class="menu-text"><span class="menu-label">Mathe</span><span class="menu-progress">${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst</span></span>
-        </div>
-        <div class="menu-card accent-deutsch" onclick="Deutsch.renderMenu()">
-          <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span>
-          <span class="menu-text"><span class="menu-label">Deutsch</span><span class="menu-progress">${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst</span></span>
-        </div>
-        <div class="menu-card accent-heimat" onclick="Heimatkunde.renderMenu()">
-          <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span>
-          <span class="menu-text"><span class="menu-label">Heimat &amp; Sachkunde</span><span class="menu-progress">${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst</span></span>
-        </div>
-        <div class="menu-card accent-geschichten" onclick="Geschichten.renderMenu()">
-          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span>
-          <span class="menu-text"><span class="menu-label">Geschichten</span><span class="menu-progress">${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen</span></span>
-        </div>
-      </div>
-
-      <div class="home-gruppe-titel">Spielen &amp; mehr</div>
-      <div class="menu-grid">
-        <div class="menu-card accent-spiele" onclick="App.renderSpieleMenu()">
-          <span class="menu-icon icon-spiele">${Icons.svg('spielen')}</span>
-          <span class="menu-text"><span class="menu-label">Spiele</span><span class="menu-progress">Schach, Schiffe versenken &amp; Mau-Mau</span></span>
-        </div>
-        <div class="menu-card accent-chat" onclick="Chat.starteAnsicht()">
-          <span class="menu-icon icon-chat">${Icons.svg('chat')}${chatUngelesen() ? '<span class="menu-badge"></span>' : ''}</span>
-          <span class="menu-text"><span class="menu-label">Chat mit Papa</span><span class="menu-progress">${chatUngelesen() ? '🔴 Neue Nachricht!' : 'Nachricht schreiben'}</span></span>
-        </div>
-        <div class="menu-card accent-belohnung" onclick="Belohnungen.renderMenu()">
-          <span class="menu-icon icon-belohnung">${Icons.svg('geschenk')}</span>
-          <span class="menu-text"><span class="menu-label">Belohnungen</span><span class="menu-progress">${Storage.getGuthaben()} ⭐ gesammelt</span></span>
-        </div>
+          ${Ferientraining.homeKarteHtml(extraHtml)}
+        </main>
       </div>
     `);
     istAufHomeBildschirm = true;
