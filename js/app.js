@@ -919,10 +919,10 @@ const App = (function () {
     if (korrekt) session.richtigCount++;
     session.sessionSterne += gained;
     if (session.pensumFach) Storage.meldeTagespensumAntwort(session.pensumFach);
-    if (session.ferienItem && !f._wiederholung) Ferientraining.melde(session.ferienItem);
     updateTopbar();
 
     const f = session.fragen[session.index];
+    if (session.ferienItem && !f._wiederholung) Ferientraining.melde(session.ferienItem);
     // Fuer die Kategorien-/Karteikarten-Gewichtung zaehlt nur ein sauberer
     // 1.-Versuch-Erfolg als "gewusst" - 2. Versuch oder Hilfe heisst: noch
     // nicht sicher, soll also weiterhin oefter drankommen.
