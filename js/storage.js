@@ -79,6 +79,10 @@ const Storage = (function () {
       // Bool-Flags, damit auch nach einem App-Neustart korrekt verglichen wird.
       letzteChatVonPapa: null,
       letzteGeseheneChatId: 0,
+      // Zeitpunkt (Server-ms) der letzten von Max GESEHENEN Papa-Nachricht - Basis fuer "ungelesen",
+      // weil Nachrichten-Nummern nach dem Server-Umzug (Render -> Pi) wieder bei 1 begannen und
+      // eine frueher gespeicherte hoehere Nummer alle neuen Nachrichten als "gelesen" erscheinen liess.
+      letzteGeseheneChatTs: 0,
       // Fortschritt in bildbasierten Buechern (Lesemodus, siehe lesemodus.js) -
       // eigenes Feld statt leseFortschritt, weil Buecher seitenbasiert sind
       // (Seitenzahl statt scrollTop) und keine Verstaendnisfragen haben.
@@ -364,6 +368,20 @@ const Storage = (function () {
 
   function getLetzteGeseheneChatId() {
     return state.letzteGeseheneChatId || 0;
+  }
+
+  function getLetzteGeseheneChatTs() { return state.letzteGeseheneChatTs || 0; }
+
+  function setLetzteGeseheneChatTs(ts) {
+    if (ts <= (state.letzteGeseheneChatTs || 0)) return;
+    state.letzteGeseheneChatTs = ts;
+    save(state);
+  }
+
+  /** Ungelesen = die letzte per Poll bekannte Papa-Nachricht ist NEUER als die zuletzt gesehene. */
+  function chatUngelesen() {
+    const letzte = state.letzteChatVonPapa;
+    return !!(letzte && (letzte.ts || 0) > (state.letzteGeseheneChatTs || 0));
   }
 
   function setLetzteGeseheneChatId(id) {
@@ -958,6 +976,7 @@ const Storage = (function () {
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
     getFernRegeln, getFernZusatzaufgaben, setFernstand, markiereFernZusatzaufgabeLokalErledigt,
     getLetzteChatVonPapa, setLetzteChatVonPapa, getLetzteGeseheneChatId, setLetzteGeseheneChatId,
+    getLetzteGeseheneChatTs, setLetzteGeseheneChatTs, chatUngelesen,
     getBuchFortschritt, saveBuchSeite, markBuchFertig, resetFortschritt,
     getZuletztGeoeffnetesBuch, setZuletztGeoeffnetesBuch,
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,

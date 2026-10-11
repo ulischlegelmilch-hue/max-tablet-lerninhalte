@@ -44,7 +44,7 @@ const FernSync = (function () {
       const app = typeof AndroidBridge !== 'undefined' && AndroidBridge.getAppVersion ? AndroidBridge.getAppVersion() : '';
       const inhalt = typeof AndroidBridge !== 'undefined' && AndroidBridge.getContentVersion ? AndroidBridge.getContentVersion() : '';
       const letzte = Storage.getLetzteChatVonPapa();
-      const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+      const ungelesen = Storage.chatUngelesen();
       return '?tablet=1&app=' + encodeURIComponent(app) + '&inhalt=' + encodeURIComponent(inhalt) + '&ungelesen=' + (ungelesen ? 1 : 0);
     } catch (e) { return ''; }
   }
@@ -143,7 +143,7 @@ const FernSync = (function () {
 
   function aktualisiereChatBannerOhneFang() {
     const letzte = Storage.getLetzteChatVonPapa();
-    const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+    const ungelesen = Storage.chatUngelesen();
     // Auf der Startseite zeigt die grosse Karte "Papa hat dir geschrieben!" (app.js
     // chatHinweisHtml) die Nachricht schon - dann kein zusaetzliches Banner.
     if (ungelesen && document.querySelector('.chat-hinweis')) { verstecke(); return; }
@@ -164,7 +164,7 @@ const FernSync = (function () {
   function pruefeNeueChatNachricht(letzte) {
     if (!letzte) return;
     const bekannt = Storage.getLetzteChatVonPapa();
-    const istNeu = bekannt && letzte.id > bekannt.id;
+    const istNeu = bekannt && (letzte.ts || 0) > (bekannt.ts || 0);
     Storage.setLetzteChatVonPapa(letzte);
     if (istNeu) spieleBenachrichtigungston();
   }
@@ -233,7 +233,7 @@ const FernSync = (function () {
     await poll();
     aktualisiereChatBanner();
     const letzte = Storage.getLetzteChatVonPapa();
-    const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+    const ungelesen = Storage.chatUngelesen();
     if (ungelesen && Date.now() - letzterAufwachTon > 20000) {
       letzterAufwachTon = Date.now();
       spieleBenachrichtigungston();

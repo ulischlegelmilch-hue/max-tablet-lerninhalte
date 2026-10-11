@@ -146,7 +146,7 @@ const App = (function () {
 
   function chatUngelesen() {
     const letzte = Storage.getLetzteChatVonPapa();
-    return !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+    return Storage.chatUngelesen();
   }
 
   // Tagesplan der Startseite = Ferientraining-Checkliste (siehe ferientraining.js)

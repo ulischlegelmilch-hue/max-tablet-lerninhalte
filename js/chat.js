@@ -43,6 +43,8 @@ const Chat = (function () {
       // gesehen (loescht das Ungelesen-Badge im Hauptmenue, siehe app.js
       // gotoHome/Storage.getLetzteGeseheneChatId).
       const hoechstePapaId = nachrichten.filter(n => n.von === 'papa').reduce((m, n) => Math.max(m, n.id), 0);
+      const hoechsterPapaTs = nachrichten.filter(n => n.von === 'papa').reduce((m, n) => Math.max(m, n.ts || 0), 0);
+      if (hoechsterPapaTs > 0) Storage.setLetzteGeseheneChatTs(hoechsterPapaTs);
       if (hoechstePapaId > 0) { Storage.setLetzteGeseheneChatId(hoechstePapaId); const nb = document.getElementById('neu-banner'); if (nb && /Papa schreibt|Nachricht/.test(nb.textContent)) nb.style.display = 'none'; }
       zeichne();
     };
