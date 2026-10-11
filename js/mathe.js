@@ -1474,10 +1474,12 @@ const Mathe = (function () {
   const AKTIVITAET_MALFOLGEN = 'malfolgen';
   const ANZAHL_MALFOLGEN = 20; // Tagesziel im Ferientraining (siehe ferientraining.js)
 
-  // ---- Reihen automatisch erweitern (Ferientraining, Uli 11.10.2026): Max startet mit
-  // den aktuell gewaehlten Reihen (Storage.getMalfolgenReihen); kann er "die
-  // meisten" dieser Aufgaben (>= 80 %, beim letzten Mal richtig), kommt die
-  // naechste Reihe (die naechsthoehere nach der groessten gewaehlten, bis 10) dazu - und so weiter. ----
+  // ---- Reihen automatisch aufbauen (Ferientraining, Uli 11.10.2026): Max startet mit
+  // den Reihen 5, 6, 7, 8. Kann er "die meisten" Aufgaben der gewaehlten Reihen
+  // (>= 80 %, beim letzten Mal richtig), kommt die naechste Reihe dazu - hoechstens
+  // EINE pro Tag: erst die naechsthoehere (9, 10), danach die fehlenden kleinen
+  // (1, 2, 3, 4). Maximal bis zur 10er-Reihe. ----
+  const MALFOLGEN_START_REIHEN = [5, 6, 7, 8];
   const MALFOLGEN_WEITER_ANTEIL = 0.8;
   const MALFOLGEN_MAX_REIHE = 10; // Max lernt nur das kleine Einmaleins (1-10)
 
@@ -1488,22 +1490,29 @@ const Mathe = (function () {
   }
 
   function erweitereMalfolgenReihen() {
+    const heute = Storage.getHeutigesDatum();
+    const aufbau = Storage.getMalfolgenAufbau();
+    if (!aufbau) {
+      // Erstmaliger Start des Aufbaus: mit 5-8 beginnen, heute noch keine Erweiterung
+      Storage.setMalfolgenReihen(MALFOLGEN_START_REIHEN.slice());
+      Storage.setMalfolgenAufbau({ letzte: heute });
+      return;
+    }
     // Reihen ueber 10 (z.B. 11/12 aus einer frueheren Auswahl) gibt es nicht mehr
     const gueltig = Storage.getMalfolgenReihen().filter(r => r >= 1 && r <= MALFOLGEN_MAX_REIHE);
-    if (gueltig.length !== Storage.getMalfolgenReihen().length) Storage.setMalfolgenReihen(gueltig.length ? gueltig : [1]);
-    for (let i = 0; i < MALFOLGEN_MAX_REIHE; i++) {
-      const z = malfolgenZaehlung();
-      if (z.gesamt === 0 || z.kann / z.gesamt < MALFOLGEN_WEITER_ANTEIL) return;
-      const reihen = Storage.getMalfolgenReihen();
-      // naechste Reihe NACH der hoechsten gewaehlten; ist die schon 10, die kleinste fehlende
-      let naechste = Math.max(...reihen) + 1;
-      if (naechste > MALFOLGEN_MAX_REIHE) {
-        naechste = 1;
-        while (reihen.includes(naechste) && naechste <= MALFOLGEN_MAX_REIHE) naechste++;
-      }
-      if (naechste > MALFOLGEN_MAX_REIHE) return;
-      Storage.setMalfolgenReihen(reihen.concat(naechste).sort((a, b) => a - b));
+    if (gueltig.length !== Storage.getMalfolgenReihen().length) Storage.setMalfolgenReihen(gueltig.length ? gueltig : MALFOLGEN_START_REIHEN.slice());
+    if (aufbau.letzte === heute) return; // heute schon erweitert
+    const z = malfolgenZaehlung();
+    if (z.gesamt === 0 || z.kann / z.gesamt < MALFOLGEN_WEITER_ANTEIL) return;
+    const reihen = Storage.getMalfolgenReihen();
+    let naechste = Math.max(...reihen) + 1;
+    if (naechste > MALFOLGEN_MAX_REIHE) {
+      naechste = 1;
+      while (reihen.includes(naechste) && naechste <= MALFOLGEN_MAX_REIHE) naechste++;
     }
+    if (naechste > MALFOLGEN_MAX_REIHE) return; // alle Reihen sind dabei
+    Storage.setMalfolgenReihen(reihen.concat(naechste).sort((a, b) => a - b));
+    Storage.setMalfolgenAufbau({ letzte: heute });
   }
 
   function malfolgenText() {
@@ -2383,7 +2392,7 @@ const Mathe = (function () {
   // zaehlt + hakt ab); sonst freies Ueben wie bisher.
   function starteFachbegriffeUebung(modus, ferien) {
     const starter = () => App.startQuizSession('mathe', genFachbegriffeUebung(modus, ferien ? Ferientraining.restAnzahl('mathe_rechenarten', 10) : 10), {
-      titel: FACHBEGRIFFE_MODI[modus].titel,
+      titel: ferien ? 'Rechenarten & Fachbegriffe' : FACHBEGRIFFE_MODI[modus].titel,
       wiederholeFalsche: true,
       pensumFach: 'mathe',
       ferienItem: ferien ? 'mathe_rechenarten' : undefined

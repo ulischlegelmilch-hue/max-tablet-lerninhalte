@@ -492,6 +492,13 @@ const Storage = (function () {
     return state.malfolgenReihen;
   }
 
+  /** Aufbau-Plan der Malfolgen (Ferientraining, siehe Mathe.erweitereMalfolgenReihen):
+   *  null = noch nicht gestartet, sonst { letzte: 'YYYY-MM-DD' } (Tag der letzten
+   *  Erweiterung - hoechstens eine neue Reihe pro Tag). */
+  function getMalfolgenAufbau() { return state.malfolgenAufbau || null; }
+  function setMalfolgenAufbau(o) { state.malfolgenAufbau = o; save(state); }
+  function getHeutigesDatum() { return heutigesDatum(); }
+
   function setMalfolgenReihen(reihen) {
     if (!reihen || reihen.length === 0) return;
     state.malfolgenReihen = reihen;
@@ -945,6 +952,7 @@ const Storage = (function () {
     getTagesplanRegeln, setTagesplanRegeln,
     getTagesPensum, getTagesPensumAnzahl, getTagesPensumErledigt, meldeTagespensumAntwort,
     getFerienZaehler, meldeFerienFortschritt, getFerienErledigt, setFerienErledigt,
+    getMalfolgenAufbau, setMalfolgenAufbau, getHeutigesDatum,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,
