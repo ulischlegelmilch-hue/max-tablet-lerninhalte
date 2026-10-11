@@ -1472,7 +1472,7 @@ const Mathe = (function () {
   // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
   // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
   const AKTIVITAET_MALFOLGEN = 'malfolgen';
-  const ANZAHL_MALFOLGEN = 20; // Tagesziel im Ferientraining (siehe ferientraining.js)
+  const ANZAHL_MALFOLGEN = 40; // Tagesziel im Ferientraining (siehe ferientraining.js), 11.10.2026 von 20 auf 40 erhoeht
 
   // ---- Reihen automatisch aufbauen (Ferientraining, Uli 11.10.2026): Max startet mit
   // den Reihen 5, 6, 7, 8. Kann er "die meisten" Aufgaben der gewaehlten Reihen

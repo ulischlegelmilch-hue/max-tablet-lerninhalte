@@ -20,6 +20,7 @@ const Deutsch = (function () {
   // Quiz-Fragen) und laesst sich nicht einfach in denselben Frage-Pool mischen.
   function renderMenu() {
     App.render(App.subMenuHtml('Deutsch – was übst du?', [
+      { icon: 'lesen', titel: 'Das musst du wissen: Fälle & mehr', onclick: 'Deutsch.zeigeFaelleLernen()' },
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', onclick: 'Deutsch.starteDeutschUeben()' },
       { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }
     ]));
@@ -986,6 +987,63 @@ const Deutsch = (function () {
     return f;
   }
 
+  // ---- Lernseite "Das musst du wissen" (Uli 11.10.2026: "Er muss auch lernen, was Genitiv
+  // usw. ist") - erklaert die vier Faelle, zusammengesetzte Adjektive und doppelte Mitlaute,
+  // am Ende der Knopf zum Ueben. Farben wie beim Unterstreichen in der Schule:
+  // Nominativ blau, Genitiv gelb, Dativ gruen, Akkusativ lila. ----
+  const FALL_FARBE = {
+    N: { fill: '#D3E5F8', rand: '#2F6FE0' }, G: { fill: '#FBEFB8', rand: '#C79A00' },
+    D: { fill: '#D6EEDB', rand: '#2E7D46' }, A: { fill: '#E7DAF3', rand: '#7B3FA0' }
+  };
+  const FALL_ERKLAERUNG = {
+    N: { art: 'der · die · das', satz: '<mark class="fm-N">Der Hund</mark> bellt.', frage: 'Wer bellt? <strong>Der Hund.</strong>', tipp: 'Das ist der „Wer-Fall“: Wer oder was macht etwas?' },
+    G: { art: 'des · der · des', satz: 'Das Halsband <mark class="fm-G">des Hundes</mark> ist rot.', frage: 'Wessen Halsband ist rot? <strong>Das Halsband des Hundes.</strong>', tipp: 'Zeigt, wem etwas gehört. Bei Wörtern mit <em>der</em> und <em>das</em> bekommt das Nomen oft ein <strong>-s</strong> oder <strong>-es</strong>: <em>des Hund<strong>es</strong></em>, <em>des Spiel<strong>s</strong></em>.' },
+    D: { art: 'dem · der · dem', satz: 'Ich gebe <mark class="fm-D">dem Hund</mark> einen Knochen.', frage: 'Wem gebe ich einen Knochen? <strong>Dem Hund.</strong>', tipp: 'Der „Wem-Fall“: Wem gibst, schenkst oder hilfst du? In der Mehrzahl kommt oft ein -n dazu: <em>den Kinder<strong>n</strong></em>.' },
+    A: { art: 'den · die · das', satz: 'Ich sehe <mark class="fm-A">den Hund</mark>.', frage: 'Wen sehe ich? <strong>Den Hund.</strong>', tipp: 'Der „Wen-Fall“: Wen oder was sieht, hört oder holt jemand? Nur bei <em>der</em> ändert sich der Artikel: der → <strong>den</strong>.' }
+  };
+
+  function zeigeFaelleLernen() {
+    const kasten = k => {
+      const f = FAELLE[k], e = FALL_ERKLAERUNG[k], c = FALL_FARBE[k];
+      return `<div class="fall-karte" style="border-left:6px solid ${c.rand};background:${c.fill}33;">
+        <div class="fall-kopf"><span class="fall-nr" style="background:${c.rand}">${f.nummer}</span><strong>${f.nummer}. Fall – ${f.name}</strong></div>
+        <div class="fall-frage">Frage: <strong>${f.frage}</strong></div>
+        <div>Artikel: ${e.art}</div>
+        <div class="fall-bsp">${e.satz}<br><span class="fall-sub">${e.frage}</span></div>
+        <div class="fall-tipp">${e.tipp}</div>
+      </div>`;
+    };
+    const zeile = (k, w) => `<tr><th style="background:${FALL_FARBE[k].fill};">${FAELLE[k].name}</th>${w.map(x => `<td>${x}</td>`).join('')}</tr>`;
+    const tabelle = `<table class="fall-tabelle">
+      <tr><th></th><th>der Hund</th><th>die Katze</th><th>das Pferd</th><th>die Kinder</th></tr>
+      ${zeile('N', ['der Hund', 'die Katze', 'das Pferd', 'die Kinder'])}
+      ${zeile('G', ['des Hundes', 'der Katze', 'des Pferdes', 'der Kinder'])}
+      ${zeile('D', ['dem Hund', 'der Katze', 'dem Pferd', 'den Kindern'])}
+      ${zeile('A', ['den Hund', 'die Katze', 'das Pferd', 'die Kinder'])}
+    </table>`;
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Das musst du wissen</div>
+      <div class="lese-text">Jedes Nomen steht in einem von <strong>vier Fällen</strong>. Den Fall findest du mit einer Frage. Beim Unterstreichen nimmst du diese Farben: <mark class="fm-N">blau</mark> <mark class="fm-G">gelb</mark> <mark class="fm-D">grün</mark> <mark class="fm-A">lila</mark>.</div>
+      <div class="regel-karte" style="margin-bottom:16px;"><strong>Die vier Fälle und ihre Fragen:</strong><div style="margin-top:8px;line-height:1.8;">
+        1. <mark class="fm-N">Nominativ</mark> – Wer oder was?<br>2. <mark class="fm-G">Genitiv</mark> – Wessen?<br>3. <mark class="fm-D">Dativ</mark> – Wem?<br>4. <mark class="fm-A">Akkusativ</mark> – Wen oder was?</div></div>
+      ${kasten('N')}${kasten('G')}${kasten('D')}${kasten('A')}
+      <div class="regel-karte" style="margin-bottom:16px;"><strong>Alle Artikel auf einen Blick:</strong><div style="margin-top:8px;overflow-x:auto;">${tabelle}</div></div>
+      <div class="regel-karte" style="margin-bottom:16px;"><strong>So findest du den Fall:</strong><div style="margin-top:8px;line-height:1.7;">
+        1. Lies den Satz und suche das Nomen mit seinem Artikel.<br>
+        2. Stelle die Frage: <em>Wer oder was?</em> – <em>Wessen?</em> – <em>Wem?</em> – <em>Wen oder was?</em><br>
+        3. Die Frage, auf die das Nomen die Antwort ist, verrät den Fall.</div></div>
+      <div class="regel-karte" style="margin-bottom:16px;"><strong>Zusammengesetzte Adjektive</strong><div style="margin-top:8px;line-height:1.7;">
+        Zwei Wörter werden zu <strong>einem</strong> Adjektiv. Man schreibt sie <strong>zusammen</strong> und <strong>klein</strong>.<br>
+        <em>Substantiv + Adjektiv:</em> Gras + grün = <strong>grasgrün</strong> (grün wie das Gras), Feuer + rot = <strong>feuerrot</strong>.<br>
+        <em>Adjektiv + Adjektiv:</em> hell + blau = <strong>hellblau</strong>, süß + sauer = <strong>süßsauer</strong>.</div></div>
+      <div class="regel-karte" style="margin-bottom:16px;"><strong>Wörter mit doppelten Mitlauten</strong><div style="margin-top:8px;line-height:1.7;">
+        Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben und achte darauf, wo die Silben sich trennen:<br>
+        Kof-<strong>f</strong>er → <strong>Koffer</strong>, Mut-<strong>t</strong>er → <strong>Mutter</strong>, Tas-<strong>s</strong>e → <strong>Tasse</strong>, Som-<strong>m</strong>er → <strong>Sommer</strong>.</div></div>
+      <div class="weiter-row"><span class="btn-primary" onclick="Deutsch.starteFerienDeutsch()">Jetzt üben ➜ (10 Aufgaben)</span></div>
+    `);
+  }
+
   function starteFerienDeutsch() {
     const starter = () => {
       const anzahl = Ferientraining.restAnzahl('deutsch_tag', 10);
@@ -1087,5 +1145,5 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch };
+  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen };
 })();

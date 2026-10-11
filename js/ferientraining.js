@@ -20,7 +20,7 @@ const Ferientraining = (function () {
       // Start mit den gewaehlten Reihen; "die meisten" gekonnt -> naechste Reihe
       // kommt dazu (siehe Mathe.erweitereMalfolgenReihen).
       id: 'mathe_malfolgen', fach: 'mathe', icon: 'malfolgen', titel: 'Mathe: Malfolgen',
-      text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => 20,
+      text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => 40,
       start: () => Mathe.starteMalfolgenKarten()
     },
     {
@@ -32,7 +32,8 @@ const Ferientraining = (function () {
       // Deutsch: Die vier Faelle, zusammengesetzte Adjektive, doppelte Mitlaute (Test 29.10.2026) - 10 Aufgaben pro Tag
       id: 'deutsch_tag', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Fälle & Rechtschreibung',
       text: 'Vier Fälle, zusammengesetzte Adjektive, doppelte Mitlaute', einheit: 'Aufgaben', ziel: () => 10,
-      start: () => Deutsch.starteFerienDeutsch()
+      // Erst die Lernseite (was ist Genitiv usw.), dort geht es mit "Jetzt ueben" weiter
+      start: () => Deutsch.zeigeFaelleLernen()
     },
     {
       // Schreibauftrag des Tages (siehe schreiben.js): Mo-Fr zum Stoff, Sa/So frei

@@ -2014,3 +2014,19 @@ html, body {
 .schreib-feld { display: block; max-width: 760px; width: 100%; margin: 0 auto var(--space-3); box-sizing: border-box; padding: 12px;
   font-size: 18px; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); color: var(--ink); }
 .schreib-hinweis { text-align: center; color: #B3382B; font-size: 14px; min-height: 20px; }
+
+
+/* Lernseite Faelle (siehe deutsch.js zeigeFaelleLernen) - Farben wie beim Unterstreichen */
+mark.fm-N { background: #D3E5F8; color: inherit; padding: 1px 5px; border-radius: 4px; }
+mark.fm-G { background: #FBEFB8; color: inherit; padding: 1px 5px; border-radius: 4px; }
+mark.fm-D { background: #D6EEDB; color: inherit; padding: 1px 5px; border-radius: 4px; }
+mark.fm-A { background: #E7DAF3; color: inherit; padding: 1px 5px; border-radius: 4px; }
+.fall-karte { max-width: 760px; margin: 0 auto 16px; padding: 14px 18px; border-radius: var(--radius); border: 1px solid var(--border); line-height: 1.6; }
+.fall-kopf { display: flex; align-items: center; gap: 10px; font-size: 19px; margin-bottom: 4px; }
+.fall-nr { width: 30px; height: 30px; border-radius: 50%; color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.fall-frage { font-size: 17px; }
+.fall-bsp { margin: 8px 0; padding: 10px 12px; background: var(--card-bg); border-radius: var(--radius-sm); font-size: 18px; }
+.fall-sub { font-size: 14px; color: var(--ink-soft); }
+.fall-tipp { font-size: 14px; color: var(--ink-soft); }
+.fall-tabelle { border-collapse: collapse; width: 100%; font-size: 15px; text-align: center; }
+.fall-tabelle th, .fall-tabelle td { border: 1px solid var(--border); padding: 6px 8px; }
