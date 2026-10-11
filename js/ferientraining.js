@@ -112,10 +112,38 @@ const Ferientraining = (function () {
     `);
   }
 
+  /** Dashboard-Karte fuer die Startseite: Fortschrittsbalken + Checkliste, Tippen startet den Punkt.
+   *  extraZeileHtml (optional): z.B. die naechste Geschichte als "Extra" unter der Liste. */
+  function homeKarteHtml(extraZeileHtml) {
+    const erledigt = anzahlErledigt();
+    const alle = erledigt === PLAN.length;
+    const prozent = Math.round(erledigt / PLAN.length * 100);
+    const zeilen = PLAN.map(item => {
+      const s = stand(item);
+      return `
+        <div class="fth-zeile${s.fertig ? ' fth-fertig' : ''}" onclick="Ferientraining.starte('${item.id}')">
+          <span class="fth-haken">${s.fertig ? '✓' : ''}</span>
+          <span class="fth-text"><span class="fth-titel">${item.titel}</span><span class="fth-sub">${wert(item.text)}</span></span>
+          <span class="fth-stand">${s.fertig ? 'Geschafft!' : `${Math.min(s.n, s.z)} / ${s.z}`}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="fth-karte">
+        <div class="fth-kopf" onclick="Ferientraining.renderListe()">
+          <span class="fth-kopf-titel">Dein Ferientraining heute</span>
+          <span class="fth-kopf-zahl">${erledigt}<small> von ${PLAN.length}</small></span>
+        </div>
+        <div class="fth-balken"><div style="width:${prozent}%"></div></div>
+        ${alle ? '<div class="fth-alles">Alles geschafft für heute! 🎉</div>' : ''}
+        ${zeilen}
+        ${extraZeileHtml || ''}
+      </div>`;
+  }
+
   /** Zusatz-Button "Zurück zum Ferientraining" fuer die Ergebnis-Bildschirme. */
   function rueckkehrButtonHtml() {
     return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining (${anzahlErledigt()} von ${PLAN.length})</div>`;
   }
 
-  return { melde, abschluss, restAnzahl, chips, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
+  return { melde, abschluss, restAnzahl, chips, homeKarteHtml, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
 })();

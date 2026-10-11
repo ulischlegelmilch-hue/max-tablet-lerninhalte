@@ -157,16 +157,13 @@ const App = (function () {
       : 'Leg heute los!';
     const geschichtenFortschritt = Storage.getGeschichtenFortschritt();
 
-    const tagesplanHtml = baueTagesplan().map(t => `
-      <div class="tagesplan-chip accent-${t.fach}" onclick="${t.onclick}">
-        <span class="tagesplan-chip-icon icon-${t.fach}">${Icons.svg(t.icon)}</span>
-        <span class="tagesplan-chip-text">
-          <span class="tagesplan-chip-titel">${t.titel}</span>
-          <span class="tagesplan-chip-fach">${t.fachName}</span>
-          ${t.badge ? `<span class="tagesplan-chip-badge${t.extra ? ' tagesplan-chip-badge-extra' : ''}${t.geschafft ? ' tagesplan-chip-badge-geschafft' : ''}">${t.badge}</span>` : ''}
-        </span>
-      </div>
-    `).join('');
+    // Naechste Geschichte als "Extra" unter der Ferientraining-Checkliste (zaehlt nicht mit)
+    const offen = Geschichten.naechsteOffene();
+    const extraHtml = `
+      <div class="fth-zeile fth-extra" onclick="Geschichten.leseBuch('${offen.id}')">
+        <span class="fth-haken fth-haken-extra">${Icons.svg('geschichten')}</span>
+        <span class="fth-text"><span class="fth-titel">${GESCHICHTEN_STATUS_PRAEFIX[offen.status]}${offen.titel}</span><span class="fth-sub">Extra zum Lesen</span></span>
+      </div>`;
 
     render(`
       <div class="home-greeting">
@@ -179,11 +176,9 @@ const App = (function () {
 
       ${FernSync.zusatzaufgabenHtml()}
 
-      <div class="tagesplan-banner">
-        <div class="tagesplan-titel" onclick="Ferientraining.renderListe()" style="cursor:pointer;">Dein Ferientraining heute · ${Ferientraining.anzahlErledigt()} von ${Ferientraining.anzahlPunkte()} erledigt ›</div>
-        <div class="tagesplan-liste">${tagesplanHtml}</div>
-      </div>
+      ${Ferientraining.homeKarteHtml(extraHtml)}
 
+      <div class="home-gruppe-titel">Lernen</div>
       <div class="menu-grid">
         <div class="menu-card accent-mathe" onclick="Mathe.renderMenu()">
           <span class="menu-icon icon-mathe">${Icons.svg('mathe')}</span>
@@ -193,14 +188,18 @@ const App = (function () {
           <span class="menu-icon icon-deutsch">${Icons.svg('deutsch')}</span>
           <span class="menu-text"><span class="menu-label">Deutsch</span><span class="menu-progress">${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst</span></span>
         </div>
-        <div class="menu-card accent-geschichten" onclick="Geschichten.renderMenu()">
-          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span>
-          <span class="menu-text"><span class="menu-label">Geschichten</span><span class="menu-progress">${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen</span></span>
-        </div>
         <div class="menu-card accent-heimat" onclick="Heimatkunde.renderMenu()">
           <span class="menu-icon icon-heimat">${Icons.svg('heimat')}</span>
           <span class="menu-text"><span class="menu-label">Heimat &amp; Sachkunde</span><span class="menu-progress">${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst</span></span>
         </div>
+        <div class="menu-card accent-geschichten" onclick="Geschichten.renderMenu()">
+          <span class="menu-icon icon-geschichten">${Icons.svg('geschichten')}</span>
+          <span class="menu-text"><span class="menu-label">Geschichten</span><span class="menu-progress">${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen</span></span>
+        </div>
+      </div>
+
+      <div class="home-gruppe-titel">Spielen &amp; mehr</div>
+      <div class="menu-grid">
         <div class="menu-card accent-spiele" onclick="App.renderSpieleMenu()">
           <span class="menu-icon icon-spiele">${Icons.svg('spielen')}</span>
           <span class="menu-text"><span class="menu-label">Spiele</span><span class="menu-progress">Schach, Schiffe versenken &amp; Mau-Mau</span></span>

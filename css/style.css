@@ -1929,3 +1929,40 @@ html, body {
 .ft-fertig .ft-balken-fuell { background: #2E7D46; }
 .ft-stand { flex-shrink: 0; font-size: 14px; font-weight: 700; color: var(--accent-dark); }
 .ft-fertig .ft-stand { color: #2E7D46; }
+
+
+/* Startseite als Dashboard (11.10.2026): Ferientraining-Karte oben, darunter die
+   Bereiche in Gruppen - gleiche Sprache wie die Eltern-App. */
+.home-gruppe-titel {
+  max-width: 1300px; margin: 22px auto 4px;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft);
+}
+.fth-karte {
+  max-width: 1300px; margin: 0 auto var(--space-5);
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: var(--space-4) var(--space-5);
+}
+.fth-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); cursor: pointer; margin-bottom: 10px; }
+.fth-kopf-titel { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); }
+.fth-kopf-zahl { font-size: 28px; font-weight: 800; color: var(--ink); }
+.fth-kopf-zahl small { font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.fth-balken { height: 10px; border-radius: 6px; background: var(--muted); overflow: hidden; margin-bottom: 8px; }
+.fth-balken > div { height: 100%; background: #2E7D46; border-radius: 6px; transition: width 0.3s; }
+.fth-alles { text-align: center; font-size: 18px; font-weight: 700; color: #2E7D46; padding: 8px 0; }
+.fth-zeile { display: flex; align-items: center; gap: var(--space-4); padding: 12px 4px; border-top: 1px solid var(--border); cursor: pointer; }
+.fth-zeile:first-of-type { border-top: none; }
+.fth-zeile:active { background: var(--muted); }
+.fth-haken {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 800;
+}
+.fth-fertig .fth-haken { background: #2E7D46; border-color: #2E7D46; }
+.fth-haken-extra { border: none; background: var(--geschichten); }
+.fth-haken-extra svg { width: 18px; height: 18px; }
+.fth-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fth-titel { font-size: 17px; font-weight: 700; color: var(--ink); }
+.fth-fertig .fth-titel { color: var(--ink-soft); text-decoration: line-through; }
+.fth-sub { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fth-stand { flex-shrink: 0; font-size: 14px; font-weight: 700; color: var(--accent-dark); }
+.fth-fertig .fth-stand { color: #2E7D46; }
+.fth-extra { opacity: 0.9; }
