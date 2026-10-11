@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-11-1619",
+  "version": "2026-10-11-1623",
   "files": [
     "css/style.css",
     "images/buecher/enzo/seite-01.jpg",
@@ -101,6 +101,7 @@
     "js/soundfx.js",
     "js/storage.js",
     "js/strategie.js",
-    "js/taktik-puzzles-data.js"
+    "js/taktik-puzzles-data.js",
+    "sounds/benachrichtigung.wav"
   ]
 }
