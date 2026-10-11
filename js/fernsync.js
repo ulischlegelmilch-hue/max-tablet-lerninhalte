@@ -36,10 +36,23 @@ const FernSync = (function () {
   // reicht: App.gotoHome() liest den Stand bei jedem Aufruf frisch aus Storage,
   // die Zusatzaufgaben-Karte zeigt neue Eintraege also automatisch beim naechsten
   // ganz normalen Rueckkehren zum Startbildschirm.
+  // Geraete-Info fuer Papas Dashboard ("Tablet zuletzt online, App-/Inhalts-Version,
+  // ungelesene Nachricht") - hilft zu sehen, ob das Tablet wirklich die neue Version hat
+  // und nach dem Aufwachen den Server erreicht.
+  function geraeteInfoQuery() {
+    try {
+      const app = typeof AndroidBridge !== 'undefined' && AndroidBridge.getAppVersion ? AndroidBridge.getAppVersion() : '';
+      const inhalt = typeof AndroidBridge !== 'undefined' && AndroidBridge.getContentVersion ? AndroidBridge.getContentVersion() : '';
+      const letzte = Storage.getLetzteChatVonPapa();
+      const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+      return '?tablet=1&app=' + encodeURIComponent(app) + '&inhalt=' + encodeURIComponent(inhalt) + '&ungelesen=' + (ungelesen ? 1 : 0);
+    } catch (e) { return ''; }
+  }
+
   async function pollEinmal() {
     if (!BACKEND_URL) return true;
     try {
-      const r = await fetchMitTimeout(BACKEND_URL + '/api/state');
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/state' + geraeteInfoQuery());
       if (!r.ok) return false;
       const stand = await r.json();
       const vorherIds = new Set(Storage.getFernZusatzaufgaben().map(a => a.id));
@@ -51,7 +64,6 @@ const FernSync = (function () {
         spieleBenachrichtigungston();
         zeigeBanner('📋 Neue Aufgabe von Papa!', () => App.gotoHome(), 30000);
       }
-      aktualisiereChatBanner();
       // Internet+Backend sind gerade nachweislich erreichbar - guter Moment,
       // um evtl. liegengebliebene Lernset-Meldungen nachzureichen (siehe
       // sendeOffeneLernsetMeldungen).
@@ -66,6 +78,7 @@ const FernSync = (function () {
       // aktualisiereHomeFallsAktiv() bewusst NICHTS - kein erzwungener
       // Ruecksprung zum Startbildschirm.
       App.aktualisiereHomeFallsAktiv();
+      aktualisiereChatBanner(); // NACH dem Neu-Rendern: auf der Startseite genuegt die Karte
       return true;
     } catch (e) {
       // Kein Internet / Backend nicht erreichbar - naechster Versuch in POLL_INTERVAL_MS.
@@ -79,7 +92,9 @@ const FernSync = (function () {
   // nachfassen (3 s, 10 s, 25 s, 60 s), damit neue Nachrichten/Aufgaben gleich
   // erscheinen, sobald das Netz da ist. Laufende Wiederholungsketten werden
   // nicht verdoppelt.
-  const WIEDERHOLUNGEN_MS = [3000, 10000, 25000, 60000];
+  // Nach dem Einschalten dauert das WLAN manchmal laenger: erst schnelle Versuche, dann
+  // alle 15 s bis ca. 10 Minuten (danach uebernimmt der normale 30-s-Poll).
+  const WIEDERHOLUNGEN_MS = [3000, 5000, 10000, 15000].concat(Array(38).fill(15000));
   let pollLaeuft = false;
   async function poll() {
     if (pollLaeuft) return;
@@ -123,10 +138,17 @@ const FernSync = (function () {
   /** Banner "Neue Nachricht von Papa" solange ungelesen - verschwindet, sobald
    *  Max den Chat geoeffnet hat (Storage.setLetzteGeseheneChatId in chat.js). */
   function aktualisiereChatBanner() {
+    try { aktualisiereChatBannerOhneFang(); } catch (e) { /* Anzeige darf den Poll nie abbrechen */ }
+  }
+
+  function aktualisiereChatBannerOhneFang() {
     const letzte = Storage.getLetzteChatVonPapa();
     const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
-    if (ungelesen) zeigeBanner('💬 Neue Nachricht von Papa!', () => Chat.starteAnsicht(), 0);
-    else if (document.getElementById('neu-banner') && /Nachricht/.test(document.getElementById('neu-banner').textContent)) verstecke();
+    // Auf der Startseite zeigt die grosse Karte "Papa hat dir geschrieben!" (app.js
+    // chatHinweisHtml) die Nachricht schon - dann kein zusaetzliches Banner.
+    if (ungelesen && document.querySelector('.chat-hinweis')) { verstecke(); return; }
+    if (ungelesen) zeigeBanner('💬 Papa schreibt' + (letzte.text ? ': ' + letzte.text.slice(0, 60) : '!'), () => Chat.starteAnsicht(), 0);
+    else if (document.getElementById('neu-banner') && /Papa schreibt|Nachricht/.test(document.getElementById('neu-banner').textContent)) verstecke();
   }
 
   /** Ungelesen-Badge (siehe app.js gotoHome) + Ton als Absicherung UNABHAENGIG
@@ -159,6 +181,18 @@ const FernSync = (function () {
         return;
       }
     } catch (e) { /* aeltere APK - Web-Audio-Fallback */ }
+    // Fallback 1: die mitgelieferte Klingelton-Datei per Audio-Element (Lautstaerke 1.0)
+    try {
+      const a = new Audio('sounds/benachrichtigung.wav');
+      a.volume = 1.0;
+      const p = a.play();
+      if (p && typeof p.catch === 'function') p.catch(() => spieleWebAudioMotiv());
+      return;
+    } catch (e) { /* weiter mit Web Audio */ }
+    spieleWebAudioMotiv();
+  }
+
+  function spieleWebAudioMotiv() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       if (ctx.state === 'suspended') ctx.resume();

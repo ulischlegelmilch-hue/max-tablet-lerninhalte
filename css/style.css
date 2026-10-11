@@ -1988,3 +1988,17 @@ html, body {
   .home-seitenmenue { position: static; order: 2; display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }
   .home-seitenmenue .home-gruppe-titel { grid-column: 1 / -1; }
 }
+
+
+/* Ungelesene Nachricht von Papa: grosse Karte ganz oben auf der Startseite */
+.chat-hinweis {
+  display: flex; align-items: center; gap: var(--space-4);
+  background: #FFB300; color: #222; border-radius: var(--radius);
+  padding: 16px 20px; margin-bottom: var(--space-5); cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+}
+.chat-hinweis-icon { font-size: 34px; flex-shrink: 0; }
+.chat-hinweis-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.chat-hinweis-titel { font-size: 20px; font-weight: 800; }
+.chat-hinweis-nachricht { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-hinweis-los { flex-shrink: 0; font-size: 17px; font-weight: 800; background: #fff; border-radius: 20px; padding: 8px 16px; }

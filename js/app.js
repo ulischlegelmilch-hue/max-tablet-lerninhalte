@@ -124,6 +124,26 @@ const App = (function () {
   // Ungelesen-Badge auf der Chat-Kachel (siehe fernsync.js pruefeNeueChatNachricht
   // fuers Aktualisieren von letzteChatVonPapa, chat.js fuers Loeschen beim
   // tatsaechlichen Oeffnen des Chats).
+  function escapeHtmlApp(t) {
+    return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // Grosse, nicht zu uebersehende Karte ganz oben auf der Startseite, solange eine
+  // Nachricht von Papa ungelesen ist (zeigt auch den Text, sobald der Server ihn mitschickt).
+  function chatHinweisHtml() {
+    if (!chatUngelesen()) return '';
+    const text = (Storage.getLetzteChatVonPapa() || {}).text;
+    return `
+      <div class="chat-hinweis" onclick="Chat.starteAnsicht()">
+        <span class="chat-hinweis-icon">💬</span>
+        <span class="chat-hinweis-text">
+          <span class="chat-hinweis-titel">Papa hat dir geschrieben!</span>
+          ${text ? `<span class="chat-hinweis-nachricht">„${escapeHtmlApp(text)}“</span>` : ''}
+        </span>
+        <span class="chat-hinweis-los">Lesen ›</span>
+      </div>`;
+  }
+
   function chatUngelesen() {
     const letzte = Storage.getLetzteChatVonPapa();
     return !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
@@ -194,6 +214,8 @@ const App = (function () {
               <div class="home-streak">${Icons.svg('streak')} ${streakText}</div>
             </div>
           </div>
+
+          ${chatHinweisHtml()}
 
           ${FernSync.zusatzaufgabenHtml()}
 
