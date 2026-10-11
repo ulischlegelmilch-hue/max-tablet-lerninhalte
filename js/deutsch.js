@@ -458,6 +458,549 @@ const Deutsch = (function () {
     };
   }
 
+  // ============================================================
+  // Die vier Faelle (11.10.2026, Fotos der Arbeitsblaetter "Der 1.-4. Fall",
+  // Hundethema; Test "vier Faelle" am Do 29.10.2026 laut Uli-Kalender).
+  // Die Saetze stammen von den Arbeitsblaettern; der Fall jedes Satzteils ist von
+  // der Grammatik abgeleitet, NICHT von Max' Markierungen/Haekchen auf den Fotos
+  // uebernommen. Nur eindeutige Satzteile sind markiert (Praepositionalgruppen wie
+  // "mit dem Wohnmobil" bewusst nicht), damit jede Aufgabe genau eine Loesung hat.
+  // Kuerzel: N = Nominativ, G = Genitiv, D = Dativ, A = Akkusativ.
+  // ============================================================
+  const FAELLE = {
+    N: { nummer: 1, name: 'Nominativ', frage: 'Wer oder was?' },
+    G: { nummer: 2, name: 'Genitiv', frage: 'Wessen?' },
+    D: { nummer: 3, name: 'Dativ', frage: 'Wem?' },
+    A: { nummer: 4, name: 'Akkusativ', frage: 'Wen oder was?' }
+  };
+  const FALL_KEYS = ['N', 'G', 'D', 'A'];
+  const FALL_MERKKASTEN = '<strong>Merke dir die vier Fälle:</strong><br>1. Fall <strong>Nominativ</strong> – Wer oder was?<br>2. Fall <strong>Genitiv</strong> – Wessen?<br>3. Fall <strong>Dativ</strong> – Wem?<br>4. Fall <strong>Akkusativ</strong> – Wen oder was?';
+
+  const FAELLE_SAETZE = [
+    // Arbeitsblatt 2 (Nominativ)
+    { s: 'Der Dalmatiner hat weißes Fell mit schwarzen Punkten.', p: [['Der Dalmatiner', 'N'], ['weißes Fell', 'A']] },
+    { s: 'In Norwegen ziehen Huskies oft einen Schlitten.', p: [['Huskies', 'N'], ['einen Schlitten', 'A']] },
+    { s: 'Seit 5 Jahren gehört der Dackel zur Familie.', p: [['der Dackel', 'N']] },
+    { s: 'Das Körbchen des Hundes steht vor dem Kamin.', p: [['Das Körbchen', 'N'], ['des Hundes', 'G']] },
+    { s: 'Im Park wirft der Junge seinem Hund die Frisbee zu.', p: [['der Junge', 'N'], ['seinem Hund', 'D'], ['die Frisbee', 'A']] },
+    { s: 'Die Lehrerin erklärt den Kindern die Hunderegeln.', p: [['Die Lehrerin', 'N'], ['den Kindern', 'D'], ['die Hunderegeln', 'A']] },
+    { s: 'Jeden Abend liest Lena ihrem Hund eine Geschichte vor.', p: [['Lena', 'N'], ['ihrem Hund', 'D'], ['eine Geschichte', 'A']] },
+    { s: 'Der Polizeihund fängt den Dieb.', p: [['Der Polizeihund', 'N'], ['den Dieb', 'A']] },
+    { s: 'In den Ferien fährt die Familie mit dem Wohnmobil nach Italien.', p: [['die Familie', 'N']] },
+    { s: 'Am Morgen bringt der Labrador seinem Herrchen die Zeitung.', p: [['der Labrador', 'N'], ['seinem Herrchen', 'D'], ['die Zeitung', 'A']] },
+    { s: 'Im Kunstunterricht basteln die Kinder verschiedene Hundespielzeuge.', p: [['die Kinder', 'N'], ['verschiedene Hundespielzeuge', 'A']] },
+    { s: 'Das Fell des Hundes ist weiß.', p: [['Das Fell', 'N'], ['des Hundes', 'G']] },
+    { s: 'Im Sommer schläft der Hund gerne unter dem Apfelbaum.', p: [['der Hund', 'N']] },
+    { s: 'Der Junge gibt dem Hund ein Leckerli.', p: [['Der Junge', 'N'], ['dem Hund', 'D'], ['ein Leckerli', 'A']] },
+    { s: 'Samstags muss der Welpe zur Hundeschule.', p: [['der Welpe', 'N']] },
+    { s: 'Der Hundenapf ist schon wieder leer.', p: [['Der Hundenapf', 'N']] },
+    { s: 'Vor großen, schwarzen Hunden hat das Mädchen Angst.', p: [['das Mädchen', 'N']] },
+    { s: 'Meine Großeltern passen heute auf Felix auf.', p: [['Meine Großeltern', 'N'], ['Felix', 'A']] },
+    { s: 'Zum Geburtstag bekommt der Hund ein neues Halsband.', p: [['der Hund', 'N'], ['ein neues Halsband', 'A']] },
+    { s: 'Der Kater faucht den Hund böse an.', p: [['Der Kater', 'N'], ['den Hund', 'A']] },
+    // Arbeitsblatt 4 (Genitiv)
+    { s: 'Das Halsband des Hundes ist blau.', p: [['Das Halsband', 'N'], ['des Hundes', 'G']] },
+    { s: 'Schnee bedeckt die Gipfel der Berge.', p: [['Schnee', 'N'], ['die Gipfel', 'A'], ['der Berge', 'G']] },
+    { s: 'Die Augen der Kinder strahlen vor Freude.', p: [['Die Augen', 'N'], ['der Kinder', 'G']] },
+    { s: 'Die Regeln des Spiels sind wirklich einfach.', p: [['Die Regeln', 'N'], ['des Spiels', 'G']] },
+    { s: 'Die Hundefriseurin schneidet das Fell des Hundes kurz.', p: [['Die Hundefriseurin', 'N'], ['das Fell', 'A'], ['des Hundes', 'G']] },
+    { s: 'Das Mädchen mistet den Stall des Pferdes aus.', p: [['Das Mädchen', 'N'], ['den Stall', 'A'], ['des Pferdes', 'G']] },
+    { s: 'Die Pfoten der Hunde sind nass vom Regen.', p: [['Die Pfoten', 'N'], ['der Hunde', 'G']] },
+    { s: 'Der Hund klaut die Kekse der Kinder.', p: [['Der Hund', 'N'], ['die Kekse', 'A'], ['der Kinder', 'G']] },
+    { s: 'In den Ferien verschlafen wir die Hälfte des Tages.', p: [['die Hälfte', 'A'], ['des Tages', 'G']] },
+    { s: 'Am Morgen bringt der Labrador die Socken des Herrchens.', p: [['der Labrador', 'N'], ['die Socken', 'A'], ['des Herrchens', 'G']] },
+    { s: 'Im Sportunterricht erklärt der Lehrer die Aufgaben der Stationen.', p: [['der Lehrer', 'N'], ['die Aufgaben', 'A'], ['der Stationen', 'G']] },
+    { s: 'Der Knochen des Hundes ist im Garten versteckt.', p: [['Der Knochen', 'N'], ['des Hundes', 'G']] },
+    { s: 'Im Sommer liebt der Hund die Kälte der Fliesen.', p: [['der Hund', 'N'], ['die Kälte', 'A'], ['der Fliesen', 'G']] },
+    { s: 'Die Hunde des Nachbarn bellen am Zaun.', p: [['Die Hunde', 'N'], ['des Nachbarn', 'G']] },
+    { s: 'Lisa findet Mamas Kette sehr schön.', p: [['Lisa', 'N'], ['Mamas', 'G']] },
+    { s: 'Das Haus der Familie wird von ihrem Schäferhund bewacht.', p: [['Das Haus', 'N'], ['der Familie', 'G']] },
+    { s: 'Tom passt heute auf den Hund seines Freundes auf.', p: [['Tom', 'N'], ['den Hund', 'A'], ['seines Freundes', 'G']] },
+    { s: 'Majas Geschirr wird langsam zu klein.', p: [['Majas', 'G'], ['Geschirr', 'N']] },
+    { s: 'Opas Hund macht komische Geräusche.', p: [['Opas', 'G'], ['Hund', 'N'], ['komische Geräusche', 'A']] },
+    { s: 'Der Dalmatiner frisst manchmal das Futter der Katze.', p: [['Der Dalmatiner', 'N'], ['das Futter', 'A'], ['der Katze', 'G']] },
+    // Arbeitsblatt 6 (Dativ)
+    { s: 'Der Tierarzt gibt dem Hund eine Spritze.', p: [['Der Tierarzt', 'N'], ['dem Hund', 'D'], ['eine Spritze', 'A']] },
+    { s: 'Papa schenkt Mama eine Schachtel Pralinen.', p: [['Papa', 'N'], ['Mama', 'D'], ['eine Schachtel Pralinen', 'A']] },
+    { s: 'Der Jäger gibt dem Jagdhund ein Kommando.', p: [['Der Jäger', 'N'], ['dem Jagdhund', 'D'], ['ein Kommando', 'A']] },
+    { s: 'Dem Chihuahua ist es im Winter zu kalt.', p: [['Dem Chihuahua', 'D']] },
+    { s: 'Der Hund klaut der Katze ihr Spielzeug.', p: [['Der Hund', 'N'], ['der Katze', 'D'], ['ihr Spielzeug', 'A']] },
+    { s: 'Zum Abschied bellt der Hund den Kindern hinterher.', p: [['der Hund', 'N'], ['den Kindern', 'D']] },
+    { s: 'Das Mädchen schenkt den Hunden im Tierheim ihre Kuscheltiere.', p: [['Das Mädchen', 'N'], ['den Hunden', 'D'], ['ihre Kuscheltiere', 'A']] },
+    { s: 'Der Hund leckt dem Baby einmal durchs Gesicht.', p: [['Der Hund', 'N'], ['dem Baby', 'D']] },
+    { s: 'An Weihnachten backen wir dem Weihnachtsmann Kekse.', p: [['dem Weihnachtsmann', 'D'], ['Kekse', 'A']] },
+    { s: 'Die Kinder bauen den Vögeln ein Häuschen.', p: [['Die Kinder', 'N'], ['den Vögeln', 'D'], ['ein Häuschen', 'A']] },
+    { s: 'Im Deutschunterricht erklärt der Lehrer dem Schüler die Aufgabe.', p: [['der Lehrer', 'N'], ['dem Schüler', 'D'], ['die Aufgabe', 'A']] },
+    { s: 'Ich rufe dem Postboten noch schnell hinterher.', p: [['dem Postboten', 'D']] },
+    { s: 'Mila schreibt Oma eine Postkarte aus dem Urlaub.', p: [['Mila', 'N'], ['Oma', 'D'], ['eine Postkarte', 'A']] },
+    { s: 'Der Junge gibt dem Pudel einen Kuss.', p: [['Der Junge', 'N'], ['dem Pudel', 'D'], ['einen Kuss', 'A']] },
+    { s: 'Mama gibt Papa ein Kuchenstück.', p: [['Mama', 'N'], ['Papa', 'D'], ['ein Kuchenstück', 'A']] },
+    { s: 'Die Fee erfüllt der Prinzessin einen Wunsch.', p: [['Die Fee', 'N'], ['der Prinzessin', 'D'], ['einen Wunsch', 'A']] },
+    { s: 'Tom vertraut dem Hund seinen Fußball an.', p: [['Tom', 'N'], ['dem Hund', 'D'], ['seinen Fußball', 'A']] },
+    { s: 'Der Opa sitzt neben dem Dackel auf dem Sofa.', p: [['Der Opa', 'N']] },
+    { s: 'Lisa bringt dem Pferd ein neues Kunststück bei.', p: [['Lisa', 'N'], ['dem Pferd', 'D'], ['ein neues Kunststück', 'A']] },
+    { s: 'Die Schwester leiht dem Bruder eine Schere.', p: [['Die Schwester', 'N'], ['dem Bruder', 'D'], ['eine Schere', 'A']] },
+    // Arbeitsblatt 8 (Akkusativ)
+    { s: 'Der Hund bekommt heute eine Wurmkur.', p: [['Der Hund', 'N'], ['eine Wurmkur', 'A']] },
+    { s: 'Papa gibt Mama einen Kuss.', p: [['Papa', 'N'], ['Mama', 'D'], ['einen Kuss', 'A']] },
+    { s: 'Der Husky zieht den Schlitten durch den Schnee.', p: [['Der Husky', 'N'], ['den Schlitten', 'A']] },
+    { s: 'Der Hund frisst gerne Käse.', p: [['Der Hund', 'N'], ['Käse', 'A']] },
+    { s: 'Der Junge schießt den Ball zu seinem Hund.', p: [['Der Junge', 'N'], ['den Ball', 'A']] },
+    { s: 'Die Lehrerin zeigt den Kindern einen Film.', p: [['Die Lehrerin', 'N'], ['den Kindern', 'D'], ['einen Film', 'A']] },
+    { s: 'Das Mädchen malt ein Kaninchen auf das Bild.', p: [['Das Mädchen', 'N'], ['ein Kaninchen', 'A']] },
+    { s: 'Der Mann kauft seinem Hund ein Würstchen.', p: [['Der Mann', 'N'], ['seinem Hund', 'D'], ['ein Würstchen', 'A']] },
+    { s: 'Heute gibt es die Leckerlis im Sonderangebot.', p: [['die Leckerlis', 'A']] },
+    { s: 'Felix bastelt ein Geschenk für seinen Hund.', p: [['Felix', 'N'], ['ein Geschenk', 'A']] },
+    { s: 'Die Katze fängt auf der Wiese eine Maus.', p: [['Die Katze', 'N'], ['eine Maus', 'A']] },
+    { s: 'Der Hund sucht den Ball unter der Hecke.', p: [['Der Hund', 'N'], ['den Ball', 'A']] },
+    { s: 'Esma schreibt ihrer Tante einen Brief.', p: [['Esma', 'N'], ['ihrer Tante', 'D'], ['einen Brief', 'A']] },
+    { s: 'Die Hausaufgaben hat das Mädchen leider vergessen.', p: [['Die Hausaufgaben', 'A'], ['das Mädchen', 'N']] },
+    { s: 'Die Schwester klaut ihrem Bruder das Handy.', p: [['Die Schwester', 'N'], ['ihrem Bruder', 'D'], ['das Handy', 'A']] },
+    { s: 'Meine Mutter kauft sich ein Buch in der Buchhandlung.', p: [['Meine Mutter', 'N'], ['ein Buch', 'A']] },
+    { s: 'Die Katze leckt sich das Fell sauber.', p: [['Die Katze', 'N'], ['das Fell', 'A']] },
+    { s: 'Opa verkauft das Auto an den Nachbarn.', p: [['Opa', 'N'], ['das Auto', 'A']] },
+    { s: 'Paul bringt dem Hund einen Trick bei.', p: [['Paul', 'N'], ['dem Hund', 'D'], ['einen Trick', 'A']] },
+    { s: 'Maja bekommt zum Geburtstag ein Halsband.', p: [['Maja', 'N'], ['ein Halsband', 'A']] },
+    // Arbeitsblatt g ("Verbinde mit dem richtigen Napf")
+    { s: 'Der Hund träumt von einer Salami.', p: [['Der Hund', 'N']] },
+    { s: 'Im Sommer geht der Labrador gerne schwimmen.', p: [['der Labrador', 'N']] },
+    { s: 'Timo wirft den Ball.', p: [['Timo', 'N'], ['den Ball', 'A']] },
+    { s: 'Das Halsband des Dalmatiners ist rot.', p: [['Das Halsband', 'N'], ['des Dalmatiners', 'G']] },
+    { s: 'Heute juckt dem Hund das Fell.', p: [['dem Hund', 'D'], ['das Fell', 'N']] },
+    { s: 'Karim bringt dem Schulhund einen Trick bei.', p: [['Karim', 'N'], ['dem Schulhund', 'D'], ['einen Trick', 'A']] },
+    { s: 'Der Tierarzt gibt dem Hund eine Impfung.', p: [['Der Tierarzt', 'N'], ['dem Hund', 'D'], ['eine Impfung', 'A']] },
+    { s: 'Hunde hören besser als Menschen.', p: [['Hunde', 'N']] },
+    { s: 'Das Fell des Hundes ist braun.', p: [['Das Fell', 'N'], ['des Hundes', 'G']] },
+    { s: 'Den Kindern gefiel der neue Hundefilm.', p: [['Den Kindern', 'D'], ['der neue Hundefilm', 'N']] },
+    { s: 'Der Junge gibt dem Hund ein Stück Käse.', p: [['Der Junge', 'N'], ['dem Hund', 'D'], ['ein Stück Käse', 'A']] },
+    { s: 'Maja gibt das Pfötchen.', p: [['Maja', 'N'], ['das Pfötchen', 'A']] },
+    { s: 'Der Hund versteckt die Schuhe des Vaters.', p: [['Der Hund', 'N'], ['die Schuhe', 'A'], ['des Vaters', 'G']] },
+    // Arbeitsblaetter 1/3/5/7 ("Erfrage den ...")
+    { s: 'Buddy ist ein Dalmatiner.', p: [['Buddy', 'N']] },
+    { s: 'Gestern vergrub der Hund seinen Knochen im Garten.', p: [['der Hund', 'N'], ['seinen Knochen', 'A']] },
+    { s: 'Im Park spielt die Hündin mit ihrem Tennisball.', p: [['die Hündin', 'N']] },
+    { s: 'Die Hundeleine ist aus Leder.', p: [['Die Hundeleine', 'N']] },
+    { s: 'Der Vater hat dem Hund eine Hundehütte gebaut.', p: [['Der Vater', 'N'], ['dem Hund', 'D'], ['eine Hundehütte', 'A']] },
+    { s: 'Der Ball des Dackels ist gelb.', p: [['Der Ball', 'N'], ['des Dackels', 'G']] },
+    { s: 'Im Herbst verfärben sich die Blätter der Bäume.', p: [['die Blätter', 'N'], ['der Bäume', 'G']] },
+    { s: 'Max genießt die Strahlen der Sonne auf seinem Fell.', p: [['Max', 'N'], ['die Strahlen', 'A'], ['der Sonne', 'G']] },
+    { s: 'Der Schwanz des Hundes wedelt vor Freude.', p: [['Der Schwanz', 'N'], ['des Hundes', 'G']] },
+    { s: 'Der Hund klaut das Spielzeug der Katze.', p: [['Der Hund', 'N'], ['das Spielzeug', 'A'], ['der Katze', 'G']] },
+    { s: 'Ich gebe dem Hund ein Stück Schinken.', p: [['dem Hund', 'D'], ['ein Stück Schinken', 'A']] },
+    { s: 'Der Apfel schmeckt dem Pferd sehr gut.', p: [['Der Apfel', 'N'], ['dem Pferd', 'D']] },
+    { s: 'Klara krault dem Kätzchen die Ohren.', p: [['Klara', 'N'], ['dem Kätzchen', 'D'], ['die Ohren', 'A']] },
+    { s: 'Der Polizeihund hilft dem Polizisten den Dieb zu fangen.', p: [['Der Polizeihund', 'N'], ['dem Polizisten', 'D'], ['den Dieb', 'A']] },
+    { s: 'Der Hund klaut Mama die Hausschuhe.', p: [['Der Hund', 'N'], ['Mama', 'D'], ['die Hausschuhe', 'A']] },
+    { s: 'Ich liebe den Hund sehr.', p: [['den Hund', 'A']] },
+    { s: 'Oma backt eine Geburtstagstorte für mich.', p: [['Oma', 'N'], ['eine Geburtstagstorte', 'A']] },
+    { s: 'Pelle versteckt den Knochen in der Mülltonne.', p: [['Pelle', 'N'], ['den Knochen', 'A']] },
+    { s: 'Das Mädchen streichelt das Pferd am Hals.', p: [['Das Mädchen', 'N'], ['das Pferd', 'A']] },
+    { s: 'Der Hund zieht heute einen Regenmantel an.', p: [['Der Hund', 'N'], ['einen Regenmantel', 'A']] }
+  ];
+
+  // Satz mit hervorgehobenem Satzteil (unterstrichen wie auf dem Arbeitsblatt)
+  function satzMitMarkierung(satz, phrase) {
+    const i = satz.indexOf(phrase);
+    return satz.slice(0, i) + '<u><strong>' + phrase + '</strong></u>' + satz.slice(i + phrase.length);
+  }
+
+  function fallOptionen() { return FALL_KEYS.map(k => FAELLE[k].name); }
+
+  // ---- 1) "In welchem Fall steht der unterstrichene Satzteil?" (Napf-Blatt) ----
+  // Fall zuerst gleichverteilt wuerfeln, damit Genitiv/Dativ (seltener) nicht untergehen.
+  function genFallBestimmenFrage() {
+    const fall = FALL_KEYS[Math.floor(Math.random() * 4)];
+    const saetze = FAELLE_SAETZE.filter(e => e.p.some(([, f]) => f === fall));
+    const e = pickN(saetze, 1)[0];
+    const phrase = pickN(e.p.filter(([, f]) => f === fall), 1)[0][0];
+    const optionen = fallOptionen();
+    return {
+      typ: 'mc',
+      frage: `In welchem Fall steht der unterstrichene Satzteil?<br>${satzMitMarkierung(e.s, phrase)}`,
+      verlaufText: `Fall bestimmen: „${phrase}“ in „${e.s}“`.slice(0, 190),
+      optionen,
+      richtigIndex: FALL_KEYS.indexOf(fall),
+      hilfe: `${FALL_MERKKASTEN}<br><br>Frage nach dem Satzteil: Passt <strong>${FAELLE[fall].frage}</strong> dazu? Hier: „${phrase}“ → <strong>${FAELLE[fall].name}</strong> (${FAELLE[fall].nummer}. Fall).`
+    };
+  }
+
+  // ---- 2) "Welcher Satzteil steht im Dativ?" (Unterstreiche-Blaetter) ----
+  function genSatzteilImFallFrage() {
+    for (let versuch = 0; versuch < 200; versuch++) {
+      const fall = FALL_KEYS[Math.floor(Math.random() * 4)];
+      const e = pickN(FAELLE_SAETZE, 1)[0];
+      const ziel = e.p.filter(([, f]) => f === fall);
+      const andere = e.p.filter(([, f]) => f !== fall);
+      if (ziel.length !== 1 || andere.length < 1) continue;
+      const phrasen = shuffle([ziel[0][0], ...pickN(andere, 2).map(([t]) => t)]);
+      return {
+        typ: 'mc',
+        frage: `Welcher Satzteil steht im <strong>${FAELLE[fall].name}</strong> (${FAELLE[fall].nummer}. Fall)?<br>${e.s}`,
+        verlaufText: `Welcher Satzteil im ${FAELLE[fall].name}? „${e.s}“`.slice(0, 190),
+        optionen: phrasen,
+        richtigIndex: phrasen.indexOf(ziel[0][0]),
+        hilfe: `${FALL_MERKKASTEN}<br><br>Der ${FAELLE[fall].name} antwortet auf die Frage <strong>${FAELLE[fall].frage}</strong>. Hier passt: <strong>${ziel[0][0]}</strong>.`
+      };
+    }
+    return genFallBestimmenFrage();
+  }
+
+  // ---- 3) Mit welchem Fragewort fragst du nach einem Satzteil? ("Erfrage den ...") ----
+  function genFragewortFuerSatzteilFrage() {
+    const fall = FALL_KEYS[Math.floor(Math.random() * 4)];
+    const saetze = FAELLE_SAETZE.filter(e => e.p.some(([, f]) => f === fall));
+    const e = pickN(saetze, 1)[0];
+    const phrase = pickN(e.p.filter(([, f]) => f === fall), 1)[0][0];
+    const optionen = FALL_KEYS.map(k => FAELLE[k].frage);
+    return {
+      typ: 'mc',
+      frage: `Mit welchem Fragewort erfragst du den unterstrichenen Satzteil?<br>${satzMitMarkierung(e.s, phrase)}`,
+      verlaufText: `Fragewort für „${phrase}“ in „${e.s}“`.slice(0, 190),
+      optionen,
+      richtigIndex: FALL_KEYS.indexOf(fall),
+      hilfe: `${FALL_MERKKASTEN}<br><br>„${phrase}“ steht im <strong>${FAELLE[fall].name}</strong> – man fragt: <strong>${FAELLE[fall].frage}</strong>`
+    };
+  }
+
+  // ---- 4) Fall-Wissen: Nummer, Name, Fragewort ----
+  function genFallWissenFrage() {
+    const k = FALL_KEYS[Math.floor(Math.random() * 4)];
+    const art = Math.floor(Math.random() * 3);
+    const hilfe = FALL_MERKKASTEN;
+    if (art === 0) {
+      return { typ: 'mc', frage: `Wie heißt der <strong>${FAELLE[k].nummer}. Fall</strong>?`, optionen: fallOptionen(), richtigIndex: FALL_KEYS.indexOf(k), hilfe };
+    }
+    if (art === 1) {
+      return { typ: 'mc', frage: `Mit welchem Fragewort fragst du nach dem <strong>${FAELLE[k].name}</strong>?`, optionen: FALL_KEYS.map(x => FAELLE[x].frage), richtigIndex: FALL_KEYS.indexOf(k), hilfe };
+    }
+    return { typ: 'mc', frage: `Welcher Fall gehört zur Frage <strong>„${FAELLE[k].frage}“</strong>?`, optionen: fallOptionen(), richtigIndex: FALL_KEYS.indexOf(k), hilfe };
+  }
+
+  // ---- 5) Tabelle ausfuellen (Arbeitsblatt 10): Wortform in einem anderen Fall schreiben ----
+  // Formen: [Nominativ, Genitiv, Dativ, Akkusativ], mehrere erlaubte Schreibweisen als Array.
+  const FORMEN = [
+    { n: 'Hund', f: ['der Hund', ['des Hundes', 'des Hunds'], 'dem Hund', 'den Hund'] },
+    { n: 'Ball', f: ['der Ball', ['des Balls', 'des Balles'], 'dem Ball', 'den Ball'] },
+    { n: 'Baum', f: ['der Baum', ['des Baumes', 'des Baums'], 'dem Baum', 'den Baum'] },
+    { n: 'Wald', f: ['der Wald', ['des Waldes', 'des Walds'], 'dem Wald', 'den Wald'] },
+    { n: 'Knochen', f: ['der Knochen', 'des Knochens', 'dem Knochen', 'den Knochen'] },
+    { n: 'Napf', f: ['der Napf', ['des Napfes', 'des Napfs'], 'dem Napf', 'den Napf'] },
+    { n: 'Garten', f: ['der Garten', 'des Gartens', 'dem Garten', 'den Garten'] },
+    { n: 'Pferd', f: ['das Pferd', ['des Pferdes', 'des Pferds'], 'dem Pferd', 'das Pferd'] },
+    { n: 'Fell', f: ['das Fell', ['des Fells', 'des Felles'], 'dem Fell', 'das Fell'] },
+    { n: 'Fenster', f: ['das Fenster', 'des Fensters', 'dem Fenster', 'das Fenster'] },
+    { n: 'Haus', f: ['das Haus', 'des Hauses', 'dem Haus', 'das Haus'] },
+    { n: 'Spiel', f: ['das Spiel', ['des Spiels', 'des Spieles'], 'dem Spiel', 'das Spiel'] },
+    { n: 'Katze', f: ['die Katze', 'der Katze', 'der Katze', 'die Katze'] },
+    { n: 'Blume', f: ['die Blume', 'der Blume', 'der Blume', 'die Blume'] },
+    { n: 'Pfote', f: ['die Pfote', 'der Pfote', 'der Pfote', 'die Pfote'] },
+    { n: 'Sonne', f: ['die Sonne', 'der Sonne', 'der Sonne', 'die Sonne'] },
+    { n: 'Leine', f: ['die Leine', 'der Leine', 'der Leine', 'die Leine'] },
+    { n: 'Spur', f: ['die Spur', 'der Spur', 'der Spur', 'die Spur'] },
+    { n: 'Kinder', f: ['die Kinder', 'der Kinder', 'den Kindern', 'die Kinder'] },
+    { n: 'Sterne', f: ['die Sterne', 'der Sterne', 'den Sternen', 'die Sterne'] },
+    { n: 'Eltern', f: ['die Eltern', 'der Eltern', 'den Eltern', 'die Eltern'] }
+  ];
+  const erlaubt = (x) => (Array.isArray(x) ? x : [x]);
+
+  function genFormInFallFrage() {
+    const w = pickN(FORMEN, 1)[0];
+    for (let versuch = 0; versuch < 50; versuch++) {
+      const von = FALL_KEYS[Math.floor(Math.random() * 4)];
+      const nach = FALL_KEYS[Math.floor(Math.random() * 4)];
+      const vonText = erlaubt(w.f[FALL_KEYS.indexOf(von)])[0];
+      const nachListe = erlaubt(w.f[FALL_KEYS.indexOf(nach)]);
+      if (von === nach || vonText === nachListe[0]) continue; // Formen sind gleich -> keine sinnvolle Aufgabe
+      const zeile = FALL_KEYS.map((k, i) => `${FAELLE[k].name}: ${erlaubt(w.f[i])[0]}`).join('<br>');
+      return {
+        typ: 'text',
+        frage: `Schreibe im <strong>${FAELLE[nach].name}</strong>:<br>„${vonText}“ (${FAELLE[von].name})`,
+        verlaufText: `Tabelle: „${vonText}“ (${FAELLE[von].name}) → ${FAELLE[nach].name}`,
+        antwort: nachListe[0],
+        antwortAlternativen: nachListe.slice(1),
+        hilfe: `So sieht die Tabelle für <strong>${w.n}</strong> aus:<br>${zeile}`
+      };
+    }
+    return genFallWissenFrage();
+  }
+
+  // ---- Buchseite "Satzglieder" (SF S.17/18): Frage beantworten / Substantiv mit Artikel in den
+  // passenden Fall setzen. f = Satzteil mit Artikel (mehrere Schreibweisen als Array). ----
+  const SATZGLIEDER = [
+    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Die Kinder beobachten ___.', fall: 'A', f: ['das Eichhörnchen'] },
+    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: '___ springt flink von Baum zu Baum.', fall: 'N', f: ['das Eichhörnchen'] },
+    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Der Schwanz ___ bewegt sich hin und her.', fall: 'G', f: ['des Eichhörnchens'] },
+    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Gespannt sehen die Kinder ___ zu.', fall: 'D', f: ['dem Eichhörnchen'] },
+    { q: 'Mit wem ist das Muli verwandt?', s: 'Das Muli ist mit ___ verwandt.', fall: 'D', f: ['dem Esel'] },
+    { q: 'Wessen Backen sind prall gefüllt?', s: 'Die Backen ___ sind prall gefüllt.', fall: 'G', f: ['des Hamsters'] },
+    { q: 'Wen frisst der Kuckuck?', s: 'Der Kuckuck frisst ___.', fall: 'A', f: ['die Raupe'] },
+    { q: 'Wem schmeckt der Klee besonders gut?', s: 'Klee schmeckt ___ besonders gut.', fall: 'D', f: ['dem Hasen'] },
+    { q: 'Wessen Schwanz ist lang und buschig?', s: 'Der Schwanz ___ ist lang und buschig.', fall: 'G', f: ['des Fuchses'] },
+    { q: 'Wen beobachtet der Förster beim Fressen?', s: 'Der Förster beobachtet ___ beim Fressen.', fall: 'A', f: ['das Wildschwein'] },
+    // weitere Aufgaben im gleichen Stil
+    { q: 'Wessen Fell ist braun?', s: 'Das Fell ___ ist braun.', fall: 'G', f: ['des Bären'] },
+    { q: 'Wem gibt der Förster Futter?', s: 'Der Förster gibt ___ Futter.', fall: 'D', f: ['dem Reh'] },
+    { q: 'Wen jagt der Fuchs?', s: 'Der Fuchs jagt ___.', fall: 'A', f: ['den Hasen'] },
+    { q: 'Wessen Nest ist hoch oben im Baum?', s: 'Das Nest ___ ist hoch oben im Baum.', fall: 'G', f: ['des Storches', 'des Storchs'] },
+    { q: 'Wer schläft den ganzen Winter?', s: '___ schläft den ganzen Winter.', fall: 'N', f: ['der Igel'] },
+    { q: 'Wem folgt der kleine Welpe?', s: 'Der kleine Welpe folgt ___.', fall: 'D', f: ['dem Hund'] },
+    { q: 'Wen sieht der Wolf im Wald?', s: 'Der Wolf sieht ___ im Wald.', fall: 'A', f: ['den Förster'] },
+    { q: 'Wessen Fell ist weich?', s: 'Das Fell ___ ist weich.', fall: 'G', f: ['des Hasen'] }
+  ];
+
+  function genSatzgliedFrage() {
+    const e = pickN(SATZGLIEDER, 1)[0];
+    const bsp = pickN(SATZGLIEDER.filter(x => x !== e && x.fall === e.fall), 1)[0] || pickN(SATZGLIEDER, 1)[0];
+    const kopf = e.aufg || `Beantworte die Frage und schreibe den Satzteil mit Artikel auf:<br><em>${e.q}</em>`;
+    const satzMitLuecke = e.s;
+    return {
+      typ: 'text',
+      frage: `${kopf}<br>${satzMitLuecke}`,
+      verlaufText: `${(e.q || 'Substantiv einsetzen')}: ${satzMitLuecke}`.slice(0, 190),
+      antwort: e.f[0],
+      antwortAlternativen: e.f.slice(1),
+      hilfe: `${FALL_MERKKASTEN}<br><br>Hier fragt man <strong>${FAELLE[e.fall].frage}</strong> – das ist der <strong>${FAELLE[e.fall].name}</strong>.` +
+        (bsp && bsp.q ? `<br>Beispiel: ${bsp.q} – ${bsp.s.replace('___', '<strong>' + bsp.f[0] + '</strong>')}` : '')
+    };
+  }
+
+  const FAELLE_BEREICHE = [
+    { kategorie: 'faelle', gen: genSatzgliedFrage },
+    { kategorie: 'faelle', gen: genSatzgliedFrage },
+    { kategorie: 'faelle', gen: genFallBestimmenFrage },
+    { kategorie: 'faelle', gen: genFallBestimmenFrage },
+    { kategorie: 'faelle', gen: genSatzteilImFallFrage },
+    { kategorie: 'faelle', gen: genSatzteilImFallFrage },
+    { kategorie: 'faelle', gen: genFragewortFuerSatzteilFrage },
+    { kategorie: 'faelle', gen: genFormInFallFrage },
+    { kategorie: 'faelle', gen: genFormInFallFrage },
+    { kategorie: 'faelle', gen: genFallWissenFrage }
+  ];
+
+  // ============================================================
+  // Zusammengesetzte Adjektive + Woerter mit doppelten Mitlauten (11.10.2026) -
+  // zweiter und dritter Teil von Ulis Kalender-Notiz zum Test am 29.10.2026
+  // ("Test vier Faelle ... zusammengesetzte Adjektive und Woerter mit doppelten
+  // Mitlauten mitlernen"). Es gab dazu keine Fotos des Stoffs - die Beispiele sind
+  // gaengige Schulwoerter, nur sicher richtig geschriebene Formen.
+  // ============================================================
+  // so ... wie ... -> zusammengesetztes Adjektiv (Nomen + Adjektiv)
+  const ADJ_SOWIE = [
+    // Arbeitsbuch "Zusammengesetzte Adjektive" (SF S.19), Aufgaben 1-3 + Sternchenaufgabe
+    { satz: 'so grün wie das Gras', a: 'grasgrün', alt: ['grasgruen'] },
+    { satz: 'so süß wie Honig', a: 'honigsüß', alt: ['honigsuess'] },
+    { satz: 'so blau wie der Himmel', a: 'himmelblau' },
+    { satz: 'so schwarz wie der Rabe', a: 'rabenschwarz' },
+    { satz: 'so still wie ein Mäuschen', a: 'mäuschenstill', alt: ['maeuschenstill'] },
+    { satz: 'so rot wie das Feuer', a: 'feuerrot' },
+    { satz: 'so gelb wie die Sonne', a: 'sonnengelb' },
+    { satz: 'so klar wie Glas', a: 'glasklar' },
+    { satz: 'so grün wie die Tanne', a: 'tannengrün', alt: ['tannengruen'] },
+    { satz: 'so rot wie Wein', a: 'weinrot' },
+    { satz: 'so grün wie Salbei', a: 'salbeigrün', alt: ['salbeigruen'] },
+    { satz: 'so schnell wie ein Blitz', a: 'blitzschnell' },
+    { satz: 'so leicht wie eine Feder', a: 'federleicht' },
+    { satz: 'so kalt wie Eis', a: 'eiskalt' },
+    { satz: 'so hart wie Stein', a: 'steinhart' },
+    { satz: 'so weich wie Butter', a: 'butterweich' },
+    { satz: 'so süß wie Zucker', a: 'zuckersüß', alt: ['zuckersuess'] },
+    { satz: 'so schwarz wie Pech', a: 'pechschwarz' },
+    { satz: 'so weiß wie Schnee', a: 'schneeweiß', alt: ['schneeweiss'] },
+    { satz: 'so rot wie Blut', a: 'blutrot' },
+    { satz: 'so grün wie Gras', a: 'grasgrün', alt: ['grasgruen'] },
+    { satz: 'so hoch wie ein Haus', a: 'haushoch' },
+    { satz: 'so müde wie ein Hund', a: 'hundemüde', alt: ['hundemuede'] },
+    { satz: 'so stark wie ein Bär', a: 'bärenstark', alt: ['baerenstark'] },
+    { satz: 'so flink wie ein Wiesel', a: 'wieselflink' },
+    { satz: 'so glatt wie Eis', a: 'eisglatt' },
+    { satz: 'so klar wie Kristall', a: 'kristallklar' }
+  ];
+  // Adjektiv + Adjektiv
+  const ADJ_ADJ = [
+    // Buch SF S.19, Aufgabe 3 (Adjektiv und Adjektiv)
+    { t: ['nass', 'kalt'], a: 'nasskalt' }, { t: ['gelb', 'grün'], a: 'gelbgrün', alt: ['gelbgruen'] },
+    { t: ['süß', 'sauer'], a: 'süßsauer', alt: ['suesssauer', 'süsssauer'] }, { t: ['hell', 'wach'], a: 'hellwach' },
+    { t: ['bitter', 'böse'], a: 'bitterböse', alt: ['bitterboese'] },
+    { t: ['hell', 'blau'], a: 'hellblau' }, { t: ['dunkel', 'grün'], a: 'dunkelgrün', alt: ['dunkelgruen'] },
+    { t: ['dunkel', 'rot'], a: 'dunkelrot' }, { t: ['hell', 'gelb'], a: 'hellgelb' },
+    { t: ['blau', 'grün'], a: 'blaugrün', alt: ['blaugruen'] }, { t: ['rot', 'braun'], a: 'rotbraun' },
+    { t: ['schwarz', 'weiß'], a: 'schwarzweiß', alt: ['schwarzweiss'] }, { t: ['dunkel', 'blau'], a: 'dunkelblau' },
+    { t: ['hell', 'grün'], a: 'hellgrün', alt: ['hellgruen'] }, { t: ['grau', 'blau'], a: 'graublau' }
+  ];
+  const ADJ_HILFE = '<strong>Merke:</strong> Zusammengesetzte Adjektive schreibt man <strong>zusammen</strong> und <strong>klein</strong>. Das letzte Wort sagt, wie etwas ist, das erste Wort sagt genauer, wie sehr oder woran man es erkennt (<em>eiskalt</em> = kalt wie Eis).';
+
+  function genAdjSoWieFrage() {
+    const e = pickN(ADJ_SOWIE, 1)[0];
+    const bsp = pickN(ADJ_SOWIE.filter(x => x !== e), 1)[0];
+    return {
+      typ: 'text',
+      frage: `Bilde ein zusammengesetztes Adjektiv:<br><strong>${e.satz}</strong> = ?`,
+      antwort: e.a,
+      antwortAlternativen: e.alt || [],
+      hilfe: `${ADJ_HILFE}<br>Beispiel: ${bsp.satz} = <strong>${bsp.a}</strong>`
+    };
+  }
+
+  function genAdjAdjFrage() {
+    const e = pickN(ADJ_ADJ, 1)[0];
+    const bsp = pickN(ADJ_ADJ.filter(x => x !== e), 1)[0];
+    return {
+      typ: 'text',
+      frage: `Schreibe als ein Wort:<br><strong>${e.t[0]} + ${e.t[1]}</strong> = ?`,
+      antwort: e.a,
+      antwortAlternativen: e.alt || [],
+      hilfe: `${ADJ_HILFE}<br>Beispiel: ${bsp.t[0]} + ${bsp.t[1]} = <strong>${bsp.a}</strong>`
+    };
+  }
+
+  // Buch SF S.19, Aufgabe 3: "Ordne die Adjektive richtig zu" - genau 2 feste Kategorien (MC)
+  const ADJ_ARTEN = [
+    ['sonnengelb', 'Sonne + gelb', 'sub'], ['windstill', 'Wind + still', 'sub'], ['federleicht', 'Feder + leicht', 'sub'],
+    ['blitzschnell', 'Blitz + schnell', 'sub'], ['glasklar', 'Glas + klar', 'sub'], ['rabenschwarz', 'Rabe + schwarz', 'sub'],
+    ['feuerrot', 'Feuer + rot', 'sub'], ['himmelblau', 'Himmel + blau', 'sub'],
+    ['nasskalt', 'nass + kalt', 'adj'], ['gelbgrün', 'gelb + grün', 'adj'], ['süßsauer', 'süß + sauer', 'adj'],
+    ['hellwach', 'hell + wach', 'adj'], ['bitterböse', 'bitter + böse', 'adj'], ['hellblau', 'hell + blau', 'adj'],
+    ['dunkelgrün', 'dunkel + grün', 'adj']
+  ];
+  function genAdjArtFrage() {
+    const [wort, teile, art] = pickN(ADJ_ARTEN, 1)[0];
+    const optionen = ['Substantiv + Adjektiv', 'Adjektiv + Adjektiv'];
+    return {
+      typ: 'mc',
+      frage: `Woraus ist das Wort zusammengesetzt?<br><strong>${wort}</strong>`,
+      optionen,
+      richtigIndex: art === 'sub' ? 0 : 1,
+      hilfe: `${ADJ_HILFE}<br>Untersuche das Wort genau: ${wort} = <strong>${teile}</strong>. Ist der erste Teil ein Ding/Tier (Substantiv) oder wieder ein Adjektiv?`
+    };
+  }
+
+  // "Erklaere, was sie bedeuten" (Aufgabe 2): grasgruen = gruen wie das Gras
+  function genAdjBedeutungFrage() {
+    const e = pickN(ADJ_SOWIE, 1)[0];
+    const bedeutung = x => x.satz.replace(/^so /, '');
+    const falsche = pickN(ADJ_SOWIE.filter(x => x !== e && bedeutung(x) !== bedeutung(e)), 2).map(bedeutung);
+    const optionen = shuffle([bedeutung(e), ...falsche]);
+    return {
+      typ: 'mc',
+      frage: `Was bedeutet <strong>${e.a}</strong>?`,
+      optionen,
+      richtigIndex: optionen.indexOf(bedeutung(e)),
+      hilfe: `${ADJ_HILFE}<br>Zerlege das Wort: ${e.a} = <strong>${bedeutung(e)}</strong>.`
+    };
+  }
+
+  function genAdjSchreibweiseFrage() {
+    const e = pickN([...ADJ_SOWIE.map(x => x.a), ...ADJ_ADJ.map(x => x.a)], 1)[0];
+    const getrennt = e.replace(/^(.{3,6}?)(blau|grün|rot|gelb|braun|weiß|kalt|schnell|leicht|hart|weich|süß|schwarz|hoch|müde|stark|flink|glatt|klar)$/, '$1 $2');
+    const gross = e.charAt(0).toUpperCase() + e.slice(1);
+    const optionen = shuffle([e, getrennt === e ? e.slice(0, 4) + ' ' + e.slice(4) : getrennt, gross]);
+    return {
+      typ: 'mc',
+      frage: 'Welche Schreibweise ist richtig?',
+      optionen,
+      richtigIndex: optionen.indexOf(e),
+      hilfe: ADJ_HILFE
+    };
+  }
+
+  // Woerter mit doppelten Mitlauten: Doppelmitlaut + Beispielsatz
+  const DOPPEL_WOERTER = [
+    ['Ball', 'll', 'Wir spielen im Garten mit dem Ball.'], ['Brille', 'll', 'Opa liest die Zeitung mit seiner Brille.'],
+    ['Welle', 'll', 'Die Welle rollt an den Strand.'], ['Wolle', 'll', 'Aus Wolle strickt Oma einen Schal.'],
+    ['Stall', 'll', 'Das Pferd steht im Stall.'], ['Rolle', 'll', 'Im Theaterstück spielt Max die Rolle des Königs.'],
+    ['Sommer', 'mm', 'Im Sommer gehen wir schwimmen.'], ['Hammer', 'mm', 'Papa schlägt den Nagel mit dem Hammer in die Wand.'],
+    ['Himmel', 'mm', 'Am Himmel scheint die Sonne.'], ['Zimmer', 'mm', 'Mein Zimmer ist aufgeräumt.'],
+    ['Lamm', 'mm', 'Das kleine Lamm blökt auf der Wiese.'], ['Kamm', 'mm', 'Ich kämme mir die Haare mit dem Kamm.'],
+    ['Tanne', 'nn', 'Im Wald wächst eine hohe Tanne.'], ['Sonne', 'nn', 'Die Sonne scheint hell.'],
+    ['Kanne', 'nn', 'Mama gießt den Tee aus der Kanne.'], ['Spinne', 'nn', 'Die Spinne baut ein Netz.'],
+    ['Tonne', 'nn', 'Der Müll kommt in die Tonne.'], ['Mann', 'nn', 'Der Mann liest die Zeitung.'],
+    ['Suppe', 'pp', 'Zum Mittagessen gibt es Suppe.'], ['Puppe', 'pp', 'Maja spielt mit ihrer Puppe.'],
+    ['Treppe', 'pp', 'Wir gehen die Treppe hinauf.'], ['Mappe', 'pp', 'Die Hefte stecken in der Mappe.'],
+    ['Klappe', 'pp', 'Mach bitte die Klappe zu.'], ['Lippe', 'pp', 'Ich beiße mir auf die Lippe.'],
+    ['Herr', 'rr', 'Herr Müller ist unser Nachbar.'], ['Geschirr', 'rr', 'Nach dem Essen spülen wir das Geschirr.'],
+    ['Tasse', 'ss', 'Papa trinkt Kaffee aus einer Tasse.'], ['Wasser', 'ss', 'Ich trinke ein Glas Wasser.'],
+    ['Messer', 'ss', 'Mit dem Messer schneide ich das Brot.'], ['Kasse', 'ss', 'Im Supermarkt bezahlen wir an der Kasse.'],
+    ['Fluss', 'ss', 'Die Brücke führt über den Fluss.'], ['Kuss', 'ss', 'Mama gibt mir einen Kuss.'],
+    ['Bett', 'tt', 'Abends gehe ich ins Bett.'], ['Blatt', 'tt', 'Im Herbst fällt jedes Blatt vom Baum.'],
+    ['Butter', 'tt', 'Ich esse Brot mit Butter.'], ['Mutter', 'tt', 'Meine Mutter kocht das Abendessen.'],
+    ['Zettel', 'tt', 'Auf dem Zettel steht die Einkaufsliste.'], ['Kette', 'tt', 'Sie trägt eine goldene Kette.'],
+    ['Mitte', 'tt', 'Der Tisch steht in der Mitte des Raumes.'], ['Bitte', 'tt', 'Ich habe eine Bitte an dich.'],
+    ['Schatten', 'tt', 'Im Sommer sitzen wir im Schatten.'], ['Koffer', 'ff', 'Ich packe meinen Koffer für den Urlaub.'],
+    ['Löffel', 'ff', 'Die Suppe esse ich mit dem Löffel.'], ['Affe', 'ff', 'Im Zoo klettert der Affe auf den Baum.'],
+    ['Schiff', 'ff', 'Das große Schiff fährt über das Meer.'], ['Stoff', 'ff', 'Aus buntem Stoff näht Oma ein Kleid.'],
+    ['Kaffee', 'ff', 'Papa trinkt jeden Morgen Kaffee.'], ['Krabbe', 'bb', 'Die Krabbe läuft seitwärts über den Sand.'],
+    ['Ebbe', 'bb', 'Bei Ebbe ist das Wasser weit draußen.'], ['Robbe', 'bb', 'Die Robbe liegt am Strand.']
+  ];
+  const DOPPEL_HILFE = '<strong>Merke:</strong> Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben: Der Mitlaut steht an der Silbengrenze zweimal.';
+
+  function silben(wort, dbl) { return wort.replace(dbl, dbl[0] + '-' + dbl[1]); }
+
+  function genDoppelLueckeFrage() {
+    const [wort, dbl, satz] = pickN(DOPPEL_WOERTER, 1)[0];
+    const luecke = wort.replace(dbl, '__');
+    return {
+      typ: 'text',
+      frage: `Welche zwei gleichen Mitlaute fehlen?<br>${satz.replace(wort, luecke)}`,
+      verlaufText: `Doppelter Mitlaut: ${luecke}`,
+      antwort: dbl,
+      hilfe: `${DOPPEL_HILFE}<br>Das Wort heißt <strong>${wort}</strong> (${silben(wort, dbl)}).`
+    };
+  }
+
+  function genDoppelWahlFrage() {
+    const [wort, dbl] = pickN(DOPPEL_WOERTER, 1)[0];
+    const falsch = wort.replace(dbl, dbl[0]);
+    const optionen = shuffle([wort, falsch]);
+    return {
+      typ: 'mc',
+      frage: 'Welches Wort ist richtig geschrieben?',
+      optionen,
+      richtigIndex: optionen.indexOf(wort),
+      hilfe: `${DOPPEL_HILFE}<br>Richtig: <strong>${wort}</strong> (${silben(wort, dbl)}).`
+    };
+  }
+
+  const ADJ_BEREICHE = [
+    { kategorie: 'zusadjektive', gen: genAdjSoWieFrage },
+    { kategorie: 'zusadjektive', gen: genAdjSoWieFrage },
+    { kategorie: 'zusadjektive', gen: genAdjAdjFrage },
+    { kategorie: 'zusadjektive', gen: genAdjSchreibweiseFrage },
+    { kategorie: 'zusadjektive', gen: genAdjArtFrage },
+    { kategorie: 'zusadjektive', gen: genAdjBedeutungFrage }
+  ];
+  const DOPPEL_BEREICHE = [
+    { kategorie: 'doppelmitlaute', gen: genDoppelWahlFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelWahlFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelLueckeFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelLueckeFrage }
+  ];
+
+  // Tagesaufgaben Deutsch im Ferientraining: Faelle (50 %), zusammengesetzte Adjektive
+  // (25 %), doppelte Mitlaute (25 %); falsch beantwortete Aufgaben kommen mit neuem
+  // Satz derselben Art spaeter noch einmal (neueVersion).
+  const DEUTSCH_FERIEN_BEREICHE = [...FAELLE_BEREICHE, ...ADJ_BEREICHE, ...DOPPEL_BEREICHE];
+  function genFaelleAufgabe() {
+    const b = pickN(DEUTSCH_FERIEN_BEREICHE, 1)[0];
+    const f = b.gen();
+    f.neueVersion = () => genFaelleAufgabe();
+    return f;
+  }
+
+  function starteFerienDeutsch() {
+    const starter = () => {
+      const anzahl = Ferientraining.restAnzahl('deutsch_tag', 10);
+      const fragen = [];
+      for (let i = 0; i < anzahl; i++) fragen.push(genFaelleAufgabe());
+      App.startQuizSession('deutsch', fragen, {
+        titel: 'Deutsch-Tagesaufgaben',
+        wiederholeFalsche: true,
+        pensumFach: 'deutsch',
+        ferienItem: 'deutsch_tag'
+      });
+    };
+    App.setLastStarter(starter); starter();
+  }
+
   // 13.09.2026: Alle bisher getrennten Themenbereiche (Rechtschreibung,
   // Wortarten erkennen, Schularbeit-Vorbereitung) zu EINEM gemeinsamen Pool
   // verschmolzen (siehe renderMenu oben - Uli wollte keine Themenbereiche mehr,
@@ -479,7 +1022,11 @@ const Deutsch = (function () {
     { kategorie: 'anredepronomen', gen: genAnredepronomenFrage },
     { kategorie: 'briefstil', gen: genBriefStilFrage },
     { kategorie: 'briefstil', gen: genBriefStilFrage },
-    { kategorie: 'briefstil', gen: genBriefStilFrage }
+    { kategorie: 'briefstil', gen: genBriefStilFrage },
+    // Neu 11.10.2026: Die vier Faelle (Test 29.10.) - Schwerpunkt, mehrfach gelistet
+    ...FAELLE_BEREICHE, ...FAELLE_BEREICHE,
+    // Ebenfalls Test 29.10.: zusammengesetzte Adjektive, Woerter mit doppelten Mitlauten
+    ...ADJ_BEREICHE, ...DOPPEL_BEREICHE
   ];
 
   function genDeutschUebenAufgabe(anzahl) {
@@ -540,5 +1087,5 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteDeutschUeben, starteLesen };
+  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch };
 })();

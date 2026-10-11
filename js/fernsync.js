@@ -379,7 +379,7 @@ const FernSync = (function () {
     }).then(r => { if (!r.ok) throw new Error('http ' + r.status); });
   }
 
-  function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach, verlauf) {
+  function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach, verlauf, text) {
     if (!BACKEND_URL) return;
     const body = {
       titel, zusammenfassung, sterne, fach,
@@ -387,6 +387,7 @@ const FernSync = (function () {
       matheKategorienStats: Storage.getMatheKategorienStats()
     };
     if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
+    if (typeof text === 'string' && text) body.text = text; // z.B. abgetippter Schreibtext (siehe schreiben.js)
     sendeLernsetMeldung(body).catch(() => {
       // Kein Internet gerade / Backend nicht erreichbar (z.B. Render-Cold-
       // Start, siehe fetchMitTimeout-Timeout) - NICHT wie frueher einfach

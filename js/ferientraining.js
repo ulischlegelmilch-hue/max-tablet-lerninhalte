@@ -29,6 +29,18 @@ const Ferientraining = (function () {
       start: () => Mathe.starteFachbegriffeUebung('gemischt', true)
     },
     {
+      // Deutsch: Die vier Faelle, zusammengesetzte Adjektive, doppelte Mitlaute (Test 29.10.2026) - 10 Aufgaben pro Tag
+      id: 'deutsch_tag', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Fälle & Rechtschreibung',
+      text: 'Vier Fälle, zusammengesetzte Adjektive, doppelte Mitlaute', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Deutsch.starteFerienDeutsch()
+    },
+    {
+      // Schreibauftrag des Tages (siehe schreiben.js): Mo-Fr zum Stoff, Sa/So frei
+      id: 'schreiben_tag', fach: 'deutsch', icon: 'rechtschreibung', titel: 'Schreiben',
+      text: () => Schreiben.kurzText(), einheit: 'Auftrag', ziel: () => 1,
+      start: () => Schreiben.render()
+    },
+    {
       // Tageskarten aus den aktiven Radfahr-Stapeln: die ersten 4 Stapel, jeder
       // weitere, sobald Max die meisten Karten der aktiven Stapel kann (siehe
       // Heimatkunde.aktiveStapel).
@@ -36,7 +48,6 @@ const Ferientraining = (function () {
       text: () => Heimatkunde.stapelText(), einheit: 'Karten', ziel: () => 30,
       start: () => Heimatkunde.starteTagesLernkarten()
     }
-    // Deutsch: 10 Aufgaben pro Tag - folgt, sobald der Lernstoff feststeht.
   ];
 
   function wert(x) { return typeof x === 'function' ? x() : x; }

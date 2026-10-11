@@ -2002,3 +2002,15 @@ html, body {
 .chat-hinweis-titel { font-size: 20px; font-weight: 800; }
 .chat-hinweis-nachricht { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-hinweis-los { flex-shrink: 0; font-size: 17px; font-weight: 800; background: #fff; border-radius: 20px; padding: 8px 16px; }
+
+
+/* Schreibauftrag (siehe schreiben.js) */
+.schreib-karte { max-width: 760px; margin: 0 auto var(--space-5); background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-5); box-shadow: var(--shadow-sm); }
+.schreib-art { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+.schreib-auftrag { font-size: 22px; font-weight: 700; line-height: 1.4; color: var(--ink); }
+.schreib-fertig { text-align: center; font-size: 20px; font-weight: 800; color: #2E7D46; margin: var(--space-5) 0; }
+.schreib-oder { max-width: 760px; margin: var(--space-5) auto 8px; font-size: 14px; color: var(--ink-soft); }
+.schreib-feld { display: block; max-width: 760px; width: 100%; margin: 0 auto var(--space-3); box-sizing: border-box; padding: 12px;
+  font-size: 18px; font-family: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); color: var(--ink); }
+.schreib-hinweis { text-align: center; color: #B3382B; font-size: 14px; min-height: 20px; }
