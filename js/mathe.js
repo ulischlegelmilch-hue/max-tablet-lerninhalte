@@ -54,7 +54,7 @@ const Mathe = (function () {
       <div class="lese-text">Wähl die 1×1-Reihen aus, die bei "Malfolgen üben" drankommen sollen.</div>
       <div class="regel-karte">
         <div class="reihen-grid">
-          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => `
+          ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => `
             <label class="reihen-check">
               <input type="checkbox" class="reihen-checkbox" value="${n}"${Storage.getMalfolgenReihen().includes(n) ? ' checked' : ''}>
               ${n}er-Reihe
@@ -1334,7 +1334,7 @@ const Mathe = (function () {
   // sich die App zusaetzlich ueber Tage hinweg, welche Fakten oft falsch waren,
   // und legt genau die in kuenftigen Sitzungen haeufiger vor. ----
   function malfolgenAlleFakten() {
-    const reihen = Storage.getMalfolgenReihen();
+    const reihen = Storage.getMalfolgenReihen().filter(r => r <= MALFOLGEN_MAX_REIHE);
     const fakten = [];
     for (const a of reihen) {
       for (let b = 1; b <= 10; b++) fakten.push(`${a}x${b}`);
@@ -1477,9 +1477,9 @@ const Mathe = (function () {
   // ---- Reihen automatisch erweitern (Ferientraining, Uli 11.10.2026): Max startet mit
   // den aktuell gewaehlten Reihen (Storage.getMalfolgenReihen); kann er "die
   // meisten" dieser Aufgaben (>= 80 %, beim letzten Mal richtig), kommt die
-  // naechste Reihe (die naechsthoehere nach der groessten gewaehlten, bis 12) dazu - und so weiter. ----
+  // naechste Reihe (die naechsthoehere nach der groessten gewaehlten, bis 10) dazu - und so weiter. ----
   const MALFOLGEN_WEITER_ANTEIL = 0.8;
-  const MALFOLGEN_MAX_REIHE = 12;
+  const MALFOLGEN_MAX_REIHE = 10; // Max lernt nur das kleine Einmaleins (1-10)
 
   function malfolgenZaehlung() {
     const stats = Storage.getMalfolgenStats();
@@ -1488,11 +1488,14 @@ const Mathe = (function () {
   }
 
   function erweitereMalfolgenReihen() {
+    // Reihen ueber 10 (z.B. 11/12 aus einer frueheren Auswahl) gibt es nicht mehr
+    const gueltig = Storage.getMalfolgenReihen().filter(r => r >= 1 && r <= MALFOLGEN_MAX_REIHE);
+    if (gueltig.length !== Storage.getMalfolgenReihen().length) Storage.setMalfolgenReihen(gueltig.length ? gueltig : [1]);
     for (let i = 0; i < MALFOLGEN_MAX_REIHE; i++) {
       const z = malfolgenZaehlung();
       if (z.gesamt === 0 || z.kann / z.gesamt < MALFOLGEN_WEITER_ANTEIL) return;
       const reihen = Storage.getMalfolgenReihen();
-      // naechste Reihe NACH der hoechsten gewaehlten; ist die schon 12, die kleinste fehlende
+      // naechste Reihe NACH der hoechsten gewaehlten; ist die schon 10, die kleinste fehlende
       let naechste = Math.max(...reihen) + 1;
       if (naechste > MALFOLGEN_MAX_REIHE) {
         naechste = 1;
@@ -2505,6 +2508,7 @@ const Mathe = (function () {
     const teile = z.map((a, i) => a > 0 ? `${a} ${STELLEN_NAMEN[i]}` : null).filter(Boolean).join(', ');
     return {
       typ: 'numeric',
+      verlaufText: `Zahl aus Würfeln lesen: ${teile}`,
       frage: `Wie heißt die Zahl?${htmlWuerfel(z)}<span style="font-size:0.8em">Große Würfel = Tausender · Platten = Hunderter · Stangen = Zehner · kleine Würfel = Einer</span>`,
       antwort: n,
       hilfe: `Zähle jede Sorte einzeln: ${teile}.<br>Was fehlt, ist eine 0 an dieser Stelle.<br><strong>${z.join(' ')} → ${formatZahl(n)}</strong>`
@@ -2562,6 +2566,7 @@ const Mathe = (function () {
     const n = ziffernZuZahl(z);
     return {
       typ: 'numeric',
+      verlaufText: `Plättchen-Tafel (T H Z E = ${z.join(' ')})${mehr ? ': Zahl mit je einem Plättchen mehr' : ': Zahl lesen'}`,
       frage: mehr
         ? `Wie heißt die Zahl, wenn in jeder Spalte ein Plättchen dazu kommt?${htmlPlaettchenTafel(z)}`
         : `Wie heißt die Zahl?${htmlPlaettchenTafel(z)}`,
@@ -2609,6 +2614,7 @@ const Mathe = (function () {
     if (Math.random() < 0.3) {
       return {
         typ: 'numeric',
+        verlaufText: `Zahlenstrahl ${start}–${start + grosse * spanne}: Abstand der kleinen Striche`,
         frage: `Ergänze den Satz: Der Abstand zwischen den kleinen Strichen ist immer ▢.${svgZahlenstrahl(start, schritt, grosse)}`,
         antwort: schritt,
         hilfe: hilfeAbstand
@@ -2619,6 +2625,7 @@ const Mathe = (function () {
     const ziel = start + pos * schritt;
     return {
       typ: 'numeric',
+      verlaufText: `Zahlenstrahl ${start}–${start + grosse * spanne} (Schritt ${schritt}): Zahl am roten Pfeil`,
       frage: `Welche Zahl gehört zum roten Pfeil?${svgZahlenstrahl(start, schritt, grosse, pos)}`,
       antwort: ziel,
       hilfe: hilfeAbstand + `<br>Der Pfeil ist ${pos % 10} Abschnitte hinter ${start + Math.floor(pos / 10) * spanne}: ${start + Math.floor(pos / 10) * spanne} + ${pos % 10} · ${schritt} = <strong>${ziel}</strong>.`

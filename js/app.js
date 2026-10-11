@@ -948,11 +948,15 @@ const App = (function () {
     // damit dort echte Antwort-Buttons mit derselben Faerbung nachgebaut
     // werden koennen statt nur Text.
     const eintrag = {
-      frage: klartextFrage(f.frage),
+      // verlaufText: kurze Beschreibung fuer Bild-Aufgaben (Zahlenstrahl/Wuerfel/...),
+      // deren Fragetext sonst nur Markup waere. Das Backend verwirft die GANZE
+      // Verlaufsliste, wenn ein Eintrag zu lang ist (frage > 200, frageHtml > 600
+      // Zeichen) - dann fehlt Papa die Detail-Auswertung komplett.
+      frage: (f.verlaufText || klartextFrage(f.frage)).slice(0, 200),
       ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig',
       richtigeAntwort: f.typ === 'mc' ? f.optionen[f.richtigIndex] : f.antwort,
       falscheAntwort: ersteFalscheAntwort,
-      frageHtml: f.frage,
+      frageHtml: String(f.frage).length <= 600 ? f.frage : undefined,
       typ: f.typ
     };
     if (f.lesetext) eintrag.lesetextHtml = f.lesetext;
