@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-11-1259",
+  "version": "2026-10-11-1356",
   "files": [
     "css/style.css",
     "images/buecher/enzo/seite-01.jpg",
@@ -79,6 +79,7 @@
     "js/belohnungen.js",
     "js/chat.js",
     "js/deutsch.js",
+    "js/ferientraining.js",
     "js/fernsync.js",
     "js/geschichten.js",
     "js/heimatkunde.js",

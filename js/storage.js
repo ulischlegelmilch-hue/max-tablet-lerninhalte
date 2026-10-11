@@ -305,6 +305,35 @@ const Storage = (function () {
     save(state);
   }
 
+  // ---- Ferientraining (siehe ferientraining.js): taeglicher Zaehler je Plan-Punkt ----
+  function getFerienFortschritt() {
+    const heute = heutigesDatum();
+    if (!state.ferienFortschritt || state.ferienFortschritt.datum !== heute) {
+      state.ferienFortschritt = { datum: heute, count: {}, erledigt: {} };
+      save(state);
+    }
+    return state.ferienFortschritt;
+  }
+
+  function getFerienZaehler(id) { return getFerienFortschritt().count[id] || 0; }
+
+  /** Ein Plan-Punkt gilt erst als erledigt, wenn die Sitzung ABGESCHLOSSEN ist
+   *  (inkl. der Wiederholungen falscher Aufgaben), nicht schon beim Erreichen der Zahl. */
+  function getFerienErledigt(id) { return !!(getFerienFortschritt().erledigt || {})[id]; }
+
+  function setFerienErledigt(id) {
+    const f = getFerienFortschritt();
+    f.erledigt = f.erledigt || {};
+    f.erledigt[id] = true;
+    save(state);
+  }
+
+  function meldeFerienFortschritt(id) {
+    const f = getFerienFortschritt();
+    f.count[id] = (f.count[id] || 0) + 1;
+    save(state);
+  }
+
   /** Vom Handy aus (ueber das Max-Tablet-Backend) gesetzte Regeln + freie
    *  Zusatzaufgaben - siehe fernsync.js. Rein clientseitig gecached, wird bei
    *  jedem erfolgreichen Poll komplett ueberschrieben (Server ist die Quelle
@@ -915,6 +944,7 @@ const Storage = (function () {
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln,
     getTagesPensum, getTagesPensumAnzahl, getTagesPensumErledigt, meldeTagespensumAntwort,
+    getFerienZaehler, meldeFerienFortschritt, getFerienErledigt, setFerienErledigt,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,
     getSchachTagesplan, meldeTagesplanSchrittErledigt,

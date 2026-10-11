@@ -36,7 +36,7 @@ const Mathe = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'tagesaufgabe', titel: 'Ferien-Training', onclick: 'Mathe.starteFerienTraining()' },
+      { icon: 'tagesaufgabe', titel: 'Ferien-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
@@ -1472,9 +1472,44 @@ const Mathe = (function () {
   // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
   // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
   const AKTIVITAET_MALFOLGEN = 'malfolgen';
-  const ANZAHL_MALFOLGEN = 30;
+  const ANZAHL_MALFOLGEN = 20; // Tagesziel im Ferientraining (siehe ferientraining.js)
+
+  // ---- Reihen automatisch erweitern (Ferientraining, Uli 11.10.2026): Max startet mit
+  // den aktuell gewaehlten Reihen (Storage.getMalfolgenReihen); kann er "die
+  // meisten" dieser Aufgaben (>= 80 %, beim letzten Mal richtig), kommt die
+  // naechste Reihe (die naechsthoehere nach der groessten gewaehlten, bis 12) dazu - und so weiter. ----
+  const MALFOLGEN_WEITER_ANTEIL = 0.8;
+  const MALFOLGEN_MAX_REIHE = 12;
+
+  function malfolgenZaehlung() {
+    const stats = Storage.getMalfolgenStats();
+    const fakten = malfolgenAlleFakten();
+    return { kann: fakten.filter(f => stats[f] && (stats[f].serie || 0) >= 1).length, gesamt: fakten.length };
+  }
+
+  function erweitereMalfolgenReihen() {
+    for (let i = 0; i < MALFOLGEN_MAX_REIHE; i++) {
+      const z = malfolgenZaehlung();
+      if (z.gesamt === 0 || z.kann / z.gesamt < MALFOLGEN_WEITER_ANTEIL) return;
+      const reihen = Storage.getMalfolgenReihen();
+      // naechste Reihe NACH der hoechsten gewaehlten; ist die schon 12, die kleinste fehlende
+      let naechste = Math.max(...reihen) + 1;
+      if (naechste > MALFOLGEN_MAX_REIHE) {
+        naechste = 1;
+        while (reihen.includes(naechste) && naechste <= MALFOLGEN_MAX_REIHE) naechste++;
+      }
+      if (naechste > MALFOLGEN_MAX_REIHE) return;
+      Storage.setMalfolgenReihen(reihen.concat(naechste).sort((a, b) => a - b));
+    }
+  }
+
+  function malfolgenText() {
+    const z = malfolgenZaehlung();
+    return `Reihen ${Storage.getMalfolgenReihen().join(', ')} · ${z.kann} von ${z.gesamt} Aufgaben gekonnt`;
+  }
 
   function starteMalfolgenKarten() {
+    erweitereMalfolgenReihen();
     const offen = Storage.getOffeneSession(AKTIVITAET_MALFOLGEN);
     if (offen && offen.index > 0 && offen.index < ANZAHL_MALFOLGEN) {
       const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN - offen.index);
@@ -1485,9 +1520,10 @@ const Mathe = (function () {
         anzeigeOffset: offen.index,
         verlauf: offen.verlauf || []
       };
+      mfSession.istWdh = fakten.map(() => false);
     } else {
       const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN);
-      mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0, verlauf: [] };
+      mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0, verlauf: [], istWdh: fakten.map(() => false) };
     }
     App.setLastStarter(starteMalfolgenKarten);
     renderMalfolgenKarte();
@@ -1534,6 +1570,13 @@ const Mathe = (function () {
     if (!mfUmgedreht) return; // erst umdrehen, dann bewerten
     const fakt = mfSession.fakten[mfSession.index];
     Storage.meldeMalfolgenErgebnis(fakt, korrekt);
+    if (!mfSession.istWdh[mfSession.index]) Ferientraining.melde('mathe_malfolgen');
+    // Nicht gewusst: dieselbe Karte kommt ein paar Karten spaeter noch einmal dazu
+    if (!korrekt) {
+      const pos = Math.min(mfSession.fakten.length, mfSession.index + 4);
+      mfSession.fakten.splice(pos, 0, fakt);
+      mfSession.istWdh.splice(pos, 0, true);
+    }
     const gained = Storage.addAntwort('mathe', korrekt, 1);
     if (korrekt) { mfSession.richtig++; mfSession.sterne += gained; }
     // Fuer die Aufgaben-Verlaufsliste in Papas Auswertung, siehe App.js
@@ -1557,6 +1600,7 @@ const Mathe = (function () {
   }
 
   function renderMalfolgenErgebnis() {
+    Ferientraining.abschluss('mathe_malfolgen');
     const total = mfSession.fakten.length + mfSession.anzeigeOffset;
     const quote = Math.round((mfSession.richtig / total) * 100);
     let emoji = '🙂';
@@ -1569,6 +1613,7 @@ const Mathe = (function () {
         <div class="result-emoji">${emoji}</div>
         <div class="result-title">${mfSession.richtig} von ${total} gewusst!</div>
         <div class="result-sterne">Du hast ${mfSession.sterne} ⭐ verdient</div>
+        ${Ferientraining.rueckkehrButtonHtml()}
         <div class="btn-primary" onclick="App.restartLast()">Nochmal üben</div>
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Mathe.renderMalfolgenUebersicht()">Fortschritt ansehen</div>
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.gotoHome()">Zum Hauptmenü</div>
@@ -2331,11 +2376,14 @@ const Mathe = (function () {
     return fragen;
   }
 
-  function starteFachbegriffeUebung(modus) {
-    const starter = () => App.startQuizSession('mathe', genFachbegriffeUebung(modus, 10), {
+  // ferien=true: Tagesziel im Ferientraining (nur der heute noch fehlende Rest,
+  // zaehlt + hakt ab); sonst freies Ueben wie bisher.
+  function starteFachbegriffeUebung(modus, ferien) {
+    const starter = () => App.startQuizSession('mathe', genFachbegriffeUebung(modus, ferien ? Ferientraining.restAnzahl('mathe_rechenarten', 10) : 10), {
       titel: FACHBEGRIFFE_MODI[modus].titel,
       wiederholeFalsche: true,
-      pensumFach: 'mathe'
+      pensumFach: 'mathe',
+      ferienItem: ferien ? 'mathe_rechenarten' : undefined
     });
     App.setLastStarter(starter);
     starter();
@@ -2709,7 +2757,6 @@ const Mathe = (function () {
     { kategorie: 'ferientest', gen: genRechenregelnGemischtFrage }
   ];
 
-  const ANZAHL_FERIEN = 20;
 
   function genFerienUebung(anzahl) {
     const fragen = [];
@@ -2724,10 +2771,12 @@ const Mathe = (function () {
   }
 
   function starteFerienTraining() {
-    const starter = () => App.startQuizSession('mathe', genFerienUebung(ANZAHL_FERIEN), {
-      titel: 'Ferien-Training',
+    // Nur den heute noch FEHLENDEN Rest abfragen (siehe Ferientraining.restAnzahl)
+    const starter = () => App.startQuizSession('mathe', genFerienUebung(Ferientraining.restAnzahl('mathe_tag', 10)), {
+      titel: 'Mathe-Tagesaufgaben',
       wiederholeFalsche: true,
-      pensumFach: 'mathe'
+      pensumFach: 'mathe',
+      ferienItem: 'mathe_tag'
     });
     App.setLastStarter(starter);
     starter();
@@ -2902,6 +2951,6 @@ const Mathe = (function () {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
     starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
-    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining
+    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText
   };
 })();

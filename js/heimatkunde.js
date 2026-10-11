@@ -426,7 +426,87 @@ const Heimatkunde = (function () {
   // keine falschen Karten, gibt es keine sinnvolle Sitzung zu starten -
   // renderKeineFalschenKarten() zeigt dann eine freundliche Leer-Meldung statt
   // einer kaputten 0-Karten-Sitzung.
+  // ---- Ferientraining-Tageskarten (11.10.2026, Uli-Wunsch): Max lernt jeden Tag
+  // 30 Karten aus den AKTIVEN Radfahr-Stapeln. Aktiv sind zunaechst die ersten 4
+  // Stapel (Reihenfolge = LERNTHEMEN); sobald Max ALLE Karten der aktiven Stapel
+  // sicher kann (2x in Folge richtig, siehe lernkartenStatus), kommt der naechste
+  // Stapel dazu, bis alle Stapel dran sind. Gewichtung wie sonst: schwache
+  // Karten oefter. Ergebnisse gehen an die Statistik des Herkunftsstapels
+  // (_quellThema/_quellIdx, wie bei rad_falsch). ----
+  const START_STAPEL = 4;
+  const TAGESKARTEN_THEMA = 'rad_tag';
+
+  function radThemen() {
+    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === 'rad' && k !== 'rad_falsch');
+  }
+
+  // Karte "kann Max" = beim letzten Mal richtig (serie >= 1)
+  function kartenKann(stat) { return !!(stat && (stat.serie || 0) >= 1); }
+  const WEITER_ANTEIL = 0.8; // "die meisten": ab 80 % der aktiven Karten kommt der naechste Stapel
+
+  function stapelZaehlung(keys) {
+    let kann = 0, gesamt = 0;
+    keys.forEach(key => {
+      const stats = Storage.getLernkartenStats(key);
+      LERNTHEMEN[key].karten().forEach((_, i) => { gesamt++; if (kartenKann(stats[i])) kann++; });
+    });
+    return { kann, gesamt };
+  }
+
+  function aktiveStapel() {
+    const liste = radThemen();
+    let n = Math.min(START_STAPEL, liste.length);
+    while (n < liste.length) {
+      const z = stapelZaehlung(liste.slice(0, n));
+      if (z.gesamt === 0 || z.kann / z.gesamt < WEITER_ANTEIL) break;
+      n++;
+    }
+    return liste.slice(0, n);
+  }
+
+  function stapelText() {
+    const aktive = aktiveStapel();
+    const z = stapelZaehlung(aktive);
+    return `${aktive.length} von ${radThemen().length} Stapeln aktiv · ${z.kann} von ${z.gesamt} Karten gekonnt`;
+  }
+
+  // n verschiedene Karten, gewichtet gezogen (ohne Zuruecklegen)
+  function baueTageskartenDeck(anzahl) {
+    const pool = [];
+    aktiveStapel().forEach(key => {
+      const stats = Storage.getLernkartenStats(key);
+      LERNTHEMEN[key].karten().forEach((karte, i) => {
+        pool.push({ karte: { front: karte.front, back: karte.back, _quellThema: key, _quellIdx: i }, w: gewichtFuerLernkartenStat(stats[i]) });
+      });
+    });
+    const gezogen = [];
+    while (gezogen.length < anzahl && pool.length > 0) {
+      let ziel = Math.random() * pool.reduce((s, p) => s + p.w, 0);
+      let idx = pool.findIndex(p => (ziel -= p.w) <= 0);
+      if (idx < 0) idx = pool.length - 1;
+      gezogen.push(pool.splice(idx, 1)[0].karte);
+    }
+    return shuffle(gezogen);
+  }
+
+  function starteTagesLernkarten() {
+    const aktivitaet = aktivitaetFuerThema(TAGESKARTEN_THEMA);
+    const offen = Storage.getOffeneSession(aktivitaet);
+    if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length) {
+      lkSession = {
+        thema: TAGESKARTEN_THEMA, titel: 'Radfahren – Tageskarten', bewertung: true, karten: offen.karten, index: offen.index,
+        richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
+      };
+    } else {
+      const karten = baueTageskartenDeck(Ferientraining.restAnzahl('heimat_lernkarten', 30));
+      lkSession = { thema: TAGESKARTEN_THEMA, titel: 'Radfahren – Tageskarten', bewertung: true, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
+    }
+    App.setLastStarter(starteTagesLernkarten);
+    renderLernkarte();
+  }
+
   function starteLernkarten(thema) {
+    if (thema === TAGESKARTEN_THEMA) { starteTagesLernkarten(); return; }
     const info = LERNTHEMEN[thema];
     if (info.bewertung) {
       const offen = Storage.getOffeneSession(aktivitaetFuerThema(thema));
@@ -532,10 +612,16 @@ const Heimatkunde = (function () {
     const zielThema = karte._quellThema || lkSession.thema;
     const zielIdx = karte._quellThema ? karte._quellIdx : karte._idx;
     Storage.meldeLernkartenErgebnis(zielThema, zielIdx, korrekt);
+    if (lkSession.thema === TAGESKARTEN_THEMA && !karte._wiederholung) Ferientraining.melde('heimat_lernkarten');
     const gained = Storage.addAntwort('heimat', korrekt, 1);
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
     lkSession.verlauf.push({ frage: textOhneBild(karte.front), ergebnis: korrekt ? 'richtig' : 'falsch' });
     App.updateTopbar();
+    // Tageskarten: fuer jede nicht gewusste Karte kommt eine weitere dazu (ein paar
+    // Karten spaeter nochmal), wie bei den Quiz-Aufgaben (wiederholeFalsche).
+    if (!korrekt && lkSession.thema === TAGESKARTEN_THEMA) {
+      lkSession.karten.splice(Math.min(lkSession.karten.length, lkSession.index + 4), 0, Object.assign({}, karte, { _wiederholung: true }));
+    }
     lkSession.index++;
     const aktivitaet = aktivitaetFuerThema(lkSession.thema);
     if (lkSession.index >= lkSession.karten.length) {
@@ -551,6 +637,7 @@ const Heimatkunde = (function () {
   }
 
   function renderLernkartenErgebnis() {
+    if (lkSession.thema === TAGESKARTEN_THEMA) Ferientraining.abschluss('heimat_lernkarten');
     if (!lkSession.bewertung) {
       App.render(`
         <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -571,8 +658,9 @@ const Heimatkunde = (function () {
         <div class="result-emoji">${emoji}</div>
         <div class="result-title">${lkSession.richtig} von ${total} gewusst!</div>
         <div class="result-sterne">Du hast ${lkSession.sterne} ⭐ verdient</div>
+        ${lkSession.thema === TAGESKARTEN_THEMA ? Ferientraining.rueckkehrButtonHtml() : ''}
         <div class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal üben</div>
-        <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Heimatkunde.renderLernkartenUebersicht('${lkSession.thema}')">Fortschritt ansehen</div>
+        ${lkSession.thema === TAGESKARTEN_THEMA ? '' : `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Heimatkunde.renderLernkartenUebersicht('${lkSession.thema}')">Fortschritt ansehen</div>`}
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</div>
       </div>
     `);
@@ -664,5 +752,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel };
 })();

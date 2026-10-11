@@ -129,33 +129,14 @@ const App = (function () {
     return !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
   }
 
+  // Tagesplan der Startseite = Ferientraining-Checkliste (siehe ferientraining.js)
+  // plus die naechste Geschichte. Die frueheren regelbasierten Pflicht-/Extra-
+  // Chips (TAGESPLAN_FACH_META) sind ersetzt; die Fach-Menues bleiben fuer freies
+  // Ueben unveraendert.
   function baueTagesplan() {
     const offen = Geschichten.naechsteOffene();
-    const pensum = Storage.getTagesPensum();
-    const pensumFaecher = pensum.map(p => p.fach);
-
-    const pflichtChips = pensum.map(p => {
-      const erledigt = Storage.getTagesPensumErledigt(p.fach);
-      const geschafft = erledigt >= p.anzahl;
-      return Object.assign({ fach: p.fach }, TAGESPLAN_FACH_META[p.fach], {
-        badge: geschafft ? '✅ Geschafft' : `${erledigt} von ${p.anzahl}`,
-        geschafft
-      });
-    });
-    const extraChips = Object.keys(TAGESPLAN_FACH_META)
-      .filter(fach => !pensumFaecher.includes(fach))
-      .map(fach => Object.assign({ fach }, TAGESPLAN_FACH_META[fach], { badge: 'Extra', extra: true }));
-
     return [
-      ...pflichtChips, ...extraChips,
-      {
-        // Fest, jeden Tag im Tagesplan (kein Regel-gesteuertes Pflichtfach wie
-        // oben, da Uli hierfuer keine Tages-/Wochentag-Differenzierung wollte,
-        // nur "jeden Tag ueben") - eigenes Karteikarten-Deck sorgt schon fuer
-        // Abdeckung ueber Tage hinweg, daher keine "X von Y"-Zielanzahl noetig.
-        fach: 'mathe', icon: 'malfolgen', fachName: 'Mathe',
-        titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()'
-      },
+      ...Ferientraining.chips(),
       {
         fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
         titel: GESCHICHTEN_STATUS_PRAEFIX[offen.status] + offen.titel,
@@ -199,7 +180,7 @@ const App = (function () {
       ${FernSync.zusatzaufgabenHtml()}
 
       <div class="tagesplan-banner">
-        <div class="tagesplan-titel">Dein Tagesplan</div>
+        <div class="tagesplan-titel" onclick="Ferientraining.renderListe()" style="cursor:pointer;">Dein Ferientraining heute · ${Ferientraining.anzahlErledigt()} von ${Ferientraining.anzahlPunkte()} erledigt ›</div>
         <div class="tagesplan-liste">${tagesplanHtml}</div>
       </div>
 
@@ -684,6 +665,8 @@ const App = (function () {
       // Pflicht-faehigen Tagesplan-Aktivitaeten (Mathe-Tagesaufgabe, Deutsch-
       // Rechtschreibung, Heimatkunde-Verkehrszeichen), nicht bei jeder Uebung.
       pensumFach: config && config.pensumFach,
+      // Ferientraining-Punkt (siehe ferientraining.js), den jede beantwortete Frage hochzaehlt
+      ferienItem: config && config.ferienItem,
       // Protokoll "welche Frage, welches Ergebnis" fuer Papas Auswertung (siehe
       // abschlussFrage/renderErgebnis) - macht eine abgeschlossene Aufgabenfolge
       // dort anklickbar, damit sichtbar wird, WELCHE Aufgaben Max richtig/falsch
@@ -936,6 +919,7 @@ const App = (function () {
     if (korrekt) session.richtigCount++;
     session.sessionSterne += gained;
     if (session.pensumFach) Storage.meldeTagespensumAntwort(session.pensumFach);
+    if (session.ferienItem && !f._wiederholung) Ferientraining.melde(session.ferienItem);
     updateTopbar();
 
     const f = session.fragen[session.index];
@@ -984,7 +968,8 @@ const App = (function () {
       // desselben Aufgabentyps zurueck, statt wortwoertlich identisch (bei den
       // Malfolgen-Fakten OHNE neueVersion bleibt es bewusst dieselbe Frage -
       // das ist dort ja genau die Karteikarte, die geuebt werden soll).
-      const wiederholung = typeof f.neueVersion === 'function' ? f.neueVersion() : f;
+      const wiederholung = typeof f.neueVersion === 'function' ? f.neueVersion() : Object.assign({}, f);
+      wiederholung._wiederholung = true; // zaehlt nicht nochmal fuers Tagesziel (Ferientraining)
       session.fragen.splice(neuePosition, 0, wiederholung);
     }
 
@@ -1033,11 +1018,14 @@ const App = (function () {
     else if (quote >= 70) emoji = '🎉';
     else if (quote >= 40) emoji = '👍';
 
+    if (session.ferienItem) Ferientraining.abschluss(session.ferienItem);
+
     render(`
       <div class="result-card">
         <div class="result-emoji">${emoji}</div>
         <div class="result-title">${session.richtigCount} von ${total} richtig!</div>
         <div class="result-sterne">Du hast ${session.sessionSterne} ⭐ verdient</div>
+        ${session.ferienItem ? Ferientraining.rueckkehrButtonHtml() : ''}
         <div class="btn-primary" onclick="App.restartLast()">Nochmal üben</div>
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>

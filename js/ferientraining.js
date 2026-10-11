@@ -1,0 +1,121 @@
+// Ferientraining (11.10.2026) - Uli-Wunsch: Max soll jeden Tag ein festes
+// Pensum haben, das er als kleine To-do-Liste sieht und nach und nach abhakt.
+// Die Liste (PLAN) ist bewusst eine einfache Konfiguration: weitere Punkte
+// (z.B. Deutsch) oder andere Mengen sind nur ein Eintrag/eine Zahl hier.
+//
+// Fortschritt: Storage.getFerienZaehler(id) zaehlt HEUTE zum ersten Mal
+// beantwortete Aufgaben bzw. bewertete Karten (Anzeige "x von Ziel"), taeglicher
+// Reset. Abgehakt wird ein Punkt erst, wenn seine Sitzung ABGESCHLOSSEN ist
+// (Ferientraining.abschluss) - und dazu gehoeren die Wiederholungen: fuer jede
+// falsch beantwortete Aufgabe/Karte kommt eine weitere dazu (App.abschlussFrage
+// bzw. Heimatkunde.bewerteLernkarte).
+const Ferientraining = (function () {
+  const PLAN = [
+    {
+      id: 'mathe_tag', fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Ferien-Aufgaben',
+      text: 'Zahlen bis 10 000, Zahlenstrahl, Rechenregeln', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Mathe.starteFerienTraining()
+    },
+    {
+      // Start mit den gewaehlten Reihen; "die meisten" gekonnt -> naechste Reihe
+      // kommt dazu (siehe Mathe.erweitereMalfolgenReihen).
+      id: 'mathe_malfolgen', fach: 'mathe', icon: 'malfolgen', titel: 'Mathe: Malfolgen',
+      text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => 20,
+      start: () => Mathe.starteMalfolgenKarten()
+    },
+    {
+      id: 'mathe_rechenarten', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Rechenarten & Fachbegriffe',
+      text: 'Plus, Minus, Mal, Geteilt und ihre Namen', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Mathe.starteFachbegriffeUebung('gemischt', true)
+    },
+    {
+      // Tageskarten aus den aktiven Radfahr-Stapeln: die ersten 4 Stapel, jeder
+      // weitere, sobald Max die meisten Karten der aktiven Stapel kann (siehe
+      // Heimatkunde.aktiveStapel).
+      id: 'heimat_lernkarten', fach: 'heimat', icon: 'verkehrszeichen', titel: 'Lernkarten Radfahren',
+      text: () => Heimatkunde.stapelText(), einheit: 'Karten', ziel: () => 30,
+      start: () => Heimatkunde.starteTagesLernkarten()
+    }
+    // Deutsch: 10 Aufgaben pro Tag - folgt, sobald der Lernstoff feststeht.
+  ];
+
+  function wert(x) { return typeof x === 'function' ? x() : x; }
+
+  function stand(item) {
+    const n = Storage.getFerienZaehler(item.id);
+    const z = Math.max(1, wert(item.ziel));
+    return { n, z, fertig: Storage.getFerienErledigt(item.id) };
+  }
+
+  function anzahlErledigt() { return PLAN.filter(i => stand(i).fertig).length; }
+
+  /** Zaehlt eine erledigte Einheit fuer einen Plan-Punkt (ignoriert unbekannte ids). */
+  function melde(id) {
+    const item = PLAN.find(i => i.id === id);
+    if (!item) return;
+    Storage.meldeFerienFortschritt(id);
+  }
+
+  /** Sitzung des Punkts ist heute komplett abgeschlossen (inkl. Wiederholungen
+   *  falscher Aufgaben/Karten) -> abgehakt. */
+  function abschluss(id) {
+    if (PLAN.some(i => i.id === id)) Storage.setFerienErledigt(id);
+  }
+
+  /** Noch fehlende Einheiten (fuer Sitzungen, die nur den Rest abfragen sollen);
+   *  ist der Punkt schon erledigt, ersatzweise `fallback`. */
+  function restAnzahl(id, fallback) {
+    const item = PLAN.find(i => i.id === id);
+    const s = stand(item);
+    return s.fertig ? fallback : Math.max(1, s.z - s.n);
+  }
+
+  // Chips fuer den Tagesplan-Bereich der Startseite (siehe App.baueTagesplan).
+  function chips() {
+    return PLAN.map(item => {
+      const s = stand(item);
+      return {
+        fach: item.fach, icon: item.icon, fachName: wert(item.text), titel: item.titel,
+        badge: s.fertig ? '✅ Geschafft' : `${s.n} von ${s.z}`, geschafft: s.fertig,
+        onclick: `Ferientraining.starte('${item.id}')`
+      };
+    });
+  }
+
+  function starte(id) {
+    const item = PLAN.find(i => i.id === id);
+    if (item) item.start();
+  }
+
+  function renderListe() {
+    const erledigt = anzahlErledigt();
+    const alle = erledigt === PLAN.length;
+    const zeilen = PLAN.map(item => {
+      const s = stand(item);
+      const prozent = Math.min(100, Math.round(s.n / s.z * 100));
+      return `
+        <div class="ft-zeile${s.fertig ? ' ft-fertig' : ''}" onclick="Ferientraining.starte('${item.id}')">
+          <span class="ft-haken">${s.fertig ? '✓' : ''}</span>
+          <span class="ft-text">
+            <span class="ft-titel">${item.titel}</span>
+            <span class="ft-sub">${wert(item.text)}</span>
+            <span class="ft-balken"><span class="ft-balken-fuell" style="width:${prozent}%"></span></span>
+          </span>
+          <span class="ft-stand">${s.fertig ? 'Geschafft!' : `${Math.min(s.n, s.z)} / ${s.z} ${item.einheit}`}</span>
+        </div>`;
+    }).join('');
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Ferientraining</div>
+      <div class="lese-text">${alle ? 'Alles geschafft für heute! 🎉 Super gemacht!' : `Heute: ${erledigt} von ${PLAN.length} erledigt. Tippe auf eine Aufgabe, um loszulegen.`}</div>
+      <div class="ft-liste">${zeilen}</div>
+    `);
+  }
+
+  /** Zusatz-Button "Zurück zum Ferientraining" fuer die Ergebnis-Bildschirme. */
+  function rueckkehrButtonHtml() {
+    return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining (${anzahlErledigt()} von ${PLAN.length})</div>`;
+  }
+
+  return { melde, abschluss, restAnzahl, chips, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
+})();
