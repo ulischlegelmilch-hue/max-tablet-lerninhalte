@@ -13,7 +13,7 @@ const FernSync = (function () {
   // Play Services bewusst entfernt, FCM braucht das zwingend), der Poll ist
   // deshalb der EINZIGE Weg, wie Max eine neue Nachricht ueberhaupt bemerkt -
   // 1 Minute wirkt fast wie Echtzeit, ohne staendig Netzwerk/Akku zu belasten.
-  const POLL_INTERVAL_MS = 60 * 1000;
+  const POLL_INTERVAL_MS = 30 * 1000;
   const FETCH_TIMEOUT_MS = 10000;
 
   function escapeHtml(s) {
@@ -147,36 +147,62 @@ const FernSync = (function () {
     if (istNeu) spieleBenachrichtigungston();
   }
 
+  // Auffaelliger, lauter Hinweiston (Uli 11.10.2026: "sehr leise und nicht markant genug").
+  // Bevorzugt NATIV (AndroidBridge.playAlertSound: Alarm-Lautstaerke, unabhaengig von der
+  // Medien-Lautstaerke, ab App-Version 2.7). Fallback Web Audio: dreimal ein
+  // aufsteigendes Vier-Ton-Motiv mit Rechteckwellen (deutlich lauter/penetranter
+  // als die fruehere leise Sinus-/Dreieck-Zweiton-Melodie), ueber einen Kompressor.
   function spieleBenachrichtigungston() {
     try {
+      if (typeof AndroidBridge !== 'undefined' && AndroidBridge.playAlertSound) {
+        AndroidBridge.playAlertSound();
+        return;
+      }
+    } catch (e) { /* aeltere APK - Web-Audio-Fallback */ }
+    try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      // Autoplay-Policy: ein AudioContext, der OHNE vorherige Nutzer-Interaktion
-      // erzeugt wird (hier: aus einem setInterval-Poll, kein Tap davor), startet
-      // in manchen WebViews im Zustand "suspended" und bleibt dann STUMM, ohne
-      // dass ein Fehler geworfen wird - resume() erzwingt die Wiedergabe.
       if (ctx.state === 'suspended') ctx.resume();
-      // Pegel war vorher nur 0.2 (20% von maximal 1.0) - deutlich zu leise
-      // (13.08.2026 Uli-Feedback trotz hoher Geraete-Lautstaerke). Jetzt nah
-      // an der Vollaussteuerung (0.9) plus "triangle" statt "sine" - klingt
-      // praesenter/durchdringender, nicht nur lauter.
-      const spieleTon = (frequenz, start, dauer) => {
+      const komp = ctx.createDynamicsCompressor();
+      const master = ctx.createGain();
+      master.gain.value = 1.0;
+      komp.connect(master);
+      master.connect(ctx.destination);
+      const ton = (frequenz, start, dauer) => {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.type = 'triangle';
+        o.type = 'square';
         o.frequency.value = frequenz;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-        g.gain.exponentialRampToValueAtTime(0.9, ctx.currentTime + start + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dauer);
-        o.start(ctx.currentTime + start);
-        o.stop(ctx.currentTime + start + dauer + 0.05);
+        o.connect(g);
+        g.connect(komp);
+        const t0 = ctx.currentTime + start;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.9, t0 + 0.01);
+        g.gain.setValueAtTime(0.9, t0 + dauer * 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dauer);
+        o.start(t0);
+        o.stop(t0 + dauer + 0.05);
       };
-      spieleTon(880, 0, 0.18);
-      spieleTon(1175, 0.16, 0.25);
+      const motiv = [784, 988, 1175, 1568]; // G5 H5 D6 G6
+      for (let wdh = 0; wdh < 3; wdh++) {
+        motiv.forEach((f, i) => ton(f, wdh * 1.1 + i * 0.16, 0.2));
+      }
     } catch (e) {
-      // Web Audio evtl. blockiert (kein Nutzer-Interaktion bisher) - kein Problem,
-      // das Badge im Hauptmenue zeigt die neue Nachricht trotzdem an.
+      // Web Audio evtl. blockiert - das Banner/Badge zeigt die Nachricht trotzdem an.
+    }
+  }
+
+  // Beim Aufwachen/Einschalten: nachsehen UND - falls eine Nachricht von Papa
+  // ungelesen ist - Banner + Ton (hoechstens alle 20 s, damit mehrere
+  // Aufwach-Signale nicht mehrfach toenen).
+  let letzterAufwachTon = 0;
+  async function beiAufwachen() {
+    await poll();
+    aktualisiereChatBanner();
+    const letzte = Storage.getLetzteChatVonPapa();
+    const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+    if (ungelesen && Date.now() - letzterAufwachTon > 20000) {
+      letzterAufwachTon = Date.now();
+      spieleBenachrichtigungston();
     }
   }
 
@@ -289,9 +315,9 @@ const FernSync = (function () {
     setInterval(poll, POLL_INTERVAL_MS);
     // Sofort nachsehen, wenn das Tablet aufwacht/der Bildschirm wieder an ist
     // oder das Netz zurueckkommt - unabhaengig vom nativen onResume-Aufruf.
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { aktualisiereChatBanner(); poll(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { aktualisiereChatBanner(); beiAufwachen(); } });
     window.addEventListener('online', poll);
-    window.addEventListener('focus', poll);
+    window.addEventListener('focus', beiAufwachen);
   }
 
   /** Meldet ein abgeschlossenes Uebungs-/Quiz-Set an Papas Backend - loest dort
@@ -355,5 +381,5 @@ const FernSync = (function () {
     }
   }
 
-  return { init, poll, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
+  return { init, poll, beiAufwachen, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
 })();
