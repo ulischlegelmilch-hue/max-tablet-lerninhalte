@@ -7,14 +7,42 @@ const App = (function () {
     document.getElementById('stat-level').textContent = 'Level ' + Storage.level();
   }
 
+  // Akku-Symbol (SVG) mit Fuellstand + Prozentzahl; beim Laden gruen mit Blitz.
+  // Lade-Status: nativ per AndroidBridge.isCharging() (neuere APK), sonst
+  // Fallback auf die Battery-Status-API der WebView (falls vorhanden).
+  let webViewLaedt = null;
+  if (typeof navigator !== 'undefined' && navigator.getBattery) {
+    navigator.getBattery().then(b => {
+      webViewLaedt = b.charging;
+      b.addEventListener('chargingchange', () => { webViewLaedt = b.charging; updateAkkuAnzeige(); });
+    }).catch(() => {});
+  }
+
+  function ermittleLaedt() {
+    try {
+      if (AndroidBridge.isCharging) return !!AndroidBridge.isCharging();
+    } catch (e) { /* aeltere APK ohne isCharging */ }
+    return webViewLaedt === true;
+  }
+
+  function akkuSymbolHtml(prozent, laedt) {
+    const farbe = laedt ? '#2e9e4f' : prozent <= 20 ? '#d33' : '#333';
+    const fuell = Math.max(0, Math.min(100, prozent)) / 100 * 15;
+    const blitz = laedt ? '<path d="M12.5 2.5 L8 9.5 H11.5 L10 15.5 L16 8 H12.5 Z" fill="#fff" stroke="' + farbe + '" stroke-width="0.8" stroke-linejoin="round"/>' : '';
+    return '<svg viewBox="0 0 24 18" width="26" height="19" style="vertical-align:-4px;margin-right:4px;" aria-hidden="true">' +
+      '<rect x="1" y="3" width="19" height="12" rx="2.5" fill="none" stroke="' + farbe + '" stroke-width="1.6"/>' +
+      '<rect x="20.5" y="6.5" width="2.5" height="5" rx="1" fill="' + farbe + '"/>' +
+      '<rect x="3" y="5" width="' + fuell + '" height="8" rx="1" fill="' + farbe + '"/>' + blitz + '</svg>';
+  }
+
   function updateAkkuAnzeige() {
     if (typeof AndroidBridge === 'undefined' || !AndroidBridge.getBatteryPercent) return;
     const prozent = AndroidBridge.getBatteryPercent();
     const el = document.getElementById('stat-akku');
     if (prozent < 0) { el.style.display = 'none'; return; }
-    let symbol = '🔋';
-    if (prozent <= 20) symbol = '🪫';
-    el.textContent = symbol + ' ' + prozent + '%';
+    const laedt = ermittleLaedt();
+    el.innerHTML = akkuSymbolHtml(prozent, laedt) + prozent + '%' + (laedt ? ' lädt' : '');
+    el.title = laedt ? 'Akku wird geladen' : 'Akku';
     el.style.display = '';
   }
 
@@ -533,7 +561,11 @@ const App = (function () {
     if (typeof AndroidBridge === 'undefined') return '';
     const appVersion = AndroidBridge.getAppVersion ? AndroidBridge.getAppVersion() : '?';
     const contentVersion = AndroidBridge.getContentVersion ? AndroidBridge.getContentVersion() : '';
+    const wlan = AndroidBridge.openWifiSettings
+      ? `<div class="btn-primary" style="margin:10px 0;" onclick="AndroidBridge.openWifiSettings()">📶 WLAN-Netz wechseln</div>`
+      : '';
     return `
+      ${wlan}
       <div class="version-info">App-Version ${appVersion}${contentVersion ? ' · Inhalte ' + contentVersion : ''}</div>
     `;
   }
@@ -1043,7 +1075,7 @@ const App = (function () {
     document.getElementById('topbar-home').innerHTML = Icons.svg('home');
     gotoHome();
     updateAkkuAnzeige();
-    setInterval(updateAkkuAnzeige, 60000);
+    setInterval(updateAkkuAnzeige, 15000);
     initDevElternSimulation();
     FernSync.init();
     passeHoeheAnBildschirmtastaturAn();

@@ -36,14 +36,22 @@ const FernSync = (function () {
   // reicht: App.gotoHome() liest den Stand bei jedem Aufruf frisch aus Storage,
   // die Zusatzaufgaben-Karte zeigt neue Eintraege also automatisch beim naechsten
   // ganz normalen Rueckkehren zum Startbildschirm.
-  async function poll() {
-    if (!BACKEND_URL) return;
+  async function pollEinmal() {
+    if (!BACKEND_URL) return true;
     try {
       const r = await fetchMitTimeout(BACKEND_URL + '/api/state');
-      if (!r.ok) return;
+      if (!r.ok) return false;
       const stand = await r.json();
+      const vorherIds = new Set(Storage.getFernZusatzaufgaben().map(a => a.id));
+      const hatteStand = vorherIds.size > 0;
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
       pruefeNeueChatNachricht(stand.letzteChatVonPapa);
+      const neueAufgaben = (stand.zusatzaufgaben || []).filter(a => !a.erledigt && !vorherIds.has(a.id));
+      if (hatteStand && neueAufgaben.length) {
+        spieleBenachrichtigungston();
+        zeigeBanner('📋 Neue Aufgabe von Papa!', () => App.gotoHome(), 30000);
+      }
+      aktualisiereChatBanner();
       // Internet+Backend sind gerade nachweislich erreichbar - guter Moment,
       // um evtl. liegengebliebene Lernset-Meldungen nachzureichen (siehe
       // sendeOffeneLernsetMeldungen).
@@ -58,9 +66,67 @@ const FernSync = (function () {
       // aktualisiereHomeFallsAktiv() bewusst NICHTS - kein erzwungener
       // Ruecksprung zum Startbildschirm.
       App.aktualisiereHomeFallsAktiv();
+      return true;
     } catch (e) {
       // Kein Internet / Backend nicht erreichbar - naechster Versuch in POLL_INTERVAL_MS.
+      return false;
     }
+  }
+
+  // Direkt nach dem Einschalten/Aufwecken ist das WLAN oft noch nicht wieder
+  // verbunden - ein einzelner Poll scheitert dann und der naechste kaeme erst
+  // nach POLL_INTERVAL_MS. Deshalb bei Fehlschlag kurz hintereinander
+  // nachfassen (3 s, 10 s, 25 s, 60 s), damit neue Nachrichten/Aufgaben gleich
+  // erscheinen, sobald das Netz da ist. Laufende Wiederholungsketten werden
+  // nicht verdoppelt.
+  const WIEDERHOLUNGEN_MS = [3000, 10000, 25000, 60000];
+  let pollLaeuft = false;
+  async function poll() {
+    if (pollLaeuft) return;
+    pollLaeuft = true;
+    try {
+      for (let i = 0; i <= WIEDERHOLUNGEN_MS.length; i++) {
+        if (await pollEinmal()) return;
+        if (i < WIEDERHOLUNGEN_MS.length) await new Promise(res => setTimeout(res, WIEDERHOLUNGEN_MS[i]));
+      }
+    } finally {
+      pollLaeuft = false;
+    }
+  }
+
+  // ---- Sichtbares Banner (11.10.2026): neue Nachricht/Aufgabe von Papa soll
+  // nach dem Einschalten sofort auffallen, auf JEDEM Bildschirm (nicht nur als
+  // Badge auf der Startseite). Tippen oeffnet Chat bzw. Startseite. ----
+  let bannerTimer = null;
+  function zeigeBanner(text, beiTipp, ausblendenNachMs) {
+    let el = document.getElementById('neu-banner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'neu-banner';
+      el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:64px;z-index:9999;' +
+        'background:#ffb300;color:#222;font-weight:700;font-size:18px;padding:12px 22px;border-radius:14px;' +
+        'box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;max-width:90%;text-align:center;';
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.style.display = '';
+    el.onclick = () => { verstecke(); beiTipp(); };
+    clearTimeout(bannerTimer);
+    if (ausblendenNachMs) bannerTimer = setTimeout(verstecke, ausblendenNachMs);
+  }
+  function verstecke() {
+    const el = document.getElementById('neu-banner');
+    if (el) el.style.display = 'none';
+    clearTimeout(bannerTimer);
+  }
+
+  /** Banner "Neue Nachricht von Papa" solange ungelesen - verschwindet, sobald
+   *  Max den Chat geoeffnet hat (Storage.setLetzteGeseheneChatId in chat.js). */
+  function aktualisiereChatBanner() {
+    const letzte = Storage.getLetzteChatVonPapa();
+    const ungelesen = !!(letzte && letzte.id > Storage.getLetzteGeseheneChatId());
+    if (ungelesen) zeigeBanner('💬 Neue Nachricht von Papa!', () => Chat.starteAnsicht(), 0);
+    else if (document.getElementById('neu-banner') && /Nachricht/.test(document.getElementById('neu-banner').textContent)) verstecke();
   }
 
   /** Ungelesen-Badge (siehe app.js gotoHome) + Ton als Absicherung UNABHAENGIG
@@ -221,6 +287,11 @@ const FernSync = (function () {
     migriereLokaleTagesplanRegelnFallsNoetig();
     poll();
     setInterval(poll, POLL_INTERVAL_MS);
+    // Sofort nachsehen, wenn das Tablet aufwacht/der Bildschirm wieder an ist
+    // oder das Netz zurueckkommt - unabhaengig vom nativen onResume-Aufruf.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { aktualisiereChatBanner(); poll(); } });
+    window.addEventListener('online', poll);
+    window.addEventListener('focus', poll);
   }
 
   /** Meldet ein abgeschlossenes Uebungs-/Quiz-Set an Papas Backend - loest dort

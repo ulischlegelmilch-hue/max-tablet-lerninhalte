@@ -36,7 +36,7 @@ const Mathe = (function () {
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'klammern', titel: 'Punkt vor Strich & Klammern', onclick: 'Mathe.renderRechenregelnMenu()' },
+      { icon: 'tagesaufgabe', titel: 'Ferien-Training', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
@@ -2102,11 +2102,13 @@ const Mathe = (function () {
       return { frage: `In der Arbeitsgemeinschaft „Lustiges Basteln“ sind ${a} Mädchen und ${b} Jungen. Für jedes Kind wurde für ${c} Euro Bastelmaterial gekauft. Wie viel musste insgesamt bezahlt werden?`, ausdruck: `(${a} + ${b}) · ${c}`, form: '(Mädchen + Jungen) · Euro pro Kind' };
     },
     () => {
-      const a = rnd(8, 25), b = rnd(5, 15), n = rnd(3, Math.floor(999 / (a + b)));
-      return { frage: `Eine Sporthose kostet ${a} Euro und ein T-Shirt ${b} Euro. Insgesamt hat die neue Sportkleidung ${(a + b) * n} Euro gekostet. Für wie viele Sportler wurde Sportkleidung gekauft?`, ausdruck: `${(a + b) * n} : (${a} + ${b})`, form: 'Gesamtpreis : (Preis Hose + Preis T-Shirt)' };
+      // Teiler (Preis Hose + Preis T-Shirt) bewusst eine Zehnerzahl (20..90) - eine
+      // beliebige Summe wie 15 oder 31 waere "300 : 15" und damit zu schwer.
+      const summe = rnd(2, 9) * 10, a = rnd(8, summe - 6), b = summe - a, n = rnd(2, 9);
+      return { frage: `Eine Sporthose kostet ${a} Euro und ein T-Shirt ${b} Euro. Insgesamt hat die neue Sportkleidung ${summe * n} Euro gekostet. Für wie viele Sportler wurde Sportkleidung gekauft?`, ausdruck: `${summe * n} : (${a} + ${b})`, form: 'Gesamtpreis : (Preis Hose + Preis T-Shirt)' };
     },
     () => {
-      const a = rnd(3, 8), b = rnd(2, 4), c = rnd(2, 5), n = rnd(15, 45);
+      const a = rnd(3, 8), b = rnd(2, 4), c = rnd(2, 5), n = rnd(2, 4) * 10; // Zehnerzahl: 30 · 12 statt 37 · 12
       return { frage: `Die Lehrerin sammelt für den Wandertag von jedem Kind ${a} Euro für das Mittagessen, ${b} Euro für die Getränke und ${c} Euro für die Bahnfahrt ein. An der Wanderfahrt nehmen ${n} Kinder teil. Wie viel Geld hat die Lehrerin insgesamt eingesammelt?`, ausdruck: `${n} · (${a} + ${b} + ${c})`, form: 'Kinder · (Essen + Getränke + Bahn)' };
     },
     () => {
@@ -2118,7 +2120,7 @@ const Mathe = (function () {
       return { frage: `Lena hat ${c * q + b} Euro. Sie kauft ein Buch für ${b} Euro. Den Rest teilt sie gerecht unter ${c} Kindern auf. Wie viel Euro bekommt jedes Kind?`, ausdruck: `(${c * q + b} − ${b}) : ${c}`, form: '(Geld − Buch) : Anzahl Kinder' };
     },
     () => {
-      const n = rnd(12, 30), a = rnd(3, 9), b = rnd(2, 8);
+      const n = rnd(2, 3) * 10, a = rnd(3, 9), b = rnd(2, 8); // Zehnerzahl, kein 26 · 12
       return { frage: `Für einen Ausflug bezahlt jedes der ${n} Kinder ${a} Euro für den Bus und ${b} Euro für den Eintritt. Wie viel kostet der Ausflug für alle Kinder zusammen?`, ausdruck: `${n} · (${a} + ${b})`, form: 'Kinder · (Bus + Eintritt)' };
     }
   ];
@@ -2135,6 +2137,7 @@ const Mathe = (function () {
         typ: 'numeric',
         frage: s.frage,
         antwort: wert,
+        pruefAusdruck: s.ausdruck, // fuer den Schwierigkeits-Audit (steht nicht im Fragetext)
         hilfe: `<strong>Tipp:</strong> Schreibe die Rechnung mit Klammern auf: ${s.form}.<br>Beispiel mit anderen Zahlen:<br>` + hilfeRechenweg(bsp.ausdruck).replace('<strong>Beispiel:</strong> ', '')
       };
     }
@@ -2374,6 +2377,362 @@ const Mathe = (function () {
     `);
   }
 
+  // ============================================================
+  // Ferien-Training (11.10.2026) - Uli-Wunsch: EINE Kategorie mit allem, was
+  // Max ueber die Ferien ueben soll. Quelle: vier Heftseiten (Fotos) -
+  //  - "Die Zahlen bis 10 000" (Wuerfel/Platten/Stangen, Zerlegen als
+  //    Additionsaufgabe, Stellenwerttafel T/H/Z/E, Plaettchen-Tafel)
+  //  - "Zahlenstrahl" (Abstand der kleinen Striche, Zahlen ablesen,
+  //    Nachbartausender/-hunderter/-zehner, Vorgaenger/Nachfolger, Zahlwoerter)
+  //  - Zweitversuch "Test Rechenregeln" (die Aufgaben des letzten
+  //    Vorbereitungsblatts 1:1 + Varianten)
+  // Die Generatoren heissen genFerien*, damit der Schwierigkeits-Audit sie
+  // mit der Zahlengrenze 10 000 (statt 1000) prueft - Zahlen bis 9999 sind
+  // hier ausdruecklich Lernstoff.
+  // ============================================================
+  const STELLEN = ['T', 'H', 'Z', 'E'];
+  const STELLEN_NAMEN = ['Tausender', 'Hunderter', 'Zehner', 'Einer'];
+
+  // Vierstellige Zahl mit 0 als Ziffer-Anteil moeglich (z.B. 2078, 9502).
+  function ferienZahl(mitNull) {
+    const t = rnd(1, 9);
+    const ziffern = [t];
+    for (let i = 0; i < 3; i++) ziffern.push(mitNull && Math.random() < 0.3 ? 0 : rnd(0, 9));
+    return ziffern;
+  }
+  function ziffernZuZahl(z) { return z[0] * 1000 + z[1] * 100 + z[2] * 10 + z[3]; }
+  function formatZahl(n) { return String(n); }
+
+  // ---- Vorgaenger/Nachfolger, Nachbarzehner/-hunderter/-tausender ----
+  const NACHBAR_ARTEN = [
+    { name: 'Nachbartausender', schritt: 1000, wort: 'Tausender' },
+    { name: 'Nachbarhunderter', schritt: 100, wort: 'Hunderter' },
+    { name: 'Nachbarzehner', schritt: 10, wort: 'Zehner' }
+  ];
+
+  function genFerienNachbarFrage() {
+    if (Math.random() < 0.25) {
+      const n = rnd(1001, 9998);
+      const nachfolger = Math.random() < 0.5;
+      return {
+        typ: 'numeric',
+        frage: `Wie heißt der ${nachfolger ? 'Nachfolger' : 'Vorgänger'} von ${n}?`,
+        antwort: nachfolger ? n + 1 : n - 1,
+        hilfe: `Der <strong>Vorgänger</strong> ist die Zahl direkt davor (−1), der <strong>Nachfolger</strong> die Zahl direkt danach (+1).<br>Beispiel: Vorgänger von 5 347 = 5 346, Nachfolger von 5 347 = 5 348.`
+      };
+    }
+    const art = NACHBAR_ARTEN[rnd(0, 2)];
+    let n;
+    do { n = rnd(1001, 9998); } while (n % art.schritt === 0);
+    const unten = Math.floor(n / art.schritt) * art.schritt;
+    const oben = unten + art.schritt;
+    const nachUnten = Math.random() < 0.5;
+    const bsp = art.schritt === 1000 ? 6784 : art.schritt === 100 ? 4569 : 5347;
+    const bspUnten = Math.floor(bsp / art.schritt) * art.schritt;
+    return {
+      typ: 'numeric',
+      frage: `Wie heißt der ${art.name} von ${n} – der ${nachUnten ? 'kleinere' : 'größere'}?`,
+      antwort: nachUnten ? unten : oben,
+      hilfe: `Der ${art.name} sind die zwei vollen ${art.wort}, zwischen denen die Zahl liegt: einer davor, einer danach.<br>` +
+        `Beispiel: ${bsp} liegt zwischen <strong>${bspUnten}</strong> und <strong>${bspUnten + art.schritt}</strong>.`
+    };
+  }
+
+  // ---- Wie heissen die Zahlen? (Tausenderwuerfel/Hunderterplatten/Zehnerstangen/Einer) ----
+  function htmlWuerfel(z) {
+    const form = [
+      'width:26px;height:26px;background:#c9954c;border-radius:3px;',
+      'width:26px;height:8px;background:#d9a85c;border-radius:2px;',
+      'width:5px;height:26px;background:#d9a85c;border-radius:2px;',
+      'width:7px;height:7px;background:#b07a35;border-radius:2px;'
+    ];
+    return `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;justify-content:center;margin:10px 0;">` +
+      z.map((anzahl, i) => Array.from({ length: anzahl }, () => `<span style="display:inline-block;${form[i]}"></span>`).join('')).join('<span style="width:14px"></span>') +
+      `</div>`;
+  }
+
+  function genFerienWuerfelFrage() {
+    const z = ferienZahl(true);
+    const n = ziffernZuZahl(z);
+    const teile = z.map((a, i) => a > 0 ? `${a} ${STELLEN_NAMEN[i]}` : null).filter(Boolean).join(', ');
+    return {
+      typ: 'numeric',
+      frage: `Wie heißt die Zahl?${htmlWuerfel(z)}<span style="font-size:0.8em">Große Würfel = Tausender · Platten = Hunderter · Stangen = Zehner · kleine Würfel = Einer</span>`,
+      antwort: n,
+      hilfe: `Zähle jede Sorte einzeln: ${teile}.<br>Was fehlt, ist eine 0 an dieser Stelle.<br><strong>${z.join(' ')} → ${formatZahl(n)}</strong>`
+    };
+  }
+
+  // ---- Zahl als Additionsaufgabe (Zerlegen) - Max tippt die fehlende Stelle ----
+  function genFerienZerlegenFrage() {
+    const z = ferienZahl(true);
+    const n = ziffernZuZahl(z);
+    const teile = z.map((a, i) => a * [1000, 100, 10, 1][i]);
+    if (Math.random() < 0.5) {
+      const luecke = rnd(1, 3);
+      const anzeige = teile.map((t, i) => i === luecke ? '▢' : t).join(' + ');
+      return {
+        typ: 'numeric',
+        frage: `Schreibe als Additionsaufgabe:<br><strong>${formatZahl(n)} = ${anzeige}</strong><br>Welche Zahl gehört in das Kästchen?`,
+        antwort: teile[luecke],
+        hilfe: `Zerlege ${n} nach Stellen: ${teile.join(' + ')} = ${n}.<br>Steht an einer Stelle eine 0, schreibst du 0 (z. B. 2078 = 2000 + 0 + 70 + 8).`
+      };
+    }
+    return {
+      typ: 'numeric',
+      frage: `Welche Zahl ist es?<br><strong>${teile.join(' + ')} = ?</strong>`,
+      antwort: n,
+      hilfe: `Addiere: ${teile.join(' + ')} = ${n}.<br>Die Ziffern stehen von links nach rechts für T, H, Z, E.`
+    };
+  }
+
+  // ---- Stellenwerttafel: "5T 3H 4Z 9E" -> 5349, auch durcheinander/mit fehlender Stelle ----
+  function genFerienStellenwertFrage() {
+    const z = ferienZahl(true);
+    const n = ziffernZuZahl(z);
+    let reihenfolge = [0, 1, 2, 3];
+    if (Math.random() < 0.5) reihenfolge = shuffle(reihenfolge);
+    const teile = reihenfolge.filter(i => z[i] !== 0).map(i => `${z[i]}${STELLEN[i]}`);
+    return {
+      typ: 'numeric',
+      frage: `Trage in die Stellenwerttafel ein und schreibe die Zahl auf:<br><strong>${teile.join(' ')}</strong>`,
+      antwort: n,
+      hilfe: `Die Stellenwerttafel: <strong>T H Z E</strong> (Tausender, Hunderter, Zehner, Einer). Ordne jede Ziffer an ihren Platz – egal, in welcher Reihenfolge sie genannt wird.<br>Was nicht genannt wird, ist eine <strong>0</strong>.<br><strong>${z.join(' ')} → ${formatZahl(n)}</strong>`
+    };
+  }
+
+  // ---- Plaettchen-Tafel: Punkte pro Spalte -> Zahl (auch "ein Plaettchen mehr") ----
+  function htmlPlaettchenTafel(z) {
+    const kopf = STELLEN.map(s => `<th style="padding:4px 14px;background:#ecd9c4;border:1px solid #999;">${s}</th>`).join('');
+    const zellen = z.map(a => `<td style="padding:6px 14px;border:1px solid #999;min-width:64px;height:30px;letter-spacing:2px;">${'●'.repeat(a)}</td>`).join('');
+    return `<table style="margin:10px auto;border-collapse:collapse;text-align:center;"><tr>${kopf}</tr><tr>${zellen}</tr></table>`;
+  }
+
+  function genFerienPlaettchenFrage() {
+    const z = ferienZahl(true).map((a, i) => Math.min(a, 8));
+    const mehr = Math.random() < 0.4;
+    const n = ziffernZuZahl(z);
+    return {
+      typ: 'numeric',
+      frage: mehr
+        ? `Wie heißt die Zahl, wenn in jeder Spalte ein Plättchen dazu kommt?${htmlPlaettchenTafel(z)}`
+        : `Wie heißt die Zahl?${htmlPlaettchenTafel(z)}`,
+      antwort: mehr ? n + 1111 : n,
+      hilfe: `Zähle die Plättchen in jeder Spalte: ${z.map((a, i) => `${a} ${STELLEN_NAMEN[i]}`).join(', ')} → <strong>${formatZahl(n)}</strong>.` +
+        (mehr ? `<br>Ein Plättchen mehr pro Spalte heißt: jede Ziffer +1, also 1 111 dazu.` : '<br>Eine leere Spalte ist eine 0.')
+    };
+  }
+
+  // ---- Zahlenstrahl (SVG) ----
+  // Kleine Striche im festen Abstand "schritt", jeder 10. Strich ist ein
+  // grosser mit Beschriftung (wie im Heft). Der erste und letzte grosse
+  // Strich sind immer beschriftet.
+  function svgZahlenstrahl(start, schritt, grosse, markiert) {
+    const striche = grosse * 10;
+    const breite = 560, x0 = 20, dx = breite / striche;
+    let svg = `<svg viewBox="0 0 600 100" style="width:100%;max-width:640px;display:block;margin:8px auto;" xmlns="http://www.w3.org/2000/svg">`;
+    svg += `<line x1="${x0}" y1="50" x2="${x0 + breite + 10}" y2="50" stroke="#333" stroke-width="2"/>`;
+    svg += `<polygon points="${x0 + breite + 18},50 ${x0 + breite + 8},45 ${x0 + breite + 8},55" fill="#333"/>`;
+    for (let i = 0; i <= striche; i++) {
+      const x = x0 + i * dx;
+      const gross = i % 10 === 0;
+      svg += `<line x1="${x}" y1="${gross ? 38 : 43}" x2="${x}" y2="${gross ? 62 : 57}" stroke="#333" stroke-width="${gross ? 2.5 : 1.2}"/>`;
+      if (gross) svg += `<text x="${x}" y="82" text-anchor="middle" font-size="15" fill="#333">${start + i * schritt}</text>`;
+    }
+    if (markiert !== undefined) {
+      const x = x0 + markiert * dx;
+      svg += `<line x1="${x}" y1="12" x2="${x}" y2="38" stroke="#d33" stroke-width="2.5"/>`;
+      svg += `<polygon points="${x},40 ${x - 6},30 ${x + 6},30" fill="#d33"/>`;
+      svg += `<text x="${x}" y="10" text-anchor="middle" font-size="16" font-weight="bold" fill="#d33">?</text>`;
+    }
+    return svg + `</svg>`;
+  }
+
+  const ZAHLENSTRAHL_SCHRITTE = [1, 10, 100];
+
+  function genFerienZahlenstrahlFrage() {
+    const schritt = ZAHLENSTRAHL_SCHRITTE[rnd(0, 2)];
+    const grosse = rnd(3, 5);
+    const spanne = schritt * 10;
+    // Start auf einem vollen Vielfachen der grossen Spanne, Strahl bleibt unter 10 000
+    const start = rnd(Math.ceil(1000 / spanne), Math.floor((9999 - grosse * spanne) / spanne)) * spanne;
+    const hilfeAbstand = `Zähle die kleinen Striche zwischen zwei beschrifteten großen Strichen: Es sind immer 10 Abschnitte.<br>` +
+      `Von ${start} bis ${start + spanne} sind es ${spanne}, also ist <strong>jeder Abschnitt ${schritt}</strong> (${spanne} : 10 = ${schritt}).`;
+    if (Math.random() < 0.3) {
+      return {
+        typ: 'numeric',
+        frage: `Ergänze den Satz: Der Abstand zwischen den kleinen Strichen ist immer ▢.${svgZahlenstrahl(start, schritt, grosse)}`,
+        antwort: schritt,
+        hilfe: hilfeAbstand
+      };
+    }
+    let pos;
+    do { pos = rnd(1, grosse * 10 - 1); } while (pos % 10 === 0);
+    const ziel = start + pos * schritt;
+    return {
+      typ: 'numeric',
+      frage: `Welche Zahl gehört zum roten Pfeil?${svgZahlenstrahl(start, schritt, grosse, pos)}`,
+      antwort: ziel,
+      hilfe: hilfeAbstand + `<br>Der Pfeil ist ${pos % 10} Abschnitte hinter ${start + Math.floor(pos / 10) * spanne}: ${start + Math.floor(pos / 10) * spanne} + ${pos % 10} · ${schritt} = <strong>${ziel}</strong>.`
+    };
+  }
+
+  // ---- Zahlwoerter ----
+  const ZW_EINER = ['', 'ein', 'zwei', 'drei', 'vier', 'fünf', 'sechs', 'sieben', 'acht', 'neun'];
+  const ZW_ZEHN = ['zehn', 'elf', 'zwölf', 'dreizehn', 'vierzehn', 'fünfzehn', 'sechzehn', 'siebzehn', 'achtzehn', 'neunzehn'];
+  const ZW_ZEHNER = ['', '', 'zwanzig', 'dreißig', 'vierzig', 'fünfzig', 'sechzig', 'siebzig', 'achtzig', 'neunzig'];
+
+  function zahlwortBis99(n) {
+    if (n === 0) return '';
+    if (n < 10) return n === 1 ? 'eins' : ZW_EINER[n];
+    if (n < 20) return ZW_ZEHN[n - 10];
+    const e = n % 10, z = Math.floor(n / 10);
+    return e === 0 ? ZW_ZEHNER[z] : `${ZW_EINER[e]}und${ZW_ZEHNER[z]}`;
+  }
+
+  function zahlwort(n) {
+    const t = Math.floor(n / 1000), h = Math.floor((n % 1000) / 100), rest = n % 100;
+    let w = `${ZW_EINER[t]}tausend`;
+    if (h > 0) w += `${ZW_EINER[h]}hundert`;
+    if (rest > 0) w += rest === 1 ? 'eins' : zahlwortBis99(rest);
+    return w;
+  }
+
+  function genFerienZahlwortFrage() {
+    const z = ferienZahl(true);
+    const n = ziffernZuZahl(z);
+    const hilfe = `Schreibe stückweise: ${z[0]} Tausender, ${z[1]} Hunderter und der Rest.<br>` +
+      `<strong>${zahlwort(n)} = ${formatZahl(n)}</strong>`;
+    if (Math.random() < 0.6) {
+      return {
+        typ: 'numeric',
+        frage: `Schreibe die Zahl auf:<br><strong style="overflow-wrap:anywhere;">${zahlwort(n)}</strong>`,
+        antwort: n,
+        hilfe: `Tausender – Hunderter – (Einer und Zehner, die Einer werden zuerst gesprochen!).<br>` + hilfe
+      };
+    }
+    // "Male passend an": das richtige Zahlwort zu einer Zahl finden
+    const falsche = new Set();
+    let versuche = 0;
+    while (falsche.size < 2 && versuche++ < 50) {
+      const zz = shuffle(z.slice());
+      const m = ziffernZuZahl(zz);
+      if (zz[0] !== 0 && m !== n && m > 999) falsche.add(m);
+    }
+    while (falsche.size < 2) falsche.add(n + (falsche.size + 1) * 11);
+    const optionenZahlen = shuffle([n, ...falsche]);
+    return {
+      typ: 'mc',
+      frage: `Welches Zahlwort passt zu <strong>${formatZahl(n)}</strong>?`,
+      optionen: optionenZahlen.map(zahlwort),
+      richtigIndex: optionenZahlen.indexOf(n),
+      hilfe: `Sprich die Zahl stückweise: ${z[0]} Tausender, ${z[1]} Hunderter, dann Zehner und Einer.<br><strong>${formatZahl(n)} = ${zahlwort(n)}</strong>`
+    };
+  }
+
+  // ---- Das Test-Blatt (Zweitversuch "Test Rechenregeln", 05.10.2026) ----
+  // Die Rechnungen stehen 1:1 so auf dem Blatt; die Ergebnisse berechnet
+  // werteAus() - nie von Hand eingetippt (die Ergebnisse auf Max' Blatt sind
+  // teilweise fehlerhaft und duerfen nicht uebernommen werden).
+  const TESTBLATT_AUSDRUECKE = [
+    '88 + 540 : 9', '(17 + 70) · 7', '220 · 4 − 80', '640 : (15 − 7)',
+    '270 : 3 + 69', '480 : (127 − 47)', '700 − 60 · 7', '42 · (180 − 174)',
+    '12 + 5 · 5 − 2 · 4 + 8 · 9 − 10', '(390 + 150) : (35 + 55) − 12 : 3'
+  ];
+
+  const TESTBLATT_TEXTE = [
+    { satz: 'Addiere 200 zum Produkt aus 60 und 8.', ausdruck: '200 + 60 · 8', form: '„Produkt aus 60 und 8“ = 60 · 8, dazu kommt 200: 200 + 60 · 8' },
+    { satz: 'Dividiere 7 von der Summe aus 400 und 90.', ausdruck: '(400 + 90) : 7', form: '„Summe aus 400 und 90“ = 400 + 90 (kommt in eine Klammer), das wird durch 7 geteilt: (400 + 90) : 7' }
+  ];
+
+  function genFerienTestblattFrage() {
+    if (Math.random() < 0.3) {
+      const t = TESTBLATT_TEXTE[waehleOhneWiederholung('ferien-testtext', TESTBLATT_TEXTE.length, 1)];
+      const wert = werteAus(tokenisiere(t.ausdruck));
+      return {
+        typ: 'numeric',
+        frage: `Schreibe als Rechenaufgabe und rechne aus:<br><strong>${t.satz}</strong>`,
+        antwort: wert,
+        hilfe: `<strong>Tipp:</strong> ${t.form}<br>Rechenweg:<br>${rechenwegKette(t.ausdruck)}`
+      };
+    }
+    const idx = waehleOhneWiederholung('ferien-testblatt', TESTBLATT_AUSDRUECKE.length, 4);
+    const text = TESTBLATT_AUSDRUECKE[idx];
+    const wert = werteAus(tokenisiere(text));
+    const bsp = baueAusdruck(RG_MAKER, 'klammern', text);
+    return {
+      typ: 'numeric',
+      frage: `Berechne. Schreibe dir eine Nebenrechnung auf!<br><strong>${text} = ?</strong>`,
+      antwort: wert,
+      hilfe: hilfeRechenweg(bsp.text)
+    };
+  }
+
+  // ---- "Bilde die Aufgabe" (Sachaufgabe -> Rechnung) ----
+  function genFerienBildeAufgabeFrage() {
+    const a = rnd(3, 9), b = rnd(6, 15), s1 = rnd(6, 10), s2 = rnd(6, 10), c = rnd(8, 20);
+    const richtig = `${a} · ${s1} + ${b} · ${s2} + ${c}`;
+    const optionen = shuffle([
+      richtig,
+      `(${a} + ${b}) · ${s1} + ${c}`,
+      `${a} · ${s1} + ${b} + ${s2} + ${c}`
+    ]);
+    return {
+      typ: 'mc',
+      frage: `Bilde die Aufgabe (du musst nicht ausrechnen). Für die Klassenfeier bestellt die Klasse ${a} Salamipizzen mit ${s1} Stücken und ${b} Schinkenpizzen mit ${s2} Stücken. Lena bringt noch ${c} Stücke Käsepizza mit. Wie viele Stücke sind es insgesamt?`,
+      optionen,
+      richtigIndex: optionen.indexOf(richtig),
+      hilfe: `Jede Pizzasorte einzeln: ${a} Pizzen mit je ${s1} Stücken = ${a} · ${s1}. ${b} Pizzen mit je ${s2} Stücken = ${b} · ${s2}. Dazu kommen ${c} Stücke: <strong>${richtig}</strong>.<br>Punkt vor Strich: Die Mal-Rechnungen werden zuerst gerechnet, dann addiert.`
+    };
+  }
+
+  const FERIEN_BEREICHE = [
+    { kategorie: 'ferienzahlen', gen: genFerienNachbarFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienNachbarFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienWuerfelFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZerlegenFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZerlegenFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienStellenwertFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienStellenwertFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienPlaettchenFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlenstrahlFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlenstrahlFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlenstrahlFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlwortFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlwortFrage },
+    { kategorie: 'ferientest', gen: genFerienTestblattFrage },
+    { kategorie: 'ferientest', gen: genFerienTestblattFrage },
+    { kategorie: 'ferientest', gen: genFerienTestblattFrage },
+    { kategorie: 'ferientest', gen: genFerienBildeAufgabeFrage },
+    { kategorie: 'ferientest', gen: genWortAusdruckFrage },
+    { kategorie: 'ferientest', gen: genRechenregelnGemischtFrage },
+    { kategorie: 'ferientest', gen: genRechenregelnGemischtFrage }
+  ];
+
+  const ANZAHL_FERIEN = 20;
+
+  function genFerienUebung(anzahl) {
+    const fragen = [];
+    let letzte = null;
+    while (fragen.length < anzahl) {
+      const b = FERIEN_BEREICHE[rnd(0, FERIEN_BEREICHE.length - 1)];
+      if (b.gen === letzte && Math.random() < 0.8) continue;
+      letzte = b.gen;
+      fragen.push(erzeugeFrage(b.kategorie, b.gen));
+    }
+    return fragen;
+  }
+
+  function starteFerienTraining() {
+    const starter = () => App.startQuizSession('mathe', genFerienUebung(ANZAHL_FERIEN), {
+      titel: 'Ferien-Training',
+      wiederholeFalsche: true,
+      pensumFach: 'mathe'
+    });
+    App.setLastStarter(starter);
+    starter();
+  }
+
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
   // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
   // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
@@ -2437,7 +2796,10 @@ const Mathe = (function () {
     // Mathe-Menue, siehe FACHBEGRIFFE_BEREICHE) - zusaetzlich im gemeinsamen
     // Pool, normale Gewichtung (kein Schwerpunkt-Grund wie bei den anderen
     // Foto-Stoff-Themen, daher kein Eintrag in KATEGORIE_BASISGEWICHT).
-    ...FACHBEGRIFFE_BEREICHE
+    ...FACHBEGRIFFE_BEREICHE,
+    // Neu am 11.10.2026 (Ferien-Training, eigene Kachel, siehe FERIEN_BEREICHE) -
+    // Foto-Stoff = Schwerpunkt, siehe KATEGORIE_BASISGEWICHT.
+    ...FERIEN_BEREICHE
   ];
 
   // Basis-Multiplikator pro Kategorie (vor der Fehler-Gewichtung aus
@@ -2450,10 +2812,10 @@ const Mathe = (function () {
   // rechenzeichen/rechenketten (12.09.2026) sind aktueller Schulstoff, kein
   // Klassenarbeits-Termin diesmal - deshalb dauerhaft hoeher gewichtet (kein
   // Revert-Datum noetig), aber alle anderen Themen bleiben normal waehlbar.
-  // punktstrich/klammern/rechenregeln (24.09.2026): aktueller Stoff der Mathearbeit,
-  // je 1.5 (zusammen ~ein Drittel der Gemischten Aufgaben) - kein Revert-Datum,
-  // die Gewichte hier bei Bedarf einfach auf 1 setzen.
-  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, rechenzeichen: 2, rechenketten: 2, punktstrich: 1.5, klammern: 1.5, rechenregeln: 1.5 };
+  // punktstrich/klammern/rechenregeln (24.09.2026) waren bis zur Mathearbeit (Zweitversuch
+  // 05.10.2026) je 1.5 - Vorbereitung ist vorbei, seit 11.10.2026 wieder normal (1).
+  // ferienzahlen/ferientest (11.10.2026): Ferien-Stoff aus den Heftfotos, Schwerpunkt.
+  const KATEGORIE_BASISGEWICHT = { schriftlich: 1.3, rechenzeichen: 2, rechenketten: 2, ferienzahlen: 2, ferientest: 1.5 };
 
   function waehleKategorieGewichtet(bereicheProKategorie, stats) {
     const kategorien = Object.keys(bereicheProKategorie);
@@ -2540,6 +2902,6 @@ const Mathe = (function () {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
     starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
-    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung
+    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining
   };
 })();
