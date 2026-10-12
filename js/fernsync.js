@@ -59,6 +59,7 @@ const FernSync = (function () {
       const hatteStand = vorherIds.size > 0;
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
       pruefeNeueChatNachricht(stand.letzteChatVonPapa);
+      pruefeSpielAnfrage(stand.spielAnfrage);
       const neueAufgaben = (stand.zusatzaufgaben || []).filter(a => !a.erledigt && !vorherIds.has(a.id));
       if (hatteStand && neueAufgaben.length) {
         spieleBenachrichtigungston();
@@ -167,6 +168,37 @@ const FernSync = (function () {
     const istNeu = bekannt && (letzte.ts || 0) > (bekannt.ts || 0);
     Storage.setLetzteChatVonPapa(letzte);
     if (istNeu) spieleBenachrichtigungston();
+  }
+
+  /** Papa hat eine Partie gestartet (Schach/Schiffe/Mau-Mau): eigener Ton + Banner.
+   *  Bei ausgeschaltetem Bildschirm uebernimmt das der native Hintergrund-Poll
+   *  (BackgroundPoll.kt); hat der schon geklingelt, hier nicht noch mal. */
+  function pruefeSpielAnfrage(anfrage) {
+    if (!anfrage || !anfrage.ts) return;
+    let bekannt = null;
+    try { bekannt = parseInt(localStorage.getItem('spielAnfrageTs') || '', 10); } catch (e) { /* ohne Speicher */ }
+    try { localStorage.setItem('spielAnfrageTs', String(anfrage.ts)); } catch (e) { /* egal */ }
+    if (!bekannt || anfrage.ts <= bekannt) return; // erster Poll nach Installation: kein Ton
+    let schonGeklingelt = false;
+    try {
+      schonGeklingelt = typeof AndroidBridge !== 'undefined' && AndroidBridge.spielAnfrageSchonGemeldet
+        && AndroidBridge.spielAnfrageSchonGemeldet(String(anfrage.ts));
+    } catch (e) { /* aeltere APK */ }
+    if (!schonGeklingelt) spieleSpielton();
+    const name = { schach: 'Schach', schiffe: 'Schiffe versenken', maumau: 'Mau-Mau' }[anfrage.art] || 'ein Spiel';
+    zeigeBanner('🎮 Papa möchte ' + name + ' spielen!', () => App.gotoHome(), 60000);
+  }
+
+  function spieleSpielton() {
+    try {
+      if (typeof AndroidBridge !== 'undefined' && AndroidBridge.playGameSound) { AndroidBridge.playGameSound(); return; }
+    } catch (e) { /* aeltere APK */ }
+    try {
+      const a = new Audio('sounds/spiel.wav');
+      a.volume = 1.0;
+      const p = a.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (e) { /* Banner zeigt es trotzdem */ }
   }
 
   // Auffaelliger, lauter Hinweiston (Uli 11.10.2026: "sehr leise und nicht markant genug").
