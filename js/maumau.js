@@ -26,7 +26,7 @@ const Maumau = (function () {
           <p>Du legst eine Karte, die zur obenliegenden Karte passt - <strong>gleiche Farbe</strong> oder <strong>gleicher Wert</strong>. Passt nichts, ziehst du eine Karte vom Stapel.</p>
           <ul>
             <li><strong>7</strong> – der Nächste zieht 2 Karten (mehrere Siebenen hintereinander addieren sich!)</li>
-            <li><strong>8</strong> – der Nächste setzt aus</li>
+            <li><strong>Ass</strong> – der Nächste setzt aus</li>
             <li><strong>Bube</strong> – passt immer, du wünschst dir danach eine neue Farbe</li>
           </ul>
         </div>
@@ -61,7 +61,7 @@ const Maumau = (function () {
    *  erfolgreich. */
   function ziehGueltigeStartkarte(deck) {
     for (let i = 0; i < deck.length; i++) {
-      if (!['7', '8', 'B'].includes(deck[i].wert)) return deck.splice(i, 1)[0];
+      if (!['7', 'A', 'B'].includes(deck[i].wert)) return deck.splice(i, 1)[0];
     }
     return deck.shift();
   }
@@ -100,7 +100,7 @@ const Maumau = (function () {
   }
 
   /** Zentrale Spiellogik fuers Ablegen einer Karte - von Spieler UND Computer
-   *  genutzt, damit Sieben-/Acht-/Buben-Effekte nur an einer Stelle stehen. */
+   *  genutzt, damit Sieben-/Ass-/Buben-Effekte nur an einer Stelle stehen. */
   function spieleKarte(wer, index) {
     const hand = wer === 'spieler' ? spielerHand : computerHand;
     const karte = hand.splice(index, 1)[0];
@@ -133,13 +133,13 @@ const Maumau = (function () {
       return;
     }
 
-    naechsterZug(wer, karte.wert === '8');
+    naechsterZug(wer, karte.wert === 'A');
   }
 
-  /** warAcht: der jeweils ANDERE Spieler wird ausgesetzt - bei nur zwei
+  /** warAss: der jeweils ANDERE Spieler wird ausgesetzt - bei nur zwei
    *  Spielern heisst das schlicht "wer sie gelegt hat, ist gleich nochmal dran". */
-  function naechsterZug(wer, warAcht) {
-    amZug = warAcht ? wer : (wer === 'spieler' ? 'computer' : 'spieler');
+  function naechsterZug(wer, warAss) {
+    amZug = warAss ? wer : (wer === 'spieler' ? 'computer' : 'spieler');
     renderSpiel();
     if (spielLaeuft && amZug === 'computer') kiTimeoutHandle = setTimeout(computerZug, 900);
   }
@@ -213,12 +213,12 @@ const Maumau = (function () {
     }
 
     const legbare = E.legbareKarten(computerHand, oben, gewuenschteFarbe);
-    // Bevorzugt normale Karten vor Sonderkarten (spart 7/8/Bube fuer spaeter
-    // auf) - danach Acht (verschafft sich selbst nochmal einen Zug), dann
+    // Bevorzugt normale Karten vor Sonderkarten (spart 7/Ass/Bube fuer spaeter
+    // auf) - danach Ass (verschafft sich selbst nochmal einen Zug), dann
     // Sieben, zuletzt Bube (Wildcard, haelt sich Optionen offen).
     const wahl =
-      legbare.find(k => !['7', '8', 'B'].includes(k.wert)) ||
-      legbare.find(k => k.wert === '8') ||
+      legbare.find(k => !['7', 'A', 'B'].includes(k.wert)) ||
+      legbare.find(k => k.wert === 'A') ||
       legbare.find(k => k.wert === '7') ||
       legbare.find(k => k.wert === 'B');
 

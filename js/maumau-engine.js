@@ -3,10 +3,9 @@
 //
 // Klassisches deutsches Mau-Mau mit 32er Skat-Blatt (4 Farben x 7,8,9,10,
 // Bube,Dame,Koenig,Ass). Sonderkarten: 7 = naechster zieht 2 (stapelbar,
-// mehrere Siebenen hintereinander addieren sich), 8 = naechster Spieler
-// setzt aus, Bube = jederzeit legbar, wer ihn legt wuenscht sich eine neue
-// Farbe. Kein Sonderrecht fuer das Ass (das ist eine reine 3+-Spieler-
-// Regel "Richtung umkehren", bei nur zwei Spielern wirkungslos).
+// mehrere Siebenen hintereinander addieren sich), Ass = naechster Spieler
+// setzt aus (bei zwei Spielern: selbst nochmal dran), Bube = jederzeit legbar,
+// wer ihn legt wuenscht sich eine neue Farbe. Die 8 hat keine Sonderwirkung.
 const MauMauEngine = (function () {
   const FARBEN = ['kreuz', 'pik', 'herz', 'karo'];
   const FARBSYMBOL = { kreuz: '♣', pik: '♠', herz: '♥', karo: '♦' };

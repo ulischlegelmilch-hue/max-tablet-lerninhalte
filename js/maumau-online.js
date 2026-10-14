@@ -202,10 +202,17 @@ const MaumauOnline = (function () {
     ws.send(JSON.stringify({ typ: 'aufgeben' }));
   }
 
+  let tippSperreBis = 0;
   function karteGeklickt(index) {
     if (!stand || stand.status !== 'laeuft' || stand.amZug !== MEINE_ROLLE || stand.farbwahlAusstehend) return;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ typ: 'karte_spielen', index }));
+    // Kurze Sperre gegen Doppeltipps: nach einer 8 bleibt man am Zug, und ein zweiter
+    // Tipp auf eine noch alte Anzeige soll keine zweite Karte "auf einmal" legen.
+    if (Date.now() < tippSperreBis) return;
+    tippSperreBis = Date.now() + 700;
+    const karte = stand.meineHand[index];
+    if (!karte) return;
+    ws.send(JSON.stringify({ typ: 'karte_spielen', index, farbe: karte.farbe, wert: karte.wert }));
   }
 
   function ziehen() {

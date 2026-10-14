@@ -1131,8 +1131,8 @@ html, body {
 .schach-brett {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-rows: repeat(8, minmax(0, 1fr));
   aspect-ratio: 1 / 1;
   border-radius: 0;
   overflow: hidden;
@@ -1164,6 +1164,10 @@ html, body {
   align-items: center;
   justify-content: center;
   font-size: calc((min(96vw, 64vh, 900px) - 22px) / 8 * 0.72);
+  line-height: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   cursor: pointer;
   position: relative;
 }
