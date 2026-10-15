@@ -418,6 +418,14 @@ const FernSync = (function () {
       malfolgenStats: Storage.getMalfolgenStats(),
       matheKategorienStats: Storage.getMatheKategorienStats()
     };
+    // Stand des automatischen Kartenaufbaus (Malfolgen-Reihen, Radfahr-Stapel) - das Backend
+    // vergleicht mit dem letzten Stand und fuehrt daraus den Aufbau-Verlauf in Papas Auswertung.
+    try {
+      body.aufbau = {
+        malfolgen: typeof Mathe !== 'undefined' && Mathe.aufbauInfo ? Mathe.aufbauInfo() : undefined,
+        hsk: typeof Heimatkunde !== 'undefined' && Heimatkunde.aufbauInfo ? Heimatkunde.aufbauInfo() : undefined
+      };
+    } catch (e) { /* Aufbau-Info ist optional */ }
     if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
     if (typeof text === 'string' && text) body.text = text; // z.B. abgetippter Schreibtext (siehe schreiben.js)
     sendeLernsetMeldung(body).catch(() => {

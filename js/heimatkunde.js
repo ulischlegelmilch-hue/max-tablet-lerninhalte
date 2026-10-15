@@ -470,6 +470,13 @@ const Heimatkunde = (function () {
     return `${aktive.length} von ${radThemen().length} Stapeln aktiv · ${z.kann} von ${z.gesamt} Karten gekonnt`;
   }
 
+  /** Stand des Stapel-Aufbaus fuer Papas Verlaufs-Ansicht (siehe FernSync.meldeLernsetErledigt). */
+  function aufbauInfo() {
+    const aktive = aktiveStapel();
+    const z = stapelZaehlung(aktive);
+    return { stapel: aktive.map(k => LERNTHEMEN[k].titel), stapelGesamt: radThemen().length, kann: z.kann, gesamt: z.gesamt };
+  }
+
   // n verschiedene Karten, gewichtet gezogen (ohne Zuruecklegen)
   function baueTageskartenDeck(anzahl) {
     const pool = [];
@@ -752,5 +759,5 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel };
+  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo };
 })();

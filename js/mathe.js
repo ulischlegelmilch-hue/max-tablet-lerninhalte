@@ -1520,6 +1520,12 @@ const Mathe = (function () {
     return `Reihen ${Storage.getMalfolgenReihen().join(', ')} · ${z.kann} von ${z.gesamt} Aufgaben gekonnt`;
   }
 
+  /** Stand des Reihen-Aufbaus fuer Papas Verlaufs-Ansicht (siehe FernSync.meldeLernsetErledigt). */
+  function aufbauInfo() {
+    const z = malfolgenZaehlung();
+    return { reihen: Storage.getMalfolgenReihen().slice().sort((a, b) => a - b), kann: z.kann, gesamt: z.gesamt };
+  }
+
   function starteMalfolgenKarten() {
     erweitereMalfolgenReihen();
     const offen = Storage.getOffeneSession(AKTIVITAET_MALFOLGEN);
@@ -2967,6 +2973,6 @@ const Mathe = (function () {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
     starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
-    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText
+    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText, aufbauInfo
   };
 })();
