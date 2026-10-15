@@ -1,8 +1,8 @@
 // Schreibauftrag des Tages (11.10.2026, Uli-Wunsch: "Max soll auch animiert werden zu
 // schreiben") - ein Punkt im Ferientraining. Montag-Freitag ein Auftrag zum Schulstoff
 // (Faelle, zusammengesetzte Adjektive, doppelte Mitlaute), am Wochenende ein freier.
-// Max schreibt ins Heft und tippt "Fertig" (Sterne!) - optional tippt er den Text ab
-// und schickt ihn an Papa (erscheint in der Eltern-App in der Auswertung).
+// Max schreibt AUF PAPIER ins Heft (Uli 15.10.2026: nicht auf dem Tablet) und tippt "Fertig"
+// (Sterne!). Eine Texteingabe am Tablet gibt es bewusst nicht.
 const Schreiben = (function () {
   const STOFF = [
     'Schreibe 3 Sätze über einen Wolf. Verwende: „das Fell des Wolfes“, „der Wolf lebt“ und „dem Wolf“.',
@@ -60,36 +60,22 @@ const Schreiben = (function () {
         <div class="schreib-fertig">✅ Geschafft! Heute hast du schon geschrieben. Super!</div>
         <div class="weiter-row"><span class="btn-primary" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining</span></div>
       ` : `
-        <div class="lese-text">Schreibe ins <strong>Heft</strong> – mit der Hand, so schön du kannst. Wenn du fertig bist, tippe auf den Knopf. Dafür bekommst du ${STERNE} ⭐</div>
-        <div class="weiter-row"><span class="btn-primary" onclick="Schreiben.fertig(false)">Ich habe es ins Heft geschrieben ✓</span></div>
-        <div class="schreib-oder">… oder tippe deinen Text hier ab, dann kann Papa ihn lesen:</div>
-        <textarea id="schreib-text" class="schreib-feld" rows="6" maxlength="1200" placeholder="Hier schreiben …"></textarea>
-        <div class="weiter-row"><span class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Schreiben.fertig(true)">Text an Papa schicken ✓</span></div>
-        <div class="schreib-hinweis" id="schreib-hinweis"></div>
+        <div class="lese-text">Schreibe auf <strong>Papier</strong> ins Heft – mit der Hand, so schön du kannst. Wenn du fertig bist, tippe auf den Knopf. Dafür bekommst du ${STERNE} ⭐</div>
+        <div class="weiter-row"><span class="btn-primary" onclick="Schreiben.fertig()">Ich habe es ins Heft geschrieben ✓</span></div>
       `}
     `);
   }
 
-  function fertig(mitText) {
+  function fertig() {
     if (Storage.getFerienErledigt(ZIEL_ID)) { render(); return; }
     const a = auftragHeute();
-    let text;
-    if (mitText) {
-      const feld = document.getElementById('schreib-text');
-      text = feld ? feld.value.trim() : '';
-      if (text.length < 5) {
-        const h = document.getElementById('schreib-hinweis');
-        if (h) h.textContent = 'Schreibe erst etwas hinein – oder tippe oben auf „Ich habe es ins Heft geschrieben“.';
-        return;
-      }
-    }
     Storage.addSterne(STERNE);
     App.updateTopbar();
     Ferientraining.melde(ZIEL_ID);
     Ferientraining.abschluss(ZIEL_ID);
     const kurz = a.text.length > 90 ? a.text.slice(0, 87) + '…' : a.text;
     FernSync.meldeLernsetErledigt('Schreibauftrag',
-      (mitText ? 'Text abgetippt: ' : 'Im Heft geschrieben: ') + kurz, STERNE, 'deutsch', undefined, text);
+      'Im Heft geschrieben: ' + kurz, STERNE, 'deutsch');
     render();
   }
 
