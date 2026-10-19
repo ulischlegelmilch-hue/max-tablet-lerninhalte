@@ -11,6 +11,7 @@
 <div id="topbar">
   <div id="topbar-home" class="topbar-btn" onclick="App.gotoHome()"></div>
   <div id="topbar-title">Non scholae, sed vitae discimus.</div>
+  <div id="topbar-chat" class="topbar-btn" onclick="Hinweise.chatOeffnen()" title="Chat mit Papa" style="position:relative;margin-right:10px;">💬<span id="topbar-chat-dot" style="display:none;position:absolute;top:3px;right:3px;width:11px;height:11px;border-radius:50%;background:#e03;border:2px solid #fff;"></span></div>
   <div id="topbar-stats">
     <span id="stat-akku" style="display:none;">--%</span>
     <span id="stat-sterne">⭐ 0</span>
@@ -48,6 +49,7 @@
 <script src="js/schach.js"></script>
 <script src="js/schach-online.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/hinweise.js"></script>
 <script src="js/schach-lektionen.js"></script>
 <script src="js/taktik-puzzles-data.js"></script>
 <script src="js/schach-taktik.js"></script>

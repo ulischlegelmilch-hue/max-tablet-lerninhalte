@@ -49,6 +49,20 @@ const FernSync = (function () {
     } catch (e) { return ''; }
   }
 
+  // Ereignisprotokoll des Launchers (Neustarts, Abstuerze, WebView-Abbruch, Wach-/Schlafwechsel)
+  // an den Server geben - dort sieht Papa, WANN das Tablet haengt/neu startet. Bei Erfolg geleert.
+  async function meldeDiagnose() {
+    try {
+      if (typeof AndroidBridge === 'undefined' || !AndroidBridge.getDiagnose) return;
+      const text = AndroidBridge.getDiagnose();
+      if (!text) return;
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/tablet-diagnose', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zeilen: text.split('\n').slice(-60) })
+      });
+      if (r.ok) AndroidBridge.loescheDiagnose();
+    } catch (e) { /* naechster Poll */ }
+  }
+
   async function pollEinmal() {
     if (!BACKEND_URL) return true;
     try {
@@ -64,11 +78,13 @@ const FernSync = (function () {
       if (hatteStand && neueAufgaben.length) {
         spieleBenachrichtigungston();
         zeigeBanner('📋 Neue Aufgabe von Papa!', () => App.gotoHome(), 30000);
+        try { Hinweise.zeigePopup('📋', 'Neue Aufgabe von Papa', neueAufgaben[0].text || '', [{ text: 'OK', primaer: true }]); } catch (e) { /* optional */ }
       }
       // Internet+Backend sind gerade nachweislich erreichbar - guter Moment,
       // um evtl. liegengebliebene Lernset-Meldungen nachzureichen (siehe
       // sendeOffeneLernsetMeldungen).
       sendeOffeneLernsetMeldungen();
+      meldeDiagnose();
       // Storage hat sich gerade veraendert (Zusatzaufgaben und/oder Chat-
       // Ungelesen-Status) - falls Max GERADE auf dem Startbildschirm sitzt,
       // muss der neu gerendert werden, sonst bleibt z.B. das Chat-Badge trotz
@@ -80,6 +96,7 @@ const FernSync = (function () {
       // Ruecksprung zum Startbildschirm.
       App.aktualisiereHomeFallsAktiv();
       aktualisiereChatBanner(); // NACH dem Neu-Rendern: auf der Startseite genuegt die Karte
+      try { Hinweise.badgeAktualisieren(); } catch (e) { /* optional */ }
       return true;
     } catch (e) {
       // Kein Internet / Backend nicht erreichbar - naechster Versuch in POLL_INTERVAL_MS.
@@ -167,7 +184,10 @@ const FernSync = (function () {
     const bekannt = Storage.getLetzteChatVonPapa();
     const istNeu = bekannt && (letzte.ts || 0) > (bekannt.ts || 0);
     Storage.setLetzteChatVonPapa(letzte);
-    if (istNeu) spieleBenachrichtigungston();
+    if (istNeu) {
+      spieleBenachrichtigungston();
+      try { Hinweise.nachrichtPopup(letzte.text); } catch (e) { /* Popup ist optional */ }
+    }
   }
 
   /** Papa hat eine Partie gestartet (Schach/Schiffe/Mau-Mau): eigener Ton + Banner.
@@ -187,6 +207,7 @@ const FernSync = (function () {
     if (!schonGeklingelt) spieleSpielton();
     const name = { schach: 'Schach', schiffe: 'Schiffe versenken', maumau: 'Mau-Mau' }[anfrage.art] || 'ein Spiel';
     zeigeBanner('🎮 Papa möchte ' + name + ' spielen!', () => App.gotoHome(), 60000);
+    try { Hinweise.spielPopup(name); } catch (e) { /* Popup ist optional */ }
   }
 
   function spieleSpielton() {
@@ -262,6 +283,8 @@ const FernSync = (function () {
   // Aufwach-Signale nicht mehrfach toenen).
   let letzterAufwachTon = 0;
   async function beiAufwachen() {
+    // Akku zuerst: die Warnung soll sofort kommen, nicht erst wenn das WLAN wieder da ist
+    try { Hinweise.akkuPruefen('aufwachen'); } catch (e) { /* optional */ }
     await poll();
     aktualisiereChatBanner();
     const letzte = Storage.getLetzteChatVonPapa();
@@ -269,7 +292,9 @@ const FernSync = (function () {
     if (ungelesen && Date.now() - letzterAufwachTon > 20000) {
       letzterAufwachTon = Date.now();
       spieleBenachrichtigungston();
+      try { Hinweise.nachrichtPopup(letzte && letzte.text); } catch (e) { /* Popup ist optional */ }
     }
+    try { Hinweise.badgeAktualisieren(); } catch (e) { /* optional */ }
   }
 
   /** Zusatzaufgaben-Karte fuers Startbild - leerer String, wenn nichts da ist,

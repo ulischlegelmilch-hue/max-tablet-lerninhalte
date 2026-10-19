@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-19-2127",
+  "version": "2026-10-19-2154",
   "files": [
     "css/style.css",
     "images/buecher/enzo/seite-01.jpg",
@@ -83,6 +83,7 @@
     "js/fernsync.js",
     "js/geschichten.js",
     "js/heimatkunde.js",
+    "js/hinweise.js",
     "js/icons.js",
     "js/konzentration.js",
     "js/lesemodus.js",
@@ -103,7 +104,11 @@
     "js/storage.js",
     "js/strategie.js",
     "js/taktik-puzzles-data.js",
+    "sounds/akku.wav",
     "sounds/benachrichtigung.wav",
+    "sounds/laden.wav",
+    "sounds/lautstaerke.txt",
+    "sounds/nachricht.wav",
     "sounds/spiel.wav"
   ]
 }

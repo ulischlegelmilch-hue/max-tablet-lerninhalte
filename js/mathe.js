@@ -2017,22 +2017,67 @@ const Mathe = (function () {
     return { text: '6 + 3 · 4', tokens: tokenisiere('6 + 3 · 4'), wert: 18 };
   }
 
+  // ---- Stufen (Uli 19.10.2026, wie bei den Faellen): Stufe 1 = Zwischenschritt "Was rechnest du
+  // als Erstes?" vor der Aufgabe, Stufe 2 (Bereichs-Serie >= 3 auf Anhieb richtig) = nur die
+  // Aufgabe. Nach einem Fehler gilt wieder Stufe 1. Max waehlt den ersten Rechenschritt selbst
+  // aus - keine Dauerhilfe. ----
+  const REGELN_STUFE_SERIE = 3;
+  function ersterRechenschritt(tokens) {
+    const i = tokens.indexOf('(');
+    if (i >= 0) { const j = tokens.indexOf(')', i); return ausdruckText(tokens.slice(i, j + 1)); }
+    let k = tokens.findIndex(t => t === '·' || t === ':');
+    if (k < 0) k = tokens.findIndex(t => t === '+' || t === '−');
+    return `${tokens[k - 1]} ${tokens[k]} ${tokens[k + 1]}`;
+  }
+  // Falsche "erste Schritte": Rechnungen, die laut Regel NICHT zuerst drankommen (nie ein
+  // gleichwertig richtiger Schritt, z.B. die zweite Punktrechnung bei "3 · 4 + 7 · 5").
+  function falscheErsteSchritte(tokens) {
+    const i = tokens.indexOf('('), j = tokens.indexOf(')');
+    const hatKlammer = i >= 0 && j > i;
+    const hatPunkt = tokens.some(t => t === '·' || t === ':');
+    const ops = [];
+    tokens.forEach((t, k) => { if (/^[+−·:]$/.test(t)) ops.push(k); });
+    const erstesStrich = tokens.findIndex(t => t === '+' || t === '−');
+    const out = [];
+    ops.forEach(k => {
+      const op = tokens[k], punkt = op === '·' || op === ':';
+      const innen = hatKlammer && k > i && k < j;
+      if (hatKlammer ? innen : (hatPunkt ? punkt : k === erstesStrich)) return; // das waere (auch) richtig
+      let l = k - 1; while (l >= 0 && typeof tokens[l] !== 'number') l--;
+      let r = k + 1; while (r < tokens.length && typeof tokens[r] !== 'number') r++;
+      if (l >= 0 && r < tokens.length) out.push(`${tokens[l]} ${op} ${tokens[r]}`);
+    });
+    return out;
+  }
+  function mitRechenwegStufe(f, kategorie, tokens) {
+    f.rueckfrage = 'Denke an die Reihenfolge: Klammer zuerst, dann Punkt (· :), dann Strich (+ −). Was kommt in dieser Aufgabe zuerst dran?';
+    const serie = ((Storage.getMatheKategorienStats()[kategorie]) || {}).serie || 0;
+    f.stufe = serie >= REGELN_STUFE_SERIE ? 2 : 1;
+    if (f.stufe === 2) return f;
+    const richtig = ersterRechenschritt(tokens);
+    const andere = [...new Set(falscheErsteSchritte(tokens))].filter(x => x !== richtig).slice(0, 3);
+    if (andere.length < 1) { f.stufe = 2; return f; } // kein sinnvoller Zwischenschritt moeglich (z.B. 20 · 10 · 10)
+    const optionen = shuffle([richtig, ...andere]);
+    f.vorfrage = { frage: 'Was rechnest du <strong>als Erstes</strong>?', optionen, richtigIndex: optionen.indexOf(richtig) };
+    return f;
+  }
+
   function genPunktVorStrichFrage() {
     const a = baueAusdruck(PVS_MAKER, 'pvs');
     const bsp = baueAusdruck(PVS_MAKER, 'pvs', a.text);
-    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+    return mitRechenwegStufe({ typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) }, 'punktstrich', a.tokens);
   }
 
   function genKlammernFrage() {
     const a = baueAusdruck(KL_MAKER, 'klammern');
     const bsp = baueAusdruck(KL_MAKER, 'klammern', a.text);
-    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+    return mitRechenwegStufe({ typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) }, 'klammern', a.tokens);
   }
 
   function genRechenregelnGemischtFrage() {
     const a = baueAusdruck(RG_MAKER, 'klammern');
     const bsp = baueAusdruck(RG_MAKER, 'klammern', a.text);
-    return { typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) };
+    return mitRechenwegStufe({ typ: 'numeric', frage: `${a.text} = ?`, antwort: a.wert, hilfe: hilfeRechenweg(bsp.text) }, 'rechenregeln', a.tokens);
   }
 
   // ---- Fehler finden: jemand hat falsch gerechnet, Max rechnet richtig ----
@@ -2921,7 +2966,7 @@ const Mathe = (function () {
   // Zahlen auswendig lernen (siehe Karteikarten-Prinzip, aber mit variablem Inhalt).
   function erzeugeFrage(kategorie, gen) {
     const frage = gen();
-    frage.aufAntwort = (korrekt) => Storage.meldeMatheKategorieErgebnis(kategorie, korrekt);
+    frage.aufAntwort = (korrekt) => Storage.meldeMatheKategorieErgebnis(kategorie, korrekt && frage._vorfrageRichtig !== false);
     frage.neueVersion = () => erzeugeFrage(kategorie, gen);
     return frage;
   }
