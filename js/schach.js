@@ -96,6 +96,12 @@ const Schach = (function () {
     return STUFEN[Math.min(fortschritt.stufe, STUFEN.length - 1)];
   }
 
+  /** Uebungspartie gegen den Fuchs (mit Hilfe): Max spielt Weiss in seiner aktuellen Stufe. */
+  function starteGegenFuchs() {
+    wegStufe = null;
+    starteSpiel('w');
+  }
+
   function starteWegPartie(stufenIndex) {
     wegStufe = stufenIndex;
     starteSpiel('w');
@@ -212,7 +218,7 @@ const Schach = (function () {
     letzterAufstiegsHinweis = '';
     zugHistorie = [];
     aufgegeben = false;
-    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu();
+    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu('fuchs');
     renderBrett();
     if (spielerFarbe !== zustand.amZug) setTimeout(kiZugAusfuehren, 1000);
   }
@@ -257,7 +263,7 @@ const Schach = (function () {
       const spielerHatGewonnen = zustand.amZug !== spielerFarbe;
       statusHtml = spielerHatGewonnen
         ? `<div class="schach-status schach-status-sieg">🏆 Schachmatt! Du hast gewonnen!${letzterAufstiegsHinweis}</div>`
-        : '<div class="schach-status schach-status-niederlage">Schachmatt! Der Computer hat gewonnen.</div>';
+        : '<div class="schach-status schach-status-niederlage">Schachmatt! Der Fuchs hat gewonnen – nächstes Mal schaffst du es!</div>';
     } else if (status === 'patt') {
       statusHtml = '<div class="schach-status">Patt – unentschieden.</div>';
     } else if (status === 'remis') {
@@ -266,10 +272,16 @@ const Schach = (function () {
       statusHtml = '<div class="schach-status schach-status-schach">Schach!</div>';
     }
     if (status !== 'laeuft' && status !== 'schach') spielLaeuft = false;
+    if (typeof Fuchs !== 'undefined') Fuchs.setRender(renderBrett);
+    if (!spielLaeuft && typeof Fuchs !== 'undefined') {
+      const ergebnis = aufgegeben ? 'aufgegeben' : status === 'matt' ? (zustand.amZug !== spielerFarbe ? 'gewonnen 🏆' : 'verloren') : 'unentschieden';
+      Fuchs.spielEnde(ergebnis, 'den Fuchs');
+    }
     const planKarte = (typeof SchachWeg !== 'undefined' ? SchachWeg.planKarteHtml(!spielLaeuft) : '') +
-      (typeof Fuchs !== 'undefined' && spielLaeuft ? Fuchs.kommentarHtml(zustand, spielerFarbe, zugHistorie.length, status) : '');
+      (typeof Fuchs !== 'undefined' && spielLaeuft ? Fuchs.kommentarHtml(zustand, spielerFarbe, zugHistorie.length, status) + Fuchs.leisteHtml(zustand, spielerFarbe, zugHistorie.length, status) : '') +
+      (typeof Fuchs !== 'undefined' && !spielLaeuft ? Fuchs.rueckblickHtml() + Fuchs.lernKarteHtml() : '');
 
-    const infoText = !spielLaeuft ? '' : (zustand.amZug === spielerFarbe ? 'Du bist am Zug' : 'Computer denkt nach…');
+    const infoText = !spielLaeuft ? '' : (zustand.amZug === spielerFarbe ? 'Du bist am Zug' : 'Der Fuchs denkt nach…');
     const schachKoenigFeld = (status === 'schach' || status === 'matt') ? findeKoenigFeld(zustand, zustand.amZug) : null;
     const letzterZug = zustand.letzterZug;
 
@@ -283,6 +295,7 @@ const Schach = (function () {
       if (legaleZiele.some(z => z.nach === feld)) klassen += zustand.board[feld] ? ' schach-feld-ziel-schlag' : ' schach-feld-ziel';
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
+      if (typeof Fuchs !== 'undefined' && spielLaeuft && Fuchs.hinweisFelder().includes(feld)) klassen += ' schach-feld-hinweis';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
       return `<div class="${klassen}" onclick="Schach.feldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
@@ -302,7 +315,7 @@ const Schach = (function () {
         ${planKarte}
         ${statusHtml}
         <div class="schach-spieler-leiste">
-          <span class="schach-spieler-name">🖥️ Computer</span>
+          <span class="schach-spieler-name">🦊 Fuchs</span>
           <span class="schach-geschlagen">${gegnerGeschlagenHtml}${spielerVorteil < 0 ? `<span class="schach-materialvorteil">+${-spielerVorteil}</span>` : ''}</span>
         </div>
         <div class="schach-rahmen">
@@ -343,6 +356,7 @@ const Schach = (function () {
     if (ausgewaehltesFeld !== null) {
       const zug = legaleZiele.find(z => z.nach === feld);
       if (zug) {
+        if (typeof Fuchs !== 'undefined') Fuchs.zugGemacht();
         zugHistorie.push(zugKurzNotation(zug));
         zustand = SchachEngine.zugAusfuehren(zustand, zug);
         ausgewaehltesFeld = null;
@@ -401,5 +415,5 @@ const Schach = (function () {
   // Fuer die Fortschrittsanzeige auf der Home-Kachel (siehe App.gotoHome).
   function aktuelleStufeName() { return aktuelleStufe().name; }
 
-  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, starteWegPartie, renderFreiesTraining, feldGeklickt, aufgeben, aktuelleStufeName };
+  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, starteGegenFuchs, starteWegPartie, renderFreiesTraining, feldGeklickt, aufgeben, aktuelleStufeName };
 })();

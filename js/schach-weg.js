@@ -171,6 +171,11 @@ const SchachWeg = (function () {
         <div class="weg-titel">Die Fuchs-Akademie</div>
         <div class="weg-untertitel">So schlägst du Papa</div>
         ${fuchs(gruss)}
+        <div class="weg-fuchs-spielen" onclick="Schach.starteGegenFuchs()">
+          <span class="weg-fuchs-spielen-emoji">🦊</span>
+          <div><b>Gegen den Fuchs spielen</b><small>Zum Üben – der Fuchs hilft dir mit Tipps, so oft du willst</small></div>
+          <span class="weg-fuchs-spielen-los">Los ▶</span>
+        </div>
         <div class="weg-weiter" onclick="SchachOnline.starteAnsicht()">
           <div class="weg-weiter-label">${aktiv ? 'Deine Mission wartet' : 'Bereit?'}</div>
           <div class="weg-weiter-titel">Gegen Papa spielen</div>
@@ -183,7 +188,7 @@ const SchachWeg = (function () {
         <div class="weg-abschnitt">Mein Sticker-Album <span>${anzahlGelernt()}/${TRICKS.length} gelernt · ${anzahlGeklappt()} geklappt</span></div>
         <div class="album">${album}</div>
         <div class="weg-unten">
-          <div class="weg-unten-knopf" onclick="Schach.renderStufenwahl()"><span>🖥</span>Gegen Computer üben</div>
+          <div class="weg-unten-knopf" onclick="Schach.renderStufenwahl()"><span>🪜</span>Fuchs-Stufe wählen</div>
           <div class="weg-unten-knopf" onclick="SchachEroeffnung.renderMenu()"><span>📖</span>Meine Eröffnungen</div>
           <div class="weg-unten-knopf" onclick="Schach.renderFreiesTraining()"><span>🧩</span>Mehr Training</div>
         </div>
@@ -295,7 +300,7 @@ const SchachWeg = (function () {
         <div class="weg-karte-info"><div class="weg-info-zeile"><span>🗺️</span><div><b>Dein Plan:</b><ol class="weg-liste weg-liste-nr">${t.plan.map(p => `<li>${esc(p)}</li>`).join('')}</ol></div></div></div>
         <div class="weg-ergebnis-knoepfe">
           <div class="weg-weiter-knopf" onclick="SchachWeg.startMission('${t.id}','papa')">Gegen Papa spielen ▶</div>
-          <div class="weg-unten-knopf" onclick="SchachWeg.startMission('${t.id}','computer')">Erst gegen den Computer üben</div>
+          <div class="weg-unten-knopf" onclick="SchachWeg.startMission('${t.id}','computer')">Erst gegen den Fuchs üben</div>
           <div class="weg-unten-knopf" onclick="SchachWeg.renderHub()">Später</div>
         </div>
       </div></div>`);

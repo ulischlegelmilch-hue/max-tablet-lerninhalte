@@ -197,6 +197,7 @@ const SchachOnline = (function () {
       if (ziele.some(z => z.nach === feld)) klassen += stein ? ' schach-feld-ziel-schlag' : ' schach-feld-ziel';
       if (feld === schachKoenigFeld) klassen += ' schach-feld-schach';
       if (letzterZug && (feld === letzterZug.von || feld === letzterZug.nach)) klassen += ' schach-feld-letzter-zug';
+      if (typeof Fuchs !== 'undefined' && stand && spielLaeuftNoch(stand.status) && Fuchs.hinweisFelder().includes(feld)) klassen += ' schach-feld-hinweis';
       const symbol = stein ? FIGUR_SYMBOL[stein.farbe][stein.typ] : '';
       return `<div class="${klassen}" onclick="SchachOnline.feldGeklickt(${feld})">${symbol}</div>`;
     }).join('');
@@ -266,7 +267,8 @@ const SchachOnline = (function () {
           <div class="schach-stufe">Online gegen Papa</div>
           <div class="schach-info">${infoText}</div>
           ${typeof SchachWeg !== 'undefined' ? SchachWeg.planKarteHtml(!spielLaeuftNoch(stand.status)) : ''}
-          ${typeof Fuchs !== 'undefined' && spielLaeuftNoch(stand.status) ? Fuchs.kommentarHtml(stand.zustand, farbe, (stand.zugHistorie || []).length, stand.status) : ''}
+          ${typeof Fuchs !== 'undefined' && spielLaeuftNoch(stand.status) ? Fuchs.kommentarHtml(stand.zustand, farbe, (stand.zugHistorie || []).length, stand.status) + Fuchs.leisteHtml(stand.zustand, farbe, (stand.zugHistorie || []).length, stand.status) : ''}
+          ${typeof Fuchs !== 'undefined' && !spielLaeuftNoch(stand.status) ? Fuchs.rueckblickHtml() + Fuchs.lernKarteHtml() : ''}
           ${statusHtml}
           <div class="schach-spieler-leiste">
             <span class="schach-spieler-name">📱 Papa</span>
@@ -287,6 +289,15 @@ const SchachOnline = (function () {
       `;
     }
 
+    if (typeof Fuchs !== 'undefined') { Fuchs.setRender(zeichne); Fuchs.setModus('papa'); }
+    try {
+      if (stand && !spielLaeuftNoch(stand.status) && stand.status !== 'kein_spiel' && typeof Fuchs !== 'undefined') {
+        const farbe0 = meineFarbe();
+        const erg = stand.status === 'matt' ? (stand.gewinner === farbe0 ? 'gewonnen 🏆' : 'verloren')
+          : stand.status === 'aufgegeben' ? (stand.gewinner === farbe0 ? 'Papa hat aufgegeben' : 'aufgegeben') : 'unentschieden';
+        Fuchs.spielEnde(erg, 'Papa');
+      }
+    } catch (e) { /* optional */ }
     if (!ersteAnzeige) App.setOnLeaveScreen(() => {});
     App.render(html);
     App.setOnLeaveScreen(trennen);
@@ -300,7 +311,7 @@ const SchachOnline = (function () {
   }
 
   function starteSpiel() {
-    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu();
+    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu('papa');
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ typ: 'neues_spiel' }));
   }
@@ -322,7 +333,7 @@ const SchachOnline = (function () {
         const zustandNachher = SchachEngine.zugAusfuehren(stand.zustand, zug);
         const status = SchachEngine.spielstatus(zustandNachher);
         ws.send(JSON.stringify({ typ: 'zug', von: zug.von, nach: zug.nach, zustandNachher, status }));
-        try { if (typeof Fuchs !== 'undefined') Fuchs.partieGespielt(); } catch (e) { /* optional */ }
+        try { if (typeof Fuchs !== 'undefined') { Fuchs.partieGespielt(); Fuchs.zugGemacht(); } } catch (e) { /* optional */ }
         // Optimistisch sofort anzeigen - die Server-Bestaetigung (naechste
         // "stand"-Nachricht) ueberschreibt das gleich wieder, meist unsichtbar schnell.
         stand = Object.assign({}, stand, {

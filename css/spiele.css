@@ -344,3 +344,35 @@ body.spielbuehne .schach-info { font-size: 17px; font-weight: 700; color: #cfd6e
 .schach-rahmen-klein { width: min(44vw, 34vh, 300px); padding: 8px 8px 3px 3px; }
 .schach-rahmen-klein .schach-rang-leiste > div, .schach-rahmen-klein .schach-datei-leiste > div { font-size: 10px; }
 .schach-rahmen-klein .schach-rang-leiste { width: 14px; } .schach-rahmen-klein .schach-rang-spacer { width: 14px; }
+
+/* ---- Dosierte Fuchs-Hilfe ---- */
+.fuchs-leiste { max-width: 640px; margin: 0 auto 12px; }
+.fuchs-leiste-knoepfe { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.fuchs-hilfe { padding: 11px 20px; border-radius: 14px; font-weight: 800; font-size: 16px; cursor: pointer; color: #2a1503;
+  background: linear-gradient(180deg, #FFC35C, #F59E0B); box-shadow: 0 6px 16px rgba(245,158,11,.3); }
+.fuchs-hilfe small { font-weight: 700; opacity: .75; }
+.fuchs-hilfe-aus { opacity: .45; pointer-events: none; }
+.fuchs-hilfe-puls { animation: weg-puls 1.3s ease-in-out infinite; }
+.fuchs-schalter { padding: 11px 16px; border-radius: 14px; font-weight: 700; font-size: 14px; cursor: pointer; color: #F3F1EA;
+  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); }
+.fuchs-allein { display: block; padding: 10px 16px; border-radius: 14px; font-weight: 700; color: #d7f8e3; background: rgba(74,222,128,.14); border: 1px solid rgba(74,222,128,.45); margin-bottom: 8px; text-align: center; }
+.fuchs-lernkarte { max-width: 640px; margin: 0 auto 14px; padding: 14px 16px; border-radius: 18px; text-align: left; background: rgba(181,123,255,.14); border: 1px solid rgba(181,123,255,.5); }
+.fuchs-lernkarte-titel { font-weight: 800; color: #eadcff; margin-bottom: 8px; }
+.fuchs-lern-zeile { display: flex; align-items: center; gap: 12px; padding: 10px 6px; border-top: 1px solid rgba(255,255,255,.12); cursor: pointer; color: #F3F1EA; }
+.fuchs-lern-zeile:first-of-type { border-top: none; }
+.fuchs-lern-zeile > span:first-child { font-size: 30px; }
+.fuchs-lern-zeile > div { flex: 1; } .fuchs-lern-zeile small { display: block; color: #cdb8f5; }
+.fuchs-lern-los { padding: 8px 14px; border-radius: 12px; background: #b57bff; color: #1d0b3a; font-weight: 800; font-size: 14px; }
+
+/* ---- Fuchs als Coach: Solo-Zuege, Abfragen, Ziel, Gegen-den-Fuchs ---- */
+.fuchs-solo { background: rgba(74,163,255,.15); border-color: rgba(74,163,255,.55); color: #dcecff; }
+.fuchs-abfrage { background: rgba(181,123,255,.16); border-color: rgba(181,123,255,.6); color: #eadcff; }
+.fuchs-ziel { margin: 0 auto 10px; padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; text-align: center; color: #FFE9C2; background: rgba(255,180,58,.12); border: 1px dashed rgba(255,180,58,.5); }
+.weg-fuchs-spielen { display: flex; align-items: center; gap: 14px; cursor: pointer; text-align: left; margin: 0 0 14px; padding: 14px 18px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(74,163,255,.22), rgba(181,123,255,.2)); border: 1px solid rgba(140,160,255,.5); color: #F3F1EA; box-shadow: 0 8px 22px rgba(0,0,0,.3); }
+.weg-fuchs-spielen-emoji { font-size: 38px; }
+.weg-fuchs-spielen > div { flex: 1; font-size: 18px; }
+.weg-fuchs-spielen small { display: block; font-size: 13px; color: #cdd6f5; margin-top: 2px; font-weight: 500; }
+.weg-fuchs-spielen-los { padding: 8px 16px; border-radius: 12px; background: #4aa3ff; color: #06223f; font-weight: 800; font-size: 15px; }
+.fuchs-karte-klein { background: linear-gradient(135deg, #6aa8ff 0%, #8a6bff 100%); color: #0b1330; box-shadow: 0 8px 22px rgba(90,100,255,.3); padding: 10px 18px; }
+.fuchs-karte-klein .fuchs-karte-los { background: #0b1330; color: #cfe0ff; }
