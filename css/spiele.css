@@ -1,0 +1,346 @@
+/* Spiel-Optik (19.10.2026): dunkle "Spielbuehne" mit Glas-Flaechen, Holzbrett und echten
+   Schachfiguren (SVG). Gilt nur, solange ein Spiel-Bildschirm offen ist (body.spielbuehne,
+   gesetzt in App.render) - Lernbereiche behalten ihr helles Design. */
+
+body.spielbuehne {
+  --card-bg: rgba(255, 255, 255, 0.07);
+  --ink: #F3F1EA;
+  --ink-soft: #A9B1C6;
+  --border: rgba(255, 255, 255, 0.13);
+  --muted: rgba(255, 255, 255, 0.09);
+  --accent: #FFB43A;
+  --accent-dark: #FFCB6B;
+  --accent-soft: rgba(255, 180, 58, 0.16);
+  --shadow-md: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+body.spielbuehne #app-root {
+  background:
+    radial-gradient(900px 520px at 50% -8%, rgba(255, 180, 58, 0.10), transparent 70%),
+    radial-gradient(1300px 800px at 50% 0%, #2b3659 0%, #161c31 52%, #0a0e1b 100%);
+  color: var(--ink);
+}
+body.spielbuehne #topbar { background: #0f1426; border-bottom: 1px solid rgba(255, 255, 255, 0.08); color: #F3F1EA; }
+body.spielbuehne #topbar-title, body.spielbuehne .topbar-btn { color: #F3F1EA; }
+body.spielbuehne .topbar-btn, body.spielbuehne #stat-akku, body.spielbuehne #stat-sterne, body.spielbuehne #stat-level { background: rgba(255, 255, 255, 0.09); color: #F3F1EA; }
+body.spielbuehne .welcome { color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4); }
+body.spielbuehne .back-btn { color: #F3F1EA; background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.14); }
+body.spielbuehne .lese-text, body.spielbuehne .schach-info { color: var(--ink-soft); }
+body.spielbuehne .frage-card {
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.13); color: var(--ink);
+  backdrop-filter: blur(6px); box-shadow: var(--shadow-md); border-radius: 18px;
+}
+body.spielbuehne .btn-primary {
+  background: linear-gradient(180deg, #FFC35C 0%, #F59E0B 100%); color: #2a1a02; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5); border-radius: 14px;
+}
+body.spielbuehne .schach-aktion-btn {
+  background: linear-gradient(180deg, #FFC35C 0%, #F59E0B 100%); color: #2a1a02; border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+body.spielbuehne .schach-aktion-btn-sekundaer { background: rgba(255, 255, 255, 0.10); color: #F3F1EA; box-shadow: none; border: 1px solid rgba(255, 255, 255, 0.16); }
+
+/* ---- Holzbrett ---- */
+body.spielbuehne .schach-rahmen, .schach-rahmen {
+  background: linear-gradient(145deg, #6b4526 0%, #4a2d17 55%, #3a2211 100%);
+  padding: 12px 12px 6px 6px;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 220, 170, 0.28), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.schach-rang-leiste, .schach-datei-leiste { color: #E7C99B; }
+.schach-rang-leiste > div, .schach-datei-leiste > div { color: #E7C99B; font-size: 12px; letter-spacing: .03em; }
+.schach-rang-leiste { width: 20px; }
+.schach-rang-spacer { width: 20px; }
+.schach-brett { border-radius: 6px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4); }
+.schach-feld-hell { background: linear-gradient(135deg, #F3E1BC 0%, #E9D2A5 100%); }
+.schach-feld-dunkel { background: linear-gradient(135deg, #B88553 0%, #A06F40 100%); }
+.schach-feld-ausgewaehlt.schach-feld-hell, .schach-feld-ausgewaehlt.schach-feld-dunkel {
+  background: #FFD84A; box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55), inset 0 0 18px rgba(255, 190, 0, 0.8);
+}
+.schach-feld-letzter-zug.schach-feld-hell { background: #F4DC7A; }
+.schach-feld-letzter-zug.schach-feld-dunkel { background: #CBA64B; }
+.schach-feld-ziel::after { width: 30%; height: 30%; background: rgba(40, 90, 50, 0.55); box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.25); }
+.schach-feld-ziel-schlag::after { border: 5px solid rgba(190, 40, 40, 0.65); background: transparent; box-shadow: none; }
+.schach-feld-schach { background-image: radial-gradient(ellipse at center, rgba(255, 40, 40, 0.95) 0%, rgba(231, 20, 20, 0.75) 28%, rgba(169, 0, 0, 0) 85%) !important; }
+
+/* ---- Figuren ---- */
+img.fig { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; pointer-events: none; }
+.schach-feld img.fig {
+  width: 94%; height: 94%; vertical-align: baseline;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.38));
+  transition: transform 0.12s ease;
+}
+.schach-feld-ausgewaehlt img.fig { transform: translateY(-4%) scale(1.06); filter: drop-shadow(0 8px 5px rgba(0, 0, 0, 0.45)); }
+.schach-feld-letzter-zug img.fig { animation: fig-pop 0.28s ease-out; }
+@keyframes fig-pop { 0% { transform: scale(0.82); } 70% { transform: scale(1.08); } 100% { transform: scale(1); } }
+.schach-geschlagen img.fig, .schach-spieler-geschlagen img.fig { width: 1.05em; height: 1.05em; margin-right: -0.25em; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .35)); }
+.denkfeld-brett { border: none; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4); }
+
+/* ---- Status-Leisten ---- */
+body.spielbuehne .schach-status { border-radius: 14px; font-weight: 700; backdrop-filter: blur(4px); }
+body.spielbuehne .schach-zugliste { background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--ink); }
+body.spielbuehne .schach-zugliste-zeile { border-bottom-color: rgba(255, 255, 255, 0.08); }
+
+/* ================= Mau-Mau: Filztisch, echte Karten ================= */
+body.spielbuehne .maumau-wrap {
+  position: relative; max-width: 860px; margin: 0 auto; padding: 18px 18px 22px;
+  background: radial-gradient(ellipse at 50% 40%, #2f8a62 0%, #1d6b49 55%, #134a33 100%);
+  border-radius: 28px; border: 7px solid #4a2d17;
+  box-shadow: 0 0 0 2px #7a512c, 0 22px 50px rgba(0, 0, 0, 0.55), inset 0 0 60px rgba(0, 0, 0, 0.35);
+}
+body.spielbuehne .maumau-wrap::before { /* feine Filz-Struktur */
+  content: ''; position: absolute; inset: 0; border-radius: 20px; pointer-events: none; opacity: .5;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 2px, transparent 2px 5px);
+}
+body.spielbuehne .maumau-wrap > * { position: relative; }
+body.spielbuehne .maumau-wrap .welcome { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; }
+body.spielbuehne .maumau-wrap .schach-info { color: #d6f2e2; font-weight: 700; min-height: 22px; }
+
+.maumau-karte {
+  width: 78px; height: 112px; border-radius: 11px;
+  background: linear-gradient(160deg, #ffffff 0%, #f4f1ea 100%);
+  border: 1px solid #cfc8b8;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.38), inset 0 0 0 4px #fff, inset 0 0 0 5px rgba(0, 0, 0, 0.08);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.maumau-karte .karte-rot, .karte-rot { color: #d32f2f; }
+.karte-schwarz { color: #1b1b1b; }
+body.spielbuehne .maumau-karte.karte-rot { color: #d32f2f; }
+body.spielbuehne .maumau-karte.karte-schwarz { color: #1b1b1b; }
+.maumau-karte-wert { top: 8px; left: 10px; font-size: 22px; font-weight: 800; font-family: Georgia, 'Times New Roman', serif; }
+.maumau-karte-symbol { font-size: 46px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .12)); }
+.maumau-karte-gesperrt { opacity: 1; filter: saturate(.6) brightness(.78); box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3), inset 0 0 0 4px #e8e4da; cursor: default; }
+.maumau-spielerhand .maumau-karte:not(.maumau-karte-gesperrt) {
+  transform: translateY(-14px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(255, 196, 70, 0.9), inset 0 0 0 4px #fff;
+}
+.maumau-spielerhand .maumau-karte:not(.maumau-karte-gesperrt):active { transform: translateY(-20px) scale(1.04); }
+.maumau-karte-gezogen { border-color: #ffb43a; box-shadow: 0 12px 20px rgba(0, 0, 0, .45), 0 0 0 3px #ffb43a, inset 0 0 0 4px #fff; }
+
+.maumau-kartenrueckseite {
+  width: 56px; height: 80px; border-radius: 9px; border: 3px solid #fff;
+  background:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.16) 0 3px, transparent 3px 9px),
+    repeating-linear-gradient(-45deg, rgba(255,255,255,.16) 0 3px, transparent 3px 9px),
+    linear-gradient(160deg, #ff9f2e 0%, #d4660a 100%);
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.4), inset 0 0 0 2px rgba(120, 50, 0, .35);
+}
+.maumau-computerhand { gap: 0; margin: 4px 0 14px; }
+.maumau-computerhand .maumau-kartenrueckseite { margin-left: -22px; width: 52px; height: 74px; }
+.maumau-computerhand .maumau-kartenrueckseite:first-child { margin-left: 0; }
+.maumau-nachziehstapel { width: 78px; height: 112px; border-radius: 11px;
+  box-shadow: 0 1px 0 #b45309, 0 3px 0 #9a4a08, 0 5px 0 #7c3a06, 0 14px 20px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(120,50,0,.35); }
+.maumau-nachziehstapel:not(.maumau-stapel-inaktiv) { animation: stapel-puls 1.6s ease-in-out infinite; }
+@keyframes stapel-puls { 0%, 100% { box-shadow: 0 1px 0 #b45309, 0 3px 0 #9a4a08, 0 5px 0 #7c3a06, 0 14px 20px rgba(0,0,0,.5), 0 0 0 0 rgba(255,180,58,.0); }
+  50% { box-shadow: 0 1px 0 #b45309, 0 3px 0 #9a4a08, 0 5px 0 #7c3a06, 0 14px 20px rgba(0,0,0,.5), 0 0 0 8px rgba(255,180,58,.35); } }
+.maumau-stapel-inaktiv { opacity: .75; }
+.maumau-tischmitte { gap: 48px; margin: 4px 0 18px; }
+.maumau-stapel-label { color: #d6f2e2; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.maumau-hinweis { background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255,255,255,.15); color: #fff; border-radius: 12px; }
+.maumau-spielerhand {
+  background: rgba(0, 0, 0, 0.22); border-radius: 18px; padding: 24px 12px 12px; margin: 14px 0; gap: 0;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+.maumau-spielerhand .maumau-karte { margin-left: -6px; }
+.maumau-spielerhand .maumau-karte:first-child { margin-left: 0; }
+.maumau-farbwahl-btn { width: 64px; height: 64px; font-size: 32px; background: linear-gradient(160deg, #fff, #ece7db); border: 3px solid #fff; box-shadow: 0 8px 16px rgba(0, 0, 0, .4); }
+.maumau-farbwahl-btn.karte-rot { color: #d32f2f; } .maumau-farbwahl-btn.karte-schwarz { color: #1b1b1b; }
+.maumau-wrap .schach-aktionsleiste { width: auto; }
+
+/* ================= Schiffe versenken: Seekarte im Stahlrahmen ================= */
+body.spielbuehne .schiffe-rahmen {
+  background: linear-gradient(145deg, #4b5a72 0%, #2b3548 50%, #1c2434 100%);
+  padding: 10px 10px 4px 4px; border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.4);
+}
+body.spielbuehne .schiffe-rang-leiste > div, body.spielbuehne .schiffe-datei-leiste > div { color: #9fd8ef; }
+body.spielbuehne .schiffe-brett { border-radius: 6px; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(0, 20, 50, 0.45); }
+body.spielbuehne .schiffe-feld-unbekannt { background: linear-gradient(160deg, #2a86b8 0%, #1c628f 100%); }
+body.spielbuehne .schiffe-feld-treffer { animation: treffer-flackern 0.9s ease-in-out infinite alternate; }
+@keyframes treffer-flackern { from { filter: brightness(1); } to { filter: brightness(1.35) saturate(1.2); } }
+body.spielbuehne .schiffe-tracker-liste, body.spielbuehne .schiffe-regeln-card { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--ink); }
+body.spielbuehne .schiffe-tray-chip { background: rgba(255, 255, 255, 0.08); color: #F3F1EA; border-color: rgba(255, 255, 255, 0.16); }
+body.spielbuehne .schiffe-tray-chip-aktiv { border-color: #FFB43A; background: rgba(255, 180, 58, 0.16); color: #FFCB6B; }
+
+/* ================= Lernpfad "Der Weg zum Sieg gegen Papa" ================= */
+.weg-wrap { max-width: 760px; margin: 0 auto; padding: 0 4px 40px; text-align: center; }
+.weg-titel { font-size: 26px; font-weight: 800; color: #fff; margin: 4px 0 14px; letter-spacing: .01em; text-shadow: 0 2px 14px rgba(0,0,0,.45); }
+.weg-trainer { display: flex; align-items: center; gap: 14px; text-align: left; margin: 0 0 16px; }
+.weg-fuchs { flex-shrink: 0; width: 68px; height: 68px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px;
+  background: radial-gradient(circle at 35% 30%, #ffcf8a, #f08a1c); box-shadow: 0 8px 20px rgba(0,0,0,.4), inset 0 0 0 3px rgba(255,255,255,.35); }
+.weg-blase { position: relative; flex: 1; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); border-radius: 18px; padding: 14px 18px;
+  color: #F3F1EA; font-size: 17px; line-height: 1.45; backdrop-filter: blur(6px); }
+.weg-blase::before { content: ''; position: absolute; left: -9px; top: 24px; width: 16px; height: 16px; background: rgba(255,255,255,.1);
+  border-left: 1px solid rgba(255,255,255,.18); border-bottom: 1px solid rgba(255,255,255,.18); transform: rotate(45deg); }
+.weg-blase b { color: #FFCB6B; }
+.weg-balken { height: 12px; border-radius: 7px; background: rgba(255,255,255,.12); overflow: hidden; margin: 0 0 18px; box-shadow: inset 0 1px 3px rgba(0,0,0,.4); }
+.weg-balken > div { height: 100%; border-radius: 7px; background: linear-gradient(90deg, #ffb43a, #ff7a3a); transition: width .5s ease; box-shadow: 0 0 14px rgba(255,160,40,.6); }
+
+.weg-weiter { cursor: pointer; border-radius: 24px; padding: 22px 20px 20px; margin: 0 0 20px; position: relative; overflow: hidden;
+  background: linear-gradient(145deg, #ffb43a 0%, #f2760a 100%); color: #2a1503; box-shadow: 0 14px 34px rgba(245,120,10,.4), inset 0 1px 0 rgba(255,255,255,.55); }
+.weg-weiter::after { content: '♞'; position: absolute; right: 14px; bottom: -22px; font-size: 130px; opacity: .13; }
+.weg-weiter-label { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; opacity: .75; }
+.weg-weiter-titel { font-size: 28px; font-weight: 800; margin: 4px 0 6px; }
+.weg-weiter-meta { font-size: 15px; font-weight: 600; opacity: .85; margin-bottom: 14px; }
+.weg-weiter-knopf { display: inline-block; padding: 14px 30px; border-radius: 16px; font-size: 19px; font-weight: 800; cursor: pointer;
+  background: #2a1503; color: #FFD79A; box-shadow: 0 8px 18px rgba(0,0,0,.35); }
+.weg-weiter-fertig { background: linear-gradient(145deg, #5ee0a0 0%, #1fa56a 100%); box-shadow: 0 14px 34px rgba(30,170,110,.4); }
+.weg-weiter-fertig .weg-weiter-knopf { color: #bff5d8; }
+.weg-start { display: block; max-width: 380px; margin: 20px auto 0; background: linear-gradient(180deg, #FFC35C, #F59E0B); color: #2a1503; }
+.weg-skip { margin-top: 16px; font-size: 14px; color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+
+.weg-kapitel-liste { display: flex; flex-direction: column; gap: 12px; text-align: left; margin-bottom: 22px; }
+.weg-kapitel { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.11); border-left: 5px solid var(--kfarbe); border-radius: 16px; padding: 12px 14px; }
+.weg-kapitel-kopf { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.weg-kapitel-titel { font-size: 16px; font-weight: 800; color: #fff; }
+.weg-kapitel-meta { font-size: 13px; font-weight: 700; color: var(--ink-soft); }
+.weg-punkte { display: flex; flex-wrap: wrap; gap: 8px; }
+.weg-punkt { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 22px; background: rgba(255,255,255,.07); color: #cfd6e8; font-size: 14px; font-weight: 600; }
+.weg-punkt-kreis { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; background: rgba(255,255,255,.12); }
+.weg-punkt-fertig { cursor: pointer; background: rgba(60,200,130,.16); color: #c4f5de; }
+.weg-punkt-fertig .weg-punkt-kreis { background: #2fbf7d; color: #052b19; }
+.weg-punkt-jetzt { cursor: pointer; background: rgba(255,180,58,.2); color: #FFE2B0; box-shadow: 0 0 0 2px #FFB43A; animation: weg-puls 1.6s ease-in-out infinite; }
+.weg-punkt-jetzt .weg-punkt-kreis { background: #FFB43A; color: #2a1503; }
+.weg-punkt-zu { opacity: .45; }
+@keyframes weg-puls { 0%,100% { box-shadow: 0 0 0 2px #FFB43A, 0 0 0 0 rgba(255,180,58,.0); } 50% { box-shadow: 0 0 0 2px #FFB43A, 0 0 0 8px rgba(255,180,58,.25); } }
+
+.weg-unten { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.weg-unten-knopf { flex: 1; min-width: 160px; padding: 14px 12px; border-radius: 14px; cursor: pointer; font-weight: 700; font-size: 15px; color: #F3F1EA;
+  background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; gap: 8px; }
+.weg-unten-knopf span { font-size: 20px; }
+
+.weg-station-kapitel { display: inline-block; padding: 5px 14px; border-radius: 14px; font-size: 13px; font-weight: 800; letter-spacing: .06em; color: #10151f; background: var(--kfarbe); margin-bottom: 8px; }
+.weg-karte-info { text-align: left; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.13); border-radius: 18px; padding: 8px 18px; margin: 0 0 6px; }
+.weg-info-zeile { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; font-size: 17px; line-height: 1.45; color: #F3F1EA; border-top: 1px solid rgba(255,255,255,.1); }
+.weg-info-zeile:first-child { border-top: none; }
+.weg-info-zeile > span { font-size: 24px; flex-shrink: 0; }
+.weg-info-zeile b { color: #FFCB6B; }
+.weg-ergebnis { margin-top: 30px; }
+.weg-ergebnis-emoji { font-size: 84px; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); animation: weg-hupf .7s ease-out; }
+@keyframes weg-hupf { 0% { transform: scale(.4) translateY(30px); opacity: 0; } 70% { transform: scale(1.12); } 100% { transform: scale(1); opacity: 1; } }
+.weg-ergebnis-knoepfe { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 12px; }
+.weg-papa-hinweis { margin: 0 0 14px; padding: 14px; border-radius: 16px; background: rgba(60,200,130,.18); color: #c4f5de; font-weight: 700; font-size: 18px; }
+
+.weg-ergebnis .weg-weiter-knopf { background: linear-gradient(180deg, #FFC35C, #F59E0B); color: #2a1503; }
+body.spielbuehne .schach-wrap { text-align: center; }
+body.spielbuehne .weg-aufgabe { font-size: 21px; font-weight: 700; color: #fff; max-width: 760px; margin: 6px auto 12px; text-align: center; }
+body.spielbuehne .schach-stufe { color: #FFCB6B; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+body.spielbuehne .schach-info { font-size: 17px; font-weight: 700; color: #cfd6e8; margin: 4px 0 10px; }
+.weg-tipp { max-width: 560px; margin: 0 auto 12px; padding: 10px 16px; border-radius: 14px; cursor: pointer; text-align: left;
+  background: rgba(255, 180, 58, .12); border: 1px dashed rgba(255, 180, 58, .55); }
+.weg-tipp-titel { font-weight: 800; color: #FFCB6B; font-size: 14px; }
+.weg-tipp-text { display: none; margin-top: 6px; font-size: 16px; color: #F3F1EA; line-height: 1.45; }
+.weg-tipp.offen .weg-tipp-text { display: block; }
+
+/* ---- Eroeffnungs-Repertoire ---- */
+.schach-feld-hinweis { box-shadow: inset 0 0 0 4px #4ade80, inset 0 0 18px rgba(74, 222, 128, .75) !important; animation: hinweis-puls 1.1s ease-in-out infinite; }
+@keyframes hinweis-puls { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.18); } }
+.eroeff-text { max-width: 720px; margin: 6px auto 12px; padding: 14px 18px; border-radius: 16px; font-size: 19px; line-height: 1.45; font-weight: 600; color: #fff;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); text-align: left; min-height: 62px; }
+.eroeff-zug { display: inline-block; padding: 2px 10px; margin-right: 8px; border-radius: 10px; background: #4ade80; color: #06260f; font-weight: 800; }
+.eroeff-hinweis-knopf { display: inline-block; margin: 0 auto 12px; padding: 10px 22px; border-radius: 14px; font-weight: 800; cursor: pointer; color: #FFE2B0; background: rgba(255,180,58,.16); border: 1px dashed rgba(255,180,58,.6); }
+.eroeff-liste { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.eroeff-zeile { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); border-left: 5px solid var(--kfarbe); border-radius: 16px; padding: 14px 16px; }
+.eroeff-zeile-kopf { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.eroeff-farbe { font-size: 13px; font-weight: 800; color: var(--ink-soft); }
+.eroeff-name { font-size: 19px; font-weight: 800; color: #fff; }
+.eroeff-zeile-sub { margin: 4px 0 10px; font-size: 14px; color: var(--ink-soft); }
+.eroeff-zeile-knoepfe { display: flex; gap: 10px; }
+.eroeff-zeile-knoepfe .weg-unten-knopf { min-width: 0; padding: 10px 14px; }
+.weg-liste { margin: 6px 0 0; padding-left: 18px; font-size: 16px; }
+.weg-liste li { margin: 3px 0; }
+.weg-auffrischen { display: flex; align-items: center; gap: 14px; cursor: pointer; text-align: left; margin: 0 0 18px; padding: 14px 18px; border-radius: 16px;
+  background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.4); color: #d7f8e3; }
+.weg-auffrischen > span:first-child { font-size: 28px; }
+.weg-auffrischen > div { flex: 1; font-size: 16px; }
+.weg-auffrischen small { display: block; color: #9fd9b6; font-size: 13px; margin-top: 2px; }
+
+/* ================= Fuchs-Akademie ================= */
+.weg-untertitel { margin: -8px 0 14px; font-size: 16px; font-weight: 700; color: #FFCB6B; letter-spacing: .04em; }
+.weg-abschnitt { text-align: left; margin: 22px 4px 10px; font-size: 17px; font-weight: 800; color: #fff; }
+.weg-abschnitt span { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin-left: 8px; }
+.trick-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.trick-karte { position: relative; cursor: pointer; text-align: left; padding: 16px 16px 14px; border-radius: 20px; overflow: hidden;
+  background: linear-gradient(160deg, rgba(255,255,255,.11), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 10px 24px rgba(0,0,0,.3); transition: transform .12s ease; }
+.trick-karte::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 5px; background: var(--tfarbe); }
+.trick-karte:active { transform: scale(.97); }
+.trick-emoji { font-size: 44px; line-height: 1; filter: drop-shadow(0 6px 8px rgba(0,0,0,.4)); }
+.trick-name { margin-top: 8px; font-size: 19px; font-weight: 800; color: #fff; }
+.trick-kurz { margin: 3px 0 10px; font-size: 14px; color: var(--ink-soft); line-height: 1.35; min-height: 38px; }
+.trick-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 800; background: rgba(255,255,255,.12); color: #cfd6e8; }
+.trick-badge-gut { background: rgba(60,200,130,.2); color: #c4f5de; }
+.trick-badge-top { background: linear-gradient(180deg,#FFC35C,#F59E0B); color: #2a1503; }
+.trick-badge-aktiv { background: rgba(255,180,58,.25); color: #FFE2B0; animation: weg-puls 1.6s ease-in-out infinite; }
+.trick-gross { width: 110px; height: 110px; margin: 6px auto 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 64px;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.22), rgba(255,255,255,.04)); box-shadow: 0 0 0 4px var(--tfarbe), 0 14px 30px rgba(0,0,0,.4); }
+.weg-liste-nr { list-style: decimal; padding-left: 22px; }
+.album { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.06); border: 1px dashed rgba(255,255,255,.2); }
+.album-sticker { width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 34px;
+  background: rgba(255,255,255,.08); filter: grayscale(1) opacity(.35); }
+.album-an { filter: none; background: rgba(60,200,130,.18); box-shadow: 0 0 0 2px rgba(60,200,130,.5); }
+.album-gold { filter: none; background: linear-gradient(160deg,#ffd777,#f59e0b); box-shadow: 0 0 0 2px #fff3c4, 0 8px 18px rgba(245,158,11,.5); }
+
+.plan-karte { max-width: 640px; margin: 0 auto 12px; padding: 10px 16px; border-radius: 16px; text-align: left; cursor: pointer;
+  background: rgba(255,180,58,.13); border: 1px solid rgba(255,180,58,.5); }
+.plan-titel { font-weight: 800; color: #FFE2B0; font-size: 15px; }
+.plan-pfeil { float: right; font-size: 12px; font-weight: 600; color: #FFCB6B; opacity: .8; }
+.plan-inhalt { display: none; margin-top: 8px; color: #F3F1EA; font-size: 15px; line-height: 1.45; }
+.plan-inhalt ol { margin: 4px 0 8px; padding-left: 20px; }
+.plan-wenn { padding-top: 6px; border-top: 1px dashed rgba(255,255,255,.2); color: #FFE2B0; }
+.plan-karte.offen .plan-inhalt { display: block; }
+.plan-karte-ende { cursor: default; text-align: center; background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.45); margin-bottom: 18px; }
+.plan-karte-ende .plan-titel { color: #d7f8e3; font-size: 17px; }
+.plan-ergebnisse { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 12px; }
+.plan-erg { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 120px; padding: 10px 12px; border-radius: 14px; font-size: 13px; font-weight: 700;
+  color: #F3F1EA; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); }
+.plan-erg b { font-size: 28px; }
+.plan-erg:active { transform: scale(.96); }
+
+.weg-ergebnis-knoepfe .weg-weiter-knopf { background: linear-gradient(180deg, #FFC35C, #F59E0B); color: #2a1503; }
+/* Bildschirme mit Erklaer-Text ueber dem Brett: Brett etwas kleiner, damit der Weiter-Knopf ohne Scrollen sichtbar bleibt */
+.schach-wrap .eroeff-text ~ .schach-rahmen { width: min(96vw, 52vh, 900px); }
+
+/* ================= Fuchs-Trainer ================= */
+.fuchs-folie { max-width: 560px; text-align: center; color: #F3F1EA; }
+.fuchs-folie-emoji { font-size: 96px; line-height: 1; filter: drop-shadow(0 10px 18px rgba(0,0,0,.5)); animation: weg-hupf .6s ease-out; }
+.fuchs-folie-titel { margin: 12px 0 10px; font-size: 32px; font-weight: 800; color: #fff; }
+.fuchs-folie-text { font-size: 21px; line-height: 1.5; padding: 0 8px; }
+.fuchs-folie-text b { color: #FFCB6B; }
+.fuchs-punkte { display: flex; gap: 8px; justify-content: center; margin: 22px 0 18px; }
+.fuchs-punkte span { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.fuchs-punkte span.an { background: #FFB43A; box-shadow: 0 0 10px rgba(255,180,58,.8); }
+.fuchs-folie-knoepfe { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.fuchs-folie .weg-weiter-knopf { background: linear-gradient(180deg, #FFC35C, #F59E0B); color: #2a1503; }
+.fuchs-spaeter { color: #A9B1C6; text-decoration: underline; cursor: pointer; font-size: 15px; padding: 6px; }
+
+.fuchs-karte { display: flex; align-items: center; gap: 14px; cursor: pointer; margin: 0 0 14px; padding: 14px 18px; border-radius: 16px;
+  background: linear-gradient(135deg, #FFB43A 0%, #F2760A 100%); color: #2a1503; box-shadow: 0 8px 22px rgba(245,120,10,.32); }
+.fuchs-karte-emoji { font-size: 40px; line-height: 1; }
+.fuchs-karte-text { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 17px; }
+.fuchs-karte-text small { font-size: 14px; font-weight: 600; opacity: .85; }
+.fuchs-karte-los { padding: 8px 16px; border-radius: 12px; background: #2a1503; color: #FFD79A; font-weight: 800; font-size: 15px; }
+.fuchs-karte-fertig { background: linear-gradient(135deg, #5ee0a0 0%, #1fa56a 100%); box-shadow: 0 8px 22px rgba(30,170,110,.3); color: #052b19; }
+.fuchs-karte-fertig .fuchs-karte-los { background: #052b19; color: #bff5d8; }
+
+.fuchs-kommentar { display: flex; align-items: center; gap: 12px; max-width: 640px; margin: 0 auto 12px; padding: 10px 16px; border-radius: 16px; text-align: left;
+  font-size: 17px; font-weight: 600; line-height: 1.35; color: #F3F1EA; background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.16); animation: fuchs-ein .35s ease-out; }
+.fuchs-kommentar-emoji { font-size: 32px; }
+.fuchs-lob { background: rgba(74,222,128,.15); border-color: rgba(74,222,128,.5); color: #d7f8e3; }
+.fuchs-warnung { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.55); color: #ffe0e0; }
+.fuchs-chance { background: rgba(255,180,58,.16); border-color: rgba(255,180,58,.6); color: #FFE9C2; }
+@keyframes fuchs-ein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* ---- Fragen vor dem Zug, Rochade-Schule ---- */
+.frage-grosse { max-width: 720px; margin: 10px auto 14px; padding: 0 10px; font-size: 24px; font-weight: 800; line-height: 1.35; color: #fff; text-align: center; }
+.frage-optionen { display: flex; flex-direction: column; gap: 10px; max-width: 640px; margin: 0 auto 14px; }
+.frage-opt { padding: 15px 18px; border-radius: 16px; font-size: 18px; font-weight: 700; text-align: left; cursor: pointer; color: #F3F1EA;
+  background: rgba(255,255,255,.09); border: 2px solid rgba(255,255,255,.16); transition: transform .1s ease; }
+.frage-opt:active { transform: scale(.98); }
+.frage-opt-falsch { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.6); color: #ffd7d7; text-decoration: line-through; opacity: .8; pointer-events: none; }
+.frage-opt-richtig { background: rgba(74,222,128,.2); border-color: rgba(74,222,128,.7); color: #d7f8e3; }
+.rochade-vorher-nachher { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 6px 0 16px; flex-wrap: wrap; }
+.rochade-label { font-size: 14px; font-weight: 800; color: #FFCB6B; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+.rochade-pfeil { font-size: 38px; color: #FFB43A; }
+.schach-rahmen-klein { width: min(44vw, 34vh, 300px); padding: 8px 8px 3px 3px; }
+.schach-rahmen-klein .schach-rang-leiste > div, .schach-rahmen-klein .schach-datei-leiste > div { font-size: 10px; }
+.schach-rahmen-klein .schach-rang-leiste { width: 14px; } .schach-rahmen-klein .schach-rang-spacer { width: 14px; }

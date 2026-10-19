@@ -7,10 +7,7 @@
 // leicht falsch zu berechnen ist und eine falsche Lernaufgabe schlimmer waere als
 // weniger Abwechslung).
 const Strategie = (function () {
-  const FIGUR_SYMBOL = {
-    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
-  };
+  const FIGUR_SYMBOL = SchachFiguren; // SVG-Figuren, siehe figuren.js
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   // Grundmatt-Brett ist immer weiss-unten (nie gedreht) - Rand-Beschriftung
   // ist deshalb konstant, kein Neuberechnen pro Aufruf noetig.
@@ -26,6 +23,7 @@ const Strategie = (function () {
   }
 
   function renderMenu() {
+    if (typeof SchachWeg !== 'undefined' && SchachWeg.laufend) { SchachWeg.renderHub(); return; }
     App.render(App.subMenuHtml('Strategie', [
       { icon: 'eroeffnung', titel: 'Eröffnungsprinzipien', onclick: 'Strategie.starteEroeffnungsQuiz()' },
       { icon: 'materialwert', titel: 'Materialwerte', onclick: 'Strategie.zeigeMaterialwerte()' },
@@ -114,6 +112,7 @@ const Strategie = (function () {
   // ziehen, keine neue Engine-Logik noetig).
   // -----------------------------------------------------------------------
   function renderGrundmattWahl() {
+    if (typeof SchachWeg !== 'undefined' && SchachWeg.laufend) { SchachWeg.renderHub(); return; }
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Strategie.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Grundmatt üben</div>
@@ -233,6 +232,7 @@ const Strategie = (function () {
         if (status === 'matt') {
           Storage.addSterne(40);
           App.updateTopbar();
+          if (typeof SchachWeg !== 'undefined') setTimeout(() => SchachWeg.uebernehmeErgebnis('grundmatt', gmFigurTyp, 1, 1, 40), 2000);
         }
         zeichneGrundmatt();
         if (status !== 'matt' && status !== 'patt') setTimeout(schwarzZiehen, 700);

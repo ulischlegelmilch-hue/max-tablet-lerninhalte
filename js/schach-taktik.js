@@ -14,10 +14,7 @@ const SchachTaktik = (function () {
   };
   const ANZAHL_PRO_SESSION = 10;
 
-  const FIGUR_SYMBOL = {
-    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
-  };
+  const FIGUR_SYMBOL = SchachFiguren; // SVG-Figuren, siehe figuren.js
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   function koordLeisten(felderOrient) {
@@ -49,6 +46,7 @@ const SchachTaktik = (function () {
   }
 
   function renderMenu() {
+    if (typeof SchachWeg !== 'undefined' && SchachWeg.laufend) { SchachWeg.renderHub(); return; }
     const stats = Storage.getTaktikStats();
     const frei = Storage.getTaktikFreigeschaltet();
     const kartenHtml = TAKTIK_REIHENFOLGE.map(thema => {
@@ -75,7 +73,7 @@ const SchachTaktik = (function () {
     }).join('');
 
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderFreiesTraining()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Taktik-Training</div>
       <div class="lese-text">Löse kleine Rätselstellungen und lerne, gefährliche Muster zu erkennen. Sitzt ein Thema gut genug, schaltet sich das nächste frei.</div>
       <div class="taktik-grid">${kartenHtml}</div>
@@ -97,9 +95,9 @@ const SchachTaktik = (function () {
     return naheDran.slice(0, Math.min(anzahl, naheDran.length));
   }
 
-  function starteSession(thema) {
+  function starteSession(thema, anzahl) {
     freigeschaltetVorSession = Storage.getTaktikFreigeschaltet().length;
-    const puzzles = waehlePuzzles(thema, ANZAHL_PRO_SESSION);
+    const puzzles = waehlePuzzles(thema, anzahl || ANZAHL_PRO_SESSION);
     session = { thema, puzzles, index: 0, richtigCount: 0, sterneGesamt: 0 };
     ladePuzzle();
   }
@@ -170,6 +168,7 @@ const SchachTaktik = (function () {
       <div class="schach-wrap">
         <div class="schach-stufe">${THEMEN[session.thema].name}</div>
         <div class="schach-info">Puzzle ${nr} / ${total} · ${infoText}</div>
+        ${typeof SchachWeg !== 'undefined' ? SchachWeg.tippHtml() : ''}
         ${feedbackHtml}
         <div class="schach-rahmen">
           <div class="schach-brett-zeile">
@@ -282,6 +281,8 @@ const SchachTaktik = (function () {
       </div>
     `);
     FernSync.meldeLernsetErledigt('Taktik: ' + THEMEN[session.thema].name, `${session.richtigCount} von ${total} richtig`, session.sterneGesamt, 'schach');
+    // Laeuft das als Station des Lernpfads (schach-weg.js), zeigt der Pfad das Ergebnis selbst
+    if (typeof SchachWeg !== 'undefined') SchachWeg.uebernehmeErgebnis('taktik', session.thema, session.richtigCount, total, session.sterneGesamt);
   }
 
   return { renderMenu, starteSession, feldGeklickt };

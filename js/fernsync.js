@@ -74,6 +74,12 @@ const FernSync = (function () {
       Storage.setFernstand(stand.regeln, stand.zusatzaufgaben);
       pruefeNeueChatNachricht(stand.letzteChatVonPapa);
       pruefeSpielAnfrage(stand.spielAnfrage);
+      try {
+        // Papas Trick-Empfehlung fuer Max (Eltern-App) - der Fuchs nimmt sie fuer die Tages-Aufforderung
+        const f = Storage.getFuchs();
+        const neu = stand.tagesTrick && stand.tagesTrick.id ? stand.tagesTrick : null;
+        if ((f.tagesTrick && f.tagesTrick.ts) !== (neu && neu.ts)) { f.tagesTrick = neu; Storage.speichereFuchs(); }
+      } catch (e) { /* optional */ }
       const neueAufgaben = (stand.zusatzaufgaben || []).filter(a => !a.erledigt && !vorherIds.has(a.id));
       if (hatteStand && neueAufgaben.length) {
         spieleBenachrichtigungston();
@@ -295,6 +301,7 @@ const FernSync = (function () {
       try { Hinweise.nachrichtPopup(letzte && letzte.text); } catch (e) { /* Popup ist optional */ }
     }
     try { Hinweise.badgeAktualisieren(); } catch (e) { /* optional */ }
+    try { if (typeof Fuchs !== 'undefined') Fuchs.tagesImpuls(); } catch (e) { /* optional */ }
   }
 
   /** Zusatzaufgaben-Karte fuers Startbild - leerer String, wenn nichts da ist,
@@ -436,6 +443,24 @@ const FernSync = (function () {
     }).then(r => { if (!r.ok) throw new Error('http ' + r.status); });
   }
 
+  /** Max' aktueller Schach-Plan (Trick, den er gegen Papa probieren will) - Papa sieht ihn in der Eltern-App.
+   *  plan = null loescht ihn. Best-effort, kein Wiederholen noetig. */
+  function meldeSchachPlan(plan) {
+    if (!BACKEND_URL) return;
+    fetchMitTimeout(BACKEND_URL + '/api/schach-plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan })
+    }).catch(() => { /* Papa-Hinweis ist optional */ });
+  }
+
+  /** Serie/Heute-gespielt fuer Papas Eltern-App ("Max hat heute gegen dich gespielt"). */
+  function meldeSchachTag() {
+    if (!BACKEND_URL) return;
+    const tag = { serie: Storage.fuchsSerie(), heuteGespielt: Storage.fuchsHeuteGespielt(), datum: Storage.getHeutigesDatum() };
+    fetchMitTimeout(BACKEND_URL + '/api/schach-plan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag })
+    }).catch(() => { /* optional */ });
+  }
+
   function meldeLernsetErledigt(titel, zusammenfassung, sterne, fach, verlauf, text) {
     if (!BACKEND_URL) return;
     const body = {
@@ -482,5 +507,5 @@ const FernSync = (function () {
     }
   }
 
-  return { init, poll, beiAufwachen, zusatzaufgabenHtml, meldeErledigt, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
+  return { init, poll, beiAufwachen, zusatzaufgabenHtml, meldeErledigt, meldeSchachPlan, meldeSchachTag, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
 })();

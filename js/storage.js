@@ -843,6 +843,58 @@ const Storage = (function () {
 
   /** Fortschritt auf der Schach-Schwierigkeitsleiter: aktuelle Stufe (Index)
    *  und Siege auf dieser Stufe seit dem letzten Aufstieg. */
+  /** Lernpfad "Weg zum Sieg gegen Papa" (schach-weg.js): erledigt[stationId] = { ts, richtig, gesamt }. */
+  function getSchachWeg() {
+    if (!state.schachWeg) state.schachWeg = { erledigt: {} };
+    return state.schachWeg;
+  }
+  function speichereSchachWeg() { save(state); }
+
+  // ---- Fuchs-Trainer (fuchs.js): Vorstellung, taegliche Aufforderung, Serie ----
+  function fuchsDaten() {
+    if (!state.fuchs) state.fuchs = { vorgestellt: false, serie: 0, letzterTag: '', nudgeTag: '', nudgeAnzahl: 0, nudgeTs: 0, tagesTrick: null };
+    return state.fuchs;
+  }
+  function getFuchs() { return fuchsDaten(); }
+  function speichereFuchs() { save(state); }
+  /** Max hat heute gegen Papa gespielt (erster Zug einer Online-Partie): aktualisiert die Serie. true = erstes Mal heute. */
+  function fuchsPartieGespielt() {
+    const f = fuchsDaten();
+    const heute = heutigesDatum();
+    if (f.letzterTag === heute) return false;
+    f.serie = f.letzterTag === heutigesDatum(-1) ? (f.serie || 0) + 1 : 1;
+    f.letzterTag = heute;
+    save(state);
+    return true;
+  }
+  function fuchsHeuteGespielt() { return fuchsDaten().letzterTag === heutigesDatum(); }
+  /** Serie laeuft nur weiter, wenn gestern oder heute gespielt wurde. */
+  function fuchsSerie() {
+    const f = fuchsDaten();
+    return (f.letzterTag === heutigesDatum() || f.letzterTag === heutigesDatum(-1)) ? (f.serie || 0) : 0;
+  }
+  function meldeSchachWegVersuch(id) {
+    const w = getSchachWeg();
+    if (!w.versuche) w.versuche = {};
+    w.versuche[id] = (w.versuche[id] || 0) + 1;
+    save(state);
+  }
+  function meldeSchachWegErledigt(id, daten) {
+    const w = getSchachWeg();
+    if (!w.erledigt[id]) w.erledigt[id] = Object.assign({ ts: Date.now() }, daten || {});
+    save(state);
+  }
+
+  /** Eroeffnungs-Repertoire (schach-eroeffnung.js): stand[id] = { ts, fehler } vom letzten Durchlauf "aus dem Kopf". */
+  function getEroeffnungStand() {
+    if (!state.eroeffnungStand) state.eroeffnungStand = {};
+    return state.eroeffnungStand;
+  }
+  function meldeEroeffnungGeuebt(id, fehler) {
+    getEroeffnungStand()[id] = { ts: Date.now(), fehler };
+    save(state);
+  }
+
   function getSchachFortschritt() {
     if (!state.schach) state.schach = { stufe: 0, siege: 0 };
     return state.schach;
@@ -974,7 +1026,7 @@ const Storage = (function () {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
     getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, getFaelleSerie, meldeFallErgebnis, addSterne,
-    getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
+    getSchachFortschritt, meldeSchachSieg, getSchachWeg, speichereSchachWeg, getFuchs, speichereFuchs, fuchsPartieGespielt, fuchsHeuteGespielt, fuchsSerie, getEroeffnungStand, meldeEroeffnungGeuebt, meldeSchachWegErledigt, meldeSchachWegVersuch, schachStufeAufsteigen, setSchachStufe,
     getSchiffeFortschritt, meldeSchiffeSieg,
     getSchiffeOnlinePlatzierung, setSchiffeOnlinePlatzierung, loescheSchiffeOnlinePlatzierung,
     getMauMauFortschritt, meldeMauMauSieg,

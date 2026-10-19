@@ -95,6 +95,8 @@ const App = (function () {
       fn();
     }
     root().innerHTML = html;
+    // Spiel-Bildschirme (Brett, Flotte, Karten, Lernpfad) bekommen die dunkle Spielbuehne
+    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|buehne-marker/.test(html)); } catch (e) { /* optional */ }
     updateTopbar();
   }
 
@@ -166,6 +168,7 @@ const App = (function () {
   }
 
   function gotoHome() {
+    if (typeof SchachWeg !== 'undefined') SchachWeg.laufend = null;
     // Verlassen des Eltern-Bereichs verwirft einen unfertigen Tagesregeln-
     // Entwurf (siehe fuegeAusnahmeHinzu/loescheAusnahme/speichereTagesregeln) -
     // konsistent mit dem "Abbrechen" bei "Fortschritt zuruecksetzen" weiter
@@ -217,6 +220,8 @@ const App = (function () {
 
           ${chatHinweisHtml()}
 
+          ${typeof Fuchs !== 'undefined' ? Fuchs.homeKarteHtml() : ''}
+
           ${FernSync.zusatzaufgabenHtml()}
 
           ${Ferientraining.homeKarteHtml(extraHtml)}
@@ -239,7 +244,7 @@ const App = (function () {
       <div class="menu-grid">
         <div class="menu-card accent-schach" onclick="Schach.renderMenu()">
           <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
-          <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${Schach.aktuelleStufeName()}</span></span>
+          <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${typeof SchachWeg !== 'undefined' ? SchachWeg.fortschrittText() : Schach.aktuelleStufeName()}</span></span>
         </div>
         <div class="menu-card accent-schiffe" onclick="Schiffeversenken.renderMenu()">
           <span class="menu-icon icon-schiffe">${Icons.svg('schiffe')}</span>
@@ -1209,6 +1214,13 @@ const App = (function () {
     initDevElternSimulation();
     FernSync.init();
     passeHoeheAnBildschirmtastaturAn();
+    // Fuchs-Trainer: stellt sich beim ersten Start vor, sonst ggf. die Tages-Aufforderung
+    setTimeout(() => {
+      try {
+        if (typeof Fuchs === 'undefined') return;
+        if (!Fuchs.startPruefung()) { Fuchs.tagesImpuls(); try { FernSync.meldeSchachTag(); } catch (e) { /* optional */ } }
+      } catch (e) { /* optional */ }
+    }, 2500);
   }
 
   return {

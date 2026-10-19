@@ -19,10 +19,7 @@ const SchachOnline = (function () {
   const MEINE_ROLLE = 'max';
   const RECONNECT_MS = 3000;
 
-  const FIGUR_SYMBOL = {
-    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
-  };
+  const FIGUR_SYMBOL = SchachFiguren; // SVG-Figuren, siehe figuren.js
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   const FIGURWERT = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 
@@ -268,6 +265,8 @@ const SchachOnline = (function () {
         <div class="schach-wrap">
           <div class="schach-stufe">Online gegen Papa</div>
           <div class="schach-info">${infoText}</div>
+          ${typeof SchachWeg !== 'undefined' ? SchachWeg.planKarteHtml(!spielLaeuftNoch(stand.status)) : ''}
+          ${typeof Fuchs !== 'undefined' && spielLaeuftNoch(stand.status) ? Fuchs.kommentarHtml(stand.zustand, farbe, (stand.zugHistorie || []).length, stand.status) : ''}
           ${statusHtml}
           <div class="schach-spieler-leiste">
             <span class="schach-spieler-name">📱 Papa</span>
@@ -292,6 +291,7 @@ const SchachOnline = (function () {
     App.render(html);
     App.setOnLeaveScreen(trennen);
     ersteAnzeige = false;
+    try { if (stand && !spielLaeuftNoch(stand.status) && stand.status !== 'kein_spiel' && typeof Fuchs !== 'undefined') Fuchs.partieBeendetHinweis(); } catch (e) { /* optional */ }
   }
 
   function starteNeueRunde() {
@@ -300,6 +300,7 @@ const SchachOnline = (function () {
   }
 
   function starteSpiel() {
+    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu();
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ typ: 'neues_spiel' }));
   }
@@ -321,6 +322,7 @@ const SchachOnline = (function () {
         const zustandNachher = SchachEngine.zugAusfuehren(stand.zustand, zug);
         const status = SchachEngine.spielstatus(zustandNachher);
         ws.send(JSON.stringify({ typ: 'zug', von: zug.von, nach: zug.nach, zustandNachher, status }));
+        try { if (typeof Fuchs !== 'undefined') Fuchs.partieGespielt(); } catch (e) { /* optional */ }
         // Optimistisch sofort anzeigen - die Server-Bestaetigung (naechste
         // "stand"-Nachricht) ueberschreibt das gleich wieder, meist unsichtbar schnell.
         stand = Object.assign({}, stand, {

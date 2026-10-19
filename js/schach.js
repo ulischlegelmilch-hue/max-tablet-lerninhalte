@@ -25,10 +25,7 @@ const Schach = (function () {
     { name: 'Stufe 6 – Papa in echt schlagen!', beschreibung: 'Die schwerste Stufe', tiefe: 3, zufallsChance: 0, siegeZumAufstieg: Infinity }
   ];
 
-  const FIGUR_SYMBOL = {
-    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
-  };
+  const FIGUR_SYMBOL = SchachFiguren; // SVG-Figuren, siehe figuren.js
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   const FIGURWERT = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
   const NOTATIONS_BUCHSTABE = { k: 'K', q: 'D', r: 'T', b: 'L', n: 'S', p: '' };
@@ -90,13 +87,32 @@ const Schach = (function () {
     return { rang, datei };
   }
 
+  // Lernpfad-Partie (schach-weg.js): feste Stufe, aendert Max' frei gewaehlte Stufe/Siege nicht
+  let wegStufe = null;
+
   function aktuelleStufe() {
+    if (wegStufe !== null) return STUFEN[wegStufe];
     const fortschritt = Storage.getSchachFortschritt();
     return STUFEN[Math.min(fortschritt.stufe, STUFEN.length - 1)];
   }
 
+  function starteWegPartie(stufenIndex) {
+    wegStufe = stufenIndex;
+    starteSpiel('w');
+  }
+
+  // Einstieg ist der Lernpfad (schach-weg.js); das freie Training mit allen Bereichen steht
+  // darunter ("Mehr Training").
   function renderMenu() {
+    wegStufe = null;
+    if (typeof SchachWeg !== 'undefined') { SchachWeg.renderHub(); return; }
+    renderFreiesTraining();
+  }
+
+  function renderFreiesTraining() {
+    wegStufe = null;
     App.render(App.subMenuHtml('Schach', [
+      { icon: 'eroeffnung', titel: 'Meine Eröffnungen', onclick: 'SchachEroeffnung.renderMenu()' },
       { icon: 'tagesaufgabe', titel: 'Heute üben', onclick: 'Schach.renderTagesplan()' },
       { icon: 'spielen', titel: 'Spielen', onclick: 'Schach.renderStufenwahl()' },
       { icon: 'online', titel: 'Online gegen Papa', onclick: 'SchachOnline.starteAnsicht()' },
@@ -146,7 +162,7 @@ const Schach = (function () {
       </div>
     `).join('');
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderFreiesTraining()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Dein Schach-Tagesplan</div>
       <div class="lese-text">${alleErledigt ? 'Alles geschafft für heute – klasse gemacht! ✅' : 'Ein paar kurze Übungen für heute (zusammen etwa 15–20 Minuten).'}</div>
       <div class="regel-karte"><div class="regel-liste">${zeilenHtml}</div></div>
@@ -157,7 +173,7 @@ const Schach = (function () {
     const aktuelleIdx = Storage.getSchachFortschritt().stufe;
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Welche Stufe möchtest du spielen?</div>
+      <div class="welcome buehne-marker">Welche Stufe möchtest du spielen?</div>
       <div class="stufen-grid">
         ${STUFEN.map((s, i) => `
           <div class="stufen-card${i === aktuelleIdx ? ' stufen-card-aktiv' : ''}" onclick="Schach.waehleStufe(${i})">
@@ -170,6 +186,7 @@ const Schach = (function () {
   }
 
   function waehleStufe(i) {
+    wegStufe = null;
     Storage.setSchachStufe(i);
     renderFarbwahl();
   }
@@ -195,6 +212,7 @@ const Schach = (function () {
     letzterAufstiegsHinweis = '';
     zugHistorie = [];
     aufgegeben = false;
+    if (typeof Fuchs !== 'undefined') Fuchs.kommentarNeu();
     renderBrett();
     if (spielerFarbe !== zustand.amZug) setTimeout(kiZugAusfuehren, 1000);
   }
@@ -248,6 +266,8 @@ const Schach = (function () {
       statusHtml = '<div class="schach-status schach-status-schach">Schach!</div>';
     }
     if (status !== 'laeuft' && status !== 'schach') spielLaeuft = false;
+    const planKarte = (typeof SchachWeg !== 'undefined' ? SchachWeg.planKarteHtml(!spielLaeuft) : '') +
+      (typeof Fuchs !== 'undefined' && spielLaeuft ? Fuchs.kommentarHtml(zustand, spielerFarbe, zugHistorie.length, status) : '');
 
     const infoText = !spielLaeuft ? '' : (zustand.amZug === spielerFarbe ? 'Du bist am Zug' : 'Computer denkt nach…');
     const schachKoenigFeld = (status === 'schach' || status === 'matt') ? findeKoenigFeld(zustand, zustand.amZug) : null;
@@ -279,6 +299,7 @@ const Schach = (function () {
       <div class="schach-wrap">
         <div class="schach-stufe">${aktuelleStufe().name}</div>
         <div class="schach-info">${infoText}</div>
+        ${planKarte}
         ${statusHtml}
         <div class="schach-spieler-leiste">
           <span class="schach-spieler-name">🖥️ Computer</span>
@@ -329,6 +350,10 @@ const Schach = (function () {
         const status = SchachEngine.spielstatus(zustand);
         if (status === 'matt' && zustand.amZug !== spielerFarbe) {
           behandleSieg();
+          if (wegStufe !== null && typeof SchachWeg !== 'undefined') {
+            const idx = wegStufe;
+            setTimeout(() => SchachWeg.uebernehmeErgebnis('partie', String(idx), 1, 1, 0), 2600);
+          }
         }
         renderBrett();
         if (status !== 'matt' && status !== 'patt' && status !== 'remis') {
@@ -349,6 +374,7 @@ const Schach = (function () {
   }
 
   function behandleSieg() {
+    if (wegStufe !== null) { Storage.addSterne(30); App.updateTopbar(); return; } // Lernpfad-Partie: Stufe/Siege bleiben unberuehrt
     const stufeVorher = Storage.getSchachFortschritt().stufe;
     const fortschritt = Storage.meldeSchachSieg();
     const stufe = STUFEN[Math.min(stufeVorher, STUFEN.length - 1)];
@@ -375,5 +401,5 @@ const Schach = (function () {
   // Fuer die Fortschrittsanzeige auf der Home-Kachel (siehe App.gotoHome).
   function aktuelleStufeName() { return aktuelleStufe().name; }
 
-  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, feldGeklickt, aufgeben, aktuelleStufeName };
+  return { renderMenu, renderTagesplan, renderStufenwahl, waehleStufe, renderFarbwahl, starteSpiel, starteWegPartie, renderFreiesTraining, feldGeklickt, aufgeben, aktuelleStufeName };
 })();

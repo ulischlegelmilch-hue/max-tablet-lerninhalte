@@ -10,10 +10,7 @@
 // dabei mit der echten Engine verifiziert (z. B. spielstatus === 'matt'), es
 // gibt also keine "kaputten" Aufgaben - siehe generiereSchlagAufgabe usw.
 const SchachLektionen = (function () {
-  const FIGUR_SYMBOL = {
-    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
-    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' }
-  };
+  const FIGUR_SYMBOL = SchachFiguren; // SVG-Figuren, siehe figuren.js
   const DATEIEN = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   // weisseSicht() ist immer weiss-unten (nie gedreht) - die Rand-Beschriftung
   // ist deshalb hier immer gleich, kein Neuberechnen pro Aufruf noetig.
@@ -31,8 +28,9 @@ const SchachLektionen = (function () {
   // Menü
   // ---------------------------------------------------------------------
   function renderMenu() {
+    if (typeof SchachWeg !== 'undefined' && SchachWeg.laufend) { SchachWeg.renderHub(); return; }
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Schach.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="Schach.renderFreiesTraining()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">Schachlektionen</div>
       <div class="sub-grid">
         <div class="sub-card" onclick="SchachLektionen.starteFigurenABC()"><span class="sub-icon">${Icons.svg('figuren')}</span><span class="sub-label">Wie ziehen die Figuren?</span></div>
@@ -164,6 +162,7 @@ const SchachLektionen = (function () {
     } else {
       Storage.addSterne(15);
       App.updateTopbar();
+      if (typeof SchachWeg !== 'undefined' && SchachWeg.uebernehmeErgebnis('figuren', 'figuren', 1, 1, 15)) return;
       renderMenu();
     }
   }
@@ -277,6 +276,7 @@ const SchachLektionen = (function () {
     } else {
       Storage.addSterne(20);
       App.updateTopbar();
+      if (typeof SchachWeg !== 'undefined' && SchachWeg.uebernehmeErgebnis('eroeffnung', 'eroeffnung', 1, 1, 20)) return;
       App.render(`
         <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
         <div class="result-card">
@@ -569,9 +569,11 @@ const SchachLektionen = (function () {
   let puzzleZiele = [];
   let puzzleFeedback = null;
 
-  function starteUebung(kategorie) {
+  function starteUebung(kategorie) { starteUebungMit(kategorie, ANZAHL_PRO_KATEGORIE[kategorie]); }
+
+  function starteUebungMit(kategorie, anzahl) {
     const aufgaben = [];
-    for (let i = 0; i < ANZAHL_PRO_KATEGORIE[kategorie]; i++) aufgaben.push(GENERATOREN[kategorie]());
+    for (let i = 0; i < anzahl; i++) aufgaben.push(GENERATOREN[kategorie]());
     puzzleSession = { kategorie, aufgaben, index: 0, richtigCount: 0, sterneGesamt: 0 };
     renderAufgabe();
   }
@@ -595,7 +597,8 @@ const SchachLektionen = (function () {
       <div class="back-row"><span class="back-btn" onclick="SchachLektionen.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="schach-wrap">
         <div class="schach-info">Aufgabe ${nr} / ${total}</div>
-        <div class="lese-text">${a.anweisung}</div>
+        <div class="lese-text weg-aufgabe">${a.anweisung}</div>
+        ${typeof SchachWeg !== 'undefined' ? SchachWeg.tippHtml() : ''}
         ${feedbackHtml}
         <div class="schach-rahmen">
           <div class="schach-brett-zeile">
@@ -677,12 +680,13 @@ const SchachLektionen = (function () {
       `${puzzleSession.richtigCount} von ${total} richtig`,
       puzzleSession.sterneGesamt
     );
+    if (typeof SchachWeg !== 'undefined') SchachWeg.uebernehmeErgebnis('uebung', puzzleSession.kategorie, puzzleSession.richtigCount, total, puzzleSession.sterneGesamt);
   }
 
   return {
     renderMenu,
     starteFigurenABC, figurFeldGeklickt, naechsteFigurLektion,
     starteEroeffnung, eroeffnungFeldGeklickt,
-    starteUebung, aufgabeFeldGeklickt
+    starteUebung, aufgabeFeldGeklickt, starteUebungMit
   };
 })();
