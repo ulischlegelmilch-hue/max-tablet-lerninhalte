@@ -425,6 +425,7 @@ const FernSync = (function () {
         malfolgen: typeof Mathe !== 'undefined' && Mathe.aufbauInfo ? Mathe.aufbauInfo() : undefined,
         hsk: typeof Heimatkunde !== 'undefined' && Heimatkunde.aufbauInfo ? Heimatkunde.aufbauInfo() : undefined
       };
+      if (typeof Deutsch !== 'undefined' && Deutsch.faelleStufen) body.faelleStufen = Deutsch.faelleStufen();
     } catch (e) { /* Aufbau-Info ist optional */ }
     if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
     if (typeof text === 'string' && text) body.text = text; // z.B. abgetippter Schreibtext (siehe schreiben.js)

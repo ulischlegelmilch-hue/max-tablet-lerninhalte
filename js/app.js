@@ -715,6 +715,9 @@ const App = (function () {
   // derselben richtig/falsch-Faerbung wie auf dem Tablet nachzubauen (siehe
   // aufgabenVerlaufHtml im Webapp-Code), statt nur Text zu zeigen.
   let ersterGegebenerIndex = null;
+  // Was Max beim 2. Versuch eingegeben hat, wenn auch der falsch war (Uli 19.10.2026:
+  // Papa will "gar nicht gekonnt" mit den gegebenen Ergebnissen sehen).
+  let zweiteFalscheAntwort = null;
 
   function renderQuestion() {
     const f = session.fragen[session.index];
@@ -724,6 +727,11 @@ const App = (function () {
     hilfeGenutzt = false;
     ersteFalscheAntwort = null;
     ersterGegebenerIndex = null;
+    zweiteFalscheAntwort = null;
+    schreibweiseFehler = null;
+
+    // Zwischenschritt (z.B. Fragewort bei den Faellen, Stufe 1): erst die Vorfrage, dann die Aufgabe
+    if (f.vorfrage && !f._vorfrageErledigt) { renderVorfrage(f, nr, total); return; }
 
     let bodyHtml = '';
     if (f.lesetext) {
@@ -770,6 +778,43 @@ const App = (function () {
     if (typeof f.hilfe === 'string' && f.hilfe.length > 0) {
       zeigeHilfeButton(f);
     }
+  }
+
+  // Vorfrage (nur MC, ohne eigene Punkte): Max soll sich die Zuordnung erst selbst abrufen.
+  // Das Ergebnis landet in f._vorfrageRichtig (Stufen-Serie + Papas Auswertung).
+  function renderVorfrage(f, nr, total) {
+    const v = f.vorfrage;
+    render(`
+      <div class="quiz-wrap">
+        <div class="progress-row"><span>Frage ${nr} / ${total}</span><span>${session.fach.toUpperCase()}</span></div>
+        <div class="frage-card">
+          ${f.lesetext ? `<div class="lese-text">${f.lesetext}</div>` : ''}
+          <div class="frage-text">${f.frage}</div>
+          <div class="lese-text" style="margin-top:14px;"><strong>Schritt 1:</strong> ${v.frage}</div>
+          <div class="optionen" id="optionen"></div>
+          <div class="feedback" id="feedback"></div>
+        </div>
+      </div>`);
+    const wrap = document.getElementById('optionen');
+    wrap.innerHTML = '';
+    v.optionen.forEach((opt, i) => {
+      const btn = document.createElement('div');
+      btn.className = 'option-btn';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        const buttons = document.querySelectorAll('#optionen .option-btn');
+        buttons.forEach(b => b.onclick = null);
+        const ok = i === v.richtigIndex;
+        buttons[i].classList.add(ok ? 'richtig' : 'falsch');
+        if (!ok) buttons[v.richtigIndex].classList.add('richtig');
+        f._vorfrageRichtig = ok;
+        const fb = document.getElementById('feedback');
+        fb.className = 'feedback ' + (ok ? 'ok' : 'nok');
+        fb.textContent = ok ? '✔ Genau! Jetzt die Aufgabe.' : 'Richtig wäre: ' + v.optionen[v.richtigIndex] + ' – jetzt die Aufgabe.';
+        setTimeout(() => { f._vorfrageErledigt = true; renderQuestion(); }, ok ? 900 : 2200);
+      };
+      wrap.appendChild(btn);
+    });
   }
 
   function zeigeHilfeButton(f) {
@@ -851,6 +896,34 @@ const App = (function () {
     return Array.isArray(f.antwortAlternativen) && f.antwortAlternativen.some(alt => normalisiereAntwortText(alt, f.grossKleinPruefen) === norm);
   }
 
+  // Schreib-Toleranz fuer Fachbegriffe (Uli 19.10.2026): Max soll die BEGRIFFE aus dem
+  // Kopf nennen (kein Auswahl-/Buchstaben-Hilfsmittel) - ein reiner Tippfehler
+  // ("Divident") zaehlt aber nicht als fehlendes Wissen. f.begriffe = alle gueltigen
+  // Begriffe der Aufgabenart; akzeptiert wird eine Eingabe, die dem richtigen Begriff
+  // deutlich naeher ist als jedem anderen. Die Schreibweise wird separat gemeldet.
+  function editDistanz(a, b) {
+    const m = a.length, n = b.length;
+    let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) {
+      const cur = [i];
+      for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[n];
+  }
+  function istNaheSchreibweise(eingabeText, f) {
+    if (!Array.isArray(f.begriffe)) return false;
+    const e = normalisiereAntwortText(eingabeText);
+    const ziele = [f.antwort].concat(f.antwortAlternativen || []).map(x => normalisiereAntwortText(x));
+    const andere = f.begriffe.map(x => normalisiereAntwortText(x)).filter(x => !ziele.includes(x));
+    return ziele.some(z => {
+      const d = editDistanz(e, z);
+      const erlaubt = Math.max(1, Math.ceil(z.length * 0.2));
+      return d <= erlaubt && andere.every(o => editDistanz(e, o) > d);
+    });
+  }
+  let schreibweiseFehler = null; // Max' Eingabe, wenn sie nur nahe am richtigen Begriff war
+
   function renderTextEingabe(f) {
     const input = document.getElementById('text-eingabe');
     const okBtn = document.getElementById('text-eingabe-ok');
@@ -867,7 +940,8 @@ const App = (function () {
       if (eingabeText.trim() === '') return;
       input.disabled = true;
       okBtn.onclick = null;
-      const korrekt = textAntwortKorrekt(eingabeText, f);
+      let korrekt = textAntwortKorrekt(eingabeText, f);
+      if (!korrekt && istNaheSchreibweise(eingabeText, f)) { korrekt = true; schreibweiseFehler = eingabeText.trim(); }
       verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderTextEingabe(f), eingabeText);
     };
     okBtn.onclick = absenden;
@@ -889,11 +963,13 @@ const App = (function () {
       ersterGegebenerIndex = gegebenerIndex;
     }
 
+    if (!korrekt && versuch >= 2) zweiteFalscheAntwort = gegebeneAntwort;
+
     if (!korrekt && hatHilfe && versuch === 1) {
       versuch = 2;
       const fb = document.getElementById('feedback');
       fb.className = 'feedback nok';
-      fb.textContent = '✘ Leider falsch. Versuch es noch einmal!';
+      fb.innerHTML = '✘ Leider falsch. Versuch es noch einmal!' + (f.rueckfrage ? '<br>' + f.rueckfrage : '');
       // #hilfe-bereich bleibt unangetastet: neuerVersuch() baut nur Keypad/
       // Optionen neu auf. Stand dort schon der Hilfe-Button (siehe
       // zeigeHilfeButton in renderQuestion), bleibt er einfach stehen; wurde
@@ -964,6 +1040,9 @@ const App = (function () {
       ergebnis: !korrekt ? 'falsch' : hilfeGenutzt ? 'richtig_hilfe' : faktor < 1 ? 'richtig_2versuch' : 'richtig',
       richtigeAntwort: f.typ === 'mc' ? f.optionen[f.richtigIndex] : f.antwort,
       falscheAntwort: ersteFalscheAntwort,
+      zweiteAntwort: zweiteFalscheAntwort,
+      fragewort: f.vorfrage ? (f._vorfrageRichtig ? 'richtig' : 'falsch') : undefined,
+      schreibweise: schreibweiseFehler || undefined,
       frageHtml: String(f.frage).length <= 600 ? f.frage : undefined,
       typ: f.typ
     };
@@ -991,6 +1070,7 @@ const App = (function () {
       if (faktor === 0) fb.textContent = '✔ Richtig! Aber keine ⭐ (Hilfe genutzt).';
       else if (faktor < 1) fb.textContent = `✔ Richtig! +${gained} ⭐ (halbe Punkte, 2. Versuch)`;
       else fb.textContent = '✔ Richtig! +' + gained + ' ⭐';
+      if (schreibweiseFehler) fb.textContent += ` Achte auf die Schreibweise: ${f.antwort}`;
     } else {
       fb.className = 'feedback nok';
       fb.textContent = richtigeAntwort !== undefined
@@ -999,18 +1079,24 @@ const App = (function () {
     }
     document.getElementById('hilfe-bereich').innerHTML = '';
 
-    setTimeout(() => {
+    const weiter = () => {
       session.index++;
       const fertig = session.index >= session.fragen.length;
       if (session.aktivitaet) {
         if (fertig) {
           Storage.loescheOffeneSession(session.aktivitaet);
         } else {
+          // rest/wdhOffen: was noch aussteht (inkl. schon eingereihter Wiederholungen
+          // falscher Aufgaben) - Fortsetzen erzeugt genau so viele frische Aufgaben
+          // (siehe starteFerienQuiz), damit der Stapel vollstaendig bleibt.
+          const uebrig = session.fragen.slice(session.index);
           Storage.setOffeneSession(session.aktivitaet, {
             index: session.index + session.anzeigeOffset,
             richtigCount: session.richtigCount,
             sessionSterne: session.sessionSterne,
-            verlauf: session.verlauf
+            verlauf: session.verlauf,
+            rest: uebrig.length,
+            wdhOffen: uebrig.filter(q => q._wiederholung).length
           });
         }
       }
@@ -1019,7 +1105,21 @@ const App = (function () {
       } else {
         renderQuestion();
       }
-    }, 1400);
+    };
+    if (schreibweiseFehler) {
+      // Begriff gewusst, aber falsch geschrieben: die richtige Schreibweise muss Max bestaetigen,
+      // bevor es weitergeht (Uli 19.10.2026) - kein automatisches Weiterschalten.
+      const geschrieben = String(schreibweiseFehler).replace(/[<>&]/g, '');
+      document.getElementById('hilfe-bereich').innerHTML = `
+        <div class="hilfe-box">
+          <div>Du hast <strong>${geschrieben}</strong> geschrieben.</div>
+          <div style="margin:8px 0;">So schreibt man es richtig: <strong style="font-size:1.25em;">${f.antwort}</strong></div>
+          <div class="btn-primary" id="btn-schreibweise-ok">Verstanden ✓</div>
+        </div>`;
+      document.getElementById('btn-schreibweise-ok').onclick = weiter;
+    } else {
+      setTimeout(weiter, 1400);
+    }
   }
 
   function renderErgebnis() {
@@ -1044,7 +1144,37 @@ const App = (function () {
     `);
 
     if (typeof session.onFinish === 'function') session.onFinish();
-    FernSync.meldeLernsetErledigt(session.titel, `${session.richtigCount} von ${total} richtig`, session.sessionSterne, session.fach, session.verlauf);
+    // Fuer Papa zaehlt NUR "auf Anhieb richtig" - ein Treffer im 2. Versuch (oder mit Hilfe)
+    // gilt dort als falsch geloest (Uli 19.10.2026). Max' Punkte/Anzeige bleiben unveraendert.
+    const anhieb = session.verlauf.filter(e => e.ergebnis === 'richtig').length;
+    const zweit = session.verlauf.filter(e => e.ergebnis === 'richtig_2versuch').length;
+    const nVerlauf = session.verlauf.length || total;
+    FernSync.meldeLernsetErledigt(session.titel,
+      `${anhieb} von ${nVerlauf} auf Anhieb richtig${zweit ? ` (${zweit}× erst im 2. Versuch)` : ''}`,
+      session.sessionSterne, session.fach, session.verlauf);
+  }
+
+  /** Ferientraining-Stapel starten bzw. fortsetzen: erzeuge(n) liefert n frische Aufgaben.
+   *  Verlaesst Max den Stapel (Hauptmenue, Tablet aus), geht es spaeter an derselben Stelle
+   *  weiter - mit den noch offenen Wiederholungen; Zwischenstand gilt nur bis Mitternacht
+   *  (Storage.getOffeneSession). Abgehakt wird erst bei komplett bearbeitetem Stapel. */
+  function starteFerienQuiz(fach, erzeuge, config) {
+    const aktivitaet = 'ferien-' + config.ferienItem;
+    const offen = Storage.getOffeneSession(aktivitaet);
+    const cfg = Object.assign({}, config, { aktivitaet });
+    let fragen;
+    if (offen && offen.rest > 0 && offen.index > 0 && !Storage.getFerienErledigt(config.ferienItem)) {
+      fragen = erzeuge(offen.rest);
+      const wdh = Math.min(offen.wdhOffen || 0, fragen.length);
+      for (let i = fragen.length - wdh; i < fragen.length; i++) fragen[i]._wiederholung = true;
+      Object.assign(cfg, {
+        startSessionSterne: offen.sessionSterne || 0, startRichtigCount: offen.richtigCount || 0,
+        startVerlauf: offen.verlauf || [], anzeigeOffset: offen.index
+      });
+    } else {
+      fragen = erzeuge(Ferientraining.restAnzahl(config.ferienItem, config.fallbackAnzahl || 10));
+    }
+    startQuizSession(fach, fragen, cfg);
   }
 
   let lastStarter = null;
@@ -1083,7 +1213,7 @@ const App = (function () {
 
   return {
     init, gotoHome, render, subMenuHtml, updateTopbar, renderSpieleMenu,
-    startQuizSession, setLastStarter, restartLast, setOnLeaveScreen,
+    startQuizSession, starteFerienQuiz, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeAusnahmeHinzu, loescheAusnahme,
     speichereTagesregeln, fortschrittWirklichZuruecksetzen,
     fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,

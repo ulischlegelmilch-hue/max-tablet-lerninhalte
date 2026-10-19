@@ -1529,7 +1529,13 @@ const Mathe = (function () {
   function starteMalfolgenKarten() {
     erweitereMalfolgenReihen();
     const offen = Storage.getOffeneSession(AKTIVITAET_MALFOLGEN);
-    if (offen && offen.index > 0 && offen.index < ANZAHL_MALFOLGEN) {
+    if (offen && Array.isArray(offen.fakten) && Array.isArray(offen.istWdh) && offen.idx > 0 && offen.idx < offen.fakten.length) {
+      // Kompletter Stapel samt noch offener Wiederholungen wiederhergestellt
+      mfSession = {
+        fakten: offen.fakten, index: offen.idx, richtig: offen.richtigCount || 0, sterne: offen.sessionSterne || 0,
+        anzeigeOffset: 0, verlauf: offen.verlauf || [], istWdh: offen.istWdh
+      };
+    } else if (offen && offen.index > 0 && offen.index < ANZAHL_MALFOLGEN) {
       const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN - offen.index);
       mfSession = {
         fakten, index: 0,
@@ -1608,6 +1614,7 @@ const Mathe = (function () {
       renderMalfolgenErgebnis();
     } else {
       Storage.setOffeneSession(AKTIVITAET_MALFOLGEN, {
+        fakten: mfSession.fakten, istWdh: mfSession.istWdh, idx: mfSession.index,
         index: mfSession.index + mfSession.anzeigeOffset,
         richtigCount: mfSession.richtig,
         sessionSterne: mfSession.sterne,
@@ -2308,13 +2315,16 @@ const Mathe = (function () {
   };
 
   // ---- Rechenzeichen <-> Name der Rechenart ----
+  const FACHBEGRIFFE_ALLE = ['Addition', 'Subtraktion', 'Multiplikation', 'Division', 'Summand', 'Minuend', 'Subtrahend',
+    'Faktor', 'Dividend', 'Divisor', 'Summe', 'Differenz', 'Produkt', 'Quotient'];
+
   function genRechenartNameFrage() {
     const zeichen = RECHENZEICHEN[rnd(0, 3)];
     const info = RECHENARTEN_INFO[zeichen];
     return {
       typ: 'text',
       frage: `Wie heißt die Rechenart mit dem Zeichen „${zeichen}“?`,
-      antwort: info.name,
+      antwort: info.name, begriffe: FACHBEGRIFFE_ALLE,
       hilfe: `<strong>Die vier Rechenarten:</strong><br>+ = Addition<br>− = Subtraktion<br>· = Multiplikation<br>: = Division<br><strong>Richtig: ${info.name}</strong>`
     };
   }
@@ -2355,12 +2365,12 @@ const Mathe = (function () {
     const hilfe = hilfeFachbegriff(a, b, op, ergebnis);
     const teil = ['operand1', 'operand2', 'ergebnis'][rnd(0, 2)];
     if (teil === 'operand1') {
-      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${a} in dieser Rechnung?`, antwort: info.operand1, antwortAlternativen: info.operandAlt, hilfe };
+      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${a} in dieser Rechnung?`, antwort: info.operand1, antwortAlternativen: info.operandAlt, begriffe: FACHBEGRIFFE_ALLE, hilfe };
     }
     if (teil === 'operand2') {
-      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${b} in dieser Rechnung?`, antwort: info.operand2, antwortAlternativen: info.operandAlt, hilfe };
+      return { typ: 'text', frage: `${gleichung}<br>Wie heißt die Zahl ${b} in dieser Rechnung?`, antwort: info.operand2, antwortAlternativen: info.operandAlt, begriffe: FACHBEGRIFFE_ALLE, hilfe };
     }
-    return { typ: 'text', frage: `${gleichung}<br>Wie heißt das Ergebnis (${ergebnis}) in dieser Rechnung?`, antwort: info.ergebnis, hilfe };
+    return { typ: 'text', frage: `${gleichung}<br>Wie heißt das Ergebnis (${ergebnis}) in dieser Rechnung?`, antwort: info.ergebnis, begriffe: FACHBEGRIFFE_ALLE, hilfe };
   }
 
   const FACHBEGRIFFE_MODI = {
@@ -2397,12 +2407,15 @@ const Mathe = (function () {
   // ferien=true: Tagesziel im Ferientraining (nur der heute noch fehlende Rest,
   // zaehlt + hakt ab); sonst freies Ueben wie bisher.
   function starteFachbegriffeUebung(modus, ferien) {
-    const starter = () => App.startQuizSession('mathe', genFachbegriffeUebung(modus, ferien ? Ferientraining.restAnzahl('mathe_rechenarten', 10) : 10), {
+    const cfg = {
       titel: ferien ? 'Rechenarten & Fachbegriffe' : FACHBEGRIFFE_MODI[modus].titel,
       wiederholeFalsche: true,
       pensumFach: 'mathe',
       ferienItem: ferien ? 'mathe_rechenarten' : undefined
-    });
+    };
+    const starter = () => ferien
+      ? App.starteFerienQuiz('mathe', n => genFachbegriffeUebung(modus, n), cfg)
+      : App.startQuizSession('mathe', genFachbegriffeUebung(modus, 10), cfg);
     App.setLastStarter(starter);
     starter();
   }
@@ -2794,7 +2807,7 @@ const Mathe = (function () {
 
   function starteFerienTraining() {
     // Nur den heute noch FEHLENDEN Rest abfragen (siehe Ferientraining.restAnzahl)
-    const starter = () => App.startQuizSession('mathe', genFerienUebung(Ferientraining.restAnzahl('mathe_tag', 10)), {
+    const starter = () => App.starteFerienQuiz('mathe', n => genFerienUebung(n), {
       titel: 'Mathe-Tagesaufgaben',
       wiederholeFalsche: true,
       pensumFach: 'mathe',

@@ -710,6 +710,18 @@ const Storage = (function () {
     return state.matheKategorien;
   }
 
+  /** Stufe je Fall (Deutsch, Faelle): Serie "auf Anhieb richtig, auch beim Fragewort-Schritt".
+   *  Ab 3 in Folge entfaellt der Fragewort-Zwischenschritt (Stufe 2), nach einem Fehler gilt er wieder. */
+  function getFaelleSerie() {
+    const s = state.faelleSerie || {};
+    return { N: s.N || 0, G: s.G || 0, D: s.D || 0, A: s.A || 0 };
+  }
+  function meldeFallErgebnis(fall, anhieb) {
+    if (!state.faelleSerie) state.faelleSerie = {};
+    state.faelleSerie[fall] = anhieb ? (state.faelleSerie[fall] || 0) + 1 : 0;
+    save(state);
+  }
+
   function meldeMatheKategorieErgebnis(kategorie, korrekt) {
     if (!state.matheKategorien) state.matheKategorien = {};
     const stat = state.matheKategorien[kategorie] || { falsch: 0, serie: 0 };
@@ -961,7 +973,7 @@ const Storage = (function () {
   return {
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
     getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
-    getMatheKategorienStats, meldeMatheKategorieErgebnis, addSterne,
+    getMatheKategorienStats, meldeMatheKategorieErgebnis, getFaelleSerie, meldeFallErgebnis, addSterne,
     getSchachFortschritt, meldeSchachSieg, schachStufeAufsteigen, setSchachStufe,
     getSchiffeFortschritt, meldeSchiffeSieg,
     getSchiffeOnlinePlatzierung, setSchiffeOnlinePlatzierung, loescheSchiffeOnlinePlatzierung,

@@ -607,6 +607,23 @@ const Deutsch = (function () {
 
   function fallOptionen() { return FALL_KEYS.map(k => FAELLE[k].name); }
 
+  // ---- Stufen (Uli 19.10.2026): Max soll die Fragewoerter SELBST abrufen, keine Dauerhilfe.
+  // Stufe 1 (Serie des Falls < 3): Zwischenschritt "Welche Frage passt?" vor der Aufgabe.
+  // Stufe 2 (3 in Folge auf Anhieb inkl. Zwischenschritt): nur die Aufgabe. Nach einem Fehler
+  // gilt wieder Stufe 1. Nach einem falschen 1. Versuch kommt eine Rueckfrage statt der Loesung.
+  const FALL_STUFE_SERIE = 3;
+  function fallStufe(fall) { return Storage.getFaelleSerie()[fall] >= FALL_STUFE_SERIE ? 2 : 1; }
+  function fragewortVorfrage(fall, text) {
+    return { frage: text, optionen: FALL_KEYS.map(k => FAELLE[k].frage), richtigIndex: FALL_KEYS.indexOf(fall) };
+  }
+  function mitFallStufe(f, fall, vorfrageText) {
+    f.fall = fall;
+    f.stufe = fallStufe(fall);
+    if (f.stufe === 1) f.vorfrage = fragewortVorfrage(fall, vorfrageText);
+    f.aufAntwort = ok => Storage.meldeFallErgebnis(fall, ok && f._vorfrageRichtig !== false);
+    return f;
+  }
+
   // ---- 1) "In welchem Fall steht der unterstrichene Satzteil?" (Napf-Blatt) ----
   // Fall zuerst gleichverteilt wuerfeln, damit Genitiv/Dativ (seltener) nicht untergehen.
   function genFallBestimmenFrage() {
@@ -615,14 +632,15 @@ const Deutsch = (function () {
     const e = pickN(saetze, 1)[0];
     const phrase = pickN(e.p.filter(([, f]) => f === fall), 1)[0][0];
     const optionen = fallOptionen();
-    return {
+    return mitFallStufe({
       typ: 'mc',
       frage: `In welchem Fall steht der unterstrichene Satzteil?<br>${satzMitMarkierung(e.s, phrase)}`,
       verlaufText: `Fall bestimmen: „${phrase}“ in „${e.s}“`.slice(0, 190),
       optionen,
       richtigIndex: FALL_KEYS.indexOf(fall),
+      rueckfrage: `Stelle die Frage zum Satzteil „${phrase}“: Wer oder was? · Wessen? · Wem? · Wen oder was? – welche passt?`,
       hilfe: `${FALL_MERKKASTEN}<br><br>Frage nach dem Satzteil: Passt <strong>${FAELLE[fall].frage}</strong> dazu? Hier: „${phrase}“ → <strong>${FAELLE[fall].name}</strong> (${FAELLE[fall].nummer}. Fall).`
-    };
+    }, fall, `Mit welcher Frage findest du den Fall von „${phrase}“ heraus?`);
   }
 
   // ---- 2) "Welcher Satzteil steht im Dativ?" (Unterstreiche-Blaetter) ----
@@ -634,14 +652,15 @@ const Deutsch = (function () {
       const andere = e.p.filter(([, f]) => f !== fall);
       if (ziel.length !== 1 || andere.length < 1) continue;
       const phrasen = shuffle([ziel[0][0], ...pickN(andere, 2).map(([t]) => t)]);
-      return {
+      return mitFallStufe({
         typ: 'mc',
         frage: `Welcher Satzteil steht im <strong>${FAELLE[fall].name}</strong> (${FAELLE[fall].nummer}. Fall)?<br>${e.s}`,
         verlaufText: `Welcher Satzteil im ${FAELLE[fall].name}? „${e.s}“`.slice(0, 190),
         optionen: phrasen,
         richtigIndex: phrasen.indexOf(ziel[0][0]),
+        rueckfrage: `Überlege: Mit welcher Frage fragst du nach dem ${FAELLE[fall].name}? Probiere die Frage im Satz aus.`,
         hilfe: `${FALL_MERKKASTEN}<br><br>Der ${FAELLE[fall].name} antwortet auf die Frage <strong>${FAELLE[fall].frage}</strong>. Hier passt: <strong>${ziel[0][0]}</strong>.`
-      };
+      }, fall, `Mit welcher Frage fragst du nach dem <strong>${FAELLE[fall].name}</strong>?`);
     }
     return genFallBestimmenFrage();
   }
@@ -1046,10 +1065,11 @@ const Deutsch = (function () {
 
   function starteFerienDeutsch() {
     const starter = () => {
-      const anzahl = Ferientraining.restAnzahl('deutsch_tag', 10);
-      const fragen = [];
-      for (let i = 0; i < anzahl; i++) fragen.push(genFaelleAufgabe());
-      App.startQuizSession('deutsch', fragen, {
+      App.starteFerienQuiz('deutsch', anzahl => {
+        const fragen = [];
+        for (let i = 0; i < anzahl; i++) fragen.push(genFaelleAufgabe());
+        return fragen;
+      }, {
         titel: 'Deutsch-Tagesaufgaben',
         wiederholeFalsche: true,
         pensumFach: 'deutsch',
@@ -1145,5 +1165,13 @@ const Deutsch = (function () {
     App.setLastStarter(starter); starter();
   }
 
-  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen };
+  /** Stufen je Fall fuer Papas Auswertung (siehe FernSync.meldeLernsetErledigt). */
+  function faelleStufen() {
+    const s = Storage.getFaelleSerie();
+    const out = {};
+    FALL_KEYS.forEach(k => { out[k] = { name: FAELLE[k].name, serie: s[k], stufe: s[k] >= FALL_STUFE_SERIE ? 2 : 1 }; });
+    return out;
+  }
+
+  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen, faelleStufen };
 })();
