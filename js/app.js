@@ -96,7 +96,7 @@ const App = (function () {
     }
     root().innerHTML = html;
     // Spiel-Bildschirme (Brett, Flotte, Karten, Lernpfad) bekommen die dunkle Spielbuehne
-    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|qz-wrap|buehne-marker|home-layout|sub-grid|menu-grid|story-grid|belohnung-liste/.test(html)); } catch (e) { /* optional */ }
+    try { document.body.classList.add('spielbuehne'); /* ab 20.10.2026 ueberall dunkel */ } catch (e) { /* optional */ }
     updateTopbar();
   }
 

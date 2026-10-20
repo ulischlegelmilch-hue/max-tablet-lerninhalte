@@ -156,3 +156,43 @@ body.spielbuehne .icon-schach { background: linear-gradient(150deg, #8A96B8, #3E
 body.spielbuehne .icon-schiffe { background: linear-gradient(150deg, #5CC8F0, #1D7FB0); --kat-dunkel: #14608A; }
 body.spielbuehne .icon-quartett { background: linear-gradient(150deg, #FFD966, #D99A00); --kat-dunkel: #A06D00; }
 body.spielbuehne .icon-maumau { background: linear-gradient(150deg, #FF8B8B, #C73B3B); --kat-dunkel: #96282B; }
+
+/* =====================================================================
+   Aufgaben-Ansichten (20.10.2026): Antwortknoepfe, Ziffernblock, Hilfe, Rueckmeldungen
+   ===================================================================== */
+body.spielbuehne .option-btn, body.spielbuehne .key-btn {
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06)); border: 1px solid rgba(255,255,255,.16);
+  color: #F3F1EA; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.10);
+}
+body.spielbuehne .option-btn:active, body.spielbuehne .key-btn:active { border-color: #FFB43A; background: rgba(255,180,58,.14); }
+body.spielbuehne .option-btn.richtig, body.spielbuehne .key-btn.ok.richtig, body.spielbuehne .btn-bewertung.btn-richtig {
+  background: rgba(47,191,113,.22); border-color: #2FBF71; color: #7CF0A8; box-shadow: 0 0 18px rgba(47,191,113,.35);
+}
+body.spielbuehne .option-btn.falsch, body.spielbuehne .btn-bewertung.btn-falsch {
+  background: rgba(229,72,77,.20); border-color: #E5484D; color: #FF9A9D; box-shadow: 0 0 18px rgba(229,72,77,.3);
+}
+body.spielbuehne .key-btn.ok { background: linear-gradient(180deg, #3ED987, #1FA85E); border-color: #2FBF71; color: #05301a; font-weight: 800; }
+body.spielbuehne .key-btn.del { background: rgba(255,180,58,.16); border-color: rgba(255,180,58,.45); color: #FFD58A; }
+body.spielbuehne .zahl-anzeige, body.spielbuehne .text-eingabe-feld {
+  background: rgba(0,0,0,.28); border: 1px solid rgba(255,255,255,.18); color: #fff; border-radius: 14px;
+}
+body.spielbuehne .text-eingabe-feld:focus { outline: none; border-color: #FFB43A; box-shadow: 0 0 0 3px rgba(255,180,58,.25); }
+body.spielbuehne .feedback.ok { color: #7CF0A8; }
+body.spielbuehne .feedback.nok { color: #FF9A9D; }
+body.spielbuehne .btn-hilfe {
+  background: rgba(255,180,58,.14); border: 1px solid rgba(255,180,58,.45); color: #FFD58A; border-radius: 14px;
+}
+body.spielbuehne .btn-hilfe:active { background: rgba(255,180,58,.24); }
+body.spielbuehne .hilfe-box { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); color: #F3F1EA; border-radius: 14px; }
+body.spielbuehne .hilfe-warnung { color: #FFD58A; }
+body.spielbuehne .sr-zeichen { color: #AEB8D2; } body.spielbuehne .sr-ziffer { color: #fff; }
+body.spielbuehne .uebersicht-banner-fertig { background: rgba(47,191,113,.2); border-color: #2FBF71; color: #7CF0A8; }
+body.spielbuehne .schach-status-sieg { background: rgba(47,191,113,.2); color: #7CF0A8; }
+body.spielbuehne .schach-status-niederlage { background: rgba(229,72,77,.2); color: #FF9A9D; }
+body.spielbuehne .schach-status-schach { background: rgba(255,180,58,.2); color: #FFD58A; }
+body.spielbuehne .regel-loeschen:active { background: rgba(229,72,77,.2); }
+/* Farbige Markierungen der Faelle (Nominativ ... Akkusativ) */
+body.spielbuehne mark.fm-N { background: rgba(91,155,255,.35); color: #fff; }
+body.spielbuehne mark.fm-G { background: rgba(255,201,60,.35); color: #fff; }
+body.spielbuehne mark.fm-D { background: rgba(70,204,135,.35); color: #fff; }
+body.spielbuehne mark.fm-A { background: rgba(179,139,255,.35); color: #fff; }

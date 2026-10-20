@@ -2688,19 +2688,19 @@ const Mathe = (function () {
     const striche = grosse * 10;
     const breite = 560, x0 = 20, dx = breite / striche;
     let svg = `<svg viewBox="0 0 600 100" style="width:100%;max-width:640px;display:block;margin:8px auto;" xmlns="http://www.w3.org/2000/svg">`;
-    svg += `<line x1="${x0}" y1="50" x2="${x0 + breite + 10}" y2="50" stroke="#333" stroke-width="2"/>`;
-    svg += `<polygon points="${x0 + breite + 18},50 ${x0 + breite + 8},45 ${x0 + breite + 8},55" fill="#333"/>`;
+    svg += `<line x1="${x0}" y1="50" x2="${x0 + breite + 10}" y2="50" stroke="#E9ECF5" stroke-width="2"/>`;
+    svg += `<polygon points="${x0 + breite + 18},50 ${x0 + breite + 8},45 ${x0 + breite + 8},55" fill="#E9ECF5"/>`;
     for (let i = 0; i <= striche; i++) {
       const x = x0 + i * dx;
       const gross = i % 10 === 0;
-      svg += `<line x1="${x}" y1="${gross ? 38 : 43}" x2="${x}" y2="${gross ? 62 : 57}" stroke="#333" stroke-width="${gross ? 2.5 : 1.2}"/>`;
-      if (gross) svg += `<text x="${x}" y="82" text-anchor="middle" font-size="15" fill="#333">${start + i * schritt}</text>`;
+      svg += `<line x1="${x}" y1="${gross ? 38 : 43}" x2="${x}" y2="${gross ? 62 : 57}" stroke="#E9ECF5" stroke-width="${gross ? 2.5 : 1.2}"/>`;
+      if (gross) svg += `<text x="${x}" y="82" text-anchor="middle" font-size="15" fill="#E9ECF5">${start + i * schritt}</text>`;
     }
     if (markiert !== undefined) {
       const x = x0 + markiert * dx;
-      svg += `<line x1="${x}" y1="12" x2="${x}" y2="38" stroke="#d33" stroke-width="2.5"/>`;
-      svg += `<polygon points="${x},40 ${x - 6},30 ${x + 6},30" fill="#d33"/>`;
-      svg += `<text x="${x}" y="10" text-anchor="middle" font-size="16" font-weight="bold" fill="#d33">?</text>`;
+      svg += `<line x1="${x}" y1="12" x2="${x}" y2="38" stroke="#FF6B6B" stroke-width="2.5"/>`;
+      svg += `<polygon points="${x},40 ${x - 6},30 ${x + 6},30" fill="#FF6B6B"/>`;
+      svg += `<text x="${x}" y="10" text-anchor="middle" font-size="16" font-weight="bold" fill="#FF6B6B">?</text>`;
     }
     return svg + `</svg>`;
   }
@@ -2862,7 +2862,7 @@ const Mathe = (function () {
         `<polygon points="${x},40 ${x - 6},30 ${x + 6},30" fill="${farbe}"/>` +
         `<text x="${x}" y="10" text-anchor="middle" font-size="15" font-weight="bold" fill="${farbe}">${beschriftung}</text>`;
     };
-    return svg.replace('</svg>', marker(posA, '#1d6b36', 'A') + marker(posB, '#d33', 'B') + '</svg>');
+    return svg.replace('</svg>', marker(posA, '#5EE59B', 'A') + marker(posB, '#d33', 'B') + '</svg>');
   }
 
   function genFerienZahlenstrahlZweiFrage() {
