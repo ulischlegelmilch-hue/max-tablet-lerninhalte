@@ -224,6 +224,8 @@ const App = (function () {
 
           ${FernSync.zusatzaufgabenHtml()}
 
+          ${typeof Grundbegriffe !== 'undefined' ? Grundbegriffe.homeKarteHtml() : ''}
+
           ${Ferientraining.homeKarteHtml(extraHtml)}
         </main>
       </div>

@@ -20,6 +20,7 @@ const Deutsch = (function () {
   // Quiz-Fragen) und laesst sich nicht einfach in denselben Frage-Pool mischen.
   function renderMenu() {
     App.render(App.subMenuHtml('Deutsch – was übst du?', [
+      ...(typeof Grundbegriffe !== 'undefined' ? [Grundbegriffe.menueEintrag('deutsch')] : []),
       { icon: 'lesen', titel: 'Das musst du wissen: Fälle & mehr', onclick: 'Deutsch.zeigeFaelleLernen()' },
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben üben', onclick: 'Deutsch.starteDeutschUeben()' },
       { icon: 'lesen', titel: 'Lesen & Verstehen', onclick: 'Deutsch.starteLesen()' }

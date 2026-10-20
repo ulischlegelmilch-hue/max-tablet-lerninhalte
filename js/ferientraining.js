@@ -94,9 +94,18 @@ const Ferientraining = (function () {
     });
   }
 
+  // Grundbegriffe-Karteikarten (siehe grundbegriffe.js): vor den Tagesaufgaben von Mathe/Deutsch wird
+  // automatisch angeboten, erst die Karten zu ueben, solange die Grundbegriffe noch nicht sitzen.
+  // Die Aufgaben selbst bleiben unveraendert Pflicht.
+  const GRUNDBEGRIFFE_FACH = { mathe_tag: 'mathe', mathe_rechenarten: 'mathe', deutsch_tag: 'deutsch' };
+
   function starte(id) {
     const item = PLAN.find(i => i.id === id);
-    if (item) item.start();
+    if (!item) return;
+    const fach = GRUNDBEGRIFFE_FACH[id];
+    if (fach && typeof Grundbegriffe !== 'undefined' && !Storage.getFerienErledigt(id) &&
+        Grundbegriffe.bieteAn(fach, item.titel, () => item.start())) return;
+    item.start();
   }
 
   function renderListe() {

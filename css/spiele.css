@@ -376,3 +376,16 @@ body.spielbuehne .schach-info { font-size: 17px; font-weight: 700; color: #cfd6e
 .weg-fuchs-spielen-los { padding: 8px 16px; border-radius: 12px; background: #4aa3ff; color: #06223f; font-weight: 800; font-size: 15px; }
 .fuchs-karte-klein { background: linear-gradient(135deg, #6aa8ff 0%, #8a6bff 100%); color: #0b1330; box-shadow: 0 8px 22px rgba(90,100,255,.3); padding: 10px 18px; }
 .fuchs-karte-klein .fuchs-karte-los { background: #0b1330; color: #cfe0ff; }
+
+/* ---- Grundbegriffe-Karteikarten (Startseite, helles Design) ---- */
+.gb-karte { margin: 0 0 14px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, #EEF4FF 0%, #F6EEFF 100%); border: 1px solid #D5DEF5; box-shadow: 0 4px 14px rgba(60,80,160,.10); }
+.gb-kopf { font-size: 17px; font-weight: 800; color: #1c2750; margin-bottom: 8px; }
+.gb-kopf small { font-size: 12px; font-weight: 600; color: #6a74a0; margin-left: 6px; }
+.gb-zeile { display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; border-top: 1px solid rgba(60,80,160,.12); }
+.gb-zeile:first-of-type { border-top: none; }
+.gb-icon { font-size: 28px; width: 40px; text-align: center; }
+.gb-text { flex: 1; display: flex; flex-direction: column; gap: 3px; color: #1c2750; }
+.gb-text small { font-size: 13px; color: #5b6590; }
+.gb-balken { display: block; height: 7px; border-radius: 5px; background: rgba(60,80,160,.14); overflow: hidden; }
+.gb-balken > span { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #5b8cff, #8a6bff); }
+.gb-los { padding: 8px 16px; border-radius: 12px; background: #3d5afe; color: #fff; font-weight: 800; font-size: 14px; }

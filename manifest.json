@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-19-2259",
+  "version": "2026-10-20-1010",
   "files": [
     "css/spiele.css",
     "css/style.css",
@@ -97,6 +97,7 @@
     "js/figuren.js",
     "js/fuchs.js",
     "js/geschichten.js",
+    "js/grundbegriffe.js",
     "js/heimatkunde.js",
     "js/hinweise.js",
     "js/icons.js",

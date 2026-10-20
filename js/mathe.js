@@ -35,6 +35,7 @@ const Mathe = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('Mathe', [
+      ...(typeof Grundbegriffe !== 'undefined' ? [Grundbegriffe.menueEintrag('mathe')] : []),
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'tagesaufgabe', titel: 'Ferien-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },

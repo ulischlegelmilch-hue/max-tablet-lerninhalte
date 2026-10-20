@@ -478,6 +478,7 @@ const FernSync = (function () {
       if (typeof Deutsch !== 'undefined' && Deutsch.faelleStufen) body.faelleStufen = Deutsch.faelleStufen();
     } catch (e) { /* Aufbau-Info ist optional */ }
     if (Array.isArray(verlauf) && verlauf.length) body.verlauf = verlauf;
+    try { if (typeof Grundbegriffe !== 'undefined') body.grundbegriffe = Grundbegriffe.berichtFuerPapa(); } catch (e) { /* optional */ }
     if (typeof text === 'string' && text) body.text = text; // z.B. abgetippter Schreibtext (siehe schreiben.js)
     sendeLernsetMeldung(body).catch(() => {
       // Kein Internet gerade / Backend nicht erreichbar (z.B. Render-Cold-
