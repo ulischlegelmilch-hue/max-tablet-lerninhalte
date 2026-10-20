@@ -2548,7 +2548,7 @@ const Mathe = (function () {
     }
     const art = NACHBAR_ARTEN[rnd(0, 2)];
     let n;
-    do { n = rnd(1001, 9998); } while (n % art.schritt === 0);
+    do { n = rnd(2001, 7998); } while (n % art.schritt === 0);
     const unten = Math.floor(n / art.schritt) * art.schritt;
     const oben = unten + art.schritt;
     const nachUnten = Math.random() < 0.5;
@@ -2564,26 +2564,56 @@ const Mathe = (function () {
   }
 
   // ---- Wie heissen die Zahlen? (Tausenderwuerfel/Hunderterplatten/Zehnerstangen/Einer) ----
-  function htmlWuerfel(z) {
-    const form = [
-      'width:26px;height:26px;background:#c9954c;border-radius:3px;',
-      'width:26px;height:8px;background:#d9a85c;border-radius:2px;',
-      'width:5px;height:26px;background:#d9a85c;border-radius:2px;',
-      'width:7px;height:7px;background:#b07a35;border-radius:2px;'
-    ];
-    return `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;justify-content:center;margin:10px 0;">` +
-      z.map((anzahl, i) => Array.from({ length: anzahl }, () => `<span style="display:inline-block;${form[i]}"></span>`).join('')).join('<span style="width:14px"></span>') +
-      `</div>`;
+  // Als SVG im Stil des Schulbuchs (Dienes-Material): Tausender = grosser Wuerfel mit Gitter, Hunderter = Platte
+  // mit 10x10-Gitter, Zehner = Stange mit 10 Abschnitten, Einer = kleiner Wuerfel. Neu 20.10.2026 (Heftseite
+  // "Die Zahlen bis 10 000", Aufgabe 1) - vorher nur einfache farbige Kaestchen.
+  function svgDienes(z) {
+    const holz = '#d9b57a', kante = '#8a6428', hell = '#ecd3a1', dunkel = '#b98f4e';
+    let s = '<svg viewBox="0 0 900 250" style="width:100%;max-width:660px;display:block;margin:8px auto;" xmlns="http://www.w3.org/2000/svg">';
+    const gitter = (x, y, w, h, n) => {
+      let g = '';
+      for (let i = 1; i < n; i++) {
+        g += `<line x1="${x + i * w / n}" y1="${y}" x2="${x + i * w / n}" y2="${y + h}" stroke="${kante}" stroke-width="0.5" opacity="0.6"/>`;
+        g += `<line x1="${x}" y1="${y + i * h / n}" x2="${x + w}" y2="${y + i * h / n}" stroke="${kante}" stroke-width="0.5" opacity="0.6"/>`;
+      }
+      return g;
+    };
+    // Tausender: Wuerfel (Vorder-, Ober- und Seitenflaeche)
+    for (let i = 0; i < z[0]; i++) {
+      const x = 12 + (i % 5) * 64, y = 14 + Math.floor(i / 5) * 78, w = 44, d = 14;
+      s += `<polygon points="${x},${y + d} ${x + d},${y} ${x + w + d},${y} ${x + w},${y + d}" fill="${hell}" stroke="${kante}" stroke-width="1"/>`;
+      s += `<polygon points="${x + w},${y + d} ${x + w + d},${y} ${x + w + d},${y + w} ${x + w},${y + w + d}" fill="${dunkel}" stroke="${kante}" stroke-width="1"/>`;
+      s += `<rect x="${x}" y="${y + d}" width="${w}" height="${w}" fill="${holz}" stroke="${kante}" stroke-width="1"/>` + gitter(x, y + d, w, w, 10);
+    }
+    // Hunderter: Platten
+    for (let i = 0; i < z[1]; i++) {
+      const x = 340 + (i % 5) * 48, y = 20 + Math.floor(i / 5) * 64, w = 38, d = 6;
+      s += `<polygon points="${x},${y + d} ${x + d},${y} ${x + w + d},${y} ${x + w},${y + d}" fill="${hell}" stroke="${kante}" stroke-width="1"/>`;
+      s += `<polygon points="${x + w},${y + d} ${x + w + d},${y} ${x + w + d},${y + w - 2} ${x + w},${y + w + d - 2}" fill="${dunkel}" stroke="${kante}" stroke-width="1"/>`;
+      s += `<rect x="${x}" y="${y + d}" width="${w}" height="${w - 2}" fill="${holz}" stroke="${kante}" stroke-width="1"/>` + gitter(x, y + d, w, w - 2, 10);
+    }
+    // Zehner: Stangen
+    for (let i = 0; i < z[2]; i++) {
+      const x = 600 + i * 15, y = 20, w = 10, h = 120;
+      s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${holz}" stroke="${kante}" stroke-width="1"/>`;
+      for (let k = 1; k < 10; k++) s += `<line x1="${x}" y1="${y + k * h / 10}" x2="${x + w}" y2="${y + k * h / 10}" stroke="${kante}" stroke-width="0.5" opacity="0.7"/>`;
+    }
+    // Einer: kleine Wuerfel
+    for (let i = 0; i < z[3]; i++) {
+      const x = 770 + (i % 3) * 22, y = 24 + Math.floor(i / 3) * 24;
+      s += `<rect x="${x}" y="${y}" width="14" height="14" fill="${holz}" stroke="${kante}" stroke-width="1"/>`;
+    }
+    return s + '</svg>';
   }
 
   function genFerienWuerfelFrage() {
-    const z = ferienZahl(true);
+    const z = ferienZahl(true).map((a, i) => i === 0 ? a : Math.min(a, 9));
     const n = ziffernZuZahl(z);
     const teile = z.map((a, i) => a > 0 ? `${a} ${STELLEN_NAMEN[i]}` : null).filter(Boolean).join(', ');
     return {
       typ: 'numeric',
       verlaufText: `Zahl aus Würfeln lesen: ${teile}`,
-      frage: `Wie heißt die Zahl?${htmlWuerfel(z)}<span style="font-size:0.8em">Große Würfel = Tausender · Platten = Hunderter · Stangen = Zehner · kleine Würfel = Einer</span>`,
+      frage: `Wie heißt die Zahl?${svgDienes(z)}<span style="font-size:0.8em">Große Würfel = Tausender · Platten = Hunderter · Stangen = Zehner · kleine Würfel = Einer</span>`,
       antwort: n,
       hilfe: `Zähle jede Sorte einzeln: ${teile}.<br>Was fehlt, ist eine 0 an dieser Stelle.<br><strong>${z.join(' ')} → ${formatZahl(n)}</strong>`
     };
@@ -2759,6 +2789,100 @@ const Mathe = (function () {
     };
   }
 
+  // ---- "Schreibe als Additionsaufgabe" (Heftseite Aufgabe 2/4, 20.10.2026): die ganze Zerlegung waehlen ----
+  // Die Zahl steht als Ziffernreihe ("3 1 5 6"), als Stellenwert-Kuerzel ("7Z 2T 8E", durcheinander, 0 fehlt)
+  // oder als Zahl; Max waehlt die passende Additionsaufgabe. Falsche Zerlegungen sind typische Fehler:
+  // zwei Stellen vertauscht, eine Stelle verrutscht.
+  function genFerienAdditionWaehlenFrage() {
+    const z = ferienZahl(true);
+    const n = ziffernZuZahl(z);
+    const werte = [1000, 100, 10, 1];
+    const richtig = z.map((a, i) => a * werte[i]);
+    const text = arr => arr.join(' + ');
+    const falsche = new Set();
+    // 1) zwei benachbarte Ziffern vertauscht (Stellenwerte stimmen nicht)
+    for (let i = 1; i < 3 && falsche.size < 2; i++) {
+      if (z[i] !== z[i + 1]) { const t = richtig.slice(); t[i] = z[i + 1] * werte[i]; t[i + 1] = z[i] * werte[i + 1]; falsche.add(text(t)); }
+    }
+    // 2) eine Stelle um eine Stelle verrutscht (Zehner als Hunderter ...)
+    const i2 = rnd(1, 3);
+    const t2 = richtig.slice();
+    t2[i2] = i2 === 3 ? z[3] * 10 : z[i2] * werte[i2 - 1];
+    falsche.add(text(t2));
+    // 3) die 0-Stelle weggelassen bzw. eine Stelle fehlt (nur wenn es eine Null gibt), sonst Tausender falsch
+    const t3 = richtig.slice(); t3[0] = z[0] * 100; falsche.add(text(t3));
+    falsche.delete(text(richtig));
+    const optionen = shuffle([text(richtig), ...[...falsche].slice(0, 2)]);
+    const art = rnd(0, 2);
+    const bezeichnung = art === 0 ? `<strong>${z.join(' ')}</strong>` :
+      art === 1 ? `<strong>${shuffle([0, 1, 2, 3]).filter(i => z[i] !== 0).map(i => `${z[i]}${STELLEN[i]}`).join(' ')}</strong> (T = Tausender, H = Hunderter, Z = Zehner, E = Einer)` :
+        `<strong>${formatZahl(n)}</strong>`;
+    return {
+      typ: 'mc',
+      verlaufText: `Additionsaufgabe zu ${formatZahl(n)} wählen`,
+      frage: `Welche Additionsaufgabe gehört zur Zahl ${bezeichnung}?`,
+      optionen,
+      richtigIndex: optionen.indexOf(text(richtig)),
+      hilfe: `Zerlege nach Stellen: jede Ziffer mal ihr Stellenwert.<br><strong>${formatZahl(n)} = ${text(richtig)}</strong><br>Steht an einer Stelle eine 0, schreibst du 0 (z. B. 2078 = 2000 + 0 + 70 + 8).`
+    };
+  }
+
+  // ---- Nachbartausender/-hunderter/-zehner als Tabelle (Heftseite Zahlenstrahl, Aufgabe 2): beide Nachbarn ----
+  function genFerienNachbarPaarFrage() {
+    const art = NACHBAR_ARTEN[rnd(0, 2)];
+    let n;
+    do { n = rnd(2001, 7998); } while (n % art.schritt === 0);
+    const unten = Math.floor(n / art.schritt) * art.schritt;
+    const oben = unten + art.schritt;
+    const paar = (a, b) => `${a} und ${b}`;
+    const falsche = new Set([
+      paar(unten - art.schritt, unten),          // beide zu klein
+      paar(oben, oben + art.schritt),            // beide zu gross
+      paar(unten, oben + art.schritt)            // Abstand falsch
+    ]);
+    falsche.delete(paar(unten, oben));
+    const optionen = shuffle([paar(unten, oben), ...[...falsche].slice(0, 2)]);
+    return {
+      typ: 'mc',
+      verlaufText: `${art.name} von ${n} (beide)`,
+      frage: `Tabelle: <strong>${art.name} | Zahl | ${art.name}</strong><br>▢ &nbsp;|&nbsp; <strong>${n}</strong> &nbsp;|&nbsp; ▢<br>Welche beiden Zahlen gehören in die Lücken?`,
+      optionen,
+      richtigIndex: optionen.indexOf(paar(unten, oben)),
+      hilfe: `Die ${art.name} sind die zwei vollen ${art.wort}, zwischen denen ${n} liegt: einer davor, einer danach.<br><strong>${unten} &lt; ${n} &lt; ${oben}</strong>`
+    };
+  }
+
+  // ---- Zahlenstrahl mit ZWEI Pfeilen: einer ist gegeben, der andere gesucht (Heftseite: mehrere Zahlen ermitteln) ----
+  function svgZahlenstrahlZwei(start, schritt, grosse, posA, posB) {
+    let svg = svgZahlenstrahl(start, schritt, grosse);
+    const striche = grosse * 10, breite = 560, x0 = 20, dx = breite / striche;
+    const marker = (pos, farbe, beschriftung) => {
+      const x = x0 + pos * dx;
+      return `<line x1="${x}" y1="12" x2="${x}" y2="38" stroke="${farbe}" stroke-width="2.5"/>` +
+        `<polygon points="${x},40 ${x - 6},30 ${x + 6},30" fill="${farbe}"/>` +
+        `<text x="${x}" y="10" text-anchor="middle" font-size="15" font-weight="bold" fill="${farbe}">${beschriftung}</text>`;
+    };
+    return svg.replace('</svg>', marker(posA, '#1d6b36', 'A') + marker(posB, '#d33', 'B') + '</svg>');
+  }
+
+  function genFerienZahlenstrahlZweiFrage() {
+    const schritt = ZAHLENSTRAHL_SCHRITTE[rnd(0, 2)];
+    const grosse = rnd(3, 5);
+    const spanne = schritt * 10;
+    const start = rnd(Math.ceil(1000 / spanne), Math.floor((9999 - grosse * spanne) / spanne)) * spanne;
+    let a, b;
+    do { a = rnd(1, grosse * 10 - 1); b = rnd(1, grosse * 10 - 1); } while (a % 10 === 0 || b % 10 === 0 || a === b || Math.abs(a - b) < 2);
+    const zielA = start + a * schritt, zielB = start + b * schritt;
+    return {
+      typ: 'numeric',
+      verlaufText: `Zahlenstrahl ${start}–${start + grosse * spanne} (Schritt ${schritt}): A = ${zielA}, B gesucht`,
+      frage: `Pfeil A zeigt auf <strong>${zielA}</strong>. Welche Zahl gehört zu Pfeil B?${svgZahlenstrahlZwei(start, schritt, grosse, a, b)}`,
+      antwort: zielB,
+      hilfe: `Der Abstand der kleinen Striche ist <strong>${schritt}</strong> (zwischen zwei großen Strichen sind es ${spanne}, also ${spanne} : 10).<br>` +
+        `B liegt ${Math.abs(b - a)} Striche ${b > a ? 'rechts' : 'links'} von A: ${zielA} ${b > a ? '+' : '−'} ${Math.abs(b - a)} · ${schritt} = <strong>${zielB}</strong>.`
+    };
+  }
+
   // ---- Das Test-Blatt (Zweitversuch "Test Rechenregeln", 05.10.2026) ----
   // Die Rechnungen stehen 1:1 so auf dem Blatt; die Ergebnisse berechnet
   // werteAus() - nie von Hand eingetippt (die Ergebnisse auf Max' Blatt sind
@@ -2819,6 +2943,10 @@ const Mathe = (function () {
     { kategorie: 'ferienzahlen', gen: genFerienNachbarFrage },
     { kategorie: 'ferienzahlen', gen: genFerienNachbarFrage },
     { kategorie: 'ferienzahlen', gen: genFerienWuerfelFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienWuerfelFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienAdditionWaehlenFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienNachbarPaarFrage },
+    { kategorie: 'ferienzahlen', gen: genFerienZahlenstrahlZweiFrage },
     { kategorie: 'ferienzahlen', gen: genFerienZerlegenFrage },
     { kategorie: 'ferienzahlen', gen: genFerienZerlegenFrage },
     { kategorie: 'ferienzahlen', gen: genFerienStellenwertFrage },
