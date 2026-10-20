@@ -28,7 +28,7 @@ const Belohnungen = (function () {
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Deine Belohnungen</div>
+      <div class="welcome sub-titel sub-kopf-belohnung">Deine Belohnungen</div>
       <div class="lese-text">Du hast gerade <strong>${guthaben} ⭐</strong> gesammelt. Übe weiter, um dir etwas davon zu verdienen!</div>
       <div class="belohnung-liste">
         ${liste.length ? kartenHtml : '<div class="regel-leer">Noch keine Belohnungen eingetragen – frag Mama oder Papa!</div>'}

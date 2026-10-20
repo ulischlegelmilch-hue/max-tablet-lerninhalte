@@ -96,7 +96,7 @@ const App = (function () {
     }
     root().innerHTML = html;
     // Spiel-Bildschirme (Brett, Flotte, Karten, Lernpfad) bekommen die dunkle Spielbuehne
-    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|qz-wrap|buehne-marker/.test(html)); } catch (e) { /* optional */ }
+    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|qz-wrap|buehne-marker|home-layout|sub-grid|menu-grid|story-grid|belohnung-liste/.test(html)); } catch (e) { /* optional */ }
     updateTopbar();
   }
 
@@ -190,7 +190,7 @@ const App = (function () {
 
     const smItem = (accent, icon, label, sub, onclick, badge) => `
       <div class="sm-item" onclick="${onclick}">
-        <span class="sm-icon icon-${accent}">${Icons.svg(icon)}${badge ? '<span class="menu-badge"></span>' : ''}</span>
+        <span class="sm-icon icon-${accent}">${Icons.kat(icon === 'spielen' ? 'spiele' : icon)}${badge ? '<span class="menu-badge"></span>' : ''}</span>
         <span class="sm-text"><span class="sm-label">${label}</span><span class="sm-sub">${sub}</span></span>
       </div>`;
     const ungelesen = chatUngelesen();
@@ -242,22 +242,22 @@ const App = (function () {
   function renderSpieleMenu() {
     render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Spiele</div>
+      <div class="welcome sub-titel sub-kopf-spiele">Spiele</div>
       <div class="menu-grid">
         <div class="menu-card accent-schach" onclick="Schach.renderMenu()">
-          <span class="menu-icon icon-schach">${Icons.svg('schach')}</span>
+          <span class="menu-icon icon-schach">${Icons.kat('schach')}</span>
           <span class="menu-text"><span class="menu-label">Schach</span><span class="menu-progress">${typeof SchachWeg !== 'undefined' ? SchachWeg.fortschrittText() : Schach.aktuelleStufeName()}</span></span>
         </div>
         <div class="menu-card accent-schiffe" onclick="Schiffeversenken.renderMenu()">
-          <span class="menu-icon icon-schiffe">${Icons.svg('schiffe')}</span>
+          <span class="menu-icon icon-schiffe">${Icons.kat('schiffe')}</span>
           <span class="menu-text"><span class="menu-label">Schiffe versenken</span><span class="menu-progress">${Schiffeversenken.fortschrittText()}</span></span>
         </div>
         <div class="menu-card accent-quartett" onclick="Quartett.renderMenu()">
-          <span class="menu-icon icon-quartett">${Icons.svg('quartett')}</span>
+          <span class="menu-icon icon-quartett">${Icons.kat('quartett')}</span>
           <span class="menu-text"><span class="menu-label">Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
         </div>
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
-          <span class="menu-icon icon-maumau">${Icons.svg('maumau')}</span>
+          <span class="menu-icon icon-maumau">${Icons.kat('maumau')}</span>
           <span class="menu-text"><span class="menu-label">Mau-Mau</span><span class="menu-progress">${Maumau.fortschrittText()}</span></span>
         </div>
       </div>
@@ -639,15 +639,20 @@ const App = (function () {
     }
   }
 
+  // Akzentfarbe je Bereich (Titel -> Schluessel), fuer das dunkle Menue-Design (css/dunkel.css)
+  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele' };
+
   function subMenuHtml(titel, karten) {
+    const schluessel = Object.keys(SUB_AKZENT).find((k) => titel === k || titel.indexOf(k) === 0);
+    const akzent = (schluessel && SUB_AKZENT[schluessel]) || 'spiele';
     // karten: [{icon, titel, onclick}] - icon ist ein Name aus Icons.svg()
     const cardsHtml = karten.map(k =>
-      `<div class="sub-card" onclick="${k.onclick}"><span class="sub-icon">${Icons.svg(k.icon)}</span><span class="sub-label">${k.titel}</span></div>`
+      `<div class="sub-card" onclick="${k.onclick}"><span class="sub-icon">${Icons.kat(k.icon)}</span><span class="sub-label">${k.titel}</span></div>`
     ).join('');
     return `
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">${titel}</div>
-      <div class="sub-grid">${cardsHtml}</div>
+      <div class="welcome sub-titel sub-kopf-${akzent}">${titel}</div>
+      <div class="sub-grid sub-akzent-${akzent}">${cardsHtml}</div>
     `;
   }
 

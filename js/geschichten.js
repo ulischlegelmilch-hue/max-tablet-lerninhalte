@@ -76,7 +76,7 @@ const Geschichten = (function () {
 
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Wähle ein Buch zum Lesen</div>
+      <div class="welcome sub-titel sub-kopf-geschichten">Wähle ein Buch zum Lesen</div>
       <div class="story-grid">${buecherCards}</div>
     `);
   }

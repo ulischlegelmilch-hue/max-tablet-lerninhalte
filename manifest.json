@@ -1,6 +1,7 @@
 {
-  "version": "2026-10-20-1606",
+  "version": "2026-10-20-1618",
   "files": [
+    "css/dunkel.css",
     "css/quartett.css",
     "css/spiele.css",
     "css/style.css",
