@@ -16,6 +16,7 @@
 .qz-gruppe { position: absolute; top: 8px; left: 10px; font-weight: 800; font-size: 20px; color: var(--qz-signal); text-shadow: 0 1px 6px #000, 0 0 3px #000; }
 .qz-marke { position: absolute; top: 12px; right: 10px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #fff; font-weight: 700; text-shadow: 0 1px 5px #000, 0 0 3px #000; }
 .qz-name { font-size: 20px; font-weight: 800; padding: 8px 14px 6px; letter-spacing: .01em; }
+.qz-zusatz { padding: 0 14px 8px; font-size: 12px; color: var(--qz-leise); margin-top: -4px; }
 .qz-werte { list-style: none; margin: 0; padding: 0; }
 .qz-wert { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--qz-kante); font-variant-numeric: tabular-nums; }
 .qz-label { display: flex; flex-direction: column; font-size: 14px; color: var(--qz-leise); }

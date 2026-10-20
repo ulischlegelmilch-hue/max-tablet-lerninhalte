@@ -6,7 +6,7 @@
 //   waehle(key), weiter(), tipp(), aufgeben(), neuesSpiel()
 const QuartettUI = (function () {
   const E = QuartettEngine;
-  let bildBasis = 'img/autos/';
+  let bildBasis = 'img/'; // + Satz-Ordner + '/' + Dateiname
 
   function setzeBildBasis(b) { bildBasis = b; }
   function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -16,7 +16,7 @@ const QuartettUI = (function () {
     const o = opt || {};
     const a = E.auto(id);
     if (!a) return '';
-    const zeilen = E.WERTE.map((w) => {
+    const zeilen = E.werte(a.satz).map((w) => {
       const klassen = ['qz-wert'];
       if (o.markiert && o.markiert[w.key]) klassen.push('qz-' + o.markiert[w.key]);
       if (o.wahl === w.key) klassen.push('qz-gewaehlt');
@@ -24,12 +24,12 @@ const QuartettUI = (function () {
       if (o.klickbar) klassen.push('qz-klickbar');
       const klick = o.klickbar ? ` onclick="${o.ns}.waehle('${w.key}')"` : '';
       const zusatz = o.klickbar ? `<small>${esc(w.hinweis)}</small>` : '';
-      return `<li class="${klassen.join(' ')}"${klick}><span class="qz-label">${esc(w.label)}${zusatz}</span><b>${E.formatWert(w.key, a[w.key])}</b></li>`;
+      return `<li class="${klassen.join(' ')}"${klick}><span class="qz-label">${esc(w.label)}${zusatz}</span><b>${E.formatWert(a.satz, w.key, a[w.key])}</b></li>`;
     }).join('');
     return `<article class="qz-karte">
       <div class="qz-bild"><span class="qz-gruppe">${esc(a.gruppe)}</span><span class="qz-marke">${esc(a.marke)}</span>
-        <img src="${bildBasis}${esc(a.foto)}" alt="${esc(a.marke + ' ' + a.name)}"></div>
-      <div class="qz-name">${esc(a.name)}</div>
+        <img src="${bildBasis}${esc(E.satz(a.satz).ordner)}/${esc(a.foto)}" alt="${esc(a.marke + ' ' + a.name)}"></div>
+      <div class="qz-name">${esc(a.name)}</div>${a.zusatz ? `<div class="qz-zusatz">${esc(a.zusatz)}</div>` : ''}
       <ul class="qz-werte">${zeilen}</ul>
     </article>`;
   }
@@ -56,7 +56,7 @@ const QuartettUI = (function () {
     const mm = {}, sm = {};
     mm[r.wahl] = v > 0 ? 'sieg' : v < 0 ? 'niederlage' : 'gleich';
     sm[r.wahl] = v > 0 ? 'niederlage' : v < 0 ? 'sieg' : 'gleich';
-    const info = E.wertInfo(r.wahl);
+    const info = E.wertInfo(stand.satz, r.wahl);
     const wahlName = r.wahlVon === ich ? 'Du hast' : namen.gegner + ' hat';
     let urteil;
     if (v > 0) urteil = `<div class="qz-urteil qz-urteil-sieg">🏆 Punkt für dich!</div>`;

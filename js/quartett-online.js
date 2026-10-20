@@ -10,6 +10,7 @@ const QuartettOnline = (function () {
   const RECONNECT_MS = 3000;
 
   let ws = null, aktiv = false, ersteAnzeige = true, verbindungsStatus = 'verbindet';
+  let satzId = 'autos', satzWahlOffen = false;
   let stand = null, reconnectTimer = null, gesehenNr = 0, belohntFuer = null, ersterStand = true;
 
   function verbinden() {
@@ -40,8 +41,9 @@ const QuartettOnline = (function () {
   }
 
   function starteAnsicht() {
-    E.setzeAutos(QuartettDaten);
-    QuartettUI.setzeBildBasis('img/autos/');
+    E.setzeSaetze(QuartettSaetze);
+    QuartettUI.setzeBildBasis('img/');
+    satzWahlOffen = false;
     ersteAnzeige = true; stand = null; ersterStand = true; gesehenNr = 0;
     verbinden();
   }
@@ -55,10 +57,12 @@ const QuartettOnline = (function () {
     let html;
     if (verbindungsStatus !== 'verbunden' || !stand) {
       html = seite(`<div class="qz-wrap"><div class="qz-info">${verbindungsStatus === 'verbindet' ? 'Verbinde mit Papa …' : 'Verbindung verloren – verbinde neu …'}</div></div>`);
-    } else if (stand.status === 'kein_spiel') {
+    } else if (stand.status === 'kein_spiel' || satzWahlOffen) {
       html = seite(`<div class="qz-wrap buehne-marker"><div class="qz-info">Online gegen Papa</div>
         <div class="qz-menue-hinweis">${stand.verbunden && stand.verbunden.papa ? 'Papa ist gerade online! ' : 'Papa ist gerade nicht online, aber du kannst trotzdem starten – er bekommt eine Benachrichtigung. '}Wer startet, darf auch den ersten Wert aussuchen.</div>
-        <div class="qz-aktionen"><span class="qz-btn" onclick="${NS}.neuesSpiel()">Neues Spiel starten</span></div></div>`);
+        <div class="qz-info">Welche Karten?</div>
+        <div class="qz-stufen">${E.satzListe().map((s) => `<span class="qz-stufe${s.id === satzId ? ' qz-aktiv' : ''}" onclick="${NS}.waehleSatz('${s.id}')">${QuartettUI.esc(s.name)}</span>`).join('')}</div>
+        <div class="qz-aktionen"><span class="qz-btn" onclick="${NS}.starte()">Spiel starten</span></div></div>`);
     } else {
       const spielHtml = QuartettUI.spielHtml(stand, ICH, NAMEN, NS, { gesehenNr });
       const offline = stand.status === 'laeuft' && stand.verbunden && !stand.verbunden.papa ? '<div class="qz-hinweis">Papa ist gerade nicht online – er bekommt eine Benachrichtigung.</div>' : '';
@@ -89,7 +93,9 @@ const QuartettOnline = (function () {
   }
 
   function aufgeben() { senden({ typ: 'aufgeben' }); }
-  function neuesSpiel() { senden({ typ: 'neues_spiel' }); }
+  function neuesSpiel() { satzWahlOffen = true; zeichne(); }
+  function waehleSatz(id) { satzId = id; zeichne(); }
+  function starte() { satzWahlOffen = false; senden({ typ: 'neues_spiel', satz: satzId }); }
 
-  return { starteAnsicht, waehle, weiter, aufgeben, neuesSpiel };
+  return { starteAnsicht, waehle, weiter, aufgeben, neuesSpiel, waehleSatz, starte };
 })();

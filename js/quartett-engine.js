@@ -1,5 +1,5 @@
 // Auto-Quartett: reine Spiellogik ohne Oberflaeche (laeuft im Browser UND in Node auf dem Pi).
-// Regeln (wie "Supertrumpf"): 32 Karten, jeder bekommt 16. Wer am Zug ist, waehlt auf seiner
+// Regeln (wie "Supertrumpf"): meist 32 Karten, jeder bekommt die Haelfte. Wer am Zug ist, waehlt auf seiner
 // obersten Karte einen Wert. Der bessere Wert gewinnt beide Karten, der Gewinner waehlt als Naechstes.
 // Gleichstand: beide Karten kommen in die Mitte, der naechste Gewinner nimmt sie mit.
 // Wer alle Karten hat, gewinnt. Nach MAX_RUNDEN Runden gewinnt, wer mehr Karten hat.
@@ -11,30 +11,31 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const MAX_RUNDEN = 60;
 
+  // Kartensaetze: { id: { name, ordner, werte: [{key,label,einheit,besser,hinweis}], karten: [...] } }
   // besser: 'hoch' = der groessere Wert gewinnt, 'niedrig' = der kleinere Wert gewinnt
-  const WERTE = [
-    { key: 'ps', label: 'Leistung', einheit: 'PS', besser: 'hoch', hinweis: 'mehr PS gewinnt' },
-    { key: 'kmh', label: 'Höchstgeschwindigkeit', einheit: 'km/h', besser: 'hoch', hinweis: 'schneller gewinnt' },
-    { key: 's', label: '0 auf 100 km/h', einheit: 's', besser: 'niedrig', hinweis: 'weniger Sekunden gewinnt' },
-    { key: 'kg', label: 'Gewicht', einheit: 'kg', besser: 'niedrig', hinweis: 'leichter gewinnt' },
-    { key: 'jahr', label: 'Baujahr', einheit: '', besser: 'hoch', hinweis: 'neuer gewinnt' }
-  ];
+  let saetze = {};
+  let autos = {}; // Karten-id -> Karte (jede Karte kennt ihren Satz)
+  let ids = {};   // Satz-id -> [Karten-ids]
 
-  let autos = {}; // id -> Karte
-  let ids = [];
-
-  function setzeAutos(liste) {
-    autos = {}; ids = [];
-    liste.forEach((a) => { autos[a.id] = a; ids.push(a.id); });
+  function setzeSaetze(def) {
+    saetze = def; autos = {}; ids = {};
+    Object.keys(def).forEach((sid) => {
+      ids[sid] = [];
+      def[sid].karten.forEach((k) => { k.satz = sid; autos[k.id] = k; ids[sid].push(k.id); });
+    });
   }
+  function satzListe() { return Object.keys(saetze).map((sid) => ({ id: sid, name: saetze[sid].name, ordner: saetze[sid].ordner })); }
+  function satz(sid) { return saetze[sid]; }
   function auto(id) { return autos[id]; }
-  function alleIds() { return ids.slice(); }
-  function wertInfo(key) { return WERTE.find((w) => w.key === key); }
+  function alleIds(sid) { return (ids[sid] || []).slice(); }
+  function werte(sid) { return saetze[sid] ? saetze[sid].werte : []; }
+  function wertInfo(sid, key) { return werte(sid).find((w) => w.key === key); }
 
   /** 1 = Karte a gewinnt, -1 = Karte b gewinnt, 0 = Gleichstand. */
   function vergleiche(a, b, key) {
-    const info = wertInfo(key);
-    if (!info || !a || !b) return 0;
+    if (!a || !b) return 0;
+    const info = wertInfo(a.satz, key);
+    if (!info) return 0;
     const d = a[key] - b[key];
     if (d === 0) return 0;
     return (info.besser === 'hoch' ? d > 0 : d < 0) ? 1 : -1;
@@ -44,7 +45,7 @@
   function platz(id, key) {
     const k = autos[id];
     let besser = 0;
-    ids.forEach((i) => { if (vergleiche(autos[i], k, key) > 0) besser++; });
+    ids[k.satz].forEach((i) => { if (vergleiche(autos[i], k, key) > 0) besser++; });
     return besser + 1;
   }
 
@@ -59,14 +60,17 @@
   }
 
   /** Neues Spiel fuer zwei Rollen (z.B. 'papa'/'max' oder 'spieler'/'computer'). Die erste Rolle beginnt. */
-  function neuesSpiel(erste, zweite, zufall) {
-    const deck = mische(ids, zufall);
+  function neuesSpiel(erste, zweite, zufall, sid) {
+    const satzId = sid && saetze[sid] ? sid : Object.keys(saetze)[0];
+    const deck = mische(ids[satzId], zufall);
     const decks = {};
-    decks[erste] = deck.slice(0, 16);
-    decks[zweite] = deck.slice(16, 32);
+    const haelfte = Math.floor(deck.length / 2);
+    decks[erste] = deck.slice(0, haelfte);
+    decks[zweite] = deck.slice(haelfte, haelfte * 2);
+    const rest = deck.slice(haelfte * 2); // bei ungerader Kartenzahl: die uebrige Karte liegt zu Beginn in der Mitte
     return {
-      spielId: Date.now(), status: 'laeuft', spieler: { erster: erste, zweiter: zweite }, amZug: erste,
-      decks, mitte: [], rundenNr: 0, runden: 0, letzteRunde: null,
+      spielId: Date.now(), satz: satzId, status: 'laeuft', spieler: { erster: erste, zweiter: zweite }, amZug: erste,
+      decks, mitte: rest, rundenNr: 0, runden: 0, letzteRunde: null,
       gewinner: null, aufgegebenVon: null
     };
   }
@@ -76,11 +80,12 @@
 
   /** Der Spieler am Zug waehlt einen Wert. Gibt false zurueck, wenn der Zug ungueltig ist. */
   function spieleRunde(sp, rolle, key) {
-    if (sp.status !== 'laeuft' || sp.amZug !== rolle || !wertInfo(key)) return false;
+    if (sp.status !== 'laeuft' || sp.amZug !== rolle || !wertInfo(sp.satz, key)) return false;
     const gegner = andere(sp, rolle);
     const meine = sp.decks[rolle].shift();
     const seine = sp.decks[gegner].shift();
     if (!meine || !seine) return false;
+    if (!wertInfo(sp.satz, key)) { sp.decks[rolle].unshift(meine); sp.decks[gegner].unshift(seine); return false; }
     const v = vergleiche(autos[meine], autos[seine], key);
     const karten = {}; karten[rolle] = meine; karten[gegner] = seine;
     let gewinner = null;
@@ -122,12 +127,12 @@
   }
 
   /** Wertung fuer die Wahl: 0 (schlecht) .. 1 (beste Karte der ganzen Packung bei diesem Wert). */
-  function staerke(id, key) { return 1 - (platz(id, key) - 1) / Math.max(1, ids.length - 1); }
+  function staerke(id, key) { return 1 - (platz(id, key) - 1) / Math.max(1, ids[autos[id].satz].length - 1); }
 
   /** Waehlt den Wert fuer den Computer. stufe: 'leicht' | 'normal' | 'schlau' */
   function computerWahl(id, stufe, zufall) {
     const z = zufall || Math.random;
-    const rang = WERTE.map((w) => ({ key: w.key, s: staerke(id, w.key) })).sort((a, b) => b.s - a.s);
+    const rang = werte(autos[id].satz).map((w) => ({ key: w.key, s: staerke(id, w.key) })).sort((a, b) => b.s - a.s);
     if (stufe === 'leicht') {
       // meistens irgendein Wert, selten der beste
       return (z() < 0.25 ? rang[0] : rang[Math.floor(z() * rang.length)]).key;
@@ -139,31 +144,31 @@
 
   /** Der Wert, bei dem die eigene Karte am staerksten ist (fuer den Tipp). */
   function besterWert(id) {
-    return WERTE.map((w) => ({ key: w.key, s: staerke(id, w.key) })).sort((a, b) => b.s - a.s)[0].key;
+    return werte(autos[id].satz).map((w) => ({ key: w.key, s: staerke(id, w.key) })).sort((a, b) => b.s - a.s)[0].key;
   }
 
   /** Persoenlicher Blick fuer eine Rolle: nur die eigene oberste Karte, vom Gegner nur die Anzahl. */
   function standFuerRolle(sp, rolle) {
     const gegner = andere(sp, rolle);
     return {
-      typ: 'stand', spielId: sp.spielId, status: sp.status, spieler: sp.spieler, amZug: sp.amZug, gewinner: sp.gewinner,
+      typ: 'stand', spielId: sp.spielId, satz: sp.satz, status: sp.status, spieler: sp.spieler, amZug: sp.amZug, gewinner: sp.gewinner,
       aufgegebenVon: sp.aufgegebenVon, rundenNr: sp.rundenNr, runden: sp.runden, maxRunden: MAX_RUNDEN,
       meineKarte: obersteKarte(sp, rolle), meineAnzahl: sp.decks[rolle].length,
       gegnerAnzahl: sp.decks[gegner].length, mitteGroesse: sp.mitte.length, letzteRunde: sp.letzteRunde
     };
   }
 
-  function formatWert(key, wert) {
-    const info = wertInfo(key);
+  function formatWert(sid, key, wert) {
+    const info = wertInfo(sid, key);
     let text;
-    if (key === 's') text = wert.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-    else if (key === 'jahr') text = String(wert);
+    if (info.format === 'jahr') text = String(wert);
+    else if (info.nachkomma) text = wert.toLocaleString('de-DE', { minimumFractionDigits: info.nachkomma, maximumFractionDigits: info.nachkomma });
     else text = wert.toLocaleString('de-DE');
     return info.einheit ? text + ' ' + info.einheit : text;
   }
 
   return {
-    WERTE, MAX_RUNDEN, setzeAutos, auto, alleIds, wertInfo, vergleiche, platz, mische, neuesSpiel,
+    MAX_RUNDEN, setzeSaetze, satzListe, satz, auto, alleIds, werte, wertInfo, vergleiche, platz, mische, neuesSpiel,
     andere, obersteKarte, spieleRunde, aufgeben, computerWahl, besterWert, standFuerRolle, formatWert
   };
 });

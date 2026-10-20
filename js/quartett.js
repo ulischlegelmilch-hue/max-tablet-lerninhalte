@@ -13,11 +13,12 @@ const Quartett = (function () {
   const MAX_TIPPS = 3;
   const SIEG_STERNE = 20;
 
-  E.setzeAutos(QuartettDaten);
-  QuartettUI.setzeBildBasis('img/autos/');
+  E.setzeSaetze(QuartettSaetze);
+  QuartettUI.setzeBildBasis('img/');
 
   let sp = null;
   let stufe = 'normal';
+  let satzId = 'autos';
   let gesehenNr = 0;
   let tippsUebrig = MAX_TIPPS;
   let tippAktiv = false;
@@ -27,7 +28,7 @@ const Quartett = (function () {
   function raeumeAuf() { if (kiHandle) { clearTimeout(kiHandle); kiHandle = null; } }
 
   function renderMenu() {
-    App.render(App.subMenuHtml('Auto-Quartett', [
+    App.render(App.subMenuHtml('Quartett', [
       { icon: 'quartett', titel: 'Neues Spiel', onclick: 'Quartett.renderStufe()' },
       { icon: 'online', titel: 'Online gegen Papa', onclick: 'QuartettOnline.starteAnsicht()' },
       { icon: 'schach', titel: 'Alle Karten ansehen', onclick: 'Quartett.renderSammlung()' },
@@ -39,6 +40,8 @@ const Quartett = (function () {
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Quartett.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="qz-wrap buehne-marker">
+        <div class="qz-info">Welche Karten möchtest du spielen?</div>
+        ${satzWahlHtml('Quartett.waehleSatz')}
         <div class="qz-info">Wie schlau soll der Computer sein?</div>
         <div class="qz-stufen">${STUFEN.map((s) => `<span class="qz-stufe${s.key === stufe ? ' qz-aktiv' : ''}" onclick="Quartett.waehleStufe('${s.key}')">${s.name}</span>`).join('')}</div>
         <div class="qz-menue-hinweis">Leicht: wählt oft zufällig · Normal: meist den besten Wert · Schlau: immer den besten Wert</div>
@@ -46,6 +49,12 @@ const Quartett = (function () {
       </div>`);
   }
 
+  function satzWahlHtml(fn) {
+    return `<div class="qz-stufen">${E.satzListe().map((s) => `<span class="qz-stufe${s.id === satzId ? ' qz-aktiv' : ''}" onclick="${fn}('${s.id}')">${QuartettUI.esc(s.name)}</span>`).join('')}</div>`;
+  }
+
+  function waehleSatz(id) { satzId = id; renderStufe(); }
+  function aktuellerSatz() { return satzId; }
   function waehleStufe(key) { stufe = key; renderStufe(); }
 
   function renderRegeln() {
@@ -54,9 +63,9 @@ const Quartett = (function () {
       <div class="qz-wrap">
         <div class="qz-info">Spielregeln</div>
         <div class="qz-hinweis" style="max-width:560px;text-align:left;font-size:15px;line-height:1.5;color:#eef1f5">
-          <p>Es gibt 32 Supersportwagen-Karten. Jeder bekommt 16 und sieht nur die oberste.</p>
+          <p>Es gibt zwei Kartensätze: Supersportwagen und Dampflokomotiven. Die Karten werden gleichmäßig verteilt, und jeder sieht nur seine oberste.</p>
           <p>Wer dran ist, tippt auf einen <strong>Wert</strong> seiner Karte, zum Beispiel die Höchstgeschwindigkeit. Dann werden beide Karten aufgedeckt. Wer den <strong>besseren Wert</strong> hat, bekommt beide Karten.</p>
-          <p>Meistens gewinnt der größere Wert. Aber: Bei <strong>0 auf 100</strong> und beim <strong>Gewicht</strong> gewinnt der <strong>kleinere</strong> Wert. Beim Baujahr gewinnt das <strong>neuere</strong> Auto.</p>
+          <p>Meistens gewinnt der größere Wert. Aber Vorsicht, manche Werte sind umgekehrt: Bei den Autos gewinnt bei <strong>0 auf 100</strong> und beim <strong>Gewicht</strong> der <strong>kleinere</strong> Wert und beim Baujahr das <strong>neuere</strong> Auto. Bei den Dampfloks gewinnt beim Baujahr die <strong>ältere</strong> Lok, bei den Rädern die Lok mit <strong>mehr</strong> Rädern. Auf jeder Karte steht unter dem Wert, wer gewinnt.</p>
           <p>Wer gewinnt, darf den nächsten Wert aussuchen. Bei Gleichstand bleiben die Karten in der Mitte liegen, und wer die nächste Runde gewinnt, nimmt sie mit.</p>
           <p>Wer alle Karten hat, gewinnt. Nach 60 Runden gewinnt, wer mehr Karten hat.</p>
         </div>
@@ -64,18 +73,21 @@ const Quartett = (function () {
   }
 
   function renderSammlung() {
-    const karten = E.alleIds().map((id) => QuartettUI.karteHtml(id)).join('');
+    const karten = E.alleIds(satzId).map((id) => QuartettUI.karteHtml(id)).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="Quartett.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="qz-wrap"><div class="qz-info">Alle 32 Karten</div>
+      <div class="qz-wrap"><div class="qz-info">Alle ${E.alleIds(satzId).length} Karten</div>
+        ${satzWahlHtml('Quartett.waehleSammlung')}
         <div class="qz-paar">${karten.split('</article>').filter(Boolean).map((k) => `<div class="qz-seite">${k}</article></div>`).join('')}</div>
         <div class="qz-hinweis">Fotos: Wikimedia Commons, Urheber in der Eltern-App.</div>
       </div>`);
   }
 
+  function waehleSammlung(id) { satzId = id; renderSammlung(); }
+
   function starteSpiel() {
     raeumeAuf();
-    sp = E.neuesSpiel('spieler', 'computer');
+    sp = E.neuesSpiel('spieler', 'computer', null, satzId);
     gesehenNr = 0; tippsUebrig = MAX_TIPPS; tippAktiv = false; belohnt = false;
     zeichne();
   }
@@ -86,8 +98,8 @@ const Quartett = (function () {
     const tippKey = tippAktiv && stand.meineKarte ? E.besterWert(stand.meineKarte) : null;
     let tippText = '';
     if (tippKey && stand.meineKarte) {
-      const w = E.wertInfo(tippKey);
-      tippText = `💡 Hier ist deine Karte stark: <strong>${QuartettUI.esc(w.label)}</strong> (Platz ${E.platz(stand.meineKarte, tippKey)} von 32, ${QuartettUI.esc(w.hinweis)}).`;
+      const w = E.wertInfo(sp.satz, tippKey);
+      tippText = `💡 Hier ist deine Karte stark: <strong>${QuartettUI.esc(w.label)}</strong> (Platz ${E.platz(stand.meineKarte, tippKey)} von ${E.alleIds(sp.satz).length}, ${QuartettUI.esc(w.hinweis)}).`;
     }
     const html = QuartettUI.spielHtml(stand, 'spieler', NAMEN, NS, {
       gesehenNr, tippErlaubt: tippsUebrig > 0, tippAktiv, tippText
@@ -152,5 +164,5 @@ const Quartett = (function () {
     return f.siege > 0 ? `${f.siege} ${f.siege === 1 ? 'Sieg' : 'Siege'}` : 'Noch nicht gespielt';
   }
 
-  return { renderMenu, renderStufe, waehleStufe, renderRegeln, renderSammlung, starteSpiel, waehle, weiter, tipp, aufgeben, neuesSpiel, fortschrittText, belohneOnline: null };
+  return { renderMenu, renderStufe, waehleStufe, waehleSatz, aktuellerSatz, waehleSammlung, satzWahlHtml, renderRegeln, renderSammlung, starteSpiel, waehle, weiter, tipp, aufgeben, neuesSpiel, fortschrittText, belohneOnline: null };
 })();

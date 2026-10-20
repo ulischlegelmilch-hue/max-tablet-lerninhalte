@@ -254,7 +254,7 @@ const App = (function () {
         </div>
         <div class="menu-card accent-quartett" onclick="Quartett.renderMenu()">
           <span class="menu-icon icon-quartett">${Icons.svg('quartett')}</span>
-          <span class="menu-text"><span class="menu-label">Auto-Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
+          <span class="menu-text"><span class="menu-label">Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
         </div>
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
           <span class="menu-icon icon-maumau">${Icons.svg('maumau')}</span>
