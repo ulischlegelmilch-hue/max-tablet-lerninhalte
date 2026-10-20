@@ -28,7 +28,7 @@ const Ferientraining = (function () {
       // praktischen Aufgabe zu diesem Thema, bis ich sage, dass du sie entfernst") - siehe grundbegriffe.js.
       // ZUM ENTFERNEN: diese beiden Eintraege (gb_mathe, gb_deutsch) aus PLAN loeschen.
       id: 'gb_mathe', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Grundbegriffe-Karten',
-      text: () => Grundbegriffe.statusText('mathe'), einheit: 'Karten', ziel: () => 10,
+      text: () => Grundbegriffe.statusText('mathe'), einheit: 'Karten', ziel: () => 4,
       start: () => Grundbegriffe.starteTagesRunde('mathe')
     },
     {
@@ -38,7 +38,7 @@ const Ferientraining = (function () {
     },
     {
       id: 'gb_deutsch', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Grundbegriffe-Karten',
-      text: () => Grundbegriffe.statusText('deutsch'), einheit: 'Karten', ziel: () => 10,
+      text: () => Grundbegriffe.statusText('deutsch'), einheit: 'Karten', ziel: () => 4,
       start: () => Grundbegriffe.starteTagesRunde('deutsch')
     },
     {

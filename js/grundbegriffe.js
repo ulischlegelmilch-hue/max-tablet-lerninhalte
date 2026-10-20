@@ -1,95 +1,37 @@
-// Grundbegriffe per Karteikarte (20.10.2026, Uli-Wunsch): Max lernt die Fachbegriffe/Regeln aus Mathe und
-// Deutsch SEPARAT von den Aufgaben - vorne ein Begriff ("Plus (+)"), hinten die Erklaerung
-// ("Addition: Summand + Summand = Summe"), er dreht um und markiert SELBST, ob er es gewusst hat.
+// Grundbegriffe per Karteikarte (20.10.2026, Uli-Wunsch): Max lernt die Grundbegriffe aus Mathe (die vier
+// Rechenarten) und Deutsch (die vier Faelle) SEPARAT von den Aufgaben - vorne z.B. "Plus (+)", hinten
+// "Summand + Summand = Summe"; er denkt sich die Rechnung selbst aus, dreht um und markiert SELBST, ob er es wusste.
 // Die taeglichen Aufgaben bleiben unveraendert Pflicht. Die Karten werden automatisch angeboten, solange
 // die Grundbegriffe noch nicht sitzen (Startseite, Mathe-/Deutsch-Menue und vor den Tagesaufgaben).
 // Statistik je Karte wie bei den Heimatkunde-Lernkarten (Storage.getLernkartenStats, Serie >= 2 = "sitzt").
 const Grundbegriffe = (function () {
   const SITZT_AB_SERIE = 2;
   const SITZT_ANTEIL = 0.9;   // Deck "sitzt", wenn 90 % der Karten sitzen
-  const KARTEN_PRO_RUNDE = 10;
+  const KARTEN_PRO_RUNDE = 4;      // jede Runde = alle (wenigen) Karten
 
+  // Bewusst NUR wenige Karten (Uli 20.10.2026: "nur die vier Rechnungen strikt lernen ... nicht mehr, nicht
+  // einzeln ... genauso bei den Faellen"): Max denkt sich zum Begriff die Rechnung/Frage selbst aus, dreht um
+  // und markiert, ob er es gewusst hat. Die frueheren weiteren Karten (einzelne Begriffe, Regeln, Wortarten ...)
+  // sind entfernt.
   const DECKS = {
     mathe: {
-      titel: 'Mathe-Grundbegriffe', kurz: 'Rechenarten, Fachbegriffe, Regeln', stat: 'gb_mathe', icon: '➕', fachName: 'Mathe',
+      titel: 'Die vier Rechenarten', kurz: 'Plus, Minus, Mal, Geteilt', stat: 'gb_mathe', icon: '➕', fachName: 'Mathe',
+      hinweis: 'Denk dir die Rechnung aus: Wie heißen die Zahlen und das Ergebnis? Dann umdrehen.',
       karten: [
-        // Rechenarten
-        { front: 'Plus (+)', back: '<b>Addition</b><br>Summand + Summand = <b>Summe</b>' },
-        { front: 'Minus (−)', back: '<b>Subtraktion</b><br>Minuend − Subtrahend = <b>Differenz</b>' },
-        { front: 'Mal (·)', back: '<b>Multiplikation</b><br>Faktor · Faktor = <b>Produkt</b>' },
-        { front: 'Geteilt (:)', back: '<b>Division</b><br>Dividend : Divisor = <b>Quotient</b>' },
-        { front: 'Addition', back: 'Das <b>Plus</b> (+)<br>Ergebnis: die <b>Summe</b>' },
-        { front: 'Subtraktion', back: 'Das <b>Minus</b> (−)<br>Ergebnis: die <b>Differenz</b>' },
-        { front: 'Multiplikation', back: 'Das <b>Mal</b> (·)<br>Ergebnis: das <b>Produkt</b>' },
-        { front: 'Division', back: 'Das <b>Geteilt</b> (:)<br>Ergebnis: der <b>Quotient</b>' },
-        // Ergebnisse
-        { front: 'Wie heißt das Ergebnis beim Plus?', back: 'Die <b>Summe</b>' },
-        { front: 'Wie heißt das Ergebnis beim Minus?', back: 'Die <b>Differenz</b>' },
-        { front: 'Wie heißt das Ergebnis beim Mal?', back: 'Das <b>Produkt</b>' },
-        { front: 'Wie heißt das Ergebnis beim Geteilt?', back: 'Der <b>Quotient</b>' },
-        // Die Teile einer Rechnung
-        { front: 'Summand', back: 'Eine Zahl, die man <b>zusammenzählt</b>.<br>3 + 4: Die 3 und die 4 sind Summanden.' },
-        { front: 'Minuend', back: 'Die Zahl, <b>von der</b> abgezogen wird.<br>9 − 4: Die 9 ist der Minuend.' },
-        { front: 'Subtrahend', back: 'Die Zahl, die <b>abgezogen</b> wird.<br>9 − 4: Die 4 ist der Subtrahend.' },
-        { front: 'Faktor', back: 'Eine Zahl, die man <b>malnimmt</b>.<br>6 · 7: Die 6 und die 7 sind Faktoren.' },
-        { front: 'Dividend', back: 'Die Zahl, die <b>geteilt</b> wird.<br>42 : 6: Die 42 ist der Dividend.' },
-        { front: 'Divisor', back: 'Die Zahl, <b>durch die</b> geteilt wird.<br>42 : 6: Die 6 ist der Divisor.' },
-        // Rechnen nach Worten
-        { front: 'Summe aus 8 und 5', back: '8 <b>+</b> 5 = 13' },
-        { front: 'Differenz aus 8 und 5', back: '8 <b>−</b> 5 = 3' },
-        { front: 'Produkt aus 8 und 5', back: '8 <b>·</b> 5 = 40' },
-        { front: 'Quotient aus 40 und 5', back: '40 <b>:</b> 5 = 8' },
-        // Regeln
-        { front: 'Punkt vor Strich', back: '<b>Mal (·)</b> und <b>Geteilt (:)</b> werden vor <b>Plus (+)</b> und <b>Minus (−)</b> gerechnet.<br>3 + 4 · 2 = 3 + 8 = 11' },
-        { front: 'Welche Reihenfolge gilt beim Rechnen?', back: '1. <b>Klammern</b><br>2. <b>Punkt</b> (· und :)<br>3. <b>Strich</b> (+ und −)' },
-        { front: 'Wozu sind Klammern da?', back: 'Was <b>in der Klammer</b> steht, wird <b>zuerst</b> gerechnet.<br>(3 + 4) · 2 = 7 · 2 = 14' },
-        { front: 'Gleiche Rechenzeichen hintereinander', back: 'Von <b>links nach rechts</b> rechnen.<br>20 − 5 − 3 = 15 − 3 = 12' },
-        // Zahlen
-        { front: 'T · H · Z · E', back: '<b>T</b>ausender · <b>H</b>underter · <b>Z</b>ehner · <b>E</b>iner' },
-        { front: 'Teiler', back: 'Eine Zahl, durch die man <b>ohne Rest</b> teilen kann.<br>3 ist ein Teiler von 12.' },
-        { front: 'Vielfaches', back: 'Eine Zahl aus der <b>Mal-Reihe</b>.<br>12 ist ein Vielfaches von 3 (3 · 4).' },
-        { front: 'Nachfolger und Vorgänger', back: '<b>Nachfolger</b>: eine Zahl mehr (+1)<br><b>Vorgänger</b>: eine Zahl weniger (−1)' },
-        { front: 'Nachbarzehner und Nachbarhunderter', back: 'Der nächste <b>kleinere</b> und <b>größere</b> Zehner (Hunderter).<br>Nachbarzehner von 47: 40 und 50' }
+        { front: 'Plus (+)', back: 'Summand + Summand = <b>Summe</b>' },
+        { front: 'Minus (−)', back: 'Minuend − Subtrahend = <b>Differenz</b>' },
+        { front: 'Mal (·)', back: 'Faktor · Faktor = <b>Produkt</b>' },
+        { front: 'Geteilt (:)', back: 'Dividend : Divisor = <b>Quotient</b>' }
       ]
     },
     deutsch: {
-      titel: 'Deutsch-Grundbegriffe', kurz: 'Die vier Fälle, Wortarten, Rechtschreibung', stat: 'gb_deutsch', icon: '📖', fachName: 'Deutsch',
+      titel: 'Die vier Fälle', kurz: 'Nominativ, Genitiv, Dativ, Akkusativ', stat: 'gb_deutsch', icon: '📖', fachName: 'Deutsch',
+      hinweis: 'Wie heißt der Fall – und mit welcher Frage fragst du danach? Dann umdrehen.',
       karten: [
-        // Die vier Faelle
-        { front: '1. Fall', back: '<b>Nominativ</b> – Wer oder was?<br>Der Hund bellt.' },
-        { front: '2. Fall', back: '<b>Genitiv</b> – Wessen?<br>Das Halsband des Hundes.' },
-        { front: '3. Fall', back: '<b>Dativ</b> – Wem?<br>Ich gebe dem Hund einen Knochen.' },
-        { front: '4. Fall', back: '<b>Akkusativ</b> – Wen oder was?<br>Ich sehe den Hund.' },
-        { front: 'Nominativ', back: '<b>1. Fall</b> – Wer oder was?<br>der · die · das' },
-        { front: 'Genitiv', back: '<b>2. Fall</b> – Wessen?<br>des · der · des' },
-        { front: 'Dativ', back: '<b>3. Fall</b> – Wem?<br>dem · der · dem' },
-        { front: 'Akkusativ', back: '<b>4. Fall</b> – Wen oder was?<br>den · die · das' },
-        { front: 'Wer oder was?', back: 'Der <b>Nominativ</b> (1. Fall)' },
-        { front: 'Wessen?', back: 'Der <b>Genitiv</b> (2. Fall)' },
-        { front: 'Wem?', back: 'Der <b>Dativ</b> (3. Fall)' },
-        { front: 'Wen oder was?', back: 'Der <b>Akkusativ</b> (4. Fall)' },
-        // Artikel in den Faellen
-        { front: 'der Hund – im Genitiv?', back: '<b>des Hundes</b><br>(bei der und das kommt oft -s oder -es dazu)' },
-        { front: 'der Hund – im Dativ?', back: '<b>dem Hund</b>' },
-        { front: 'der Hund – im Akkusativ?', back: '<b>den Hund</b><br>(nur bei „der“ ändert sich der Artikel)' },
-        { front: 'die Katze – Genitiv und Dativ?', back: '<b>der Katze</b> (beide Male)<br>Akkusativ: die Katze' },
-        { front: 'das Pferd – Genitiv, Dativ, Akkusativ?', back: '<b>des Pferdes</b> · <b>dem Pferd</b> · <b>das Pferd</b>' },
-        { front: 'die Kinder – Genitiv und Dativ?', back: '<b>der Kinder</b> · <b>den Kindern</b>' },
-        { front: 'Welcher Artikel verändert sich im Akkusativ?', back: 'Nur <b>der</b> → <b>den</b><br>(die und das bleiben gleich)' },
-        // Adjektive
-        { front: 'Zusammengesetztes Adjektiv', back: 'Zwei Wörter werden zu <b>einem</b> Wiewort.<br>grasgrün = grün wie Gras' },
-        { front: 'feuerrot / schneeweiß / zuckersüß', back: 'rot <b>wie</b> Feuer · weiß <b>wie</b> Schnee · süß <b>wie</b> Zucker' },
-        // Rechtschreibung
-        { front: 'Doppelter Mitlaut', back: 'Nach einem <b>kurzen</b> Selbstlaut.<br>Kof-fer, Mut-ter, Tas-se, Som-mer<br>Tipp: in Silben sprechen!' },
-        { front: 'Wann schreibt man ß?', back: 'Nach einem <b>langen</b> Selbstlaut oder Doppellaut (au, ei, eu).<br>groß, heiß, weiß' },
-        // Wortarten
-        { front: 'Nomen', back: '<b>Namenwort</b> – wird <b>großgeschrieben</b>.<br>der Hund, die Freude' },
-        { front: 'Verb', back: '<b>Tunwort</b> – sagt, was jemand tut.<br>laufen, lesen, lachen' },
-        { front: 'Adjektiv', back: '<b>Wiewort</b> – sagt, wie etwas ist.<br>groß, rot, schnell' },
-        { front: 'Artikel', back: '<b>Begleiter</b> des Nomens.<br>der · die · das · ein · eine' },
-        // Briefe
-        { front: 'Anrede „Sie“ in einem Brief', back: '<b>Sie, Ihnen, Ihr</b> werden immer <b>großgeschrieben</b> (höfliche Anrede).' },
-        { front: 'sie / ihre (über andere Personen)', back: 'Wenn es um <b>andere</b> geht, schreibt man <b>klein</b>.<br>Sie sagen, ihre Tasche ist weg.' }
+        { front: '1. Fall', back: '<b>Nominativ</b> – Wer oder was?' },
+        { front: '2. Fall', back: '<b>Genitiv</b> – Wessen?' },
+        { front: '3. Fall', back: '<b>Dativ</b> – Wem?' },
+        { front: '4. Fall', back: '<b>Akkusativ</b> – Wen oder was?' }
       ]
     }
   };
@@ -196,7 +138,7 @@ const Grundbegriffe = (function () {
         <div class="karteikarte-inner" id="karteikarte-inner">
           <div class="karteikarte-seite karteikarte-vorne">
             <div class="lernkarte-text">${k.front}</div>
-            <div class="karteikarte-hinweis">Überlege kurz – dann tippen zum Umdrehen</div>
+            <div class="karteikarte-hinweis">${d.hinweis}</div>
           </div>
           <div class="karteikarte-seite karteikarte-hinten">
             <div class="lernkarte-text">${k.back}</div>
