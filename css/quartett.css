@@ -1,0 +1,51 @@
+/* Auto-Quartett (Tablet und Eltern-App): eigenstaendige dunkle Buehne, unabhaengig von den App-Farben */
+.qz-wrap { --qz-bg: #14171c; --qz-karte: #1d2229; --qz-kante: #343c47; --qz-text: #eef1f5; --qz-leise: #9aa5b3; --qz-signal: #ffcf1f; --qz-gut: #2fbf71; --qz-schlecht: #e5484d;
+  background: radial-gradient(120% 90% at 50% 0%, #232a33 0%, var(--qz-bg) 70%); color: var(--qz-text); border-radius: 16px; padding: 14px 12px 18px;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif; max-width: 760px; margin: 0 auto; }
+.qz-zaehler { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; color: var(--qz-leise); margin-bottom: 10px; }
+.qz-zaehler b { color: var(--qz-signal); font-size: 20px; font-weight: 800; margin: 0 4px; }
+.qz-mitte { display: flex; flex-direction: column; align-items: center; font-weight: 700; color: var(--qz-text); }
+.qz-mitte small { color: var(--qz-leise); font-weight: 500; font-size: 11px; }
+.qz-info { text-align: center; font-size: 15px; font-weight: 600; margin: 4px 0 10px; }
+.qz-hinweis { text-align: center; font-size: 13px; color: var(--qz-leise); margin: 6px auto; max-width: 480px; }
+.qz-hinweis strong { color: var(--qz-text); }
+.qz-eigene { display: flex; justify-content: center; }
+.qz-karte { background: var(--qz-karte); border: 1px solid var(--qz-kante); border-radius: 14px; overflow: hidden; width: 100%; max-width: 360px; }
+.qz-bild { position: relative; background: #0e1115; }
+.qz-bild img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.qz-gruppe { position: absolute; top: 8px; left: 10px; font-weight: 800; font-size: 20px; color: var(--qz-signal); text-shadow: 0 1px 6px #000, 0 0 3px #000; }
+.qz-marke { position: absolute; top: 12px; right: 10px; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #fff; font-weight: 700; text-shadow: 0 1px 5px #000, 0 0 3px #000; }
+.qz-name { font-size: 20px; font-weight: 800; padding: 8px 14px 6px; letter-spacing: .01em; }
+.qz-werte { list-style: none; margin: 0; padding: 0; }
+.qz-wert { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--qz-kante); font-variant-numeric: tabular-nums; }
+.qz-label { display: flex; flex-direction: column; font-size: 14px; color: var(--qz-leise); }
+.qz-label small { font-size: 11px; opacity: .75; }
+.qz-wert b { font-size: 19px; font-weight: 800; white-space: nowrap; }
+.qz-klickbar { cursor: pointer; min-height: 44px; }
+.qz-klickbar:active { background: #2b3441; }
+.qz-klickbar b { color: var(--qz-signal); }
+.qz-tipp { box-shadow: inset 0 0 0 2px var(--qz-signal); background: rgba(255, 207, 31, .12); }
+.qz-sieg { background: rgba(47, 191, 113, .25); box-shadow: inset 0 0 0 2px var(--qz-gut); }
+.qz-niederlage { background: rgba(229, 72, 77, .22); box-shadow: inset 0 0 0 2px var(--qz-schlecht); }
+.qz-gleich { background: rgba(255, 207, 31, .18); box-shadow: inset 0 0 0 2px var(--qz-signal); }
+.qz-paar { display: flex; gap: 10px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.qz-seite { flex: 1 1 250px; max-width: 340px; min-width: 0; }
+.qz-seitenname { text-align: center; font-weight: 800; font-size: 14px; color: var(--qz-leise); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .1em; }
+.qz-paar .qz-karte { max-width: none; }
+.qz-paar .qz-wert { padding: 5px 12px; }
+.qz-paar .qz-label { font-size: 12px; }
+.qz-paar .qz-wert b { font-size: 16px; }
+.qz-urteil { text-align: center; font-size: 20px; font-weight: 800; padding: 10px; margin: 10px auto 2px; border-radius: 10px; max-width: 480px; }
+.qz-urteil-sieg { background: rgba(47, 191, 113, .22); color: #7ff0b0; }
+.qz-urteil-niederlage { background: rgba(229, 72, 77, .2); color: #ff9a9d; }
+.qz-urteil-gleich { background: rgba(255, 207, 31, .18); color: var(--qz-signal); }
+.qz-aktionen { display: flex; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.qz-btn { background: var(--qz-signal); color: #1b1d22; font-weight: 800; padding: 11px 22px; border-radius: 999px; cursor: pointer; font-size: 15px; user-select: none; }
+.qz-btn-sekundaer { background: transparent; color: var(--qz-text); border: 1px solid var(--qz-kante); font-weight: 600; }
+.qz-ende { padding: 20px 0; }
+.qz-rueck { width: 100%; max-width: 360px; aspect-ratio: 5 / 6; border-radius: 14px; border: 1px solid var(--qz-kante); background: repeating-linear-gradient(45deg, #232a33 0 8px, #1b2027 8px 16px); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--qz-leise); }
+.qz-rueck-logo { font-size: 48px; }
+.qz-menue-hinweis { color: var(--qz-leise); font-size: 14px; text-align: center; margin: 6px 0 12px; }
+.qz-stufen { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 10px 0 14px; }
+.qz-stufe { padding: 9px 16px; border-radius: 999px; border: 1px solid var(--qz-kante); color: var(--qz-text); cursor: pointer; font-weight: 700; font-size: 14px; }
+.qz-stufe.qz-aktiv { background: var(--qz-signal); color: #1b1d22; border-color: var(--qz-signal); }

@@ -22,6 +22,7 @@ const Storage = (function () {
       // Menuekachel, das Spiel selbst hat aktuell nur eine Schwierigkeitsstufe.
       schiffeversenken: { siege: 0 },
       maumau: { siege: 0 },
+      quartett: { siege: 0, partien: 0 },
       // Laufende Online-Flottenaufstellung fuer Schiffe versenken - rein
       // lokal (NIE an den Server geschickt), damit ein Reload/App-Neustart
       // waehrend der Platzierungsphase die schon gesetzten Schiffe nicht
@@ -940,6 +941,20 @@ const Storage = (function () {
     return state.maumau;
   }
 
+  function getQuartettFortschritt() {
+    if (!state.quartett) state.quartett = { siege: 0, partien: 0 };
+    return state.quartett;
+  }
+
+  function meldeQuartettPartie(gewonnen) {
+    registriereAktivenTag();
+    if (!state.quartett) state.quartett = { siege: 0, partien: 0 };
+    state.quartett.partien++;
+    if (gewonnen) state.quartett.siege++;
+    save(state);
+    return state.quartett;
+  }
+
   function meldeMauMauSieg() {
     registriereAktivenTag();
     if (!state.maumau) state.maumau = { siege: 0 };
@@ -1011,6 +1026,7 @@ const Storage = (function () {
     state.schach = { stufe: 0, siege: 0 };
     state.schiffeversenken = { siege: 0 };
     state.maumau = { siege: 0 };
+    state.quartett = { siege: 0, partien: 0 };
     state.schiffeOnlinePlatzierung = null;
     state.taktik = {};
     state.konzentration = { koordinatenBestzeitMs: null };
@@ -1029,7 +1045,7 @@ const Storage = (function () {
     getSchachFortschritt, meldeSchachSieg, getSchachWeg, speichereSchachWeg, getFuchs, speichereFuchs, fuchsPartieGespielt, fuchsHeuteGespielt, fuchsSerie, getEroeffnungStand, meldeEroeffnungGeuebt, meldeSchachWegErledigt, meldeSchachWegVersuch, schachStufeAufsteigen, setSchachStufe,
     getSchiffeFortschritt, meldeSchiffeSieg,
     getSchiffeOnlinePlatzierung, setSchiffeOnlinePlatzierung, loescheSchiffeOnlinePlatzierung,
-    getMauMauFortschritt, meldeMauMauSieg,
+    getMauMauFortschritt, meldeMauMauSieg, getQuartettFortschritt, meldeQuartettPartie,
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln,
     getTagesPensum, getTagesPensumAnzahl, getTagesPensumErledigt, meldeTagespensumAntwort,

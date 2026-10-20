@@ -96,7 +96,7 @@ const App = (function () {
     }
     root().innerHTML = html;
     // Spiel-Bildschirme (Brett, Flotte, Karten, Lernpfad) bekommen die dunkle Spielbuehne
-    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|buehne-marker/.test(html)); } catch (e) { /* optional */ }
+    try { document.body.classList.toggle('spielbuehne', /schach-rahmen|schach-status|denkfeld-brett|schiffe-wrap|maumau-wrap|qz-wrap|buehne-marker/.test(html)); } catch (e) { /* optional */ }
     updateTopbar();
   }
 
@@ -251,6 +251,10 @@ const App = (function () {
         <div class="menu-card accent-schiffe" onclick="Schiffeversenken.renderMenu()">
           <span class="menu-icon icon-schiffe">${Icons.svg('schiffe')}</span>
           <span class="menu-text"><span class="menu-label">Schiffe versenken</span><span class="menu-progress">${Schiffeversenken.fortschrittText()}</span></span>
+        </div>
+        <div class="menu-card accent-quartett" onclick="Quartett.renderMenu()">
+          <span class="menu-icon icon-quartett">${Icons.svg('quartett')}</span>
+          <span class="menu-text"><span class="menu-label">Auto-Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
         </div>
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
           <span class="menu-icon icon-maumau">${Icons.svg('maumau')}</span>
