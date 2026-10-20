@@ -24,9 +24,22 @@ const Ferientraining = (function () {
       start: () => Mathe.starteMalfolgenKarten()
     },
     {
+      // Grundbegriffe-Karteikarten Mathe (20.10.2026, Uli: "vorerst bei den Tagesaufgaben jeweils ueber der
+      // praktischen Aufgabe zu diesem Thema, bis ich sage, dass du sie entfernst") - siehe grundbegriffe.js.
+      // ZUM ENTFERNEN: diese beiden Eintraege (gb_mathe, gb_deutsch) aus PLAN loeschen.
+      id: 'gb_mathe', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Grundbegriffe-Karten',
+      text: () => Grundbegriffe.statusText('mathe'), einheit: 'Karten', ziel: () => 10,
+      start: () => Grundbegriffe.starteTagesRunde('mathe')
+    },
+    {
       id: 'mathe_rechenarten', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Rechenarten & Fachbegriffe',
       text: 'Plus, Minus, Mal, Geteilt und ihre Namen', einheit: 'Aufgaben', ziel: () => 10,
       start: () => Mathe.starteFachbegriffeUebung('gemischt', true)
+    },
+    {
+      id: 'gb_deutsch', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Grundbegriffe-Karten',
+      text: () => Grundbegriffe.statusText('deutsch'), einheit: 'Karten', ziel: () => 10,
+      start: () => Grundbegriffe.starteTagesRunde('deutsch')
     },
     {
       // Deutsch: Die vier Faelle, zusammengesetzte Adjektive, doppelte Mitlaute (Test 29.10.2026) - 10 Aufgaben pro Tag
@@ -97,13 +110,16 @@ const Ferientraining = (function () {
   // Grundbegriffe-Karteikarten (siehe grundbegriffe.js): vor den Tagesaufgaben von Mathe/Deutsch wird
   // automatisch angeboten, erst die Karten zu ueben, solange die Grundbegriffe noch nicht sitzen.
   // Die Aufgaben selbst bleiben unveraendert Pflicht.
+  // AUS (20.10.2026): die Grundbegriffe-Karten stehen jetzt als eigene Zeile ueber der jeweiligen Aufgabe
+  // (PLAN: gb_mathe, gb_deutsch) - das Zusatz-Angebot vor den Aufgaben waere doppelt.
+  const ANGEBOT_VOR_AUFGABEN = false;
   const GRUNDBEGRIFFE_FACH = { mathe_tag: 'mathe', mathe_rechenarten: 'mathe', deutsch_tag: 'deutsch' };
 
   function starte(id) {
     const item = PLAN.find(i => i.id === id);
     if (!item) return;
     const fach = GRUNDBEGRIFFE_FACH[id];
-    if (fach && typeof Grundbegriffe !== 'undefined' && !Storage.getFerienErledigt(id) &&
+    if (ANGEBOT_VOR_AUFGABEN && fach && typeof Grundbegriffe !== 'undefined' && !Storage.getFerienErledigt(id) &&
         Grundbegriffe.bieteAn(fach, item.titel, () => item.start())) return;
     item.start();
   }

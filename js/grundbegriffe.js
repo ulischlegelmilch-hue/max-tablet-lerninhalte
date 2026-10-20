@@ -163,6 +163,27 @@ const Grundbegriffe = (function () {
     zeichneKarte();
   }
 
+  /** Status-Text fuer die Ferientraining-Zeile. */
+  function statusText(fach) {
+    const st = stand(fach);
+    return `${st.gekonnt} von ${st.gesamt} gekonnt · ${st.sitzt} sicher`;
+  }
+
+  /** Tagesrunde im Ferientraining (Zeile "Grundbegriffe-Karten"): 10 Karten pro Tag, wird bei Unterbrechung
+   *  (Hauptmenue, Tablet aus) bis Mitternacht an derselben Stelle fortgesetzt; abgehakt erst nach der
+   *  kompletten Runde inkl. Wiederholung nicht gewusster Karten. */
+  function starteTagesRunde(fach) {
+    const itemId = 'gb_' + fach;
+    const offen = Storage.getOffeneSession(itemId);
+    if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length && !Storage.getFerienErledigt(itemId)) {
+      session = { fach, karten: offen.karten, index: offen.index, richtig: offen.richtig || 0, verlauf: offen.verlauf || [], nachher: null, sterne: offen.sterne || 0, ferienItem: itemId };
+    } else {
+      session = { fach, karten: waehleKarten(fach, Ferientraining.restAnzahl(itemId, KARTEN_PRO_RUNDE)), index: 0, richtig: 0, verlauf: [], nachher: null, sterne: 0, ferienItem: itemId };
+    }
+    App.setLastStarter(() => starteTagesRunde(fach));
+    zeichneKarte();
+  }
+
   function zeichneKarte() {
     const s = session; if (!s) return;
     umgedreht = false;
@@ -205,8 +226,15 @@ const Grundbegriffe = (function () {
     s.verlauf.push({ frage: nurText(k.front).slice(0, 190), ergebnis: korrekt ? 'richtig' : 'falsch', richtigeAntwort: nurText(k.back).slice(0, 55) });
     // nicht gewusst: die Karte kommt ein paar Karten spaeter noch einmal
     if (!korrekt && !k._wiederholung) s.karten.splice(Math.min(s.karten.length, s.index + 4), 0, Object.assign({}, k, { _wiederholung: true }));
+    if (s.ferienItem && !k._wiederholung) Ferientraining.melde(s.ferienItem);
     s.index++;
-    if (s.index >= s.karten.length) ergebnis(); else zeichneKarte();
+    if (s.index >= s.karten.length) {
+      if (s.ferienItem) { Storage.loescheOffeneSession(s.ferienItem); Ferientraining.abschluss(s.ferienItem); }
+      ergebnis();
+    } else {
+      if (s.ferienItem) Storage.setOffeneSession(s.ferienItem, { karten: s.karten, index: s.index, richtig: s.richtig, verlauf: s.verlauf, sterne: s.sterne });
+      zeichneKarte();
+    }
   }
 
   function ergebnis() {
@@ -222,6 +250,7 @@ const Grundbegriffe = (function () {
         <div class="result-sterne">${s.sterne} ⭐ verdient · <b>${st.gekonnt} von ${st.gesamt}</b> Karten gekonnt · ${st.sitzt} sitzen sicher</div>
         ${st.fertig ? '<div class="schach-status schach-status-sieg">Die Grundbegriffe sitzen! 🎉 Die Karten bleiben zum Auffrischen da.</div>' : '<div class="lese-text">Eine Karte sitzt sicher, wenn du sie zweimal hintereinander gewusst hast – noch eine Runde hilft!</div>'}
         ${nachherHtml}
+        ${s.ferienItem ? Ferientraining.rueckkehrButtonHtml() : ''}
         <div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Grundbegriffe.starte('${s.fach}')">Noch eine Runde</div>
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="App.gotoHome()">Zum Hauptmenü</div>
       </div>`);
@@ -289,5 +318,5 @@ const Grundbegriffe = (function () {
     return { icon: 'lesen', titel: `Grundbegriffe (${st.gekonnt}/${st.gesamt} gekonnt)`, onclick: `Grundbegriffe.starte('${fach}')` };
   }
 
-  return { starte, umdrehen, bewerte, zurueck, nachherStarten, bieteAn, homeKarteHtml, menueEintrag, stand, sitzt, berichtFuerPapa, DECKS };
+  return { starte, starteTagesRunde, statusText, umdrehen, bewerte, zurueck, nachherStarten, bieteAn, homeKarteHtml, menueEintrag, stand, sitzt, berichtFuerPapa, DECKS };
 })();
