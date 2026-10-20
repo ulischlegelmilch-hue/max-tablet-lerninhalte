@@ -759,5 +759,12 @@ const Heimatkunde = (function () {
     starter();
   }
 
-  return { renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo };
+  /** Alle Radfahr-Lernthemen mit ihren Karten (ohne das Sammelthema rad_falsch) - fuer den Export in die
+   *  Eltern-App (tools/export_lernkarten.js). */
+  function lernthemenFuerExport() {
+    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === 'rad' && k !== 'rad_falsch')
+      .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
+  }
+
+  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo };
 })();
