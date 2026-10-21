@@ -100,8 +100,7 @@ const Heimatkunde = (function () {
 
   // Heft S.8
   const LERNKARTEN_RAD_SICHT = [
-    { front: 'Welche Teile müssen bei Dunkelheit immer an deinem Fahrrad sein und funktionieren? (Teil 1)', back: '<strong>Vorderlicht</strong> (Scheinwerfer), <strong>rotes Rücklicht</strong>, <strong>Dynamo</strong> (auch Akku oder Batterie erlaubt).' },
-    { front: 'Welche Teile müssen bei Dunkelheit immer an deinem Fahrrad sein und funktionieren? (Teil 2 - Reflektoren)', back: '<strong>Speichenrückstrahler</strong> (je 2 Stück pro Vorder- und Hinterrad) oder Leuchtstreifen oder Speichensticks, <strong>Pedalrückstrahler</strong>, <strong>weißer Reflektor</strong> vorne, <strong>großer roter Reflektor</strong> der Kategorie „Z“ hinten.' },
+    { front: 'Welche Teile müssen bei Dunkelheit immer an deinem Fahrrad sein und funktionieren?', back: '<strong>Licht:</strong> <strong>Vorderlicht</strong> (Scheinwerfer), <strong>rotes Rücklicht</strong>, <strong>Dynamo</strong> (auch Akku oder Batterie erlaubt).<br><strong>Reflektoren:</strong> <strong>Speichenrückstrahler</strong> (je 2 Stück pro Vorder- und Hinterrad) oder Leuchtstreifen oder Speichensticks, <strong>Pedalrückstrahler</strong>, <strong>weißer Reflektor</strong> vorne, <strong>großer roter Reflektor</strong> der Kategorie „Z“ hinten.' },
     { front: 'Wie viele Speichenrückstrahler gehören an ein Rad?', back: '<strong>Je 2 Stück</strong> pro Vorder- und Hinterrad (oder Leuchtstreifen oder Speichensticks).' },
     { front: 'Der Dynamo liefert den Strom fürs Licht. Was ist außerdem erlaubt?', back: 'Auch ein <strong>Akku</strong> oder eine <strong>Batterie</strong> ist erlaubt.' },
     { front: 'Rücklicht und roter Reflektor hinten: Können sie zusammen in einem Teil sein?', back: 'Ja, Rücklicht und Reflektor können <strong>integriert</strong> sein.' },
@@ -224,9 +223,7 @@ const Heimatkunde = (function () {
     { front: 'Du kommst an einer Kreuzung ohne Ampel und ohne Verkehrszeichen an. Ein Auto kommt von rechts. Wer hat Vorfahrt?', back: 'Das Auto von <strong>rechts</strong> hat Vorfahrt - du musst warten.' },
     { front: radImg('102_kreuzung_rechts.svg') + 'Was bedeutet dieses Schild?', back: 'Die Kreuzung ohne Ampel und Vorfahrtszeichen ist sehr gefährlich - auch hier gilt <strong>„rechts vor links“</strong>.' },
     { front: 'Wann gilt „rechts vor links“ NICHT? Nenne die Ausnahmen.', back: 'Bei <strong>Wald- oder Feldwegen</strong> sowie <strong>Einfahrten</strong>.' },
-    { front: 'Niemals Vorfahrt hat, wer ... (Teil 1)', back: 'Wer aus einer Seitenstraße kommt, die über einen <strong>abgesenkten Bordstein</strong> führt, oder wer einen <strong>verkehrsberuhigten Bereich</strong> verlässt.' },
-    { front: 'Niemals Vorfahrt hat, wer ... (Teil 2)', back: 'Wer aus <strong>Hofeinfahrten, Grundstücken, Parkplätzen oder Tankstellen</strong> auf die Fahrbahn fährt.' },
-    { front: 'Niemals Vorfahrt hat, wer ... (Teil 3)', back: 'Wer aus einem <strong>Feldweg</strong> oder <strong>Park</strong> kommt.' },
+    { front: 'Niemals Vorfahrt hat, wer ...', back: '1. Wer aus einer Seitenstraße kommt, die über einen <strong>abgesenkten Bordstein</strong> führt, oder wer einen <strong>verkehrsberuhigten Bereich</strong> verlässt.<br>2. Wer aus <strong>Hofeinfahrten, Grundstücken, Parkplätzen oder Tankstellen</strong> auf die Fahrbahn fährt.<br>3. Wer aus einem <strong>Feldweg</strong> oder <strong>Park</strong> kommt.' },
     { front: 'Du hast Vorfahrt. Worauf musst du als Radfahrer trotzdem besonders achten?', back: 'Darauf, <strong>gesehen zu werden</strong>. Autofahrer übersehen dich manchmal: Halte dich immer <strong>bremsbereit</strong> und suche <strong>Blickkontakt</strong>, auch wenn du Vorfahrt hast!' },
     { front: 'Eine Straßenbahn hält an einer Haltestelle an. Was musst du als Radfahrer tun?', back: 'Du musst als Radfahrer auch <strong>stehen bleiben</strong>.' }
   ];

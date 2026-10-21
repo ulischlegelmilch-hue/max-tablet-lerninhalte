@@ -2569,7 +2569,7 @@ const Mathe = (function () {
   // "Die Zahlen bis 10 000", Aufgabe 1) - vorher nur einfache farbige Kaestchen.
   function svgDienes(z) {
     const holz = '#d9b57a', kante = '#8a6428', hell = '#ecd3a1', dunkel = '#b98f4e';
-    let s = '<svg viewBox="0 0 900 250" style="width:100%;max-width:660px;display:block;margin:8px auto;" xmlns="http://www.w3.org/2000/svg">';
+    let s = '<svg viewBox="0 0 1000 250" style="width:100%;max-width:880px;display:block;margin:8px auto;" xmlns="http://www.w3.org/2000/svg">';
     const gitter = (x, y, w, h, n) => {
       let g = '';
       for (let i = 1; i < n; i++) {
@@ -2580,28 +2580,28 @@ const Mathe = (function () {
     };
     // Tausender: Wuerfel (Vorder-, Ober- und Seitenflaeche)
     for (let i = 0; i < z[0]; i++) {
-      const x = 12 + (i % 5) * 64, y = 14 + Math.floor(i / 5) * 78, w = 44, d = 14;
+      const x = 12 + (i % 5) * 60, y = 14 + Math.floor(i / 5) * 78, w = 44, d = 14;
       s += `<polygon points="${x},${y + d} ${x + d},${y} ${x + w + d},${y} ${x + w},${y + d}" fill="${hell}" stroke="${kante}" stroke-width="1"/>`;
       s += `<polygon points="${x + w},${y + d} ${x + w + d},${y} ${x + w + d},${y + w} ${x + w},${y + w + d}" fill="${dunkel}" stroke="${kante}" stroke-width="1"/>`;
       s += `<rect x="${x}" y="${y + d}" width="${w}" height="${w}" fill="${holz}" stroke="${kante}" stroke-width="1"/>` + gitter(x, y + d, w, w, 10);
     }
     // Hunderter: Platten
     for (let i = 0; i < z[1]; i++) {
-      const x = 340 + (i % 5) * 48, y = 20 + Math.floor(i / 5) * 64, w = 38, d = 6;
+      const x = 320 + (i % 5) * 46, y = 20 + Math.floor(i / 5) * 64, w = 38, d = 6;
       s += `<polygon points="${x},${y + d} ${x + d},${y} ${x + w + d},${y} ${x + w},${y + d}" fill="${hell}" stroke="${kante}" stroke-width="1"/>`;
       s += `<polygon points="${x + w},${y + d} ${x + w + d},${y} ${x + w + d},${y + w - 2} ${x + w},${y + w + d - 2}" fill="${dunkel}" stroke="${kante}" stroke-width="1"/>`;
       s += `<rect x="${x}" y="${y + d}" width="${w}" height="${w - 2}" fill="${holz}" stroke="${kante}" stroke-width="1"/>` + gitter(x, y + d, w, w - 2, 10);
     }
     // Zehner: Stangen
     for (let i = 0; i < z[2]; i++) {
-      const x = 600 + i * 15, y = 20, w = 10, h = 120;
+      const x = 575 + i * 32 + (i >= 5 ? 16 : 0), y = 20, w = 22, h = 150;
       s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${holz}" stroke="${kante}" stroke-width="1"/>`;
-      for (let k = 1; k < 10; k++) s += `<line x1="${x}" y1="${y + k * h / 10}" x2="${x + w}" y2="${y + k * h / 10}" stroke="${kante}" stroke-width="0.5" opacity="0.7"/>`;
+      for (let k = 1; k < 10; k++) s += `<line x1="${x}" y1="${y + k * h / 10}" x2="${x + w}" y2="${y + k * h / 10}" stroke="${kante}" stroke-width="1" opacity="0.8"/>`;
     }
     // Einer: kleine Wuerfel
     for (let i = 0; i < z[3]; i++) {
-      const x = 770 + (i % 3) * 22, y = 24 + Math.floor(i / 3) * 24;
-      s += `<rect x="${x}" y="${y}" width="14" height="14" fill="${holz}" stroke="${kante}" stroke-width="1"/>`;
+      const x = 880 + (i % 3) * 36, y = 24 + Math.floor(i / 3) * 36;
+      s += `<rect x="${x}" y="${y}" width="26" height="26" fill="${holz}" stroke="${kante}" stroke-width="1"/>`;
     }
     return s + '</svg>';
   }

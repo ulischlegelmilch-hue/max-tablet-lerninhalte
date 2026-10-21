@@ -256,6 +256,10 @@ const App = (function () {
           <span class="menu-icon icon-quartett">${Icons.kat('quartett')}</span>
           <span class="menu-text"><span class="menu-label">Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
         </div>
+        <div class="menu-card accent-farm" onclick="Farm.oeffnen()">
+          <span class="menu-icon icon-farm">${Icons.kat('farm')}</span>
+          <span class="menu-text"><span class="menu-label">Hof-Farm</span><span class="menu-progress">${Farm.fortschrittText()}</span></span>
+        </div>
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
           <span class="menu-icon icon-maumau">${Icons.kat('maumau')}</span>
           <span class="menu-text"><span class="menu-label">Mau-Mau</span><span class="menu-progress">${Maumau.fortschrittText()}</span></span>
@@ -640,7 +644,7 @@ const App = (function () {
   }
 
   // Akzentfarbe je Bereich (Titel -> Schluessel), fuer das dunkle Menue-Design (css/dunkel.css)
-  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele' };
+  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele', 'Hof-Farm': 'spiele' };
 
   function subMenuHtml(titel, karten) {
     const schluessel = Object.keys(SUB_AKZENT).find((k) => titel === k || titel.indexOf(k) === 0);

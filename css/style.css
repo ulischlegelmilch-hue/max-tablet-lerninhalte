@@ -329,6 +329,7 @@ html, body {
 .icon-schiffe { background: var(--schiffe); color: #fff; }
 .icon-spiele { background: var(--spiele); color: #fff; }
 .icon-quartett { background: #D9A400; color: #fff; }
+.icon-farm { background: #4a9a3a; color: #fff; }
 .icon-maumau { background: var(--maumau); color: #fff; }
 
 /* Menu-Card/Tagesplan-Chip bekommen den hellen Fach-Tint als Kartenhintergrund
@@ -344,6 +345,7 @@ html, body {
 .accent-schiffe { background: var(--schiffe-soft); border-color: var(--schiffe); }
 .accent-spiele { background: var(--spiele-soft); border-color: var(--spiele); }
 .accent-quartett { background: #FBEFC4; border-color: #D9A400; }
+.accent-farm { background: #DDF0CF; border-color: #4a9a3a; }
 .accent-maumau { background: var(--maumau-soft); border-color: var(--maumau); }
 
 /* Geschichten-Bibliothek */

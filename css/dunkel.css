@@ -154,6 +154,8 @@ body.spielbuehne .icon-chat { background: linear-gradient(150deg, #FF8DB0, #D93A
 body.spielbuehne .icon-belohnung { background: linear-gradient(150deg, #FFD966, #E39A0B); --kat-dunkel: #A86A00; }
 body.spielbuehne .icon-schach { background: linear-gradient(150deg, #8A96B8, #3E4A6E); --kat-dunkel: #2B3552; }
 body.spielbuehne .icon-schiffe { background: linear-gradient(150deg, #5CC8F0, #1D7FB0); --kat-dunkel: #14608A; }
+body.spielbuehne .accent-farm { border-color: rgba(120,200,90,.6); }
+body.spielbuehne .icon-farm { background: linear-gradient(150deg, #7CCB5A, #3F8F2F); --kat-dunkel: #2A6A1E; }
 body.spielbuehne .icon-quartett { background: linear-gradient(150deg, #FFD966, #D99A00); --kat-dunkel: #A06D00; }
 body.spielbuehne .icon-maumau { background: linear-gradient(150deg, #FF8B8B, #C73B3B); --kat-dunkel: #96282B; }
 
