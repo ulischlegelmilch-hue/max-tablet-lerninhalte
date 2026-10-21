@@ -257,6 +257,23 @@ const FarmDaten = (function () {
     { id: 'tage', kat: 'Natur', icon: '📅', name: 'Treuer Landwirt', text: 'Verschiedene Tage gespielt', wert: 'tage', einheit: '', stufen: st3([3, 7, 14, 30, 60], [2000, 6000, 15000, 50000, 150000]) }
   ];
 
+  // ---- Tagesaufgaben ----
+  // Jeden Tag (Kalendertag) gibt es 3 kleine Ziele aus dieser Liste (je nach Spielstand passend). stat = Zaehler, ziel(l) = Zielwert
+  // bei Level l. Belohnung wachst mit dem Level; alle drei geschafft = Tagesbonus, aufeinanderfolgende Tage = Serie.
+  const TAGESAUFGABEN = [
+    { id: 'ernte', icon: '🌾', stat: 'ernteT', einheit: 't', ziel: l => Math.max(3, Math.round(3 + l * 0.6)), text: 'Ernte {ziel} t' },
+    { id: 'jobs', icon: '🚜', stat: 'jobs', einheit: '', ziel: l => Math.min(5, 2 + Math.floor(l / 12)), text: 'Starte {ziel} Arbeitsaufträge' },
+    { id: 'saeen', icon: '🌱', stat: 'saeen', einheit: '', ziel: l => (l >= 20 ? 2 : 1), text: 'Säe {ziel}× aus (Sämaschine)' },
+    { id: 'gruen', icon: '🧪', stat: 'gruen', einheit: '', ziel: l => (l >= 20 ? 2 : 1), text: 'Düngen, spritzen oder walzen: {ziel}×' },
+    { id: 'verkauft', icon: '💶', stat: 'verkauft', einheit: '€', ziel: l => Math.max(2000, Math.round((2000 + l * 700) / 500) * 500), text: 'Verkaufe für {ziel} €' },
+    { id: 'eingesammelt', icon: '🧺', stat: 'eingesammelt', einheit: '', ziel: l => (l >= 15 ? 2 : 1), text: 'Tierprodukte einsammeln: {ziel}×' },
+    { id: 'gefuettert', icon: '🥣', stat: 'gefuettert', einheit: '', ziel: () => 1, text: 'Füttere deine Tiere' },
+    { id: 'produziert', icon: '🏭', stat: 'prod', einheit: '', ziel: l => (l >= 20 ? 2 : 1), text: 'Stelle {ziel}× etwas in einem Betrieb her' },
+    { id: 'auftraege', icon: '📋', stat: 'auftraege', einheit: '', ziel: () => 1, text: 'Liefere einen Auftrag aus' }
+  ];
+  const tagGeld = l => Math.round((600 + l * 200) / 50) * 50;
+  const tagXp = l => 30 + l * 3;
+
   // ---- Sammelalbum ----
   // Jede Seite hat Karten; eine Karte wird freigeschaltet, sobald man das Ding das erste Mal hat/erlebt (siehe FarmModell.album*).
   // fakt = Wissenstext (fuer Max, 4. Klasse); hinweis = wie man die Karte bekommt.
@@ -347,7 +364,7 @@ const FarmDaten = (function () {
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
-    ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
+    TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
   };

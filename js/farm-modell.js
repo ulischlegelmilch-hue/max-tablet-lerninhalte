@@ -26,7 +26,7 @@ const FarmModell = (function () {
       v: 2, geld: D.STARTGELD, xp: 0, level: 1, zeit: jetzt, tempo: 1, anfang: true, felder: {}, flotte: [], jobs: [], silo: {},
       preise: {}, produktion: {}, auftraege: [], auftragNaechst: jetzt, preisZeit: jetzt, fahrer: 0, siloStufe: 0, nextId: 1,
       statistik: { verkauft: 0, geerntet: 0, auftraege: 0, jobs: 0, jobsJe: {}, ernteJe: {}, produziert: 0, eingesammelt: 0, repariert: 0, maxGeld: D.STARTGELD, tage: [] },
-      album: { maschinen: {}, fruechte: {}, tiere: {}, wetter: {}, waren: {}, betriebe: {} }, erfolge: {}, albumBonus: {}, erstellt: jetzt, hilfe: {}, ton: true,
+      album: { maschinen: {}, fruechte: {}, tiere: {}, wetter: {}, waren: {}, betriebe: {} }, erfolge: {}, albumBonus: {}, tag: null, serie: { tage: 0, letzter: '' }, erstellt: jetzt, hilfe: {}, ton: true,
       tiere: {}, wetterstation: 0, wetterSeed: (Math.floor(jetzt / 1000) % 100003) + 17, stepZeit: jetzt
     };
     D.STARTFELDER.forEach(id => { S.felder[id] = feldNeu(); });
@@ -55,6 +55,7 @@ const FarmModell = (function () {
     if (!st.tage) st.tage = [];
     if (!S.erfolge) S.erfolge = {};
     if (!S.albumBonus) S.albumBonus = {};
+    if (!S.serie) S.serie = { tage: 0, letzter: '' };
     if (!S.album) {
       S.album = { maschinen: {}, fruechte: {}, tiere: {}, wetter: {}, waren: {}, betriebe: {} };
       S.flotte.forEach(m => { S.album.maschinen[m.id] = 1; });
@@ -584,7 +585,7 @@ const FarmModell = (function () {
     if (platz < 1) return { ok: false, grund: 'Der Futtervorrat ist schon voll.' };
     const kg = nimmFutter(d, platz);
     if (kg < 1) return { ok: false, grund: 'Im Silo fehlt Futter (' + d.futter.map(g => D.gut(g).name).join(' oder ') + ').' };
-    st.futter += kg;
+    st.futter += kg; S.statistik.gefuettert = (S.statistik.gefuettert || 0) + 1;
     return { ok: true, kg };
   }
   function einsammeln(id) {
@@ -706,6 +707,8 @@ const FarmModell = (function () {
       case 'wetter': return Object.keys(S.album.wetter).length;
       case 'level': return S.level;
       case 'tage': return st.tage.length;
+      case 'saeen': return st.jobsJe.saeen || 0;
+      case 'gefuettert': return st.gefuettert || 0;
       default: return 0;
     }
   }
@@ -749,11 +752,81 @@ const FarmModell = (function () {
     let n = 0;
     D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) n++; });
     D.ALBUM.forEach(a => { if (!S.albumBonus[a.id] && albumSeite(a.id).fertig) n++; });
+    if (S.tag) { S.tag.aufgaben.forEach(q => { if (q.fertig && !q.abgeholt) n++; }); if (S.tag.alle && !S.tag.bonusAbgeholt) n++; }
     return n;
   }
   function tagVermerken(t) {
     const d = new Date(t), key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
     if (S.statistik.tage.indexOf(key) < 0) S.statistik.tage.push(key);
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Tagesaufgaben
+  // ----------------------------------------------------------------------------------------------
+  function tagKey(t) { const d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function gesternKey(t) { const d = new Date(t); d.setDate(d.getDate() - 1); return tagKey(d.getTime()); }
+  function naechsterTag(t) { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); }
+  function tagGeeignet(a) {
+    const hatTiere = Object.keys(S.tiere).some(k => S.tiere[k].anzahl > 0);
+    switch (a.id) {
+      case 'gruen': return S.level >= 3 && S.flotte.some(m => ['duenger', 'spritze', 'walze'].indexOf(D.def(m.id).typ) >= 0);
+      case 'eingesammelt': return hatTiere;
+      case 'gefuettert': return Object.keys(S.tiere).some(k => S.tiere[k].anzahl > 0 && D.tier(k).futterKgH > 0);
+      case 'produziert': return Object.keys(S.produktion).length > 0;
+      case 'auftraege': return S.auftraege.some(o => (S.silo[o.gut] || 0) >= o.kg * 0.4);
+      default: return true;
+    }
+  }
+  function tagErzeugen(t) {
+    const key = tagKey(t);
+    const kand = D.TAGESAUFGABEN.filter(tagGeeignet);
+    const seed = key.split('-').reduce((a, x) => a * 31 + (+x), 7) + (S.wetterSeed || 1);
+    const gewaehlt = [];
+    const pool = kand.slice();
+    for (let i = 0; i < 3 && pool.length; i++) {
+      const k = Math.floor(hash(seed * 17 + i * 101) * pool.length);
+      gewaehlt.push(pool.splice(k, 1)[0]);
+    }
+    return {
+      datum: key, alle: false, bonusAbgeholt: false,
+      aufgaben: gewaehlt.map(a => ({ art: a.id, ziel: a.ziel(S.level), basis: erfolgWert(a.stat), fertig: false, abgeholt: false, geld: D.tagGeld(S.level), xp: D.tagXp(S.level) }))
+    };
+  }
+  const tagArt = id => D.TAGESAUFGABEN.find(a => a.id === id);
+  function tagWert(q) { return Math.max(0, erfolgWert(tagArt(q.art).stat) - q.basis); }
+  function serieAktuell(t) {
+    return S.serie.letzter === tagKey(t) || S.serie.letzter === gesternKey(t) ? S.serie.tage : 0;
+  }
+  function tagPruefen(t) {
+    const key = tagKey(t);
+    if (!S.tag || S.tag.datum !== key) { S.tag = tagErzeugen(t); ereignis('tagNeu', {}); }
+    S.tag.aufgaben.forEach(q => {
+      if (!q.fertig && tagWert(q) >= q.ziel) { q.fertig = true; ereignis('tagFertig', { art: q.art }); }
+    });
+    if (!S.tag.alle && S.tag.aufgaben.length && S.tag.aufgaben.every(q => q.fertig)) {
+      S.tag.alle = true;
+      if (S.serie.letzter !== key) { S.serie.tage = S.serie.letzter === gesternKey(t) ? S.serie.tage + 1 : 1; S.serie.letzter = key; }
+      ereignis('tagAlle', { serie: S.serie.tage });
+    }
+  }
+  function tagAbholen(i) {
+    const q = S.tag && S.tag.aufgaben[i];
+    if (!q || !q.fertig || q.abgeholt) return { ok: false, grund: 'Hier gibt es nichts abzuholen.' };
+    q.abgeholt = true; S.geld += q.geld; xpGeben(q.xp);
+    return { ok: true, geld: q.geld, xp: q.xp };
+  }
+  function tagBonus(t) {
+    const summe = S.tag.aufgaben.reduce((a, q) => a + q.geld, 0);
+    const serie = Math.max(1, serieAktuell(t));
+    const faktor = 0.8 * (1 + Math.min(0.5, 0.05 * (serie - 1)));
+    return { geld: Math.round(summe * faktor / 50) * 50, xp: Math.round(S.tag.aufgaben.reduce((a, q) => a + q.xp, 0) * 0.8), serie };
+  }
+  function tagBonusAbholen(t) {
+    if (!S.tag || !S.tag.alle) return { ok: false, grund: 'Erst alle drei Aufgaben schaffen.' };
+    if (S.tag.bonusAbgeholt) return { ok: false, grund: 'Der Tagesbonus ist schon abgeholt.' };
+    const b = tagBonus(t);
+    S.tag.bonusAbgeholt = true; S.geld += b.geld; xpGeben(b.xp);
+    return { ok: true, geld: b.geld, xp: b.xp, serie: b.serie };
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -822,6 +895,7 @@ const FarmModell = (function () {
     schritt(jetzt);
     autoPlaner(jetzt);
     tagVermerken(jetzt);
+    tagPruefen(jetzt);
     erfolgePruefen();
   }
 
@@ -851,6 +925,7 @@ const FarmModell = (function () {
     arbeitStarten, arbeitAbbrechen, optionen, schrittErlaubt, kostenFuer, produktionBauen, produktionAusbauen, produktionStarten,
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
+    tagAbholen, tagBonusAbholen, tagBonus, tagWert, tagArt, serieAktuell, naechsterTag,
     albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,

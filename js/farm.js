@@ -152,6 +152,7 @@ const Farm = (function () {
           <div class="f-pill f-geld" id="f-geld">0 €</div>
           <div class="f-pill f-lvl"><span id="f-lvl">Level 1</span><div class="bar"><div id="f-xp"></div></div></div>
           <div class="f-pill f-wetter" id="f-wetter" data-a="wetter">☀️ Sonnig</div>
+          <div class="f-pill f-wetter" id="f-tag" data-a="tagTab">📅 Heute</div>
         </div>
         <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
         <div class="f-btns">
@@ -174,7 +175,7 @@ const Farm = (function () {
     R = {
       geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
       hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), wetter: wurzel.querySelector('#f-wetter')
+      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), wetter: wurzel.querySelector('#f-wetter')
     };
     wurzel.addEventListener('click', klick);
     wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
@@ -621,7 +622,8 @@ const Farm = (function () {
   // Dialog: Sammlung (Erfolge + Album)
   // ----------------------------------------------------------------------------------------------
   function dialogSammlung(tab, seite) {
-    dlg = { typ: 'sammlung', tab: tab || (dlg && dlg.typ === 'sammlung' ? dlg.tab : 'erfolge'), seite: seite || (dlg && dlg.typ === 'sammlung' ? dlg.seite : 'traktoren') };
+    const gleich = dlg && dlg.typ === 'sammlung';
+    dlg = { typ: 'sammlung', tab: tab || (gleich ? dlg.tab : 'heute'), seite: seite || (gleich ? dlg.seite : 'traktoren') };
     zeichneSammlung();
   }
   function wertText(wert, einheit) {
@@ -630,9 +632,28 @@ const Farm = (function () {
   }
   function zeichneSammlung() {
     const S = stand();
-    const tabs = [['erfolge', '🏆 Erfolge'], ['album', '📖 Album']];
+    const now = jetzt();
+    const tagClaim = S.tag ? S.tag.aufgaben.filter(q => q.fertig && !q.abgeholt).length + (S.tag.alle && !S.tag.bonusAbgeholt ? 1 : 0) : 0;
+    const erfClaim = D.ERFOLGE.filter(e => { const r = S.erfolge[e.id]; return r && r.erreicht > r.abgeholt; }).length;
+    const albClaim = D.ALBUM.filter(a => !S.albumBonus[a.id] && M.albumSeite(a.id).fertig).length;
+    const tabs = [['heute', '📅 Heute' + (tagClaim ? ' 🎁' : '')], ['erfolge', '🏆 Erfolge' + (erfClaim ? ' 🎁' : '')], ['album', '📖 Album' + (albClaim ? ' 🎁' : '')]];
     let inhalt = '';
-    if (dlg.tab === 'erfolge') {
+    if (dlg.tab === 'heute') {
+      const t = S.tag, serie = M.serieAktuell(now);
+      const fertigN = t.aufgaben.filter(q => q.fertig).length;
+      inhalt = '<div class="f-chips"><span class="f-chip">⏰ Neue Aufgaben in <b>' + A.zeitText(M.naechsterTag(now) - now) + '</b></span><span class="f-chip">🔥 Serie: <b>' + serie + ' Tag' + (serie === 1 ? '' : 'e') + '</b></span><span class="f-chip">✅ <b>' + fertigN + ' von ' + t.aufgaben.length + '</b> geschafft</span></div>';
+      t.aufgaben.forEach((q, i) => {
+        const a = M.tagArt(q.art), w = Math.min(M.tagWert(q), q.ziel);
+        const proz = Math.round(w / q.ziel * 100);
+        inhalt += '<div class="f-zeile"><div class="ico">' + a.icon + '</div><div class="n">' + a.text.replace('{ziel}', fmt(q.ziel)) +
+          '<small>' + (q.fertig ? '✓ Geschafft!' : wertText(w, '') + ' / ' + wertText(q.ziel, a.einheit)) + ' · Belohnung: <b style="color:#ffe27a">' + fmt(q.geld) + ' €</b> + ' + q.xp + ' XP</small>' +
+          '<div class="f-bal"><div style="width:' + proz + '%"></div></div></div>' +
+          (q.abgeholt ? '<span class="f-badge">abgeholt ✓</span>' : q.fertig ? '<button class="f-kauf gruen" data-a="tagAbholen" data-id="' + i + '">Abholen<br>+' + fmt(q.geld) + ' €</button>' : '') + '</div>';
+      });
+      const b = M.tagBonus(now);
+      inhalt += '<div class="f-h3">Tagesbonus</div><div class="f-zeile"><div class="ico">🎁</div><div class="n">Alle drei geschafft!<small>Bonus <b style="color:#ffe27a">' + fmt(b.geld) + ' €</b> + ' + b.xp + ' XP · jeder weitere Tag in Folge gibt +5 % (bis +50 %). Wer einen Tag auslässt, fängt die Serie neu an – kein Drama!</small></div>' +
+        (t.bonusAbgeholt ? '<span class="f-badge">abgeholt ✓</span>' : '<button class="f-kauf ' + (t.alle ? 'gruen' : '') + '" data-a="tagBonus"' + (t.alle ? '' : ' disabled') + '>' + (t.alle ? 'Abholen' : 'noch nicht') + '</button>') + '</div>';
+    } else if (dlg.tab === 'erfolge') {
       let abh = 0, geldAbh = 0;
       D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) { abh++; for (let i = r.abgeholt; i < r.erreicht; i++) geldAbh += e.stufen[i].geld; } });
       let gesamt = 0, erreicht = 0;
@@ -756,6 +777,7 @@ const Farm = (function () {
       '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die ein Feld ganz allein bewirtschaften.</li>' +
       '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
       '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
+      '<li>Jeden Tag gibt es <b>3 Tagesaufgaben</b> (📅): Schaffe alle für einen Bonus – und halte die Serie am Leben! Neue Aufgaben kommen um Mitternacht.</li>' +
       '<li>Unter 🏆 findest du <b>Erfolge</b> mit Belohnungen und dein <b>Album</b>: Sammle Karten von Maschinen, Früchten, Tieren, Waren, Betrieben und Wetter – mit Wissenswertem dazu.</li>' +
       '<li>Mit Erfahrung steigst du auf und schaltest neue Felder, Früchte und Maschinen frei.</li></ol>' +
       '<div class="f-info">⏩ Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.</div>' +
@@ -801,6 +823,9 @@ const Farm = (function () {
       case 'betriebe': return dialogBetriebe();
       case 'tiere': return dialogTiere();
       case 'sammlung': return dialogSammlung();
+      case 'tagTab': return dialogSammlung('heute');
+      case 'tagAbholen': { const r = M.tagAbholen(+id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' € Tagesaufgabe!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
+      case 'tagBonus': { const r = M.tagBonusAbholen(jetzt()); if (ergebnis(r, r.ok ? '🎁 Tagesbonus: +' + fmt(r.geld) + ' €' + (r.serie > 1 ? ' (Serie ' + r.serie + ' Tage 🔥)' : '') : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
       case 'sammlungTab': dlg.tab = id; return zeichneSammlung();
       case 'albumSeite': dlg.seite = id; return zeichneSammlung();
       case 'erfAbholen': { const r = M.erfolgAbholen(id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' € abgeholt!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
@@ -932,6 +957,9 @@ const Farm = (function () {
       else toast('🏆 ' + n.length + ' neue Erfolge – Belohnungen unter 🏆 abholen!', 'geld', 'erfolg');
       piep('level');
     }
+    else if (art === 'tagNeu') toast('📅 Neue Tagesaufgaben warten auf dich!', '', 'tagneu');
+    else if (art === 'tagFertig') { toast('📅 Tagesaufgabe geschafft – unter 📅 abholen!', 'geld', 'tagf'); piep('fertig'); }
+    else if (art === 'tagAlle') { toast('🎉 Alle Tagesaufgaben geschafft – hol dir den Tagesbonus!' + (d.serie > 1 ? ' Serie: ' + d.serie + ' Tage 🔥' : ''), 'geld', 'taga'); piep('level'); }
     else if (art === 'karte') {
       const seite = D.ALBUM.find(a => a.kat === d.kat);
       const k = seite && seite.karten().find(x => x.id === d.id);
@@ -955,6 +983,8 @@ const Farm = (function () {
     const wt = M.wetter(jetzt());
     R.wetter.textContent = wt.icon + ' ' + wt.name;
     M.wetterGesehen(wt.id);
+    const tg = stand().tag;
+    if (tg) { const fn = tg.aufgaben.filter(q => q.fertig).length, cl = tg.aufgaben.some(q => q.fertig && !q.abgeholt) || (tg.alle && !tg.bonusAbgeholt); R.tag.textContent = '📅 ' + fn + '/' + tg.aufgaben.length + (cl ? ' 🎁' : ''); R.tag.style.color = cl ? '#ffe27a' : ''; }
     const abh = M.abholbar();
     R.pktErf.style.display = abh ? 'flex' : 'none'; R.pktErf.textContent = abh;
     R.xp.style.width = Math.round(S.xp / D.xpFuerLevel(S.level) * 100) + '%';
@@ -1017,7 +1047,7 @@ const Farm = (function () {
     try { roh = localStorage.getItem(M.SPEICHER); } catch (e) { roh = null; }
     const erstes = !roh;
     const jetztMs = jetzt();
-    if (!roh || !M.laden(roh, jetztMs)) M.neu(jetztMs);
+    if (!roh || !M.laden(roh, jetztMs)) { M.neu(jetztMs); M.simuliere(jetztMs); }
     if (!hoererGesetzt) { M.beiEreignis(ereignisse); hoererGesetzt = true; }
     geldAnzeige = stand().geld;
     cam.x = 1720; cam.y = 1500; cam.z = Math.min(1, Math.max(0.45, Math.min(W / 1500, H / 1000))); cam.ziel = null;
