@@ -4,10 +4,16 @@
 // Weltmasse in Pixeln: 1 Feldzelle = 20 x 20 px = 0,01 ha; 28 px = 1 m (nur fuer Anzeige).
 const FarmDaten = (function () {
   const ZELLE = 20;
-  const HA_JE_ZELLE = 0.01;
+  const HA_JE_ZELLE = 0.015;
   const PX_JE_M = 28;
   const WELT = { b: 4400, h: 3900 };
-  const PREISFAKTOR = 1.6;           // Verkaufspreise (Fruechte/Produkte) gegenueber dem Grundwert
+  // Maschinen werden kleiner gezeichnet als ihre Rohmasse (die Felder wirken sonst winzig); Arbeitsbreiten in Metern bleiben gleich.
+  const MASCHINEN_SKALA = 0.55;
+  // Wirtschaft (angelehnt an Farming Simulator: Land und Maschinen sind teuer, ein Hektar Weizen bringt ca. 2.000-2.500 EUR)
+  const LAND_FAKTOR = 2.6;          // Landpreise gegenueber den Rohwerten in FELD_ROHDATEN
+  const MASCHINEN_PREIS = 1.4;      // Maschinenpreise gegenueber den Listenwerten
+  const XP_FAKTOR = 0.10;           // XP je Hektar Arbeit
+  const PREISFAKTOR = 1.4;           // Verkaufspreise (Fruechte/Produkte) gegenueber dem Grundwert
 
   // ---- Marken (Lackierung) ----
   const MARKEN = {
@@ -22,14 +28,14 @@ const FarmDaten = (function () {
   // ---- Fruechte ----
   // dauer = Sekunden bis zur Reife (Echtzeit), ertrag = t/ha, preis = EUR/t (Grundpreis), saat = EUR/ha, lvl = ab Level
   const FRUECHTE = [
-    { id: 'weizen', name: 'Weizen', ernte: 'korn', familie: 'getreide', lvl: 1, dauer: 45 * 60, ertrag: 8.0, preis: 210, saat: 150, farben: { jung: '#7ec850', hoch: '#5fae3a', reif: '#e3b94b', reihe: '#c99a2e' } },
-    { id: 'gerste', name: 'Gerste', ernte: 'korn', familie: 'getreide', lvl: 3, dauer: 40 * 60, ertrag: 7.2, preis: 190, saat: 140, farben: { jung: '#82cf56', hoch: '#63b43e', reif: '#e8c65a', reihe: '#cfa63a' } },
-    { id: 'raps', name: 'Raps', ernte: 'korn', familie: 'oel', lvl: 5, dauer: 60 * 60, ertrag: 3.8, preis: 480, saat: 100, farben: { jung: '#76c24e', hoch: '#7cc43f', reif: '#f2d21e', reihe: '#d7b30c' } },
-    { id: 'mais', name: 'Mais', ernte: 'korn', familie: 'hack', lvl: 7, dauer: 70 * 60, ertrag: 11.0, preis: 170, saat: 170, farben: { jung: '#8bd24e', hoch: '#4fa82e', reif: '#c9b53a', reihe: '#a99422' } },
-    { id: 'sonnenblume', name: 'Sonnenblumen', ernte: 'korn', familie: 'oel', lvl: 9, dauer: 55 * 60, ertrag: 3.0, preis: 400, saat: 110, farben: { jung: '#7dc94f', hoch: '#4c9a2c', reif: '#f4b30f', reihe: '#6b4a1c' } },
-    { id: 'soja', name: 'Soja', ernte: 'korn', familie: 'huelsen', lvl: 11, dauer: 50 * 60, ertrag: 3.5, preis: 420, saat: 180, farben: { jung: '#86cf5a', hoch: '#56ac3a', reif: '#c9a870', reihe: '#a78650' } },
-    { id: 'kartoffel', name: 'Kartoffeln', ernte: 'wurzel', familie: 'hack', lvl: 12, dauer: 65 * 60, ertrag: 38.0, preis: 110, saat: 700, farben: { jung: '#7ccb55', hoch: '#3f9a3a', reif: '#6f9c3c', reihe: '#4f7a28' } },
-    { id: 'ruebe', name: 'Zuckerrüben', ernte: 'wurzel', familie: 'hack', lvl: 15, dauer: 80 * 60, ertrag: 75.0, preis: 48, saat: 250, farben: { jung: '#84cd58', hoch: '#3c9633', reif: '#2f8a3a', reihe: '#1f6a2a' } }
+    { id: 'weizen', name: 'Weizen', ernte: 'korn', familie: 'getreide', lvl: 1, dauer: 240 * 60, ertrag: 8.0, preis: 210, saat: 150, farben: { jung: '#7ec850', hoch: '#5fae3a', reif: '#e3b94b', reihe: '#c99a2e' } },
+    { id: 'gerste', name: 'Gerste', ernte: 'korn', familie: 'getreide', lvl: 3, dauer: 210 * 60, ertrag: 7.2, preis: 190, saat: 140, farben: { jung: '#82cf56', hoch: '#63b43e', reif: '#e8c65a', reihe: '#cfa63a' } },
+    { id: 'raps', name: 'Raps', ernte: 'korn', familie: 'oel', lvl: 5, dauer: 360 * 60, ertrag: 3.8, preis: 480, saat: 100, farben: { jung: '#76c24e', hoch: '#7cc43f', reif: '#f2d21e', reihe: '#d7b30c' } },
+    { id: 'mais', name: 'Mais', ernte: 'korn', familie: 'hack', lvl: 7, dauer: 420 * 60, ertrag: 11.0, preis: 170, saat: 170, farben: { jung: '#8bd24e', hoch: '#4fa82e', reif: '#c9b53a', reihe: '#a99422' } },
+    { id: 'sonnenblume', name: 'Sonnenblumen', ernte: 'korn', familie: 'oel', lvl: 9, dauer: 300 * 60, ertrag: 3.0, preis: 400, saat: 110, farben: { jung: '#7dc94f', hoch: '#4c9a2c', reif: '#f4b30f', reihe: '#6b4a1c' } },
+    { id: 'soja', name: 'Soja', ernte: 'korn', familie: 'huelsen', lvl: 11, dauer: 270 * 60, ertrag: 3.5, preis: 420, saat: 180, farben: { jung: '#86cf5a', hoch: '#56ac3a', reif: '#c9a870', reihe: '#a78650' } },
+    { id: 'kartoffel', name: 'Kartoffeln', ernte: 'wurzel', familie: 'hack', lvl: 12, dauer: 360 * 60, ertrag: 38.0, preis: 110, saat: 700, farben: { jung: '#7ccb55', hoch: '#3f9a3a', reif: '#6f9c3c', reihe: '#4f7a28' } },
+    { id: 'ruebe', name: 'Zuckerrüben', ernte: 'wurzel', familie: 'hack', lvl: 15, dauer: 480 * 60, ertrag: 75.0, preis: 48, saat: 250, farben: { jung: '#84cd58', hoch: '#3c9633', reif: '#2f8a3a', reihe: '#1f6a2a' } }
   ];
 
   // ---- Traktoren ----  ps, kmh = Hoechstgeschwindigkeit
@@ -111,7 +117,7 @@ const FarmDaten = (function () {
   };
   const BONUS = { pf: 0.08, dg: 0.22, sp: 0.10, wa: 0.06 };
   const SCHRITT_REIHENFOLGE = ['grubbern', 'pfluegen', 'kalken', 'saeen', 'duengen', 'spritzen', 'walzen', 'ernten'];
-  const ARBEIT_K = 6000;      // Zeitkonstante: Sekunden * (m * km/h) je Hektar
+  const ARBEIT_K = 24000;      // Zeitkonstante: Sekunden * (m * km/h) je Hektar
   const ANFANGS_TEMPO = 6;    // erste Arbeiten sind schneller, bis die erste Ernte verkauft ist
 
   // ---- Felder: x,y in px (Vielfache von 20), c/r = Spalten/Zeilen, lvl = ab Level ----
@@ -126,9 +132,9 @@ const FarmDaten = (function () {
     [3100, 2700, 34, 22, 6000, 44], [3100, 1700, 34, 18, 5400, 47], [3850, 1700, 24, 18, 5100, 50]
   ];
   const FELDER = FELD_ROHDATEN.map((f, i) => ({
-    id: i + 1, name: 'Feld ' + (i + 1), x: f[0], y: f[1], c: f[2], r: f[3], preisHa: f[4], lvl: f[5],
+    id: i + 1, name: 'Feld ' + (i + 1), x: f[0], y: f[1], c: f[2], r: f[3], preisHa: Math.round(f[4] * LAND_FAKTOR / 100) * 100, lvl: f[5],
     ha: Math.round(f[2] * f[3] * HA_JE_ZELLE * 10) / 10,
-    preis: Math.round(f[2] * f[3] * HA_JE_ZELLE * f[4] / 100) * 100
+    preis: Math.round(f[2] * f[3] * HA_JE_ZELLE * f[4] * LAND_FAKTOR / 100) * 100
   }));
 
   // ---- Strassen / Hof / Gebaeude ----
@@ -232,7 +238,7 @@ const FarmDaten = (function () {
   // ---- Erfolge ----
   // wert = Name der Fortschrittsgroesse (siehe FarmModell.erfolgWert), einheit nur fuer die Anzeige.
   // Stufen: ziel erreicht -> Belohnung (geld, xp) kann abgeholt werden.
-  const st3 = (z, g) => z.map((ziel, i) => ({ ziel, geld: g[i], xp: Math.round(g[i] / 20) }));
+  const st3 = (z, g) => z.map((ziel, i) => ({ ziel, geld: g[i], xp: Math.round(Math.sqrt(g[i]) * 0.6) }));
   const ERFOLGE = [
     { id: 'ernte', kat: 'Anbau', icon: '🌾', name: 'Erntehelfer', text: 'Ernte insgesamt', wert: 'ernteT', einheit: 't', stufen: st3([10, 100, 1000, 10000], [1500, 8000, 40000, 200000]) },
     { id: 'jobs', kat: 'Anbau', icon: '🚜', name: 'Fleißige Maschinen', text: 'Arbeitsaufträge erledigt', wert: 'jobs', einheit: '', stufen: st3([5, 50, 250, 1000], [1500, 8000, 40000, 200000]) },
@@ -271,8 +277,8 @@ const FarmDaten = (function () {
     { id: 'produziert', icon: '🏭', stat: 'prod', einheit: '', ziel: l => (l >= 20 ? 2 : 1), text: 'Stelle {ziel}× etwas in einem Betrieb her' },
     { id: 'auftraege', icon: '📋', stat: 'auftraege', einheit: '', ziel: () => 1, text: 'Liefere einen Auftrag aus' }
   ];
-  const tagGeld = l => Math.round((600 + l * 200) / 50) * 50;
-  const tagXp = l => 30 + l * 3;
+  const tagGeld = l => Math.round((300 + l * 120) / 50) * 50;
+  const tagXp = l => 15 + l * 2;
 
   // ---- Sammelalbum ----
   // Jede Seite hat Karten; eine Karte wird freigeschaltet, sobald man das Ding das erste Mal hat/erlebt (siehe FarmModell.album*).
@@ -317,33 +323,47 @@ const FarmDaten = (function () {
     kaeserei: 'In der Käserei wird Milch erwärmt, dick gelegt und zu Käse geformt.'
   };
   const ALBUM = [
-    { id: 'traktoren', kat: 'maschinen', name: 'Traktoren', icon: '🚜', bonus: { geld: 60000, xp: 3000 }, hinweis: 'Kaufe diesen Traktor im Händler.', karten: () => TRAKTOREN.map(t => ({ id: t.id, name: t.name, def: t.id })) },
-    { id: 'geraete', kat: 'maschinen', name: 'Geräte', icon: '🔧', bonus: { geld: 60000, xp: 3000 }, hinweis: 'Kaufe dieses Gerät im Händler.', karten: () => GERAETE.map(t => ({ id: t.id, name: t.name, def: t.id })) },
-    { id: 'ernter', kat: 'maschinen', name: 'Erntemaschinen', icon: '🌾', bonus: { geld: 40000, xp: 2000 }, hinweis: 'Kaufe diese Erntemaschine im Händler.', karten: () => ERNTER.map(t => ({ id: t.id, name: t.name, def: t.id })) },
-    { id: 'fruechte', kat: 'fruechte', name: 'Früchte', icon: '🥕', bonus: { geld: 25000, xp: 1500 }, hinweis: 'Ernte diese Frucht zum ersten Mal.', karten: () => FRUECHTE.map(f => ({ id: f.id, name: f.name, icon: f.ernte === 'wurzel' ? '🥔' : '🌾', fakt: FAKTEN[f.id] })) },
-    { id: 'tiere', kat: 'tiere', name: 'Tiere', icon: '🐾', bonus: { geld: 20000, xp: 1500 }, hinweis: 'Kaufe diese Tierart im Tierhof.', karten: () => TIERE.map(t => ({ id: t.id, name: t.name, icon: t.icon, fakt: FAKTEN[t.id] })) },
-    { id: 'waren', kat: 'waren', name: 'Waren', icon: '📦', bonus: { geld: 30000, xp: 2000 }, hinweis: 'Stelle diese Ware her oder sammle sie ein.', karten: () => Object.keys(WAREN).map(id => ({ id, name: WAREN[id].name, icon: WAREN[id].icon, fakt: FAKTEN[id] })) },
-    { id: 'betriebe', kat: 'betriebe', name: 'Betriebe', icon: '🏭', bonus: { geld: 40000, xp: 2000 }, hinweis: 'Baue diesen Betrieb.', karten: () => PRODUKTION.map(b => ({ id: b.id, name: b.name, icon: b.icon, fakt: FAKTEN[b.id] })) },
-    { id: 'wetter', kat: 'wetter', name: 'Wetter', icon: '🌦', bonus: { geld: 15000, xp: 1000 }, hinweis: 'Erlebe dieses Wetter, während du spielst.', karten: () => Object.keys(WETTER).map(id => ({ id, name: WETTER[id].name, icon: WETTER[id].icon, fakt: FAKTEN[id] })) }
+    { id: 'traktoren', kat: 'maschinen', name: 'Traktoren', icon: '🚜', bonus: { geld: 60000, xp: 600 }, hinweis: 'Kaufe diesen Traktor im Händler.', karten: () => TRAKTOREN.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'geraete', kat: 'maschinen', name: 'Geräte', icon: '🔧', bonus: { geld: 60000, xp: 600 }, hinweis: 'Kaufe dieses Gerät im Händler.', karten: () => GERAETE.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'ernter', kat: 'maschinen', name: 'Erntemaschinen', icon: '🌾', bonus: { geld: 40000, xp: 450 }, hinweis: 'Kaufe diese Erntemaschine im Händler.', karten: () => ERNTER.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'fruechte', kat: 'fruechte', name: 'Früchte', icon: '🥕', bonus: { geld: 25000, xp: 350 }, hinweis: 'Ernte diese Frucht zum ersten Mal.', karten: () => FRUECHTE.map(f => ({ id: f.id, name: f.name, icon: f.ernte === 'wurzel' ? '🥔' : '🌾', fakt: FAKTEN[f.id] })) },
+    { id: 'tiere', kat: 'tiere', name: 'Tiere', icon: '🐾', bonus: { geld: 20000, xp: 300 }, hinweis: 'Kaufe diese Tierart im Tierhof.', karten: () => TIERE.map(t => ({ id: t.id, name: t.name, icon: t.icon, fakt: FAKTEN[t.id] })) },
+    { id: 'waren', kat: 'waren', name: 'Waren', icon: '📦', bonus: { geld: 30000, xp: 400 }, hinweis: 'Stelle diese Ware her oder sammle sie ein.', karten: () => Object.keys(WAREN).map(id => ({ id, name: WAREN[id].name, icon: WAREN[id].icon, fakt: FAKTEN[id] })) },
+    { id: 'betriebe', kat: 'betriebe', name: 'Betriebe', icon: '🏭', bonus: { geld: 40000, xp: 450 }, hinweis: 'Baue diesen Betrieb.', karten: () => PRODUKTION.map(b => ({ id: b.id, name: b.name, icon: b.icon, fakt: FAKTEN[b.id] })) },
+    { id: 'wetter', kat: 'wetter', name: 'Wetter', icon: '🌦', bonus: { geld: 15000, xp: 250 }, hinweis: 'Erlebe dieses Wetter, während du spielst.', karten: () => Object.keys(WETTER).map(id => ({ id, name: WETTER[id].name, icon: WETTER[id].icon, fakt: FAKTEN[id] })) }
   ];
 
   // ---- Lager / Fahrer ----
-  const SILO_STUFEN = [{ kg: 40000, preis: 0 }, { kg: 80000, preis: 15000 }, { kg: 150000, preis: 40000 }, { kg: 300000, preis: 90000 },
-    { kg: 600000, preis: 200000 }, { kg: 1200000, preis: 450000 }, { kg: 2500000, preis: 900000 }];
+  const SILO_STUFEN = [{ kg: 60000, preis: 0 }, { kg: 120000, preis: 25000 }, { kg: 250000, preis: 60000 }, { kg: 500000, preis: 130000 },
+    { kg: 1000000, preis: 280000 }, { kg: 2000000, preis: 600000 }, { kg: 4000000, preis: 1200000 }];
   const FAHRER = [{ preis: 12000, lvl: 8 }, { preis: 30000, lvl: 14 }, { preis: 65000, lvl: 22 }, { preis: 130000, lvl: 32 },
     { preis: 260000, lvl: 44 }, { preis: 520000, lvl: 58 }];
 
   // ---- Start ----
-  const STARTGELD = 30000;
+  const STARTGELD = 60000;
   const STARTFLOTTE = ['t1', 'g1', 's1', 'h1'];
   const STARTFELDER = [1];
   const PREIS_MIN = 0.72, PREIS_MAX = 1.38;
 
   // ---- Level ----
-  function xpFuerLevel(l) { return 120 + 60 * l; }   // XP von Level l nach l+1
+  // Erfahrungskurve: gesamt-XP an Ankerlevels, dazwischen geometrisch interpoliert. Flach am Anfang (schnelle Erfolge in den ersten Tagen),
+  // dann deutlich steiler - ein erfahrener Spieler soll Monate bis zum letzten Freischalt-Level (72) brauchen (Hay Day: Level 15 ~ 2.900,
+  // Level 26 ~ 15.700, Level 51 ~ 168.000 XP gesamt).
+  const XP_ANKER = [[1, 0], [5, 220], [10, 700], [15, 2400], [20, 5500], [30, 17500], [40, 55000], [50, 130000], [60, 270000], [72, 500000], [100, 1500000], [150, 5000000], [300, 50000000]];
+  function xpGesamt(l) {
+    for (let i = 1; i < XP_ANKER.length; i++) {
+      const a = XP_ANKER[i - 1], b = XP_ANKER[i];
+      if (l <= b[0]) {
+        if (a[1] === 0) return b[1] * (l - a[0]) / (b[0] - a[0]);
+        return a[1] * Math.pow(b[1] / a[1], (l - a[0]) / (b[0] - a[0]));
+      }
+    }
+    return XP_ANKER[XP_ANKER.length - 1][1];
+  }
+  function xpFuerLevel(l) { return Math.max(20, Math.round(xpGesamt(l + 1) - xpGesamt(l))); }   // XP von Level l nach l+1
 
   const BY_ID = {};
-  [].concat(TRAKTOREN, GERAETE, ERNTER).forEach(d => { BY_ID[d.id] = d; });
+  [].concat(TRAKTOREN, GERAETE, ERNTER).forEach(d => { d.preis = Math.round(d.preis * MASCHINEN_PREIS / 500) * 500; BY_ID[d.id] = d; });
   const FRUCHT_BY_ID = {};
   FRUECHTE.forEach(f => { FRUCHT_BY_ID[f.id] = f; });
   const PROD_BY_ID = {};
@@ -362,7 +382,7 @@ const FarmDaten = (function () {
   function alleGueter() { return FRUECHTE.map(f => f.id).concat(Object.keys(WAREN)); }
 
   return {
-    ZELLE, HA_JE_ZELLE, PX_JE_M, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
+    ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
     TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,

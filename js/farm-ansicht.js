@@ -1,7 +1,7 @@
 // Hof-Farm: Darstellung der Spielwelt (Draufsicht). Maschinen fahren selbststaendig; hier wird nur aus dem Spielstand
 // (FarmModell) und der Uhrzeit berechnet, wo was steht und wie die Felder aussehen.
 const FarmAnsicht = (function () {
-  const D = FarmDaten, G = FarmGfx, M = FarmModell, Z = D.ZELLE;
+  const D = FarmDaten, G = FarmGfx, M = FarmModell, Z = D.ZELLE, K = D.MASCHINEN_SKALA;
   let muster = null;
   const musterCache = {};
   let baeume = [];
@@ -78,54 +78,144 @@ const FarmAnsicht = (function () {
     const f = D.feld(feldId), W = f.c * Z, H = f.r * Z;
     const horizontal = W >= H;
     const quer = horizontal ? H : W, laenge = horizontal ? W : H;
-    const laneW = Math.max(26, breite);
+    const laneW = Math.max(16, breite);
     const n = Math.max(1, Math.ceil(quer / laneW));
     return { f, W, H, horizontal, quer, laenge, laneW, n };
   }
   function bahnMitte(b, i) { return b.laneW >= b.quer ? b.quer / 2 : Math.min((i + 0.5) * b.laneW, b.quer - b.laneW / 2); }
-  // Position der Arbeitslinie bei Fortschritt p (0..1): { x, y, a, fertigBahnen, teil }
-  function aufBahn(b, p) {
-    const u = Math.min(0.99999, Math.max(0, p)) * b.n;
-    const li = Math.floor(u), fr = u - li, richtung = li % 2 === 0 ? 1 : -1;
-    const TURN = 0.1;
-    let s, quer = bahnMitte(b, li), winkelZusatz = 0;
-    if (fr < 1 - TURN || li === b.n - 1) s = Math.min(1, fr / (1 - TURN));
-    else {
-      s = 1;
-      const tt = (fr - (1 - TURN)) / TURN;
-      quer = bahnMitte(b, li) + (bahnMitte(b, li + 1) - bahnMitte(b, li)) * tt;
-      winkelZusatz = Math.PI * tt * richtung;
-    }
-    const along = richtung > 0 ? s * b.laenge : (1 - s) * b.laenge;
-    const ueber = (fr >= 1 - TURN && li < b.n - 1) ? 26 * Math.sin(Math.PI * ((fr - (1 - TURN)) / TURN)) * richtung : 0;
-    let x, y, a;
-    if (b.horizontal) { x = b.f.x + along + ueber; y = b.f.y + quer; a = (richtung > 0 ? 0 : Math.PI) + winkelZusatz; }
-    else { x = b.f.x + quer; y = b.f.y + along + ueber; a = (richtung > 0 ? Math.PI / 2 : -Math.PI / 2) + winkelZusatz; }
-    return { x, y, a, li, fr, s, richtung };
+  // Bahn-Geometrie eines Einsatzes. d = Abstand Arbeitslinie - Bezugspunkt der Maschine in Fahrtrichtung
+  // (Traktor mit Geraet: negativ, das Geraet haengt hinten; Erntemaschine: positiv, das Schneidwerk sitzt vorn).
+  // delta0 = Richtung der ersten Bahn: der Einsatz beginnt an der Seite, die der Zufahrt am naechsten liegt.
+  function bahnGeo(feldId, breite, d) {
+    const b = bahnen(feldId, breite), f = b.f;
+    const ex = M.wegPunkte(feldId)[2].x;
+    b.delta0 = b.horizontal ? (ex < f.x ? 1 : -1) : ((f.y + b.H / 2) < D.STRASSE_Y ? -1 : 1);
+    b.d = d;
+    return b;
   }
-  // Polyline entlang p (0..1)
-  function entlang(pts, p) {
-    let gesamt = 0;
-    for (let i = 1; i < pts.length; i++) gesamt += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-    let ziel = p * gesamt;
-    for (let i = 1; i < pts.length; i++) {
-      const l = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
-      if (ziel <= l || i === pts.length - 1) {
-        const t = l ? Math.min(1, ziel / l) : 1;
-        return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t, a: Math.atan2(pts[i].y - pts[i - 1].y, pts[i].x - pts[i - 1].x) };
-      }
-      ziel -= l;
+  const bahnRichtung = (b, i) => b.delta0 * (i % 2 === 0 ? 1 : -1);
+  const TURN = 0.1;   // Anteil der Bahnzeit fuer das Wenden am Feldende
+  // Weltposition aus Bahn-Koordinaten (A laengs der Bahn, Q quer dazu)
+  function weltPos(b, A, Q) { return b.horizontal ? { x: b.f.x + A, y: b.f.y + Q } : { x: b.f.x + Q, y: b.f.y + A }; }
+  function weltWinkel(b, dA, dQ) { return b.horizontal ? Math.atan2(dQ, dA) : Math.atan2(dA, dQ); }
+  // Lage des Bezugspunkts der Maschine bei Fortschritt p (0..1): gerade Bahn, am Ende ein weicher Halbkreis-Wendebogen.
+  // work = Lage der Arbeitslinie (Geraet bzw. Schneidwerk), nur auf der Geraden gleich der Bahn.
+  function refPose(b, p) {
+    const u = Math.min(0.99999, Math.max(0, p)) * b.n;
+    const i = Math.floor(u), fr = u - i, delta = bahnRichtung(b, i);
+    const letzte = i === b.n - 1;
+    let A, Q, a;
+    if (fr < 1 - TURN || letzte) {
+      const s = -b.d + Math.min(1, fr / (1 - TURN)) * b.laenge;
+      A = delta > 0 ? s : b.laenge - s; Q = bahnMitte(b, i);
+      a = weltWinkel(b, delta, 0);
+    } else {
+      const th = Math.PI * (fr - (1 - TURN)) / TURN;
+      const dq = bahnMitte(b, i + 1) - bahnMitte(b, i), r = dq / 2;
+      const s = (b.laenge - b.d) + r * Math.sin(th);
+      A = delta > 0 ? s : b.laenge - s;
+      Q = bahnMitte(b, i) + dq * (1 - Math.cos(th)) / 2;
+      a = weltWinkel(b, delta * r * Math.cos(th), r * Math.sin(th));
     }
-    return { x: pts[0].x, y: pts[0].y, a: 0 };
+    const pos = weltPos(b, A, Q);
+    return { x: pos.x, y: pos.y, a, work: { x: pos.x + Math.cos(a) * b.d, y: pos.y + Math.sin(a) * b.d }, gerade: fr < 1 - TURN || letzte };
+  }
+
+  // ---- Fahrwege: Eckpunkte -> abgerundete, dicht abgetastete Linie ----
+  function runden(pts, R) {
+    const out = [];
+    const nachbar = (a, b2, t) => ({ x: a.x + (b2.x - a.x) * t, y: a.y + (b2.y - a.y) * t });
+    out.push(pts[0]);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = pts[i - 1], c = pts[i], e = pts[i + 1];
+      const l1 = Math.hypot(c.x - a.x, c.y - a.y), l2 = Math.hypot(e.x - c.x, e.y - c.y);
+      if (l1 < 1 || l2 < 1) continue;
+      const r = Math.min(R, l1 / 2, l2 / 2);
+      const p1 = nachbar(c, a, r / l1), p2 = nachbar(c, e, r / l2);
+      const n = Math.max(6, Math.round(r / 3));
+      for (let k = 0; k <= n; k++) {
+        const t = k / n, u = 1 - t;
+        out.push({ x: u * u * p1.x + 2 * u * t * c.x + t * t * p2.x, y: u * u * p1.y + 2 * u * t * c.y + t * t * p2.y });
+      }
+    }
+    out.push(pts[pts.length - 1]);
+    // gleichmaessig dicht machen (alle ~5 px)
+    const dicht = [{ x: out[0].x, y: out[0].y, s: 0 }];
+    let s = 0;
+    for (let i = 1; i < out.length; i++) {
+      const l = Math.hypot(out[i].x - out[i - 1].x, out[i].y - out[i - 1].y);
+      if (l < 0.0001) continue;
+      const teile = Math.max(1, Math.ceil(l / 5));
+      for (let k = 1; k <= teile; k++) {
+        const t = k / teile;
+        dicht.push({ x: out[i - 1].x + (out[i].x - out[i - 1].x) * t, y: out[i - 1].y + (out[i].y - out[i - 1].y) * t, s: s + l * t });
+      }
+      s += l;
+    }
+    dicht.laenge = s;
+    return dicht;
+  }
+  // Rechtsverkehr: seitlich versetzen, an den Enden einblenden (jede Maschine bekommt eine eigene Spur)
+  function versetzen(linie, off) {
+    const n = linie.length;
+    const neu = linie.map((q, i) => {
+      const a = linie[Math.max(0, i - 2)], c = linie[Math.min(n - 1, i + 2)];
+      const tx = c.x - a.x, ty = c.y - a.y, tl = Math.hypot(tx, ty) || 1;
+      const k = Math.min(1, q.s / 70, (linie.laenge - q.s) / 70) * off;
+      return { x: q.x - ty / tl * k, y: q.y + tx / tl * k, s: q.s };
+    });
+    neu.laenge = linie.laenge;
+    return neu;
+  }
+  function entlangDicht(linie, p) {
+    const n = linie.length;
+    if (n < 2) return { x: linie[0].x, y: linie[0].y, a: 0 };
+    const ziel = Math.max(0, Math.min(1, p)) * linie.laenge;
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (linie[mid].s <= ziel) lo = mid; else hi = mid; }
+    const a = linie[lo], c = linie[hi], l = c.s - a.s, t = l > 0 ? (ziel - a.s) / l : 0;
+    const v = linie[Math.max(0, lo - 1)], w = linie[Math.min(n - 1, hi + 1)];
+    return { x: a.x + (c.x - a.x) * t, y: a.y + (c.y - a.y) * t, a: Math.atan2(w.y - v.y, w.x - v.x) };
+  }
+  const geoCache = {};
+  function einsatzGeo(job, breite, d) {
+    const key = job.id;
+    if (geoCache[key]) return geoCache[key];
+    const b = bahnGeo(job.feld, breite, d), f = b.f, weg = M.wegPunkte(job.feld);
+    const gate = weg[0], sy = D.STRASSE_Y, ex = weg[2].x;
+    const dir = a => ({ x: Math.cos(a), y: Math.sin(a) });
+    const rand = Math.abs(d) + 46;
+    const off = 14 + (job.id % 3) * 18;
+    // Hinweg
+    const p0 = refPose(b, 0), d0 = dir(p0.a);
+    const aus = { x: p0.x - d0.x * rand, y: p0.y - d0.y * rand };
+    const hin = [{ x: gate.x, y: gate.y }, { x: gate.x, y: sy }, { x: ex, y: sy }, { x: ex, y: aus.y }];
+    if (!b.horizontal) hin.push({ x: aus.x, y: aus.y });
+    hin.push({ x: aus.x, y: aus.y }); hin.push({ x: p0.x, y: p0.y });
+    // Rueckweg
+    const pe = refPose(b, 1), de = dir(pe.a);
+    const aus2 = { x: pe.x + de.x * rand, y: pe.y + de.y * rand };
+    const rueck = [{ x: pe.x, y: pe.y }, aus2];
+    if (b.horizontal) {
+      const endeLinks = de.x < 0, lueckeLinks = ex < f.x;
+      if (endeLinks !== lueckeLinks) {
+        const yRand = (f.y + b.H / 2) < sy ? f.y + b.H + 30 : f.y - 30;
+        rueck.push({ x: aus2.x, y: yRand }); rueck.push({ x: ex, y: yRand });
+      } else rueck.push({ x: ex, y: aus2.y });
+    } else rueck.push({ x: ex, y: aus2.y });
+    rueck.push({ x: ex, y: sy }); rueck.push({ x: gate.x, y: sy }); rueck.push({ x: gate.x, y: gate.y });
+    const geo = { b, hin: versetzen(runden(hin, 46), off), rueck: versetzen(runden(rueck, 46), off) };
+    geoCache[key] = geo;
+    return geo;
   }
 
   // ----------------------------------------------------------------------------------------------
   // Maschinen: Parkplaetze und Einsatz-Positionen
   // ----------------------------------------------------------------------------------------------
   function halbmasse(d) {
-    if (d.art === 'traktor') return [d.b * 0.5 + 4, d.l * 0.5 + 8];
-    if (d.art === 'ernter') return [Math.max(d.w, d.b) * 0.5 + 4, d.l * 0.55 + 20];
-    return [d.w * 0.5 + 4, d.len * 0.5 + 8];
+    if (d.art === 'traktor') return [(d.b * 0.5 + 4) * K, (d.l * 0.5 + 8) * K];
+    if (d.art === 'ernter') return [(Math.max(d.w, d.b) * 0.5 + 4) * K, (d.l * 0.55 + 20) * K];
+    return [(d.w * 0.5 + 4) * K, (d.len * 0.5 + 8) * K];
   }
   function parkplaetze(S) {
     const schluessel = S.flotte.map(m => m.uid + m.id).join(',');
@@ -153,46 +243,36 @@ const FarmAnsicht = (function () {
     const st = M.jobStand(job, jetzt);
     const tm = M.maschine(job.traktor), gm = job.geraet ? M.maschine(job.geraet) : null;
     const td = D.def(tm.id), gd = gm ? D.def(gm.id) : null;
-    const breite = gd ? gd.w : td.w;
-    const b = bahnen(job.feld, breite);
-    // Offset der Arbeitslinie hinter/vor der Zugmaschine
-    const off = gd ? -(td.l * 0.38 + (gd.len - 6)) : (td.l * 0.2 + 14 + (td.typ === 'rodemaschine' ? 28 : 24));
-    const posAus = (arbeit) => {  // Arbeitslinie -> Position der Maschine
-      return { x: arbeit.x - Math.cos(arbeit.a) * off, y: arbeit.y - Math.sin(arbeit.a) * off, a: arbeit.a };
-    };
+    const breite = (gd ? gd.w : td.w) * K;
+    const d = (gd ? -(td.l * 0.38 + (gd.len - 6)) : (td.l * 0.2 + 14 + (td.typ === 'rodemaschine' ? 28 : 24))) * K;
+    const geo = einsatzGeo(job, breite, d);
     let pose, arbeitend = false, arbeitslinie = null;
-    const weg = M.wegPunkte(job.feld);
-    const startArbeit = aufBahn(b, 0);
-    const startPose = posAus(startArbeit);
-    const wegPts = weg.concat([{ x: startPose.x, y: startPose.y }]);
-    if (st.teil === 'hin') pose = entlang(wegPts, st.p);
-    else if (st.teil === 'rueck') {
-      const ende = posAus(aufBahn(b, 1));
-      pose = entlang([{ x: ende.x, y: ende.y }].concat(wegPts.slice().reverse()), st.p);
-    } else {
-      arbeitslinie = aufBahn(b, st.p);
-      pose = posAus(arbeitslinie);
-      arbeitend = true;
+    if (st.teil === 'hin') pose = entlangDicht(geo.hin, st.p);
+    else if (st.teil === 'rueck') pose = entlangDicht(geo.rueck, st.p);
+    else {
+      const r = refPose(geo.b, st.p);
+      pose = { x: r.x, y: r.y, a: r.a };
+      arbeitslinie = r.work; arbeitend = r.gerade;
     }
-    return { st, pose, arbeitend, arbeitslinie, b, tm, gm, td, gd };
+    return { st, pose, arbeitend, arbeitslinie, b: geo.b, tm, gm, td, gd };
   }
 
   function zeichneZugmaschine(ctx, m, x, y, a) {
     const d = D.def(m.id), s = G.fuerDef(d);
-    G.zeichne(ctx, s.koerper, x, y, a, true);
+    G.zeichne(ctx, s.koerper, x, y, a, true, K);
     if (s.rad) {
-      const ax = d.art === 'traktor' ? d.achs : -d.achs;
-      const hr = d.art === 'traktor' ? d.b * 0.34 : d.b * 0.46;
+      const ax = (d.art === 'traktor' ? d.achs : -d.achs) * K;
+      const hr = (d.art === 'traktor' ? d.b * 0.34 : d.b * 0.46) * K;
       [-1, 1].forEach(sd => {
         const lx = ax, ly = sd * hr;
-        G.zeichne(ctx, s.rad, x + Math.cos(a) * lx - Math.sin(a) * ly, y + Math.sin(a) * lx + Math.cos(a) * ly, a, false);
+        G.zeichne(ctx, s.rad, x + Math.cos(a) * lx - Math.sin(a) * ly, y + Math.sin(a) * lx + Math.cos(a) * ly, a, false, K);
       });
     }
   }
   function zeichneGeraetAm(ctx, g, tm, x, y, a) {
     const d = D.def(tm.id);
-    const hx = x - Math.cos(a) * d.l * 0.38, hy = y - Math.sin(a) * d.l * 0.38;
-    G.zeichne(ctx, G.fuerDef(D.def(g.id)).koerper, hx, hy, a, true);
+    const hx = x - Math.cos(a) * d.l * 0.38 * K, hy = y - Math.sin(a) * d.l * 0.38 * K;
+    G.zeichne(ctx, G.fuerDef(D.def(g.id)).koerper, hx, hy, a, true, K);
   }
 
   function staub(x, y, farbe, jetzt, dt) {
@@ -416,8 +496,8 @@ const FarmAnsicht = (function () {
       if (st.teil !== 'hin') {
         const p = st.teil === 'rueck' ? 1 : st.p;
         const gm = job.geraet ? M.maschine(job.geraet) : null, tm = M.maschine(job.traktor);
-        const breite = gm ? D.def(gm.id).w : D.def(tm.id).w;
-        const b = bahnen(d.id, breite);
+        const breite = (gm ? D.def(gm.id).w : D.def(tm.id).w) * K;
+        const b = bahnGeo(d.id, breite, 0);
         const nach = nachMuster(ctx, job, f);
         const tint = TINT[job.schritt];
         const u = p * b.n, li = Math.min(b.n - 1, Math.floor(u)), fr = u - li;
@@ -428,7 +508,7 @@ const FarmAnsicht = (function () {
         };
         // fertige Bahnen
         const fertigQuer = li >= b.n || p >= 1 ? b.quer : Math.min(b.quer, li * b.laneW);
-        const richtung = li % 2 === 0 ? 1 : -1;
+        const richtung = bahnRichtung(b, li);
         const teil = Math.min(1, fr / 0.9) * b.laenge;
         if (b.horizontal) {
           fuell(d.x, d.y, fw, fertigQuer);
@@ -493,6 +573,7 @@ const FarmAnsicht = (function () {
       zeichneFeld(ctx, d, S, jetzt, m);
     });
     zeichneTierhof(ctx, sicht, S, jetzt, t, m);
+    Object.keys(geoCache).forEach(k => { if (!S.jobs.some(j => String(j.id) === k)) delete geoCache[k]; });
     // Maschinen
     const park = parkplaetze(S);
     const einsaetze = {};
@@ -502,7 +583,7 @@ const FarmAnsicht = (function () {
       if (einsaetze[mm.uid]) return;
       const d = D.def(mm.id), p = park[mm.uid];
       if (p.x < sicht.x0 - 200 || p.x > sicht.x1 + 200 || p.y < sicht.y0 - 200 || p.y > sicht.y1 + 200) return;
-      if (d.art === 'geraet') G.zeichne(ctx, G.fuerDef(d).koerper, p.x, p.y - d.len * 0.5, -Math.PI / 2, true);
+      if (d.art === 'geraet') G.zeichne(ctx, G.fuerDef(d).koerper, p.x, p.y - d.len * 0.5 * K, -Math.PI / 2, true, K);
       else zeichneZugmaschine(ctx, mm, p.x, p.y, -Math.PI / 2);
     });
     // Einsatz
@@ -652,5 +733,5 @@ const FarmAnsicht = (function () {
   }
 
   baumeErzeugen();
-  return { zeichneWelt, zeichneWetter, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen, aufBahn };
+  return { zeichneWelt, zeichneWetter, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen };
 })();

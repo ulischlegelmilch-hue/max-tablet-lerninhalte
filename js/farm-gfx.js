@@ -42,9 +42,10 @@ const FarmGfx = (function () {
     g.fillRect(0, 0, c.width, c.height);
     return { c, ox: sp.ox, oy: sp.oy, w: sp.w, h: sp.h };
   }
-  function zeichne(ctx, sp, x, y, winkel, mitSchatten) {
+  function zeichne(ctx, sp, x, y, winkel, mitSchatten, skala) {
     ctx.save();
     ctx.translate(x, y); ctx.rotate(winkel);
+    if (skala && skala !== 1) ctx.scale(skala, skala);
     if (mitSchatten && sp.schatten) ctx.drawImage(sp.schatten.c, -sp.ox + 4, -sp.oy + 6, sp.w, sp.h);
     ctx.drawImage(sp.c, -sp.ox, -sp.oy, sp.w, sp.h);
     ctx.restore();

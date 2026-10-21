@@ -16,13 +16,19 @@ const Farm = (function () {
   let ausgang = null;
   let geldAnzeige = 0;
   let tempoKlicks = 0;
+  let bestaetigenFn = null;
   const zeiger = {};
 
   const fmt = n => Math.round(n).toLocaleString('de-DE');
   const fmt1 = n => (Math.round(n * 10) / 10).toLocaleString('de-DE');
   const tonnen = kg => (kg >= 100000 ? fmt(kg / 1000) : fmt1(kg / 1000)) + ' t';
   const meter = px => fmt1(px / D.PX_JE_M) + ' m';
-  const jetzt = () => Date.now();
+  // Gemeinsamer Hof: Ist fernKonfig gesetzt ({ basis, von: 'max'|'papa' }), liegt der Spielstand auf dem Pi (backend/farm-server.js).
+  // Dann rechnet NUR der Server die Zeit weiter; hier werden Befehle geschickt und der Stand per Poll geholt.
+  let fernKonfig = null;
+  let fern = null;
+  function konfig(c) { fernKonfig = c && c.fern ? c.fern : null; }
+  const jetzt = () => Date.now() + (fern ? fern.offset : 0);
   const stand = () => M.stand();
 
   // ----------------------------------------------------------------------------------------------
@@ -138,6 +144,24 @@ const Farm = (function () {
   .f-card b{font-size:14.5px;margin-top:4px}
   .f-card .s{font-size:12px;opacity:.9;line-height:1.35;margin-top:3px}
   .f-pips{display:inline-block;letter-spacing:2px;color:#ffd24a;font-size:13px;margin-left:6px}
+  .f-offline{position:absolute;left:50%;top:6px;transform:translateX(-50%);background:rgba(160,50,30,.95);border:1px solid #ff9a7a;border-radius:14px;padding:6px 16px;font-weight:700;font-size:14px;z-index:7;display:none}
+  .f-mit{background:rgba(32,100,48,.88)!important;border-color:#8cf09a!important}
+  .f-lade{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#1d2a1f;z-index:9;text-align:center;padding:20px}
+  .f-lade h2{margin:0 0 10px}.f-lade p{opacity:.85;max-width:420px;line-height:1.45;margin:0 0 14px}
+  .f-chronik{font-size:13px;line-height:1.5}.f-chronik b{color:#ffe27a}
+  @media (max-width:820px){
+    .f-top{padding:6px 8px}.f-geld{font-size:17px;min-width:100px;padding:5px 10px}.f-lvl,.f-wetter{font-size:12px;padding:4px 9px}
+    .f-links{margin-right:6px}.f-ib{width:44px;height:44px;font-size:21px;margin:0 0 16px 6px}.f-ib small{font-size:9.5px;bottom:-13px}
+    .f-hinweis>div{font-size:12.5px;padding:6px 10px;max-width:58vw}
+    .f-dlg{padding:6px}.f-box{border-radius:16px}.f-inhalt{padding:10px}.f-gitter{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+    .f-album{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.f-zeile{flex-wrap:wrap}.f-kauf{font-size:13.5px}
+    .f-toasts{width:94%;bottom:12px}.f-toast{font-size:13.5px}
+  }
+  @media (max-width:820px), (max-height:480px){
+    .f-btns{position:fixed;left:0;right:0;bottom:0;max-width:none;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;background:rgba(14,22,16,.93);padding:6px 8px 2px;border-top:1px solid rgba(255,255,255,.15);z-index:4;touch-action:pan-x}
+    .f-btns .f-ib{flex:0 0 auto;margin:0 8px 14px 0}
+    .f-zoom{bottom:86px}.f-toasts{bottom:88px}
+  }
   .f-wahl{display:inline-block;background:rgba(255,255,255,.14);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:700}
   `;
 
@@ -153,6 +177,7 @@ const Farm = (function () {
           <div class="f-pill f-lvl"><span id="f-lvl">Level 1</span><div class="bar"><div id="f-xp"></div></div></div>
           <div class="f-pill f-wetter" id="f-wetter" data-a="wetter">☀️ Sonnig</div>
           <div class="f-pill f-wetter" id="f-tag" data-a="tagTab">📅 Heute</div>
+          <div class="f-pill f-wetter f-mit" id="f-mit" style="display:none"></div>
         </div>
         <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
         <div class="f-btns">
@@ -168,6 +193,7 @@ const Farm = (function () {
         </div>
       </div>
       <div class="f-zoom"><button class="f-ib" data-a="zoom+">＋</button><button class="f-ib" data-a="zoom-">－</button></div>
+      <div class="f-offline" id="f-offline">⚠ Keine Verbindung zum Hof</div>
       <div class="f-toasts" id="f-toasts"></div>`;
     document.body.appendChild(wurzel);
     cv = wurzel.querySelector('#farm-cv');
@@ -175,7 +201,7 @@ const Farm = (function () {
     R = {
       geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
       hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), wetter: wurzel.querySelector('#f-wetter')
+      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), mit: wurzel.querySelector('#f-mit'), offline: wurzel.querySelector('#f-offline'), wetter: wurzel.querySelector('#f-wetter')
     };
     wurzel.addEventListener('click', klick);
     wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
@@ -196,6 +222,7 @@ const Farm = (function () {
   }
   function sichtbarkeit() {
     if (document.hidden) speichern();
+    else if (fern) fernPoll();
     else if (M.stand()) { M.simuliere(jetzt()); }
   }
   function groesse() {
@@ -319,6 +346,17 @@ const Farm = (function () {
   const sekText = sek => A.zeitText(sek * 1000);
   const einText = r => r.ein.map(z => (z.kg / 1000) + ' t ' + D.gut(z.gut).name).join(' + ');
   const GERAET_NAME = { grubber: 'Grubber', pflug: 'Pflug', saeen: 'Sämaschine', duenger: 'Düngerstreuer', walze: 'Walze', spritze: 'Feldspritze', kalk: 'Kalkstreuer' };
+
+  // Eigene Rueckfrage (window.confirm geht in den WebViews von Tablet und Papa-App nicht)
+  function bestaetigen(text, ja, jaText) {
+    confZu();
+    const d = document.createElement('div');
+    d.className = 'f-dlg'; d.id = 'f-conf'; d.style.zIndex = '8';
+    d.innerHTML = '<div class="f-box klein"><div class="f-kopf"><h2>Sicher?</h2></div><div class="f-inhalt"><div class="f-info">' + text + '</div><div class="f-btnreihe"><button class="f-kauf sek" data-a="confNein">Abbrechen</button><button class="f-kauf rot" data-a="confJa">' + (jaText || 'Ja') + '</button></div></div></div>';
+    wurzel.appendChild(d);
+    bestaetigenFn = ja;
+  }
+  function confZu() { const c = wurzel && wurzel.querySelector('#f-conf'); if (c) c.parentNode.removeChild(c); }
 
   // ----------------------------------------------------------------------------------------------
   // Dialog: Feld
@@ -759,10 +797,11 @@ const Farm = (function () {
       '<button class="f-kauf gruen" data-a="zu">▶ Weiterspielen</button>' +
       '<button class="f-kauf sek" data-a="hilfe">❓ So funktioniert\'s</button>' +
       '<button class="f-kauf sek" data-a="ton">' + (S.ton ? '🔊 Signaltöne: an' : '🔇 Signaltöne: aus') + '</button>' +
-      '<button class="f-kauf sek" data-a="neu">🗑 Neu anfangen</button>' +
+      (fern ? '' : '<button class="f-kauf sek" data-a="neu">🗑 Neu anfangen</button>') +
       '<button class="f-kauf sek" data-a="beenden">⬅ Hof verlassen</button></div>' +
       '<div class="f-info" style="margin-top:14px">Level ' + S.level + ' · ' + fmt(S.statistik.geerntet / 1000) + ' t geerntet · ' + fmt(S.statistik.verkauft) + ' € verkauft · ' + S.statistik.jobs + ' Arbeitsaufträge</div>' +
-      (tempoKlicks >= 5 ? '<div class="f-h3">Für Papa: Zeitraffer</div><div class="f-btnreihe">' + [1, 5, 20, 100].map(x => '<button class="f-kauf ' + (S.tempo === x ? 'gruen' : 'sek') + '" data-a="tempo" data-id="' + x + '">×' + x + '</button>').join('') + '</div><div class="f-info">Gilt für neu gestartete Arbeiten und Wachstum.</div>' : '') +
+      (fern && fern.log.length ? '<div class="f-h3">Was zuletzt passiert ist</div><div class="f-info f-chronik">' + fern.log.slice().reverse().map(e => '<b>' + MITSPIELER[e.von] + '</b> ' + e.text).join('<br>') + '</div>' : '') +
+      (tempoKlicks >= 5 && (!fern || fern.von === 'papa') ? '<div class="f-h3">Für Papa: Zeitraffer</div><div class="f-btnreihe">' + [1, 5, 20, 100].map(x => '<button class="f-kauf ' + (S.tempo === x ? 'gruen' : 'sek') + '" data-a="tempo" data-id="' + x + '">×' + x + '</button>').join('') + '</div><div class="f-info">Gilt für neu gestartete Arbeiten und Wachstum.</div>' : '') +
       '</div>', true);
   }
   function dialogHilfe() {
@@ -840,7 +879,10 @@ const Farm = (function () {
       case 'tempoKlick': tempoKlicks++; if (tempoKlicks === 5) dialogMenue(); return;
       case 'tempo': M.tempoSetzen(+id); toast('Zeitraffer ×' + id, 'gut', 'tempo'); return dialogMenue();
       case 'ton': S.ton = !S.ton; if (S.ton) tonStart(); return dialogMenue();
-      case 'neu': if (window.confirm('Wirklich alles löschen und neu anfangen?')) { M.neu(jetzt()); speichern(); dialogZu(); toast('Neuer Hof!', 'gut', 'neu'); } return;
+      case 'neu': bestaetigen('Wirklich alles löschen und neu anfangen?', () => { M.neu(jetzt()); M.simuliere(jetzt()); speichern(); dialogZu(); toast('Neuer Hof!', 'gut', 'neu'); }, 'Alles löschen'); return;
+      case 'confJa': { const fn = bestaetigenFn; bestaetigenFn = null; confZu(); if (fn) fn(); return; }
+      case 'confNein': bestaetigenFn = null; confZu(); return;
+      case 'fernNochmal': return fernStartVersuch();
       case 'beenden': return schliessen();
       case 'feldzurueck': dlg.sub = (dlg.sub && dlg.sub.frucht && dlg.sub.schritt === 'saeen') ? { schritt: 'saeen' } : null; return zeichneFeldDialog();
       case 'schritt': dlg.sub = { schritt: id }; return zeichneFeldDialog();
@@ -857,7 +899,7 @@ const Farm = (function () {
         if (ergebnis(r, 'Die Maschine fährt los!', 'gut')) { dlg.sub = null; zeichneFeldDialog(); speichern(); }
         return;
       }
-      case 'jobAbbruch': if (window.confirm('Arbeit wirklich abbrechen? Die Kosten sind weg.')) { M.arbeitAbbrechen(+id); dlg.sub = null; zeichneFeldDialog(); } return;
+      case 'jobAbbruch': bestaetigen('Arbeit wirklich abbrechen? Die Kosten sind weg.', () => { M.arbeitAbbrechen(+id); dlg.sub = null; zeichneFeldDialog(); }, 'Abbrechen'); return;
       case 'autoAn': if (ergebnis(M.autoSetzen(dlg.id, id), 'Der Fahrer übernimmt das Feld.')) zeichneFeldDialog(); return;
       case 'autoAus': M.autoSetzen(dlg.id, null); return zeichneFeldDialog();
       case 'zeigen': { const m = feldMitte(+id); dialogZu(); fliegeZu(m.x, m.y, 0.8); return; }
@@ -886,7 +928,7 @@ const Farm = (function () {
       case 'fuettern': { const r = M.fuettern(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter eingefüllt' : '', 'gut')) { zeichneTiere(); speichern(); } return; }
       case 'einsammeln': { const r = M.einsammeln(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(r.gut).name + ' im Lager' + (r.ueber > 1 ? ' (Silo voll: Rest verkauft)' : '') : '', 'geld')) { zeichneTiere(); speichern(); } return; }
       case 'reparieren': if (ergebnis(M.maschineReparieren(+id), 'Repariert!')) zeichneFuhrpark(); return;
-      case 'mverkauf': if (window.confirm('Maschine wirklich verkaufen?') && ergebnis(M.maschineVerkaufen(+id), 'Verkauft.', 'geld')) zeichneFuhrpark(); return;
+      case 'mverkauf': bestaetigen('Maschine wirklich verkaufen?', () => { if (ergebnis(M.maschineVerkaufen(+id), 'Verkauft.', 'geld')) zeichneFuhrpark(); }, 'Verkaufen'); return;
       default: return;
     }
   }
@@ -940,7 +982,7 @@ const Farm = (function () {
   // ----------------------------------------------------------------------------------------------
   // Ereignisse aus der Logik
   // ----------------------------------------------------------------------------------------------
-  function ereignisse(art, d) {
+  function ereignisBehandeln(art, d) {
     if (!wurzel) return;
     if (art === 'jobFertig') { toast(D.feld(d.job.feld).name + ': ' + D.SCHRITTE[d.job.schritt].name + ' fertig', 'gut', 'jf' + d.job.id); piep('fertig'); }
     else if (art === 'reif') { toast(D.feld(d.feld).name + ' ist erntereif! 🌾', 'gut', 'reif' + d.feld); piep('fertig'); }
@@ -983,6 +1025,13 @@ const Farm = (function () {
     const wt = M.wetter(jetzt());
     R.wetter.textContent = wt.icon + ' ' + wt.name;
     M.wetterGesehen(wt.id);
+    if (fern) {
+      R.offline.style.display = fern.ok ? 'none' : 'block';
+      const anderer = fern.von === 'papa' ? 'max' : 'papa';
+      const da = fern.ok && fern.online[anderer];
+      R.mit.style.display = da ? '' : 'none';
+      if (da) R.mit.textContent = (anderer === 'papa' ? '👨 Papa' : '👦 Max') + ' spielt mit';
+    }
     const tg = stand().tag;
     if (tg) { const fn = tg.aufgaben.filter(q => q.fertig).length, cl = tg.aufgaben.some(q => q.fertig && !q.abgeholt) || (tg.alle && !tg.bonusAbgeholt); R.tag.textContent = '📅 ' + fn + '/' + tg.aufgaben.length + (cl ? ' 🎁' : ''); R.tag.style.color = cl ? '#ffe27a' : ''; }
     const abh = M.abholbar();
@@ -1002,9 +1051,14 @@ const Farm = (function () {
     tSpiel += dt;
     const now = jetzt();
     timer.sim += dt;
-    if (timer.sim >= 0.25) { M.simuliere(now); timer.sim = 0; }
+    if (timer.sim >= 0.25) { if (!fern) M.simuliere(now); timer.sim = 0; }
     timer.speicher += dt;
     if (timer.speicher >= 10) { speichern(); timer.speicher = 0; }
+    if (fern) {
+      timer.poll = (timer.poll || 0) + dt;
+      const mitspieler = fern.online[fern.von === 'papa' ? 'max' : 'papa'];
+      if (timer.poll >= (mitspieler ? 1.5 : 4)) { timer.poll = 0; fernPoll(); }
+    }
     if (cam.ziel) {
       const k = Math.min(1, dt * 4);
       cam.x += (cam.ziel.x - cam.x) * k; cam.y += (cam.ziel.y - cam.y) * k; cam.z += (cam.ziel.z - cam.z) * k;
@@ -1020,15 +1074,23 @@ const Farm = (function () {
     A.zeichneBeschriftungen(g, cam, W, H, now, tSpiel);
     hudAktualisieren(dt);
     timer.dlg += dt;
-    if (dlg && timer.dlg >= 1 && !dlgAnfasst && Date.now() - dlgAnfassEnde > 500) {
-      timer.dlg = 0;
-      const t = dlg.typ;
-      if (t === 'feld') zeichneFeldDialog();
-      else if (t === 'auftraege') zeichneAuftraege();
-      else if (t === 'betriebe') zeichneBetriebe();
-      else if (t === 'felder') zeichneFelder();
-      else if (t === 'tiere') zeichneTiere();
-      else if (t === 'wetter') zeichneWetter();
+    if (dlg && timer.dlg >= 1 && !dlgAnfasst && Date.now() - dlgAnfassEnde > 500) { timer.dlg = 0; dialogAktualisieren(true); }
+  }
+  // Offenen Dialog neu zeichnen (live=true: nur die Dialoge mit laufenden Werten)
+  function dialogAktualisieren(live) {
+    if (!dlg || !stand()) return;
+    const t = dlg.typ;
+    if (t === 'feld') zeichneFeldDialog();
+    else if (t === 'auftraege') zeichneAuftraege();
+    else if (t === 'betriebe') zeichneBetriebe();
+    else if (t === 'felder') zeichneFelder();
+    else if (t === 'tiere') zeichneTiere();
+    else if (t === 'wetter') zeichneWetter();
+    else if (!live) {
+      if (t === 'shop') zeichneShop();
+      else if (t === 'lager') zeichneLager();
+      else if (t === 'fuhrpark') zeichneFuhrpark();
+      else if (t === 'sammlung') zeichneSammlung();
     }
   }
 
@@ -1036,6 +1098,14 @@ const Farm = (function () {
   // Speichern / Start / Ende
   // ----------------------------------------------------------------------------------------------
   function speichern() {
+    if (fern) {
+      // Gemeinsamer Hof: der Server speichert. Max' Tablet haelt zusaetzlich eine Kopie - geht der Server-Stand je verloren, wird sie wieder hochgeladen.
+      if (fern.von === 'max' && fern.ok && stand() && Date.now() - (fern.sicherung || 0) > 30000) {
+        fern.sicherung = Date.now();
+        try { localStorage.setItem(M.SPEICHER, M.speichern()); } catch (e) { /* Speicher voll/gesperrt */ }
+      }
+      return;
+    }
     try { localStorage.setItem(M.SPEICHER, M.speichern()); } catch (e) { /* Speicher voll/gesperrt */ }
   }
   let hoererGesetzt = false;
@@ -1043,16 +1113,27 @@ const Farm = (function () {
     if (wurzel) return;
     ausgang = beimSchliessen || null;
     baueOberflaeche();
+    if (!hoererGesetzt) { M.beiEreignis((a, d) => { if (!fern) ereignisBehandeln(a, d); }); hoererGesetzt = true; }
+    if (fernKonfig) {
+      fern = { basis: fernKonfig.basis || '', von: fernKonfig.von === 'papa' ? 'papa' : 'max', rev: -1, ev: -1, ok: false, offset: 0, inFlight: false, online: {}, logLetzte: -1, log: [], fehler: 0, orig: {} };
+      fernStartVersuch();
+      return;
+    }
+    lokalStarten();
+  }
+  function lokalStarten() {
     let roh = null;
     try { roh = localStorage.getItem(M.SPEICHER); } catch (e) { roh = null; }
     const erstes = !roh;
     const jetztMs = jetzt();
     if (!roh || !M.laden(roh, jetztMs)) { M.neu(jetztMs); M.simuliere(jetztMs); }
-    if (!hoererGesetzt) { M.beiEreignis(ereignisse); hoererGesetzt = true; }
+    spielStarten(erstes);
+  }
+  function spielStarten(erstes) {
     geldAnzeige = stand().geld;
     cam.x = 1720; cam.y = 1500; cam.z = Math.min(1, Math.max(0.45, Math.min(W / 1500, H / 1000))); cam.ziel = null;
     tempoKlicks = 0; dlg = null;
-    timer = { sim: 0, speicher: 0, hud: 0, dlg: 0 };
+    timer = { sim: 0, speicher: 0, hud: 0, dlg: 0, poll: 0 };
     laeuft = true; tLast = 0; tSpiel = 0;
     raf = requestAnimationFrame(frame);
     tonStart();
@@ -1061,11 +1142,142 @@ const Farm = (function () {
   function schliessen() {
     laeuft = false; cancelAnimationFrame(raf);
     speichern();
+    if (fern) fernAushaengen();
     if (ton) { try { ton.ac.close(); } catch (e) { /* egal */ } ton = null; }
     abbauen();
+    fern = null;
     if (ausgang) ausgang();
     else if (typeof App !== 'undefined' && App.renderSpieleMenu) App.renderSpieleMenu();
   }
+
+  // ----------------------------------------------------------------------------------------------
+  // Gemeinsamer Hof (Fern-Modus)
+  // ----------------------------------------------------------------------------------------------
+  // Befehle, die zum Server gehen: Name -> Anzahl Argumente (Zeit-Argument wird nicht mitgeschickt)
+  const FERN_BEFEHLE = {
+    feldKaufen: 1, maschineKaufen: 1, maschineVerkaufen: 1, maschineReparieren: 1, lagerAusbauen: 0, fahrerKaufen: 0, autoSetzen: 2,
+    arbeitStarten: 3, arbeitAbbrechen: 1, produktionBauen: 1, produktionAusbauen: 1, produktionStarten: 3, auftragLiefern: 1, verkaufen: 2,
+    stallBauen: 1, tierKaufen: 2, stallAusbauen: 1, automatKaufen: 1, fuettern: 1, einsammeln: 1, wetterstationKaufen: 0, beregnungKaufen: 1,
+    erfolgAbholen: 1, albumBonusAbholen: 1, tagAbholen: 1, tagBonusAbholen: 0, wetterGesehen: 1, tempoSetzen: 1
+  };
+  async function fernAnfrage(pfad, methode, body) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const t = setTimeout(() => { if (ctl) ctl.abort(); }, 9000);
+    try {
+      const r = await fetch(fern.basis + pfad, { method: methode, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined, signal: ctl ? ctl.signal : undefined });
+      if (r.status === 404) return { _status: 404 };
+      const j = await r.json();
+      j._status = r.status;
+      return j;
+    } finally { clearTimeout(t); }
+  }
+  function ladeAnzeige(titel, text, knopf) {
+    const alt = wurzel && wurzel.querySelector('#f-lade'); if (alt) alt.parentNode.removeChild(alt);
+    if (!wurzel) return;
+    const d = document.createElement('div');
+    d.className = 'f-lade'; d.id = 'f-lade';
+    d.innerHTML = '<h2>' + titel + '</h2><p>' + text + '</p>' + (knopf ? '<button class="f-kauf gruen" data-a="fernNochmal" style="min-width:200px">' + knopf + '</button><button class="f-kauf sek" data-a="beenden" style="min-width:200px">Zurück</button>' : '<div class="f-bal" style="width:200px"><div style="width:60%"></div></div>');
+    wurzel.appendChild(d);
+  }
+  function ladeWeg() { const l = wurzel && wurzel.querySelector('#f-lade'); if (l) l.parentNode.removeChild(l); }
+  async function fernStartVersuch() {
+    ladeAnzeige('Verbinde mit dem Hof …', 'Einen Moment, der gemeinsame Hof wird geladen.');
+    let j = null;
+    try { j = await fernPoll(true); } catch (e) { j = null; }
+    if (!wurzel) return;
+    if (!j && fern.nichtDa) { fern = null; ladeWeg(); lokalStarten(); return; }
+    if (!j) { ladeAnzeige('Keine Verbindung', 'Der gemeinsame Hof liegt im Internet. Prüfe das WLAN und versuche es noch einmal.', 'Nochmal versuchen'); return; }
+    if (!j.init) {
+      if (fern.von === 'papa') { ladeAnzeige('Der Hof wartet auf Max', 'Max hat den gemeinsamen Hof noch nicht eröffnet. Er muss die Hof-Farm einmal am Tablet starten – dann kannst du mitspielen.', 'Nochmal prüfen'); return; }
+      // Max: bisherigen Tablet-Hof uebernehmen oder neuen anlegen
+      let roh = null;
+      try { roh = localStorage.getItem(M.SPEICHER); } catch (e) { roh = null; }
+      let r = null;
+      try { r = roh ? await fernAnfrage('/api/farm/init', 'POST', { von: fern.von, state: roh }) : await fernAnfrage('/api/farm/neu', 'POST', { von: fern.von }); } catch (e) { r = null; }
+      if (!r || !r.init) { ladeAnzeige('Das hat nicht geklappt', 'Der Hof konnte nicht angelegt werden. Versuche es noch einmal.', 'Nochmal versuchen'); return; }
+      fern.erstes = !roh;
+      fernAnwenden(r.state, r.rev);
+      fern.ev = r.evLetzte; fern.ok = true;
+    }
+    if (!stand()) { ladeAnzeige('Das hat nicht geklappt', 'Der Hof konnte nicht geladen werden.', 'Nochmal versuchen'); return; }
+    fernEinhaengen();
+    ladeWeg();
+    spielStarten(!!fern.erstes);
+  }
+  function fernAnwenden(zustand, rev) {
+    if (!zustand) return;
+    const ton = stand() ? stand().ton : true;
+    M.laden(JSON.stringify(zustand), null);
+    if (stand()) stand().ton = ton;
+    fern.rev = rev;
+  }
+  // Pollt den Server: Stand (wenn neu), Ereignisse, Protokoll, Mitspieler-Anzeige. true = erster Abruf (ohne Ereignisse)
+  async function fernPoll(erst) {
+    if (fern.inFlight) return null;
+    fern.inFlight = true;
+    const t0 = Date.now();
+    try {
+      const j = await fernAnfrage('/api/farm?von=' + fern.von + '&rev=' + (erst ? -1 : fern.rev) + (fern.ev >= 0 && !erst ? '&ev=' + fern.ev : ''), 'GET');
+      if (!fern) return null;
+      if (j._status === 404) { fern.nichtDa = true; return null; }
+      fern.ok = true; fern.fehler = 0;
+      fern.offset = j.zeit - (t0 + Date.now()) / 2;
+      fern.online = j.online || {};
+      if (j.init) {
+        if (j.state && j.rev >= fern.rev) { fernAnwenden(j.state, j.rev); if (!erst && !dlgAnfasst) dialogAktualisieren(false); }
+        if (fern.ev >= 0 && j.ereignisse) j.ereignisse.forEach(e => ereignisBehandeln(e.art, e.daten));
+        fern.ev = j.evLetzte;
+        fernLog(j.log || []);
+      }
+      return j;
+    } catch (e) {
+      if (fern) { fern.fehler++; if (fern.fehler >= 2) fern.ok = false; }
+      return null;
+    } finally { if (fern) fern.inFlight = false; }
+  }
+  const MITSPIELER = { max: '👦 Max', papa: '👨 Papa' };
+  function fernLog(liste) {
+    fern.log = liste;
+    const hoechste = liste.reduce((a, e) => Math.max(a, e.id), 0);
+    if (fern.logLetzte < 0) { fern.logLetzte = hoechste; return; }
+    liste.forEach(e => { if (e.id > fern.logLetzte && e.von !== fern.von) toast(MITSPIELER[e.von] + ' ' + e.text, 'gut', 'mit' + e.id); });
+    fern.logLetzte = Math.max(fern.logLetzte, hoechste);
+  }
+  // Befehle abfangen: lokal sofort ausfuehren (damit die Anzeige direkt reagiert) UND zum Server schicken, der Server-Stand gewinnt
+  function fernEinhaengen() {
+    Object.keys(FERN_BEFEHLE).forEach(n => {
+      const orig = M[n];
+      fern.orig[n] = orig;
+      M[n] = function () {
+        const args = Array.prototype.slice.call(arguments, 0, FERN_BEFEHLE[n]);
+        if (!fern || !fern.ok) return { ok: false, grund: 'Keine Verbindung zum Hof – bitte WLAN prüfen.' };
+        if (n === 'wetterGesehen' && stand().album.wetter[args[0]]) return undefined;
+        const r = orig.apply(M, arguments);
+        if (r && r.ok === false) return r;
+        fernSenden(n, args);
+        return r;
+      };
+    });
+  }
+  function fernAushaengen() {
+    Object.keys(fern.orig).forEach(n => { M[n] = fern.orig[n]; });
+    fern.orig = {};
+  }
+  async function fernSenden(name, args) {
+    try {
+      const r = await fernAnfrage('/api/farm/befehl', 'POST', { von: fern.von, name, args });
+      if (!fern) return;
+      fern.ok = true;
+      fern.offset = r.zeit - Date.now();
+      if (r.state && r.rev >= fern.rev) fernAnwenden(r.state, r.rev);
+      if (r.ok === false && r.grund) { toast(r.grund, 'warn', 'ferngrund'); piep('fehler'); }
+      dialogAktualisieren(false);
+      if (r.log) fernLog(r.log);
+    } catch (e) {
+      if (fern) { fern.ok = false; toast('Verbindung weg – die letzte Aktion wurde nicht gespeichert.', 'warn', 'ferngrund'); }
+    }
+  }
+
   function fortschrittText() {
     try {
       const raw = JSON.parse(localStorage.getItem(M.SPEICHER) || 'null');
@@ -1075,7 +1287,7 @@ const Farm = (function () {
   }
 
   return {
-    oeffnen, schliessen, fortschrittText,
-    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, dialogSammlung, hinweisBerechnen, cam, toast, speichern }
+    oeffnen, schliessen, fortschrittText, konfig,
+    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, dialogSammlung, get fern() { return fern; }, fernPoll: () => fern && fernPoll(), hinweisBerechnen, cam, toast, speichern }
   };
 })();

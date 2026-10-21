@@ -4,7 +4,7 @@
 const FarmModell = (function () {
   const D = FarmDaten;
   const KMH_PX = 4.2;                 // Pixel/s je km/h (nur fuer Wegzeiten)
-  const TRANSPORT_KMH = 28;
+  const TRANSPORT_KMH = 14;
   const SPEICHER = 'maxlernt_farm_v2';
   let S = null;
   const hoerer = [];
@@ -218,7 +218,7 @@ const FarmModell = (function () {
     while (S.xp >= D.xpFuerLevel(S.level)) {
       S.xp -= D.xpFuerLevel(S.level);
       S.level++;
-      const bonus = S.level * 500;
+      const bonus = Math.min(S.level, 60) * 150;
       S.geld += bonus;
       ereignis('level', { level: S.level, bonus });
     }
@@ -241,8 +241,7 @@ const FarmModell = (function () {
     S.geld += erloes;
     S.preise[gutId] = zahl(S.preise[gutId] - 0.05 * (kg / 20000), D.PREIS_MIN, D.PREIS_MAX);
     S.statistik.verkauft += erloes;
-    xpGeben(Math.round(erloes / 80));
-    if (S.anfang) { S.anfang = false; ereignis('anfangEnde'); }
+    xpGeben(Math.round(erloes / 200));
     return { ok: true, erloes, kg };
   }
 
@@ -438,8 +437,9 @@ const FarmModell = (function () {
       f.boden = Math.max(20, f.boden - 10);
       f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; f.frucht = null; f.fort = 0; f.dauer = 0; f.phase = 'stoppel';
       ereignis('ernte', { feld: j.feld, gut: fr.id, kg, ueber: r.rest, erloes: r.erloes });
+      if (S.anfang) { S.anfang = false; ereignis('anfangEnde'); }
     }
-    xpGeben(Math.round(ha * st.xp));
+    xpGeben(Math.round(ha * st.xp * D.XP_FAKTOR));
     // Verschleiss
     const m1 = maschine(j.traktor), m2 = j.geraet && maschine(j.geraet);
     const stunden = j.arbeit * tempoFaktorAlt(j) / 3600000;
@@ -659,7 +659,7 @@ const FarmModell = (function () {
     let kg = Math.round(rnd(k.kleinst, k.groesst) / schritt) * schritt;
     kg = Math.max(kg, k.kleinst - (k.kleinst % schritt) || schritt);
     const lohn = Math.round(kg / 1000 * grundPreis(k.id) * rnd(1.3, 1.7) / 50) * 50;
-    return { id: S.nextId++, gut: k.id, kg, lohn, xp: 100 + Math.round(lohn / 100), bis: jetzt + Math.round(rnd(6, 20) * 3600000) };
+    return { id: S.nextId++, gut: k.id, kg, lohn, xp: 40 + Math.round(lohn / 250), bis: jetzt + Math.round(rnd(6, 20) * 3600000) };
   }
   function auftragLiefern(id) {
     const a = S.auftraege.find(x => x.id === id);
@@ -894,6 +894,7 @@ const FarmModell = (function () {
     S.zeit = jetzt;
     schritt(jetzt);
     autoPlaner(jetzt);
+    if (S.anfang && jetzt - S.erstellt > 3 * 3600000) { S.anfang = false; ereignis('anfangEnde'); }
     tagVermerken(jetzt);
     tagPruefen(jetzt);
     erfolgePruefen();
