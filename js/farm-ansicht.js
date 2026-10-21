@@ -19,7 +19,7 @@ const FarmAnsicht = (function () {
   }
   function kachelMuster(ctx, art, frucht, stufe) {
     const key = art + '|' + frucht + '|' + stufe;
-    if (!musterCache[key]) musterCache[key] = ctx.createPattern(G.kachel(art, frucht, stufe, 0), 'repeat');
+    if (!musterCache[key]) musterCache[key] = G.muster(ctx, G.kachel(art, frucht, stufe, 0));
     return musterCache[key];
   }
   function stufeVon(w) { return w < 0.1 ? 0 : w < 0.35 ? 1 : w < 0.65 ? 2 : 3; }
@@ -75,6 +75,7 @@ const FarmAnsicht = (function () {
     sperr.push({ x: D.HOF.x - 50, y: D.HOF.y - 50, w: D.HOF.w + 100, h: D.HOF.h + 100 });
     sperr.push({ x: D.PLATZ_LANDHANDEL.x - 50, y: D.PLATZ_LANDHANDEL.y - 50, w: D.PLATZ_LANDHANDEL.w + 100, h: D.PLATZ_LANDHANDEL.h + 450 });
     D.GEBAEUDE.forEach(g => sperr.push({ x: g.x - 70, y: g.y - 70, w: g.w + 140, h: g.h + 140 }));
+    D.DEKO.forEach(g => { const w = g.w || g.r * 2, h = g.h || g.r * 2; sperr.push({ x: (g.art === 'windrad' ? g.x - g.r : g.x) - 40, y: (g.art === 'windrad' ? g.y - g.r : g.y) - 40, w: w + 80, h: h + 80 }); });
     D.PRODUKTION.forEach(g => sperr.push({ x: g.x - 50, y: g.y - 50, w: g.w + 100, h: g.h + 100 }));
     sperr.push({ x: D.TIERHOF.x - 60, y: D.TIERHOF.y - 60, w: D.TIERHOF.w + 120, h: D.TIERHOF.h + 120 });
     for (let n = 0; n < 2600 && baeume.length < 520; n++) {
@@ -296,42 +297,184 @@ const FarmAnsicht = (function () {
     const w = Math.random() * 6.283;
     partikel.push({ x, y, vx: Math.cos(w) * 14, vy: Math.sin(w) * 14, t: 0, max: 0.6 + Math.random() * 0.7, farbe, r: 2 + Math.random() * 3 });
   }
+  // Rauch/Dampf: steigt langsam auf, wird groesser und blasser (Auspuff, Schornstein)
+  function rauch(x, y, jetzt, dt, rate, hell) {
+    if (partikel.length > 170 || Math.random() > dt * rate) return;
+    partikel.push({ x: x + (Math.random() - 0.5) * 3, y, vx: 5 + Math.random() * 5, vy: -(9 + Math.random() * 6), t: 0, max: 1.1 + Math.random() * 0.9, farbe: hell ? 'rgb(236,236,232)' : 'rgb(120,120,118)', r: 2 + Math.random() * 1.5, rauch: true });
+  }
   function partikelStep(dt) {
     for (let i = partikel.length - 1; i >= 0; i--) {
       const p = partikel[i];
       p.t += dt;
       if (p.t >= p.max) { partikel.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.97; p.vy *= 0.97;
+      p.x += p.vx * dt; p.y += p.vy * dt; if (!p.rauch) { p.vx *= 0.97; p.vy *= 0.97; }
     }
   }
 
   // ----------------------------------------------------------------------------------------------
   // Gebaeude
   // ----------------------------------------------------------------------------------------------
-  function dach(ctx, x, y, w, h, farbe) {
-    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.fillRect(x + 8, y + 10, w, h);
-    const gr = ctx.createLinearGradient(x, y, x, y + h);
-    gr.addColorStop(0, G.abdunkeln(farbe, 0.2)); gr.addColorStop(0.5, farbe); gr.addColorStop(1, G.abdunkeln(farbe, -0.25));
-    ctx.fillStyle = gr; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
-    ctx.beginPath();
-    if (w >= h) for (let xx = x + 10; xx < x + w; xx += 10) { ctx.moveTo(xx, y); ctx.lineTo(xx, y + h); }
-    else for (let yy = y + 10; yy < y + h; yy += 10) { ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); }
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
-    ctx.beginPath(); if (w >= h) { ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2); } else { ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); } ctx.stroke();
+  // Satteldach in der Draufsicht: zwei Dachflaechen (hell/dunkel), Firstlinie, Ziegelreihen, Dachfenster, Dachrand und Schatten.
+  // Einmal in ein Bild gezeichnet (gecacht), danach nur noch drawImage.
+  const dachCache = {};
+  function dach(ctx, x, y, w, h, farbe, stil) {
+    const key = [w, h, farbe, stil || ''].join('|');
+    let sp = dachCache[key];
+    if (!sp) {
+      sp = dachCache[key] = G.sprite(-14, -14, w + 24, h + 26, g => {
+        g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(9, 12, w, h);
+        const quer = w >= h, firstL = quer ? h / 2 : w / 2;
+        const hell = G.abdunkeln(farbe, 0.16), dunkel = G.abdunkeln(farbe, -0.28);
+        // Dachflaechen
+        const a = quer ? [0, 0, w, firstL] : [0, 0, firstL, h], b = quer ? [0, firstL, w, h - firstL] : [firstL, 0, w - firstL, h];
+        const ga = quer ? g.createLinearGradient(0, 0, 0, firstL) : g.createLinearGradient(0, 0, firstL, 0);
+        ga.addColorStop(0, G.abdunkeln(farbe, 0.08)); ga.addColorStop(1, hell);
+        g.fillStyle = ga; g.fillRect(a[0], a[1], a[2], a[3]);
+        const gb = quer ? g.createLinearGradient(0, firstL, 0, h) : g.createLinearGradient(firstL, 0, w, 0);
+        gb.addColorStop(0, G.abdunkeln(farbe, -0.12)); gb.addColorStop(1, dunkel);
+        g.fillStyle = gb; g.fillRect(b[0], b[1], b[2], b[3]);
+        // Dachbelag
+        g.lineWidth = 1;
+        if (stil === 'blech') {
+          g.strokeStyle = 'rgba(255,255,255,0.20)'; g.beginPath();
+          if (quer) for (let xx = 6; xx < w; xx += 7) { g.moveTo(xx, 0); g.lineTo(xx, h); } else for (let yy = 6; yy < h; yy += 7) { g.moveTo(0, yy); g.lineTo(w, yy); }
+          g.stroke();
+          g.strokeStyle = 'rgba(0,0,0,0.16)'; g.beginPath();
+          if (quer) for (let xx = 9.5; xx < w; xx += 7) { g.moveTo(xx, 0); g.lineTo(xx, h); } else for (let yy = 9.5; yy < h; yy += 7) { g.moveTo(0, yy); g.lineTo(w, yy); }
+          g.stroke();
+        } else {
+          g.strokeStyle = 'rgba(0,0,0,0.20)'; g.beginPath();
+          const reihen = quer ? h : w;
+          for (let r = 7; r < reihen; r += 7) { if (Math.abs(r - firstL) < 3) continue; if (quer) { g.moveTo(0, r); g.lineTo(w, r); } else { g.moveTo(r, 0); g.lineTo(r, h); } }
+          g.stroke();
+          g.strokeStyle = 'rgba(0,0,0,0.10)'; g.beginPath();
+          for (let r = 7, k = 0; r < reihen; r += 7, k++) {
+            if (Math.abs(r - firstL) < 3) continue;
+            const lang = quer ? w : h;
+            for (let q = (k % 2) * 6; q < lang; q += 12) { if (quer) { g.moveTo(q, r); g.lineTo(q, r - 7); } else { g.moveTo(r, q); g.lineTo(r - 7, q); } }
+          }
+          g.stroke();
+        }
+        // First
+        g.fillStyle = G.abdunkeln(farbe, 0.3);
+        if (quer) g.fillRect(0, firstL - 2, w, 4); else g.fillRect(firstL - 2, 0, 4, h);
+        g.fillStyle = 'rgba(0,0,0,0.25)';
+        if (quer) g.fillRect(0, firstL + 2, w, 1.5); else g.fillRect(firstL + 2, 0, 1.5, h);
+        // Dachfenster auf der hellen Seite
+        if ((quer ? w : h) > 130) {
+          const n = Math.floor((quer ? w : h) / 90);
+          for (let k = 0; k < n; k++) {
+            const t = ((k + 0.5) / n) * (quer ? w : h);
+            const fx = quer ? t - 11 : firstL * 0.35, fy = quer ? firstL * 0.28 : t - 11, fw = quer ? 22 : 16, fh = quer ? 16 : 22;
+            g.fillStyle = 'rgba(30,40,50,0.55)'; g.fillRect(fx - 2, fy - 2, fw + 4, fh + 4);
+            const gl = g.createLinearGradient(fx, fy, fx + fw, fy + fh); gl.addColorStop(0, '#bfe3f7'); gl.addColorStop(1, '#6fa6c8');
+            g.fillStyle = gl; g.fillRect(fx, fy, fw, fh);
+            g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(fx + 1, fy + 1, fw * 0.4, fh * 0.35);
+          }
+        }
+        // Rand / Traufe
+        g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 2; g.strokeRect(0, 0, w, h);
+        g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 1; g.strokeRect(2, 2, w - 4, h - 4);
+      });
+    }
+    ctx.drawImage(sp.c, x - sp.ox, y - sp.oy, sp.w, sp.h);
+  }
+
+  // Kleine Bauteile, gecacht
+  const teilCache = {};
+  function teil(key, w, h, fn) {
+    if (!teilCache[key]) teilCache[key] = G.sprite(0, 0, w, h, fn);
+    return teilCache[key];
+  }
+  function zeichneTeil(ctx, sp, x, y) { ctx.drawImage(sp.c, x, y, sp.w, sp.h); }
+
+  function zeichneKamin(ctx, x, y) {
+    const sp = teil('kamin', 20, 22, g => {
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(3, 4, 14, 16);
+      g.fillStyle = '#8a7060'; g.fillRect(2, 2, 14, 16);
+      g.fillStyle = '#a88a76'; g.fillRect(2, 2, 14, 4);
+      g.fillStyle = '#2a1e18'; g.fillRect(5, 6, 8, 8);
+      g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1; g.strokeRect(2, 2, 14, 16);
+    });
+    zeichneTeil(ctx, sp, x, y);
+  }
+  function zeichneLuefter(ctx, x, y, t) {
+    const sp = teil('luefterfuss', 26, 26, g => {
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.arc(14, 15, 11, 0, 7); g.fill();
+      g.fillStyle = '#9aa3aa'; g.beginPath(); g.arc(13, 13, 11, 0, 7); g.fill();
+      g.strokeStyle = '#5c666d'; g.lineWidth = 1.5; g.stroke();
+      g.fillStyle = '#3a4248'; g.beginPath(); g.arc(13, 13, 8, 0, 7); g.fill();
+    });
+    zeichneTeil(ctx, sp, x - 13, y - 13);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(t * 5); ctx.fillStyle = '#c9d0d5';
+    for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.ellipse(4.5, 0, 4.5, 1.8, 0, 0, 7); ctx.fill(); }
+    ctx.restore();
+  }
+
+  function zeichneDeko(ctx, sicht, jetzt) {
+    const t = jetzt / 1000;
+    D.DEKO.forEach(d => {
+      const w = d.w || d.r * 2, h = d.h || d.r * 2, x0 = d.art === 'windrad' ? d.x - d.r : d.x, y0 = d.art === 'windrad' ? d.y - d.r : d.y;
+      if (x0 > sicht.x1 || x0 + w < sicht.x0 || y0 > sicht.y1 || y0 + h < sicht.y0) return;
+      if (d.art === 'scheune') {
+        dach(ctx, d.x, d.y, d.w, d.h, d.dach);
+        ctx.fillStyle = '#4a2c1c'; ctx.fillRect(d.x + d.w / 2 - 28, d.y + d.h - 4, 56, 9);
+        ctx.strokeStyle = '#e8d2a6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(d.x + d.w / 2 - 28, d.y + d.h - 4); ctx.lineTo(d.x + d.w / 2, d.y + d.h + 5); ctx.lineTo(d.x + d.w / 2 + 28, d.y + d.h - 4); ctx.moveTo(d.x + d.w / 2, d.y + d.h - 4); ctx.lineTo(d.x + d.w / 2, d.y + d.h + 5); ctx.stroke();
+        schildText(ctx, 'SCHEUNE', d.x + d.w / 2, d.y + d.h / 2 - 4, 14, '#fff3e0');
+      } else if (d.art === 'heu') {
+        [[22, 24], [58, 24], [94, 24], [40, 50], [76, 50], [58, 14]].forEach(([bx, by], k) => {
+          const x = d.x + bx, y = d.y + by, r = 17;
+          ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(x + 4, y + 6, r, r * 0.9, 0, 0, 7); ctx.fill();
+          const gr = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, r); gr.addColorStop(0, '#ecd27a'); gr.addColorStop(1, '#bf9a3c');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+          ctx.strokeStyle = 'rgba(120,85,20,0.5)'; ctx.lineWidth = 1;
+          for (let q = 4; q < r; q += 4) { ctx.beginPath(); ctx.arc(x, y, q, 0, 7); ctx.stroke(); }
+          ctx.strokeStyle = 'rgba(90,60,20,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+        });
+      } else if (d.art === 'garten') {
+        ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(d.x + 4, d.y + 5, d.w, d.h);
+        ctx.fillStyle = '#7a5a36'; ctx.fillRect(d.x, d.y, d.w, d.h);
+        ctx.fillStyle = '#5d4128'; ctx.fillRect(d.x + 4, d.y + 4, d.w - 8, d.h - 8);
+        const farben = ['#6bbf3f', '#8ad14f', '#4ea83a', '#c9d44a'];
+        for (let r = 0; r < 4; r++) {
+          const by = d.y + 10 + r * 22;
+          ctx.fillStyle = '#6b4a2e'; ctx.fillRect(d.x + 10, by, d.w - 20, 15);
+          for (let q = 0; q < 9; q++) { ctx.fillStyle = farben[(r + q) % 4]; ctx.beginPath(); ctx.arc(d.x + 18 + q * ((d.w - 36) / 8), by + 7.5, 4.2, 0, 7); ctx.fill(); }
+          ctx.fillStyle = ['#e8452c', '#f2a81a', '#e8556b', '#b36bd6'][r]; for (let q = 0; q < 4; q++) { ctx.beginPath(); ctx.arc(d.x + 28 + q * 30, by + 5, 2, 0, 7); ctx.fill(); }
+        }
+        ctx.strokeStyle = '#8a6238'; ctx.lineWidth = 3; ctx.strokeRect(d.x, d.y, d.w, d.h);
+      } else if (d.art === 'windrad') {
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(d.x + 8, d.y + 12, 9, 7, 0, 0, 7); ctx.fill();
+        const wind = t * 1.4 + 0.8 * Math.sin(t * 0.3);
+        ctx.save(); ctx.translate(d.x + 7, d.y + 9); ctx.rotate(wind); ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        for (let k = 0; k < 3; k++) { ctx.rotate(Math.PI * 2 / 3); ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(d.r, -2); ctx.lineTo(d.r, 4); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill(); }
+        ctx.restore();
+        ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(wind);
+        for (let k = 0; k < 3; k++) {
+          ctx.rotate(Math.PI * 2 / 3);
+          ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(d.r, -1.2); ctx.lineTo(d.r, 3.2); ctx.lineTo(0, 3); ctx.closePath(); ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 0.8; ctx.stroke();
+        }
+        ctx.restore();
+        ctx.fillStyle = '#cfd3d6'; ctx.beginPath(); ctx.arc(d.x, d.y, 6, 0, 7); ctx.fill();
+        ctx.fillStyle = '#d8402c'; ctx.beginPath(); ctx.arc(d.x, d.y, 3.4, 0, 7); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(d.x, d.y, 6, 0, 7); ctx.stroke();
+      }
+    });
   }
   function zeichneGebaeude(ctx, sicht, S, jetzt) {
     D.GEBAEUDE.forEach(g => {
       if (g.x > sicht.x1 || g.x + g.w < sicht.x0 || g.y > sicht.y1 || g.y + g.h < sicht.y0) return;
-      dach(ctx, g.x, g.y, g.w, g.h, g.dach);
+      dach(ctx, g.x, g.y, g.w, g.h, g.dach, g.art === 'halle' || g.art === 'haendler' ? 'blech' : '');
       if (g.art === 'halle') {
         ctx.fillStyle = '#2b2a2a'; ctx.fillRect(g.x + 30, g.y + g.h - 8, g.w - 60, 8);
         schildText(ctx, 'MASCHINENHALLE', g.x + g.w / 2, g.y + g.h / 2 - 6, 18, '#fff3e0');
       } else if (g.art === 'haus') {
-        ctx.fillStyle = '#7b6a5a'; ctx.fillRect(g.x + 120, g.y + 14, 14, 18);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(g.x + 122, g.y + 16, 10, 12);
+        zeichneKamin(ctx, g.x + 118, g.y + 9);
+        // Haustuer mit Stufe und Blumenkasten
+        ctx.fillStyle = '#5a3a24'; ctx.fillRect(g.x + g.w / 2 - 12, g.y + g.h - 4, 24, 8); ctx.fillStyle = '#c9a56a'; ctx.fillRect(g.x + g.w / 2 + 6, g.y + g.h + 1, 3, 2);
+        ctx.fillStyle = '#d9d2c0'; ctx.fillRect(g.x + g.w / 2 - 16, g.y + g.h + 4, 32, 5);
+        ['#e8556b', '#f2c21a', '#e8556b', '#ffffff', '#f2c21a'].forEach((c, k) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(g.x + 20 + k * 9, g.y + g.h + 3, 2.6, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(g.x + g.w - 56 + k * 9, g.y + g.h + 3, 2.6, 0, 7); ctx.fill(); });
         schildText(ctx, 'HOF', g.x + g.w / 2, g.y + g.h / 2 + 22, 20, '#ffe9d6');
       } else if (g.art === 'handel') {
         ctx.fillStyle = '#e9edf0'; ctx.fillRect(g.x + 20, g.y + 20, g.w - 40, 16);
@@ -340,6 +483,10 @@ const FarmAnsicht = (function () {
       } else if (g.art === 'haendler') {
         ctx.fillStyle = '#c8202a'; ctx.fillRect(g.x, g.y + g.h * 0.42, g.w, g.h * 0.16);
         schildText(ctx, 'TRAKTOR-HÄNDLER', g.x + g.w / 2, g.y + g.h * 0.5, 22, '#fff');
+        for (let k = 0; k < 6; k++) {   // Wimpelkette
+          const fx = g.x + 30 + k * ((g.w - 60) / 5), wv = Math.sin(jetzt / 400 + k) * 2;
+          ctx.fillStyle = ['#e8452c', '#f2c21a', '#2e8b3c', '#1d5fb0'][k % 4]; ctx.beginPath(); ctx.moveTo(fx - 5, g.y + g.h + 6); ctx.lineTo(fx + 5, g.y + g.h + 6); ctx.lineTo(fx + wv, g.y + g.h + 18); ctx.closePath(); ctx.fill();
+        }
         ctx.fillStyle = 'rgba(120,150,175,0.65)'; ctx.fillRect(g.x + 14, g.y + g.h - 24, g.w - 28, 14);
       }
     });
@@ -371,7 +518,8 @@ const FarmAnsicht = (function () {
         schildText(ctx, 'BAUPLATZ', b.x + b.w / 2, b.y + b.h / 2 + 18, 12, '#ffe27a');
         schildText(ctx, b.name + (S.level < b.lvl ? ' · Lvl ' + b.lvl : ''), b.x + b.w / 2, b.y + b.h / 2 + 34, 12, '#fff');
       } else {
-        dach(ctx, b.x, b.y, b.w, b.h, b.dach);
+        dach(ctx, b.x, b.y, b.w, b.h, b.dach, 'blech');
+        zeichneLuefter(ctx, b.x + b.w * 0.78, b.y + 17, p.queue.length ? jetzt / 1000 : 0);
         schildText(ctx, b.icon, b.x + b.w / 2, b.y + b.h / 2 - 12, 34, '#fff');
         schildText(ctx, b.name, b.x + b.w / 2, b.y + b.h / 2 + 22, 13, '#fff');
         const q = p.queue[0];
@@ -575,6 +723,24 @@ const FarmAnsicht = (function () {
         }
       }
     }
+    // Leben auf dem Feld: Wind laeuft ueber die Pflanzen, reife Felder funkeln
+    if (fein && !job && (f.phase === 'reif' || (f.phase === 'waechst' && wachstum >= 0.35))) {
+      const ts = jetzt / 1000, ph = (ts * 0.11 + d.id * 0.37) % 1, cx = d.x + (ph * 1.7 - 0.35) * fw, bw = fw * 0.22 + 30;
+      const wg = ctx.createLinearGradient(cx - bw, 0, cx + bw, 0);
+      wg.addColorStop(0, 'rgba(255,255,230,0)'); wg.addColorStop(0.5, 'rgba(255,255,230,' + (f.phase === 'reif' ? 0.13 : 0.09) + ')'); wg.addColorStop(1, 'rgba(255,255,230,0)');
+      ctx.fillStyle = wg; ctx.fillRect(d.x, d.y, fw, fh);
+      if (f.phase === 'reif') {
+        ctx.strokeStyle = 'rgba(255,226,122,' + (0.35 + 0.3 * Math.sin(ts * 3.2)) + ')'; ctx.lineWidth = 5; ctx.strokeRect(d.x + 2.5, d.y + 2.5, fw - 5, fh - 5);
+        for (let i = 0; i < 7; i++) {
+          const a2 = 0.5 + 0.5 * Math.sin(ts * 2.6 + i * 1.9);
+          if (a2 < 0.35) continue;
+          const sx = d.x + 14 + hz(d.id * 13 + i) * (fw - 28), sy = d.y + 14 + hz(d.id * 7 + i + 40) * (fh - 28), r = 3 + 5 * a2;
+          ctx.fillStyle = 'rgba(255,246,190,' + a2 * 0.9 + ')';
+          ctx.beginPath(); ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.28, sy - r * 0.28); ctx.lineTo(sx + r, sy); ctx.lineTo(sx + r * 0.28, sy + r * 0.28);
+          ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.28, sy + r * 0.28); ctx.lineTo(sx - r, sy); ctx.lineTo(sx - r * 0.28, sy - r * 0.28); ctx.closePath(); ctx.fill();
+        }
+      }
+    }
     // Rand
     ctx.strokeStyle = 'rgba(90,60,30,0.9)'; ctx.lineWidth = 3; ctx.strokeRect(d.x - 1.5, d.y - 1.5, fw + 3, fh + 3);
     // leichte Innenschatten
@@ -587,8 +753,10 @@ const FarmAnsicht = (function () {
   // ----------------------------------------------------------------------------------------------
   // Welt zeichnen
   // ----------------------------------------------------------------------------------------------
+  let fein = true;   // Feinheiten (Windschimmer, Funkeln) nur, wenn nah genug herangezoomt
   function zeichneWelt(ctx, cam, W, H, t, jetzt, dt) {
     const S = M.stand();
+    fein = cam.z >= 0.55;
     const m = musterHolen(ctx);
     const sicht = { x0: cam.x - W / 2 / cam.z - 80, y0: cam.y - H / 2 / cam.z - 80, x1: cam.x + W / 2 / cam.z + 80, y1: cam.y + H / 2 / cam.z + 80 };
     ctx.fillStyle = m.gras; ctx.fillRect(sicht.x0, sicht.y0, sicht.x1 - sicht.x0, sicht.y1 - sicht.y0);
@@ -640,19 +808,33 @@ const FarmAnsicht = (function () {
     S.jobs.forEach(j => {
       const po = jobPosen(j, jetzt);
       if (po.pose.x < sicht.x0 - 300 || po.pose.x > sicht.x1 + 300 || po.pose.y < sicht.y0 - 300 || po.pose.y > sicht.y1 + 300) return;
+      const bx = Math.sin(t * 52 + j.id) * 0.28, by = Math.cos(t * 61 + j.id) * 0.28;   // Motorbrummen
+      po.pose.x += bx; po.pose.y += by;
       if (po.gm) zeichneGeraetAm(ctx, po.gm, po.tm, po.pose.x, po.pose.y, po.pose.a);
       zeichneZugmaschine(ctx, po.tm, po.pose.x, po.pose.y, po.pose.a);
+      if (dt > 0) {
+        const ex = po.td.l * 0.18 * K, ey = -po.td.b * 0.26 * K, ca = Math.cos(po.pose.a), sa = Math.sin(po.pose.a);
+        rauch(po.pose.x + ex * ca - ey * sa, po.pose.y + ex * sa + ey * ca, jetzt, dt, po.arbeitend ? 7 : 4, false);
+      }
       if (po.arbeitend && dt > 0) {
         const farbe = j.schritt === 'ernten' ? 'rgba(236,214,120,0.8)' : j.schritt === 'duengen' || j.schritt === 'kalken' ? 'rgba(240,240,235,0.75)' : j.schritt === 'spritzen' ? 'rgba(170,220,255,0.7)' : 'rgba(110,78,48,0.75)';
         staub(po.arbeitslinie.x, po.arbeitslinie.y, farbe, jetzt, dt);
       }
     });
-    if (dt > 0) partikelStep(dt);
+    if (dt > 0) {
+      partikelStep(dt);
+      D.GEBAEUDE.forEach(g => { if (g.art === 'haus' && g.x < sicht.x1 && g.x + g.w > sicht.x0 && g.y < sicht.y1 && g.y + g.h > sicht.y0) rauch(g.x + 127, g.y + 18, jetzt, dt, 3, true); });
+      D.PRODUKTION.forEach(b => {
+        const pr = S.produktion[b.id];
+        if (pr && pr.queue.length && b.x < sicht.x1 && b.x + b.w > sicht.x0 && b.y < sicht.y1 && b.y + b.h > sicht.y0) rauch(b.x + b.w * 0.78, b.y + 14, jetzt, dt, 5, true);
+      });
+    }
+    zeichneDeko(ctx, sicht, jetzt);
     zeichneGebaeude(ctx, sicht, S, jetzt);
     partikel.forEach(p => {
       const k = 1 - p.t / p.max;
-      ctx.globalAlpha = Math.max(0, k * 0.8); ctx.fillStyle = p.farbe;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.6 - k * 0.6), 0, 7); ctx.fill();
+      ctx.globalAlpha = Math.max(0, p.rauch ? k * 0.38 : k * 0.8); ctx.fillStyle = p.farbe;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.rauch ? p.r * (1 + (1 - k) * 2.2) : p.r * (1.6 - k * 0.6), 0, 7); ctx.fill();
     });
     ctx.globalAlpha = 1;
     // Baeume
@@ -661,6 +843,24 @@ const FarmAnsicht = (function () {
       const sp = G.baum(b.v);
       ctx.drawImage(sp.c, b.x - sp.ox, b.y - sp.oy, sp.w, sp.h);
     });
+    // Wolkenschatten ziehen langsam ueber das Land
+    const wk = wolkeHolen();
+    for (let i = 0; i < 5; i++) {
+      const w = 760 + hz(i + 11) * 520, h = w * 0.62, span = D.WELT.b + 2 * w;
+      const x = ((hz(i + 3) * span + t * (9 + hz(i + 5) * 8)) % span) - w, y = hz(i + 7) * D.WELT.h - h / 2;
+      if (x > sicht.x1 || x + w < sicht.x0 || y > sicht.y1 || y + h < sicht.y0) continue;
+      ctx.globalAlpha = 0.5; ctx.drawImage(wk, x, y, w, h);
+    }
+    ctx.globalAlpha = 1;
+  }
+  let wolkeBild = null;
+  function wolkeHolen() {
+    if (wolkeBild) return wolkeBild;
+    const c = document.createElement('canvas'); c.width = 128; c.height = 80;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(64, 40, 4, 64, 40, 62);
+    gr.addColorStop(0, 'rgba(20,30,40,0.20)'); gr.addColorStop(0.6, 'rgba(20,30,40,0.10)'); gr.addColorStop(1, 'rgba(20,30,40,0)');
+    g.save(); g.translate(64, 40); g.scale(1, 0.64); g.translate(-64, -40); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); g.restore();
+    return (wolkeBild = c);
   }
 
   // Beschriftungen in Bildschirmkoordinaten (gut lesbar bei jedem Zoom)
@@ -782,6 +982,18 @@ const FarmAnsicht = (function () {
     return null;
   }
 
+  // Tageszeit: abends und nachts wird der Hof sanft dunkler und blauer, morgens/abends liegt ein warmer Schimmer darauf
+  function zeichneTageszeit(ctx, W, H, ms) {
+    const d = new Date(ms), h = d.getHours() + d.getMinutes() / 60;
+    let a = 0, farbe = '18,28,64';
+    if (h >= 21 || h < 5) a = 0.30;
+    else if (h >= 19) a = 0.30 * (h - 19) / 2;
+    else if (h < 7) a = 0.30 * (7 - h) / 2;
+    if (a > 0.01) { ctx.fillStyle = 'rgba(' + farbe + ',' + a.toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+    const warm = (h >= 6 && h < 8.5) ? 0.12 * (1 - Math.abs(h - 7.25) / 1.25) : (h >= 17.5 && h < 20) ? 0.14 * (1 - Math.abs(h - 18.75) / 1.25) : 0;
+    if (warm > 0.01) { ctx.fillStyle = 'rgba(255,150,50,' + warm.toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
+  }
+
   baumeErzeugen();
-  return { zeichneWelt, zeichneWetter, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen };
+  return { zeichneWelt, zeichneWetter, zeichneTageszeit, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen };
 })();

@@ -2,7 +2,14 @@
 // und danach nur noch gedreht aufs Spielfeld kopiert - schnell genug auch fuer das alte Tablet.
 const FarmGfx = (function () {
   const D = FarmDaten;
-  const SK = 2; // Sprite-Aufloesung (Pixel je Weltpixel)
+  const SK = 3; // Sprite-Aufloesung (Pixel je Weltpixel)
+  // Gelaende-Texturen: 1 = einfache Muster (schnell). 2 waere schaerfer auf Handys, kostet aber ohne GPU rund 10 ms je Bild (gemessen).
+  const TS = 1;
+  function muster(ctx, c) {
+    const p = ctx.createPattern(c, 'repeat');
+    if (TS !== 1) { try { p.setTransform(new DOMMatrix([1 / TS, 0, 0, 1 / TS, 0, 0])); } catch (e) { /* ungeschaerft */ } }
+    return p;
+  }
   const cache = {};
 
   function leinwand(b, h) {
@@ -317,7 +324,7 @@ const FarmGfx = (function () {
   function zufall(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
   function grasMuster(ctx) {
-    const c = leinwand(256, 256), g = c.getContext('2d'), rnd = zufall(7);
+    const c = leinwand(256 * TS, 256 * TS), g = c.getContext('2d'); g.scale(TS, TS); const rnd = zufall(7);
     g.fillStyle = '#5f9e3f'; g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 700; i++) {
       const x = rnd() * 256, y = rnd() * 256, h = 3 + rnd() * 5;
@@ -331,27 +338,27 @@ const FarmGfx = (function () {
       g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '58,120,40' : '110,170,70') + ',0.18)';
       g.beginPath(); g.arc(rnd() * 256, rnd() * 256, 6 + rnd() * 16, 0, 7); g.fill();
     }
-    return ctx.createPattern(c, 'repeat');
+    return muster(ctx, c);
   }
   function asphaltMuster(ctx) {
-    const c = leinwand(128, 128), g = c.getContext('2d'), rnd = zufall(21);
+    const c = leinwand(128 * TS, 128 * TS), g = c.getContext('2d'); g.scale(TS, TS); const rnd = zufall(21);
     g.fillStyle = '#4d5156'; g.fillRect(0, 0, 128, 128);
     for (let i = 0; i < 600; i++) { g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '255,255,255' : '0,0,0') + ',' + (0.03 + rnd() * 0.05) + ')'; g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 2, 1 + rnd() * 2); }
-    return ctx.createPattern(c, 'repeat');
+    return muster(ctx, c);
   }
   function betonMuster(ctx) {
-    const c = leinwand(160, 160), g = c.getContext('2d'), rnd = zufall(33);
+    const c = leinwand(160 * TS, 160 * TS), g = c.getContext('2d'); g.scale(TS, TS); const rnd = zufall(33);
     g.fillStyle = '#a7a39a'; g.fillRect(0, 0, 160, 160);
     for (let i = 0; i < 500; i++) { g.fillStyle = 'rgba(' + (rnd() < 0.5 ? '255,255,255' : '60,50,40') + ',' + (0.03 + rnd() * 0.05) + ')'; g.fillRect(rnd() * 160, rnd() * 160, 1 + rnd() * 3, 1 + rnd() * 3); }
     g.strokeStyle = 'rgba(70,64,56,0.45)'; g.lineWidth = 1.2;
     g.strokeRect(0.5, 0.5, 159, 159); g.beginPath(); g.moveTo(80, 0); g.lineTo(80, 160); g.moveTo(0, 80); g.lineTo(160, 80); g.stroke();
-    return ctx.createPattern(c, 'repeat');
+    return muster(ctx, c);
   }
   function brachMuster(ctx) {
-    const c = leinwand(128, 128), g = c.getContext('2d'), rnd = zufall(55);
+    const c = leinwand(128 * TS, 128 * TS), g = c.getContext('2d'); g.scale(TS, TS); const rnd = zufall(55);
     g.fillStyle = '#8a8f4a'; g.fillRect(0, 0, 128, 128);
     for (let i = 0; i < 400; i++) { g.strokeStyle = 'rgba(' + (rnd() < 0.5 ? '170,160,80' : '90,100,45') + ',0.35)'; g.beginPath(); const x = rnd() * 128, y = rnd() * 128; g.moveTo(x, y); g.lineTo(x + 2, y - 5); g.stroke(); }
-    return ctx.createPattern(c, 'repeat');
+    return muster(ctx, c);
   }
 
   // ---- Feldzellen-Kacheln (20x20) ----
@@ -360,7 +367,7 @@ const FarmGfx = (function () {
   function kachel(art, frucht, stufe, variante) {
     const key = art + '|' + (frucht || '') + '|' + stufe + '|' + variante;
     if (kacheln[key]) return kacheln[key];
-    const c = leinwand(KACHEL, KACHEL), g = c.getContext('2d'), rnd = zufall(variante * 977 + stufe * 31 + (frucht ? frucht.charCodeAt(0) : 3));
+    const c = leinwand(KACHEL * TS, KACHEL * TS), g = c.getContext('2d'); g.scale(TS, TS); const rnd = zufall(variante * 977 + stufe * 31 + (frucht ? frucht.charCodeAt(0) : 3));
     const fz = frucht ? D.frucht(frucht) : null;
     if (art === 'stoppel') {
       g.fillStyle = variante ? '#c9b46a' : '#c4ae62'; g.fillRect(0, 0, KACHEL, KACHEL);
@@ -438,6 +445,6 @@ const FarmGfx = (function () {
   }
 
   return {
-    SK, fuerDef, zeichne, vorschau, grasMuster, asphaltMuster, betonMuster, brachMuster, kachel, baum, rr, abdunkeln, zufall, sprite
+    SK, TS, muster, fuerDef, zeichne, vorschau, grasMuster, asphaltMuster, betonMuster, brachMuster, kachel, baum, rr, abdunkeln, zufall, sprite
   };
 })();

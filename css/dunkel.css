@@ -13,31 +13,31 @@ body.spielbuehne #app-root { background-attachment: scroll; overscroll-behavior:
 body.spielbuehne .home-seitenmenue {
   background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
   border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
-  box-shadow: 0 14px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10);
+  box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10);
 }
 body.spielbuehne .home-gruppe-titel { color: #8E98B4; letter-spacing: .14em; }
 body.spielbuehne .sm-item { border-radius: 14px; transition: background .12s, transform .12s; }
 body.spielbuehne .sm-item:active { background: rgba(255,255,255,.10); transform: scale(.985); }
 body.spielbuehne .sm-label { color: #F3F1EA; }
 body.spielbuehne .sm-sub { color: #9AA4C0; }
-body.spielbuehne .sm-icon { border-radius: 13px; box-shadow: 0 6px 16px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-mathe { box-shadow: 0 6px 18px rgba(91,155,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-deutsch { box-shadow: 0 6px 18px rgba(255,145,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-heimat { box-shadow: 0 6px 18px rgba(70,204,135,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-geschichten { box-shadow: 0 6px 18px rgba(179,139,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-spiele { box-shadow: 0 6px 18px rgba(46,211,183,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-chat { box-shadow: 0 6px 18px rgba(255,111,156,.45), inset 0 1px 0 rgba(255,255,255,.28); }
-body.spielbuehne .sm-icon.icon-belohnung { box-shadow: 0 6px 18px rgba(255,201,60,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon { border-radius: 13px; box-shadow: 0 4px 10px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-mathe { box-shadow: 0 4px 10px rgba(91,155,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-deutsch { box-shadow: 0 4px 10px rgba(255,145,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-heimat { box-shadow: 0 4px 10px rgba(70,204,135,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-geschichten { box-shadow: 0 4px 10px rgba(179,139,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-spiele { box-shadow: 0 4px 10px rgba(46,211,183,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-chat { box-shadow: 0 4px 10px rgba(255,111,156,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-belohnung { box-shadow: 0 4px 10px rgba(255,201,60,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 
 /* ---------- Startseite: Begruessung ---------- */
 body.spielbuehne .home-haupt .home-greeting {
   background: linear-gradient(120deg, rgba(255,180,58,.16), rgba(255,255,255,.05) 55%);
   border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 14px 18px;
-  box-shadow: 0 10px 28px rgba(0,0,0,.3);
+  box-shadow: 0 4px 10px rgba(0,0,0,.3);
 }
 body.spielbuehne .home-avatar {
   background: linear-gradient(145deg, #FFD36B, #F59E0B); color: #3a2402; width: 58px; height: 58px; font-size: 24px; font-weight: 800;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 0 26px rgba(255,180,58,.55);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.18), 0 0 10px rgba(255,180,58,.55);
 }
 body.spielbuehne .home-greeting-hallo { color: #fff; font-size: 24px; font-weight: 800; letter-spacing: .01em; }
 body.spielbuehne .home-streak {
@@ -48,23 +48,23 @@ body.spielbuehne .home-streak {
 /* ---------- Karten auf der Startseite ---------- */
 body.spielbuehne .gb-karte {
   background: linear-gradient(135deg, rgba(120,140,255,.16), rgba(170,120,255,.10)); border: 1px solid rgba(160,170,255,.28);
-  border-radius: 20px; box-shadow: 0 12px 30px rgba(0,0,0,.32); color: #F3F1EA;
+  border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,.32); color: #F3F1EA;
 }
 body.spielbuehne .gb-karte .gb-kopf { color: #fff; }
 body.spielbuehne .gb-karte .gb-zeile { border-color: rgba(255,255,255,.10); }
 body.spielbuehne .gb-balken { background: rgba(255,255,255,.12); }
 body.spielbuehne .fth-karte {
   background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.12);
-  border-radius: 20px; box-shadow: 0 12px 30px rgba(0,0,0,.32);
+  border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,.32);
 }
 body.spielbuehne .fth-kopf-titel { color: #9AA4C0; }
 body.spielbuehne .fth-kopf-zahl { color: #fff; }
 body.spielbuehne .fth-balken { background: rgba(255,255,255,.10); height: 12px; }
-body.spielbuehne .fth-balken > div { background: linear-gradient(90deg, #2FBF71, #7CF0A8); box-shadow: 0 0 14px rgba(47,191,113,.6); }
+body.spielbuehne .fth-balken > div { background: linear-gradient(90deg, #2FBF71, #7CF0A8); box-shadow: 0 0 10px rgba(47,191,113,.6); }
 body.spielbuehne .fth-zeile { border-color: rgba(255,255,255,.09); border-radius: 12px; }
 body.spielbuehne .fth-zeile:active { background: rgba(255,255,255,.08); }
 body.spielbuehne .fth-haken { border-color: rgba(255,255,255,.28); background: rgba(255,255,255,.05); }
-body.spielbuehne .fth-fertig .fth-haken { background: #2FBF71; border-color: #2FBF71; box-shadow: 0 0 14px rgba(47,191,113,.55); }
+body.spielbuehne .fth-fertig .fth-haken { background: #2FBF71; border-color: #2FBF71; box-shadow: 0 0 10px rgba(47,191,113,.55); }
 body.spielbuehne .fth-titel { color: #F3F1EA; }
 body.spielbuehne .fth-fertig .fth-titel { color: #8E98B4; }
 body.spielbuehne .fth-stand { color: #FFCB6B; }
@@ -76,14 +76,14 @@ body.spielbuehne .sub-grid { max-width: 860px; gap: 14px; }
 body.spielbuehne .sub-card {
   position: relative; overflow: hidden; background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
   border: 1px solid rgba(255,255,255,.13); border-radius: 18px; padding: 16px 18px;
-  box-shadow: 0 10px 26px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.10);
+  box-shadow: 0 4px 10px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.10);
 }
 body.spielbuehne .sub-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--sub-akzent, #FFB43A); box-shadow: 0 0 18px var(--sub-akzent, #FFB43A); }
 body.spielbuehne .sub-card:active { transform: scale(.985); border-color: var(--sub-akzent, #FFB43A); }
 body.spielbuehne .sub-icon {
   position: relative; overflow: hidden; width: 48px; height: 48px; border-radius: 14px; color: #fff;
   background: linear-gradient(150deg, var(--sub-g1, #FFD27A), var(--sub-g2, #E8920C)); --kat-dunkel: var(--sub-gd, #8a5200);
-  box-shadow: 0 6px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.3);
+  box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.3);
 }
 body.spielbuehne .sub-icon::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 52%; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0)); }
 body.spielbuehne .sub-icon svg { width: 78%; height: 78%; position: relative; z-index: 1; }
@@ -103,13 +103,13 @@ body.spielbuehne .sub-kopf-belohnung { --sub-akzent: #FFC93C; } body.spielbuehne
 /* ---------- Spiele-Kacheln ---------- */
 body.spielbuehne .menu-card {
   background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14);
-  border-radius: 18px; box-shadow: 0 10px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.10);
+  border-radius: 18px; box-shadow: 0 4px 10px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.10);
 }
 body.spielbuehne .menu-label { color: #F3F1EA; font-weight: 700; }
 body.spielbuehne .menu-progress { color: #9AA4C0; }
 body.spielbuehne .accent-schach { border-color: rgba(168,178,214,.55); } body.spielbuehne .accent-schiffe { border-color: rgba(73,170,214,.6); }
 body.spielbuehne .accent-maumau { border-color: rgba(222,96,96,.6); } body.spielbuehne .accent-quartett { border-color: rgba(255,201,60,.6); }
-body.spielbuehne .menu-icon { box-shadow: 0 6px 16px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .menu-icon { box-shadow: 0 4px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.28); }
 
 /* Grundbegriffe-Karte: helle Textfarben aus spiele.css ueberschreiben */
 body.spielbuehne .gb-kopf { color: #fff; }
@@ -122,18 +122,18 @@ body.spielbuehne .gb-zeile { border-top-color: rgba(255,255,255,.10); }
 /* ---------- Buecher und Belohnungen ---------- */
 body.spielbuehne .story-card {
   background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.13);
-  border-radius: 18px; box-shadow: 0 12px 30px rgba(0,0,0,.35);
+  border-radius: 18px; box-shadow: 0 4px 10px rgba(0,0,0,.35);
 }
 body.spielbuehne .story-titel { color: #F3F1EA; font-weight: 700; }
 body.spielbuehne .belohnung-karte {
   background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.13);
-  border-radius: 18px; box-shadow: 0 10px 26px rgba(0,0,0,.30);
+  border-radius: 18px; box-shadow: 0 4px 10px rgba(0,0,0,.30);
 }
 body.spielbuehne .belohnung-name { color: #fff; font-weight: 800; font-size: 19px; }
 body.spielbuehne .belohnung-balken { background: rgba(255,255,255,.12); height: 12px; }
-body.spielbuehne .belohnung-balken-fuellung { background: linear-gradient(90deg, #FFB43A, #FFD86B); box-shadow: 0 0 14px rgba(255,190,60,.6); }
+body.spielbuehne .belohnung-balken-fuellung { background: linear-gradient(90deg, #FFB43A, #FFD86B); box-shadow: 0 0 10px rgba(255,190,60,.6); }
 body.spielbuehne .belohnung-status { color: #AEB8D2; }
-body.spielbuehne .belohnung-erreicht { border-color: rgba(47,191,113,.6); box-shadow: 0 0 24px rgba(47,191,113,.25); }
+body.spielbuehne .belohnung-erreicht { border-color: rgba(47,191,113,.6); box-shadow: 0 0 10px rgba(47,191,113,.25); }
 body.spielbuehne .belohnung-erreicht .belohnung-status { color: #7CF0A8; font-weight: 700; }
 body.spielbuehne .lese-text strong { color: #FFD58A; }
 
@@ -165,14 +165,14 @@ body.spielbuehne .icon-maumau { background: linear-gradient(150deg, #FF8B8B, #C7
    ===================================================================== */
 body.spielbuehne .option-btn, body.spielbuehne .key-btn {
   background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06)); border: 1px solid rgba(255,255,255,.16);
-  color: #F3F1EA; border-radius: 14px; box-shadow: 0 4px 12px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.10);
+  color: #F3F1EA; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.10);
 }
 body.spielbuehne .option-btn:active, body.spielbuehne .key-btn:active { border-color: #FFB43A; background: rgba(255,180,58,.14); }
 body.spielbuehne .option-btn.richtig, body.spielbuehne .key-btn.ok.richtig, body.spielbuehne .btn-bewertung.btn-richtig {
-  background: rgba(47,191,113,.22); border-color: #2FBF71; color: #7CF0A8; box-shadow: 0 0 18px rgba(47,191,113,.35);
+  background: rgba(47,191,113,.22); border-color: #2FBF71; color: #7CF0A8; box-shadow: 0 0 10px rgba(47,191,113,.35);
 }
 body.spielbuehne .option-btn.falsch, body.spielbuehne .btn-bewertung.btn-falsch {
-  background: rgba(229,72,77,.20); border-color: #E5484D; color: #FF9A9D; box-shadow: 0 0 18px rgba(229,72,77,.3);
+  background: rgba(229,72,77,.20); border-color: #E5484D; color: #FF9A9D; box-shadow: 0 0 10px rgba(229,72,77,.3);
 }
 body.spielbuehne .key-btn.ok { background: linear-gradient(180deg, #3ED987, #1FA85E); border-color: #2FBF71; color: #05301a; font-weight: 800; }
 body.spielbuehne .key-btn.del { background: rgba(255,180,58,.16); border-color: rgba(255,180,58,.45); color: #FFD58A; }
@@ -199,3 +199,22 @@ body.spielbuehne mark.fm-N { background: rgba(91,155,255,.35); color: #fff; }
 body.spielbuehne mark.fm-G { background: rgba(255,201,60,.35); color: #fff; }
 body.spielbuehne mark.fm-D { background: rgba(70,204,135,.35); color: #fff; }
 body.spielbuehne mark.fm-A { background: rgba(179,139,255,.35); color: #fff; }
+
+/* ---------- Bewegung & Rueckmeldung (21.10.2026) ----------
+   Nur transform/opacity, damit es auf dem Tablet fluessig bleibt. */
+@keyframes kachel-rein { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+body.spielbuehne .sm-item, body.spielbuehne .menu-card, body.spielbuehne .sub-card, body.spielbuehne .home-fokus, body.spielbuehne .fth-karte {
+  animation: kachel-rein .34s cubic-bezier(.2,.8,.3,1) backwards;
+}
+body.spielbuehne .sm-item:nth-child(2), body.spielbuehne .menu-card:nth-child(2), body.spielbuehne .sub-card:nth-child(2) { animation-delay: .04s; }
+body.spielbuehne .sm-item:nth-child(3), body.spielbuehne .menu-card:nth-child(3), body.spielbuehne .sub-card:nth-child(3) { animation-delay: .08s; }
+body.spielbuehne .sm-item:nth-child(4), body.spielbuehne .menu-card:nth-child(4), body.spielbuehne .sub-card:nth-child(4) { animation-delay: .12s; }
+body.spielbuehne .sm-item:nth-child(5), body.spielbuehne .menu-card:nth-child(5), body.spielbuehne .sub-card:nth-child(5) { animation-delay: .16s; }
+body.spielbuehne .sm-item:nth-child(6), body.spielbuehne .menu-card:nth-child(6), body.spielbuehne .sub-card:nth-child(6) { animation-delay: .20s; }
+body.spielbuehne .sm-item:nth-child(n+7), body.spielbuehne .menu-card:nth-child(n+7), body.spielbuehne .sub-card:nth-child(n+7) { animation-delay: .24s; }
+body.spielbuehne .menu-card, body.spielbuehne .sub-card, body.spielbuehne .btn, body.spielbuehne .btn-primary, body.spielbuehne .key-btn, body.spielbuehne .back-btn {
+  transition: transform .12s ease-out;
+}
+body.spielbuehne .menu-card:active, body.spielbuehne .sub-card:active { transform: scale(.965); }
+body.spielbuehne .btn:active, body.spielbuehne .btn-primary:active, body.spielbuehne .key-btn:active, body.spielbuehne .back-btn:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) { body.spielbuehne * { animation: none !important; transition: none !important; } }

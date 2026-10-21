@@ -7,7 +7,7 @@ const Farm = (function () {
   let wurzel = null, cv = null, g = null, R = {};
   let W = 0, H = 0, dpr = 1;
   // Auflösung passt sich der Geschwindigkeit des Geräts an (nur abwärts, damit nichts hin- und herspringt)
-  const DPR_STUFEN = [1.25, 1, 0.8, 0.65];
+  const DPR_STUFEN = [2, 1.5, 1.25, 1, 0.8, 0.65];
   let dprStufe = 0, frameMs = 16, frameAb = 0;
   let laeuft = false, raf = 0, tLast = 0, tSpiel = 0;
   const cam = { x: 1750, y: 1450, z: 0.8, ziel: null };
@@ -17,7 +17,7 @@ const Farm = (function () {
   let ton = null;
   let vorschauCache = {};
   let ausgang = null;
-  let geldAnzeige = 0;
+  let geldAnzeige = 0, geldLetzt = null;
   let tempoKlicks = 0;
   let bestaetigenFn = null;
   const zeiger = {};
@@ -90,6 +90,18 @@ const Farm = (function () {
   .f-toast.gut{background:rgba(32,100,48,.95);border-color:#8cf09a}
   .f-toast.geld{background:rgba(110,86,10,.95);border-color:#ffe27a;color:#fff3b8}
   @keyframes ftin{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+  .f-ib{transition:transform .12s,background .12s}.f-ib:active{transform:scale(.88)}
+  .f-box button{transition:transform .1s,filter .1s}.f-box button:active{transform:scale(.95);filter:brightness(1.12)}
+  .f-dlg.f-neu{animation:fdlgin .18s ease-out}.f-dlg.f-neu .f-box{animation:fboxin .26s cubic-bezier(.2,.9,.3,1.25)}
+  @keyframes fdlgin{from{background-color:rgba(6,12,8,0)}to{background-color:rgba(6,12,8,.66)}}
+  @keyframes fboxin{from{transform:scale(.9) translateY(14px);opacity:0}to{transform:none;opacity:1}}
+  .f-geld.puls{animation:fpuls .45s ease-out}
+  @keyframes fpuls{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .f-plus{position:absolute;z-index:7;pointer-events:none;font-weight:800;color:#ffe27a;text-shadow:0 2px 6px #000,0 0 12px rgba(255,200,60,.6);font-size:20px;animation:fplus 1.3s ease-out forwards;white-space:nowrap}
+  @keyframes fplus{0%{transform:translate(-50%,0) scale(.7);opacity:0}15%{transform:translate(-50%,-6px) scale(1.15);opacity:1}100%{transform:translate(-50%,-48px) scale(1);opacity:0}}
+  .f-muenze{position:absolute;z-index:7;pointer-events:none;font-size:22px;transition:transform .8s cubic-bezier(.5,0,.8,.4),opacity .8s;will-change:transform}
+  .f-konf{position:absolute;top:-16px;z-index:9;pointer-events:none;width:9px;height:14px;border-radius:2px;animation:fkonf linear forwards}
+  @keyframes fkonf{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(105vh) rotate(720deg)}}
   .f-dlg{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(6,12,8,.66);display:flex;align-items:center;justify-content:center;padding:14px;z-index:5;touch-action:pan-y}
   .f-box{background:linear-gradient(#25362a,#1b2a1f);border:1px solid rgba(255,255,255,.2);border-radius:22px;max-width:1080px;width:100%;max-height:100%;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.6);overflow:hidden}
   .f-box.klein{max-width:560px}
@@ -153,6 +165,7 @@ const Farm = (function () {
   .f-lade h2{margin:0 0 10px}.f-lade p{opacity:.85;max-width:420px;line-height:1.45;margin:0 0 14px}
   .f-chronik{font-size:13px;line-height:1.5}.f-chronik b{color:#ffe27a}
   @media (max-width:820px){
+    .f-hinweis{min-width:0;overflow:hidden}.f-hinweis>div{max-width:100%;font-size:13px;padding:7px 12px}
     .f-top{padding:6px 8px}.f-geld{font-size:17px;min-width:100px;padding:5px 10px}.f-lvl,.f-wetter{font-size:12px;padding:4px 9px}
     .f-links{margin-right:6px}.f-ib{width:44px;height:44px;font-size:21px;margin:0 0 16px 6px}.f-ib small{font-size:9.5px;bottom:-13px}
     .f-hinweis>div{font-size:12.5px;padding:6px 10px;max-width:58vw}
@@ -322,13 +335,43 @@ const Farm = (function () {
   // ----------------------------------------------------------------------------------------------
   function dialogAuf(html, klein) {
     let d = wurzel.querySelector('#f-dlg');
+    const war = !!d;
     let top = 0;
     if (d) { const sc = d.querySelector('.f-inhalt'); top = sc ? sc.scrollTop : 0; d.parentNode.removeChild(d); }
     d = document.createElement('div');
-    d.className = 'f-dlg'; d.id = 'f-dlg';
+    d.className = 'f-dlg' + (war ? '' : ' f-neu'); d.id = 'f-dlg';
     d.innerHTML = '<div class="f-box' + (klein ? ' klein' : '') + '">' + html + '</div>';
     wurzel.appendChild(d);
     const sc = d.querySelector('.f-inhalt'); if (sc && top) sc.scrollTop = top;
+  }
+  // Kleine Belohnungseffekte (nur DOM, leicht): schwebende Zahl am Geld, fliegende Muenzen, Konfetti
+  function geldEffekt(plus) {
+    if (!wurzel || !R.geld) return;
+    R.geld.classList.remove('puls'); void R.geld.offsetWidth; R.geld.classList.add('puls');
+    const r = R.geld.getBoundingClientRect(), w = wurzel.getBoundingClientRect();
+    const t = document.createElement('div'); t.className = 'f-plus'; t.textContent = '+' + fmt(plus) + ' €';
+    t.style.left = (r.left - w.left + r.width / 2) + 'px'; t.style.top = (r.bottom - w.top + 2) + 'px';
+    wurzel.appendChild(t); setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 1400);
+    const n = plus >= 5000 ? 8 : plus >= 800 ? 5 : plus >= 150 ? 3 : 0;
+    for (let i = 0; i < n; i++) {
+      const m = document.createElement('div'); m.className = 'f-muenze'; m.textContent = '🪙';
+      const sx = w.width * (0.3 + Math.random() * 0.4), sy = w.height * (0.45 + Math.random() * 0.2);
+      m.style.left = sx + 'px'; m.style.top = sy + 'px'; m.style.opacity = '1';
+      wurzel.appendChild(m);
+      const tx = r.left - w.left + r.width / 2 - sx, ty = r.top - w.top + r.height / 2 - sy;
+      setTimeout(() => { m.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(.5)'; m.style.opacity = '.2'; }, 40 + i * 70);
+      setTimeout(() => { if (m.parentNode) m.parentNode.removeChild(m); }, 1100 + i * 70);
+    }
+  }
+  function konfetti() {
+    if (!wurzel) return;
+    const farben = ['#ffe27a', '#7fe083', '#ff8a6a', '#8ec9ff', '#e6a8ff'];
+    for (let i = 0; i < 36; i++) {
+      const k = document.createElement('div'); k.className = 'f-konf';
+      k.style.left = (Math.random() * 100) + '%'; k.style.background = farben[i % farben.length];
+      k.style.animationDuration = (1.6 + Math.random() * 1.4) + 's'; k.style.animationDelay = (Math.random() * 0.5) + 's';
+      wurzel.appendChild(k); setTimeout(() => { if (k.parentNode) k.parentNode.removeChild(k); }, 3800);
+    }
   }
   const levelWarte = [];
   function dialogZu() {
@@ -863,6 +906,7 @@ const Farm = (function () {
     dlg = { typ: 'level' };
     dialogAuf('<div class="f-kopf"><h2>🎉 Level ' + level + '!</h2><button class="f-x" data-a="zu">✕</button></div><div class="f-inhalt"><div class="f-info">Bonus: <b>+' + fmt(bonus) + ' €</b></div>' +
       (neu.length ? '<div class="f-h3">Neu freigeschaltet</div><div class="f-info">' + neu.join('<br>') + '</div>' : '') + '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Weiter</button></div></div>', true);
+    konfetti();
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -1029,6 +1073,7 @@ const Farm = (function () {
   // ----------------------------------------------------------------------------------------------
   function ereignisBehandeln(art, d) {
     if (!wurzel) return;
+    if (typeof FarmMeldung !== 'undefined' && FarmMeldung.ereignis(art, d, stand().ton)) return;
     if (art === 'jobFertig') { toast(D.feld(d.job.feld).name + ': ' + D.SCHRITTE[d.job.schritt].name + ' fertig', 'gut', 'jf' + d.job.id); piep('fertig'); }
     else if (art === 'reif') { toast(D.feld(d.feld).name + ' ist erntereif! 🌾', 'gut', 'reif' + d.feld); piep('fertig'); }
     else if (art === 'ernte') toast(D.feld(d.feld).name + ': ' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + ' geerntet' + (d.ueber > 1 ? ' (Silo voll: ' + tonnen(d.ueber) + ' verkauft)' : ''), 'geld', 'ernte' + d.feld);
@@ -1060,6 +1105,8 @@ const Farm = (function () {
   // ----------------------------------------------------------------------------------------------
   function hudAktualisieren(dt) {
     const S = stand();
+    if (geldLetzt != null && S.geld - geldLetzt >= 100) geldEffekt(S.geld - geldLetzt);
+    geldLetzt = S.geld;
     geldAnzeige += (S.geld - geldAnzeige) * Math.min(1, dt * 8);
     if (Math.abs(S.geld - geldAnzeige) < 1) geldAnzeige = S.geld;
     R.geld.textContent = fmt(geldAnzeige) + ' €';
@@ -1117,6 +1164,7 @@ const Farm = (function () {
     g.translate(W / 2, H / 2); g.scale(cam.z, cam.z); g.translate(-cam.x, -cam.y);
     A.zeichneWelt(g, cam, W, H, tSpiel, now, dt);
     g.restore();
+    A.zeichneTageszeit(g, W, H, now);
     A.zeichneWetter(g, W, H, tSpiel, M.wetterTyp(now));
     A.zeichneBeschriftungen(g, cam, W, H, now, tSpiel);
     hudAktualisieren(dt);
@@ -1159,6 +1207,7 @@ const Farm = (function () {
   function oeffnen(beimSchliessen) {
     if (wurzel) return;
     ausgang = beimSchliessen || null;
+    if (typeof FarmMeldung !== 'undefined') FarmMeldung.hofOffen(true);
     baueOberflaeche();
     if (!hoererGesetzt) { M.beiEreignis((a, d) => { if (!fern) ereignisBehandeln(a, d); }); hoererGesetzt = true; }
     if (fernKonfig) {
@@ -1177,7 +1226,7 @@ const Farm = (function () {
     spielStarten(erstes);
   }
   function spielStarten(erstes) {
-    geldAnzeige = stand().geld;
+    geldAnzeige = stand().geld; geldLetzt = null;
     cam.x = 1720; cam.y = 1500; cam.z = Math.min(1, Math.max(0.45, Math.min(W / 1500, H / 1000))); cam.ziel = null;
     tempoKlicks = 0; dlg = null;
     timer = { sim: 0, speicher: 0, hud: 0, dlg: 0, poll: 0 };
@@ -1189,6 +1238,7 @@ const Farm = (function () {
   function schliessen() {
     laeuft = false; cancelAnimationFrame(raf);
     speichern();
+    if (typeof FarmMeldung !== 'undefined') FarmMeldung.hofOffen(false);
     if (fern) fernAushaengen();
     if (ton) { try { ton.ac.close(); } catch (e) { /* egal */ } ton = null; }
     abbauen();

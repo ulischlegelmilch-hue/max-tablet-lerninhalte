@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-21-2146",
+  "version": "2026-10-21-2225",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -160,6 +160,7 @@
     "js/farm-daten.js",
     "js/farm-gfx.js",
     "js/farm-lernen.js",
+    "js/farm-meldung.js",
     "js/farm-modell.js",
     "js/farm.js",
     "js/ferientraining.js",

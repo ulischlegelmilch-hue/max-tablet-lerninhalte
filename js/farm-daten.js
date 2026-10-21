@@ -10,9 +10,9 @@ const FarmDaten = (function () {
   // Maschinen werden kleiner gezeichnet als ihre Rohmasse (die Felder wirken sonst winzig); Arbeitsbreiten in Metern bleiben gleich.
   const MASCHINEN_SKALA = 0.55;
   // Wirtschaft (angelehnt an Farming Simulator: Land und Maschinen sind teuer, ein Hektar Weizen bringt ca. 2.000-2.500 EUR)
-  const LAND_FAKTOR = 2.6;          // Landpreise gegenueber den Rohwerten in FELD_ROHDATEN
+  const LAND_FAKTOR = 3.2;          // Landpreise gegenueber den Rohwerten in FELD_ROHDATEN
   const MASCHINEN_PREIS = 1.4;      // Maschinenpreise gegenueber den Listenwerten
-  const XP_FAKTOR = 0.10;           // XP je Hektar Arbeit
+  const XP_FAKTOR = 0.12;           // XP je Hektar Arbeit
   const PREISFAKTOR = 1.4;           // Verkaufspreise (Fruechte/Produkte) gegenueber dem Grundwert
 
   // ---- Marken (Lackierung) ----
@@ -124,7 +124,7 @@ const FarmDaten = (function () {
   };
   const BONUS = { pf: 0.08, dg: 0.22, sp: 0.10, wa: 0.06 };
   const SCHRITT_REIHENFOLGE = ['grubbern', 'pfluegen', 'kalken', 'saeen', 'duengen', 'spritzen', 'walzen', 'ernten'];
-  const ARBEIT_K = 24000;      // Zeitkonstante: Sekunden * (m * km/h) je Hektar
+  const ARBEIT_K = 15000;      // Zeitkonstante: Sekunden * (m * km/h) je Hektar
   const ANFANGS_TEMPO = 6;    // erste Arbeiten sind schneller, bis die erste Ernte verkauft ist
 
   // ---- Felder: x,y in px (Vielfache von 20), c/r = Spalten/Zeilen, lvl = ab Level ----
@@ -138,11 +138,31 @@ const FarmDaten = (function () {
     [2400, 2100, 30, 26, 6200, 35], [3100, 2100, 34, 26, 5800, 38], [2400, 2700, 30, 22, 6800, 41],
     [3100, 2700, 34, 22, 6000, 44], [3100, 1700, 34, 18, 5400, 47], [3850, 1700, 24, 18, 5100, 50]
   ];
-  const FELDER = FELD_ROHDATEN.map((f, i) => ({
-    id: i + 1, name: 'Feld ' + (i + 1), x: f[0], y: f[1], c: f[2], r: f[3], preisHa: Math.round(f[4] * LAND_FAKTOR / 100) * 100, lvl: f[5],
-    ha: Math.round(f[2] * f[3] * HA_JE_ZELLE * 10) / 10,
-    preis: Math.round(f[2] * f[3] * HA_JE_ZELLE * f[4] * LAND_FAKTOR / 100) * 100
-  }));
+  // Echte Groessen: jedes Feld liegt in seinem Baufeld (FELD_ROHDATEN), ist aber kleiner oder anders geschnitten - von ca. 3 bis 13 ha.
+  // [Spalten, Zeilen] je Feld, mittig im Baufeld
+  const FELD_GROESSE = [
+    [16, 13], [20, 16], [14, 16], [22, 20], [18, 18], [22, 14], [26, 22], [20, 20], [26, 16], [30, 22], [24, 22], [30, 24],
+    [22, 20], [22, 24], [32, 26], [28, 28], [30, 28], [14, 28], [30, 26], [34, 26], [30, 22], [24, 22], [34, 18], [20, 14]
+  ];
+  // Felder werden langsam frei: ab Level 1, dann etwa alle 4 Level eines, am Ende enger
+  const FELD_LEVEL = [1, 4, 8, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 56, 59, 62, 64, 66, 68, 70, 71, 72, 72];
+  const FELD_NAMEN = ['Hofacker', 'Bachwiese', 'Lindenfeld', 'Sonnenhang', 'Mühlenacker', 'Birkenfeld', 'Weidenstück', 'Kuckucksacker', 'Teichfeld', 'Hügelfeld',
+    'Eichenbreite', 'Rabenacker', 'Klosterfeld', 'Lerchenfeld', 'Fuchsbreite', 'Storchenwiese', 'Heidefeld', 'Lehmacker', 'Rosenfeld', 'Dorfanger',
+    'Nordbreite', 'Gutsfeld', 'Kaiseracker', 'Großer Schlag'];
+  const FELDER = FELD_ROHDATEN.map((f, i) => {
+    const c = FELD_GROESSE[i][0], r = FELD_GROESSE[i][1];
+    const x = f[0] + Math.round((f[2] - c) * ZELLE / 2 / 20) * 20, y = f[1] + Math.round((f[3] - r) * ZELLE / 2 / 20) * 20;
+    const ph = f[4] * LAND_FAKTOR * (0.7 + i * 0.05);   // spaetere Felder kosten je Hektar mehr
+    return { id: i + 1, name: FELD_NAMEN[i], x, y, c, r, preisHa: Math.round(ph / 100) * 100, lvl: FELD_LEVEL[i],
+      ha: Math.round(c * r * HA_JE_ZELLE * 10) / 10, preis: Math.round(c * r * HA_JE_ZELLE * ph / 100) * 100 };
+  });
+  // Dekoration auf freien Flaechen (nur Optik): Scheune, Heuballen, Windrad, Gemuesegarten
+  const DEKO = [
+    { art: 'scheune', x: 2300, y: 1156, w: 220, h: 110, dach: '#8a3f2c' },
+    { art: 'heu', x: 1990, y: 1150, w: 112, h: 70 },
+    { art: 'windrad', x: 2062, y: 1290, r: 46 },
+    { art: 'garten', x: 1990, y: 1360, w: 140, h: 100 }
+  ];
 
   // ---- Strassen / Hof / Gebaeude ----
   const STRASSEN = [
@@ -480,7 +500,7 @@ const FarmDaten = (function () {
 
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
-    ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
+    ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, DEKO, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
     LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
