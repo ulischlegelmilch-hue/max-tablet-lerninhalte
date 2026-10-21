@@ -129,6 +129,15 @@ const Farm = (function () {
   .f-gross{font-size:16.5px;line-height:1.5}
   .f-btnreihe{display:flex;flex-wrap:wrap}
   .f-btnreihe .f-kauf{flex:1;min-width:140px;margin:8px 8px 0 0}
+  .f-album{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+  .f-card{border-radius:16px;padding:10px;display:flex;flex-direction:column;text-align:left;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.2);min-height:150px}
+  .f-card.frei{border-color:#ffd24a;box-shadow:0 0 0 1px rgba(255,210,74,.25),0 4px 14px rgba(0,0,0,.3)}
+  .f-card.zu{filter:grayscale(1);opacity:.55;border-style:dashed}
+  .f-card .gr{font-size:44px;text-align:center;line-height:1.1;margin:6px 0}
+  .f-card img{width:100%;height:84px;object-fit:contain;background:radial-gradient(#4c7a3d,#335a2b);border-radius:10px}
+  .f-card b{font-size:14.5px;margin-top:4px}
+  .f-card .s{font-size:12px;opacity:.9;line-height:1.35;margin-top:3px}
+  .f-pips{display:inline-block;letter-spacing:2px;color:#ffd24a;font-size:13px;margin-left:6px}
   .f-wahl{display:inline-block;background:rgba(255,255,255,.14);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:700}
   `;
 
@@ -147,6 +156,7 @@ const Farm = (function () {
         <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
         <div class="f-btns">
           <button class="f-ib" data-a="felder">🌾<small>Felder</small></button>
+          <button class="f-ib" data-a="sammlung">🏆<small>Erfolge</small><span class="pkt" id="f-pkt-erf"></span></button>
           <button class="f-ib" data-a="auftraege">📋<small>Aufträge</small><span class="pkt" id="f-pkt-auf"></span></button>
           <button class="f-ib" data-a="lager">📦<small>Lager</small></button>
           <button class="f-ib" data-a="tiere">🐔<small>Tiere</small></button>
@@ -164,7 +174,7 @@ const Farm = (function () {
     R = {
       geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
       hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf'), wetter: wurzel.querySelector('#f-wetter')
+      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), wetter: wurzel.querySelector('#f-wetter')
     };
     wurzel.addEventListener('click', klick);
     wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
@@ -608,6 +618,72 @@ const Farm = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Dialog: Sammlung (Erfolge + Album)
+  // ----------------------------------------------------------------------------------------------
+  function dialogSammlung(tab, seite) {
+    dlg = { typ: 'sammlung', tab: tab || (dlg && dlg.typ === 'sammlung' ? dlg.tab : 'erfolge'), seite: seite || (dlg && dlg.typ === 'sammlung' ? dlg.seite : 'traktoren') };
+    zeichneSammlung();
+  }
+  function wertText(wert, einheit) {
+    const t = wert >= 100 ? fmt(wert) : fmt1(wert);
+    return t + (einheit ? ' ' + einheit : '');
+  }
+  function zeichneSammlung() {
+    const S = stand();
+    const tabs = [['erfolge', '🏆 Erfolge'], ['album', '📖 Album']];
+    let inhalt = '';
+    if (dlg.tab === 'erfolge') {
+      let abh = 0, geldAbh = 0;
+      D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) { abh++; for (let i = r.abgeholt; i < r.erreicht; i++) geldAbh += e.stufen[i].geld; } });
+      let gesamt = 0, erreicht = 0;
+      D.ERFOLGE.forEach(e => { gesamt += e.stufen.length; erreicht += (S.erfolge[e.id] || { erreicht: 0 }).erreicht; });
+      inhalt = '<div class="f-info">🏆 <b>' + erreicht + ' von ' + gesamt + '</b> Stufen geschafft' + (abh ? ' · ' + abh + ' Belohnung' + (abh > 1 ? 'en' : '') + ' zum Abholen' : '') + '</div>';
+      if (abh) inhalt += '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="erfAlle">🎁 Alle abholen · +' + fmt(geldAbh) + ' €</button></div>';
+      let kat = '';
+      D.ERFOLGE.forEach(e => {
+        if (e.kat !== kat) { kat = e.kat; inhalt += '<div class="f-h3">' + kat + '</div>'; }
+        const r = S.erfolge[e.id] || { erreicht: 0, abgeholt: 0 };
+        const w = M.erfolgWert(e.wert);
+        const next = e.stufen[r.erreicht];
+        const letzte = r.erreicht ? e.stufen[r.erreicht - 1].ziel : 0;
+        const proz = next ? Math.max(0, Math.min(100, Math.round((w - letzte) / (next.ziel - letzte) * 100))) : 100;
+        const pips = e.stufen.map((x, i) => i < r.erreicht ? '★' : '<span style="opacity:.25">★</span>').join('');
+        const claim = r.erreicht > r.abgeholt;
+        let belohn = 0; for (let i = r.abgeholt; i < r.erreicht; i++) belohn += e.stufen[i].geld;
+        inhalt += '<div class="f-zeile"><div class="ico">' + e.icon + '</div><div class="n">' + e.name + '<span class="f-pips">' + pips + '</span>' +
+          '<small>' + e.text + ' · ' + (next ? wertText(Math.min(w, next.ziel), '') + ' / ' + wertText(next.ziel, e.einheit) : '<b>Alles geschafft!</b> ' + wertText(w, e.einheit)) + '</small>' +
+          '<div class="f-bal ' + (next ? '' : '') + '"><div style="width:' + proz + '%"></div></div>' +
+          (next ? '<small>Nächste Stufe: +' + fmt(next.geld) + ' €</small>' : '') + '</div>' +
+          (claim ? '<button class="f-kauf gruen" data-a="erfAbholen" data-id="' + e.id + '">Abholen<br>+' + fmt(belohn) + ' €</button>' : '') + '</div>';
+      });
+    } else {
+      const seiten = D.ALBUM.map(a => ({ a, st: M.albumSeite(a.id) }));
+      const gesamtK = seiten.reduce((x, y) => x + y.st.karten.length, 0), gesamtG = seiten.reduce((x, y) => x + y.st.gesammelt, 0);
+      inhalt = '<div class="f-info">📖 Du hast <b>' + gesamtG + ' von ' + gesamtK + '</b> Karten gesammelt. Vervollständige eine Seite für einen Bonus!</div>' +
+        '<div class="f-tabs" style="padding:0 0 8px">' + seiten.map(x => '<button class="f-tab' + (x.a.id === dlg.seite ? ' an' : '') + '" data-a="albumSeite" data-id="' + x.a.id + '">' + x.a.icon + ' ' + x.a.name + ' ' + x.st.gesammelt + '/' + x.st.karten.length + (x.st.fertig && !x.st.bonusAbgeholt ? ' 🎁' : '') + '</button>').join('') + '</div>';
+      const cur = seiten.find(x => x.a.id === dlg.seite) || seiten[0];
+      const a = cur.a, st = cur.st;
+      inhalt += '<div class="f-zeile"><div class="n">' + a.icon + ' ' + a.name + '<small>' + st.gesammelt + ' von ' + st.karten.length + ' Karten</small><div class="f-bal"><div style="width:' + Math.round(st.gesammelt / st.karten.length * 100) + '%"></div></div></div>' +
+        (st.fertig ? (st.bonusAbgeholt ? '<span class="f-badge">Bonus abgeholt ✓</span>' : '<button class="f-kauf gruen" data-a="albumBonus" data-id="' + a.id + '">🎁 Bonus · +' + fmt(a.bonus.geld) + ' €</button>') : '<span class="f-chip">Seitenbonus: <b>' + fmt(a.bonus.geld) + ' €</b></span>') + '</div>';
+      inhalt += '<div class="f-album" style="margin-top:10px">';
+      st.karten.forEach(k => {
+        let bild, text;
+        if (a.kat === 'maschinen') {
+          const d = D.def(k.def);
+          bild = k.frei ? '<img src="' + vorschauBild(d) + '">' : '<div class="gr">❔</div>';
+          text = k.frei ? D.MARKEN[d.marke].name + '<br>' + (d.ps ? d.ps + ' PS · bis ' + d.kmh + ' km/h' : d.art === 'ernter' ? 'Schneidwerk ' + meter(d.w) + ' · Tank ' + tonnen(d.tank) : meter(d.w) + ' breit · ab ' + d.ps + ' PS') : a.hinweis;
+        } else {
+          bild = '<div class="gr">' + (k.frei ? k.icon : '❔') + '</div>';
+          text = k.frei ? k.fakt : a.hinweis;
+        }
+        inhalt += '<div class="f-card ' + (k.frei ? 'frei' : 'zu') + '">' + bild + '<b>' + (k.frei ? k.name : '???') + '</b><div class="s">' + text + '</div></div>';
+      });
+      inhalt += '</div>';
+    }
+    dialogAuf(kopf('Erfolge & Album', geldPille()) + '<div class="f-tabs">' + tabs.map(t => '<button class="f-tab' + (t[0] === dlg.tab ? ' an' : '') + '" data-a="sammlungTab" data-id="' + t[0] + '">' + t[1] + '</button>').join('') + '</div><div class="f-inhalt">' + inhalt + '</div>');
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // Dialog: Fuhrpark
   // ----------------------------------------------------------------------------------------------
   function dialogFuhrpark() { dlg = { typ: 'fuhrpark' }; zeichneFuhrpark(); }
@@ -680,6 +756,7 @@ const Farm = (function () {
       '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die ein Feld ganz allein bewirtschaften.</li>' +
       '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
       '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
+      '<li>Unter 🏆 findest du <b>Erfolge</b> mit Belohnungen und dein <b>Album</b>: Sammle Karten von Maschinen, Früchten, Tieren, Waren, Betrieben und Wetter – mit Wissenswertem dazu.</li>' +
       '<li>Mit Erfahrung steigst du auf und schaltest neue Felder, Früchte und Maschinen frei.</li></ol>' +
       '<div class="f-info">⏩ Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.</div>' +
       '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Los geht\'s!</button></div></div>');
@@ -723,6 +800,12 @@ const Farm = (function () {
       case 'lager': return dialogLager();
       case 'betriebe': return dialogBetriebe();
       case 'tiere': return dialogTiere();
+      case 'sammlung': return dialogSammlung();
+      case 'sammlungTab': dlg.tab = id; return zeichneSammlung();
+      case 'albumSeite': dlg.seite = id; return zeichneSammlung();
+      case 'erfAbholen': { const r = M.erfolgAbholen(id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' € abgeholt!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
+      case 'erfAlle': { let sum = 0; D.ERFOLGE.forEach(e => { const r = M.erfolgAbholen(e.id); if (r.ok) sum += r.geld; }); if (sum) { ergebnis({ ok: true }, '+' + fmt(sum) + ' € abgeholt!', 'geld'); zeichneSammlung(); speichern(); } return; }
+      case 'albumBonus': { const r = M.albumBonusAbholen(id); if (ergebnis(r, r.ok ? 'Seitenbonus: +' + fmt(r.geld) + ' €!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
       case 'wetter': return dialogWetter();
       case 'fuhrpark': return dialogFuhrpark();
       case 'shop': return dialogShop(id || 'traktor');
@@ -843,6 +926,17 @@ const Farm = (function () {
     else if (art === 'anfangEnde') toast('Anfangsbonus vorbei – ab jetzt dauern Arbeiten so lange wie auf einem echten Hof!', '', 'ae');
     else if (art === 'wetter') { const x = D.WETTER[d.typ]; toast(x.icon + ' ' + x.name + ' – ' + x.text, '', 'wetter'); }
     else if (art === 'stallVoll') toast(D.tier(d.id).icon + ' ' + D.tier(d.id).stall + ' ist voll – einsammeln!', 'geld', 'sv' + d.id);
+    else if (art === 'erfolg') {
+      const n = d.neu;
+      if (n.length === 1) toast('🏆 Erfolg: ' + n[0].name + ' (Stufe ' + n[0].stufe + ' von ' + n[0].von + ') – Belohnung unter 🏆 abholen!', 'geld', 'erfolg');
+      else toast('🏆 ' + n.length + ' neue Erfolge – Belohnungen unter 🏆 abholen!', 'geld', 'erfolg');
+      piep('level');
+    }
+    else if (art === 'karte') {
+      const seite = D.ALBUM.find(a => a.kat === d.kat);
+      const k = seite && seite.karten().find(x => x.id === d.id);
+      if (k) { toast('📖 Neue Albumkarte: ' + k.name, 'gut', 'karte' + d.kat); piep('fertig'); }
+    }
     else if (art === 'umgebrochen') toast(D.feld(d.feld).name + ': Der Pflug hat die Pflanzen umgebrochen.', 'warn', 'ub');
   }
 
@@ -860,6 +954,9 @@ const Farm = (function () {
     R.lvl.textContent = 'Level ' + S.level;
     const wt = M.wetter(jetzt());
     R.wetter.textContent = wt.icon + ' ' + wt.name;
+    M.wetterGesehen(wt.id);
+    const abh = M.abholbar();
+    R.pktErf.style.display = abh ? 'flex' : 'none'; R.pktErf.textContent = abh;
     R.xp.style.width = Math.round(S.xp / D.xpFuerLevel(S.level) * 100) + '%';
     const h = hinweisBerechnen();
     if (h && !dlg) { R.hinweis.classList.remove('leer'); R.hinweisT.textContent = h.t; } else R.hinweis.classList.add('leer');
@@ -949,6 +1046,6 @@ const Farm = (function () {
 
   return {
     oeffnen, schliessen, fortschrittText,
-    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, hinweisBerechnen, cam, toast, speichern }
+    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, dialogSammlung, hinweisBerechnen, cam, toast, speichern }
   };
 })();

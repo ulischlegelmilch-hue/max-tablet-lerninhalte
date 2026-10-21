@@ -229,6 +229,87 @@ const FarmDaten = (function () {
   const WETTERSTATION = [{ preis: 8000, lvl: 5, slots: 3, name: 'Wetterstation' }, { preis: 35000, lvl: 15, slots: 8, name: 'Wetterstation Pro' }];
   const BEREGNUNG_PREIS_HA = 1500, BEREGNUNG_LVL = 8;
 
+  // ---- Erfolge ----
+  // wert = Name der Fortschrittsgroesse (siehe FarmModell.erfolgWert), einheit nur fuer die Anzeige.
+  // Stufen: ziel erreicht -> Belohnung (geld, xp) kann abgeholt werden.
+  const st3 = (z, g) => z.map((ziel, i) => ({ ziel, geld: g[i], xp: Math.round(g[i] / 20) }));
+  const ERFOLGE = [
+    { id: 'ernte', kat: 'Anbau', icon: '🌾', name: 'Erntehelfer', text: 'Ernte insgesamt', wert: 'ernteT', einheit: 't', stufen: st3([10, 100, 1000, 10000], [1500, 8000, 40000, 200000]) },
+    { id: 'jobs', kat: 'Anbau', icon: '🚜', name: 'Fleißige Maschinen', text: 'Arbeitsaufträge erledigt', wert: 'jobs', einheit: '', stufen: st3([5, 50, 250, 1000], [1500, 8000, 40000, 200000]) },
+    { id: 'gruen', kat: 'Anbau', icon: '🧪', name: 'Grüner Daumen', text: 'Düngen, Spritzen und Walzen', wert: 'gruen', einheit: '', stufen: st3([5, 25, 100, 400], [1500, 6000, 25000, 100000]) },
+    { id: 'pflug', kat: 'Anbau', icon: '⛏', name: 'Tiefgründig', text: 'Felder gepflügt', wert: 'pflug', einheit: '', stufen: st3([3, 20, 60], [1500, 8000, 30000]) },
+    { id: 'fruechte', kat: 'Anbau', icon: '🥕', name: 'Bunter Anbau', text: 'Verschiedene Früchte geerntet', wert: 'fruechte', einheit: '', stufen: st3([2, 4, 6, 8], [2000, 8000, 25000, 80000]) },
+    { id: 'felder', kat: 'Hof', icon: '🏞', name: 'Landbesitzer', text: 'Felder besitzen', wert: 'felder', einheit: '', stufen: st3([2, 5, 10, 24], [2000, 10000, 50000, 300000]) },
+    { id: 'maschinen', kat: 'Hof', icon: '🚛', name: 'Fuhrpark', text: 'Maschinen besitzen', wert: 'maschinen', einheit: '', stufen: st3([5, 10, 20, 40], [2000, 10000, 50000, 250000]) },
+    { id: 'kraft', kat: 'Hof', icon: '💪', name: 'Kraftprotz', text: 'PS des stärksten Traktors', wert: 'kraft', einheit: 'PS', stufen: st3([120, 240, 390, 620], [3000, 15000, 70000, 300000]) },
+    { id: 'repariert', kat: 'Hof', icon: '🔧', name: 'Werkstatt-Profi', text: 'Maschinen repariert', wert: 'repariert', einheit: '', stufen: st3([1, 10, 50], [500, 4000, 20000]) },
+    { id: 'fahrer', kat: 'Hof', icon: '👨‍🌾', name: 'Der Chef', text: 'Fahrer eingestellt', wert: 'fahrer', einheit: '', stufen: st3([1, 3, 6], [3000, 25000, 120000]) },
+    { id: 'verkauft', kat: 'Handel', icon: '💶', name: 'Händler', text: 'Verkauft für insgesamt', wert: 'verkauft', einheit: '€', stufen: st3([10000, 100000, 1000000, 10000000], [2000, 10000, 60000, 400000]) },
+    { id: 'geld', kat: 'Handel', icon: '🏦', name: 'Reich!', text: 'Höchster Kontostand', wert: 'maxGeld', einheit: '€', stufen: st3([100000, 1000000, 10000000], [5000, 40000, 300000]) },
+    { id: 'auftraege', kat: 'Handel', icon: '📋', name: 'Zuverlässiger Lieferant', text: 'Aufträge erfüllt', wert: 'auftraege', einheit: '', stufen: st3([3, 15, 50, 150], [2000, 10000, 40000, 150000]) },
+    { id: 'prod', kat: 'Handel', icon: '🏭', name: 'Hofmanufaktur', text: 'Chargen produziert', wert: 'prod', einheit: '', stufen: st3([3, 25, 100], [2500, 15000, 60000]) },
+    { id: 'betriebe', kat: 'Handel', icon: '🏗', name: 'Unternehmer', text: 'Betriebe gebaut', wert: 'betriebe', einheit: '', stufen: st3([1, 3, 6], [3000, 20000, 100000]) },
+    { id: 'tiere', kat: 'Tiere', icon: '🐾', name: 'Tierfreund', text: 'Tiere auf dem Hof', wert: 'tiere', einheit: '', stufen: st3([10, 50, 200, 800], [1500, 8000, 40000, 200000]) },
+    { id: 'tierarten', kat: 'Tiere', icon: '🦓', name: 'Ganzer Zoo', text: 'Verschiedene Tierarten', wert: 'tierarten', einheit: '', stufen: st3([2, 3, 4], [4000, 20000, 60000]) },
+    { id: 'eingesammelt', kat: 'Tiere', icon: '🧺', name: 'Frühstücksservice', text: 'Mal Tierprodukte eingesammelt', wert: 'eingesammelt', einheit: '', stufen: st3([5, 30, 100], [1500, 8000, 30000]) },
+    { id: 'wetter', kat: 'Natur', icon: '🌦', name: 'Wetterfrosch', text: 'Verschiedene Wetterlagen erlebt', wert: 'wetter', einheit: '', stufen: st3([3, 5, 7], [2000, 10000, 40000]) },
+    { id: 'level', kat: 'Natur', icon: '⭐', name: 'Aufsteiger', text: 'Level erreicht', wert: 'level', einheit: '', stufen: st3([5, 15, 30, 50, 70], [2000, 10000, 40000, 150000, 400000]) },
+    { id: 'tage', kat: 'Natur', icon: '📅', name: 'Treuer Landwirt', text: 'Verschiedene Tage gespielt', wert: 'tage', einheit: '', stufen: st3([3, 7, 14, 30, 60], [2000, 6000, 15000, 50000, 150000]) }
+  ];
+
+  // ---- Sammelalbum ----
+  // Jede Seite hat Karten; eine Karte wird freigeschaltet, sobald man das Ding das erste Mal hat/erlebt (siehe FarmModell.album*).
+  // fakt = Wissenstext (fuer Max, 4. Klasse); hinweis = wie man die Karte bekommt.
+  const FAKTEN = {
+    weizen: 'Aus Weizen wird Mehl für Brot, Brötchen und Nudeln. In Deutschland ist er das wichtigste Getreide.',
+    gerste: 'Gerste wird vor allem als Futter für Tiere angebaut. Aus manchen Sorten macht man Malz – für Bier.',
+    raps: 'Rapsfelder leuchten im Frühling knallgelb. Aus den Körnern wird Öl gepresst – zum Kochen und für Margarine.',
+    mais: 'Mais kann bis zu drei Meter hoch werden! Er wird als Futter, für Biogas und als Gemüse angebaut.',
+    sonnenblume: 'Junge Sonnenblumen drehen ihre Blüten mit der Sonne mit. Aus den Kernen wird Öl gemacht.',
+    soja: 'Soja ist eine Hülsenfrucht. Aus den Bohnen macht man Tofu, Sojamilch und Tierfutter.',
+    kartoffel: 'Kartoffeln wachsen unter der Erde. Aus den Knollen werden Pommes, Chips und Salzkartoffeln.',
+    ruebe: 'Aus Zuckerrüben wird Zucker gewonnen – bei uns kommt der meiste Haushaltszucker aus Rüben.',
+    huehner: 'Eine Henne legt bis zu 300 Eier im Jahr. Hühner scharren gern im Boden nach Futter.',
+    bienen: 'Ein Bienenvolk hat im Sommer bis zu 50.000 Bienen. Sie bestäuben Blüten – ohne sie gäbe es viel weniger Obst.',
+    kuehe: 'Eine Kuh frisst am Tag bis zu 50 Kilo Futter und gibt etwa 25 Liter Milch.',
+    schafe: 'Schafe werden einmal im Jahr geschoren. Aus der Wolle entstehen Pullover, Socken und Decken.',
+    sonnig: 'Sonnenschein ist gut für Pflanzen: Sie bauen daraus mit ihren Blättern Zucker und wachsen.',
+    bewoelkt: 'Wolken bestehen aus winzigen Wassertröpfchen. Sie halten die Sonne ein bisschen zurück.',
+    regen: 'Regen versorgt die Felder mit Wasser. Zu viel Nässe macht den Boden aber matschig für schwere Maschinen.',
+    gewitter: 'Beim Gewitter blitzt und donnert es. Den Donner hörst du später als den Blitz, weil Licht schneller ist als Schall.',
+    hitze: 'Bei großer Hitze verdunstet viel Wasser. Pflanzen und Tiere brauchen dann besonders viel zu trinken.',
+    nebel: 'Nebel ist eine Wolke direkt am Boden. Er entsteht oft in kühlen Nächten und am Morgen.',
+    schnee: 'Schnee besteht aus gefrorenem Wasser. Bei Frost ruht die Natur – Pflanzen wachsen kaum.',
+    mehl: 'Mehl entsteht, wenn Körner in der Mühle ganz fein gemahlen werden.',
+    brot: 'In Deutschland gibt es über 3000 verschiedene Brotsorten – ein Weltrekord.',
+    rapsoel: 'Rapsöl ist ein beliebtes Speiseöl. Es wird aus den kleinen schwarzen Rapskörnern gepresst.',
+    sonnenoel: 'Sonnenblumenöl ist hellgelb und wird gern zum Braten und für Salate benutzt.',
+    chips: 'Für Chips werden Kartoffeln in hauchdünne Scheiben geschnitten und knusprig gebacken.',
+    zucker: 'Zucker aus Rüben sieht genauso aus und schmeckt genauso wie Zucker aus Zuckerrohr.',
+    eier: 'Die Farbe der Eierschale hängt von der Hühnerrasse ab – nicht davon, wie gesund das Ei ist.',
+    milch: 'Aus Milch macht man Käse, Joghurt, Butter und Quark.',
+    wolle: 'Wolle wärmt so gut, weil zwischen den feinen Fasern viel Luft steckt.',
+    honig: 'Für ein Glas Honig fliegen Bienen viele tausend Kilometer von Blüte zu Blüte.',
+    kaese: 'Käse entsteht aus Milch, die dick wird und reift. Es gibt weit über 1000 Sorten.',
+    kuchen: 'Für Kuchen werden Mehl, Eier und Zucker zu einem Teig verrührt und gebacken.',
+    muehle: 'In einer Mühle zerkleinern Mahlsteine oder Walzen das Korn zu Mehl.',
+    baeckerei: 'Bäcker stehen sehr früh auf, damit das Brot frisch zum Frühstück beim Kunden ist.',
+    oelmuehle: 'In der Ölmühle werden Samen gepresst. Das Öl fließt heraus, der Rest wird Tierfutter.',
+    chipsfabrik: 'In der Chips-Fabrik werden Kartoffeln gewaschen, geschält, in Scheiben geschnitten und gebacken.',
+    zuckerfabrik: 'In der Zuckerfabrik werden Rüben gewaschen, zerschnitten und mit heißem Wasser ausgelaugt – so entsteht der Zuckersaft.',
+    kaeserei: 'In der Käserei wird Milch erwärmt, dick gelegt und zu Käse geformt.'
+  };
+  const ALBUM = [
+    { id: 'traktoren', kat: 'maschinen', name: 'Traktoren', icon: '🚜', bonus: { geld: 60000, xp: 3000 }, hinweis: 'Kaufe diesen Traktor im Händler.', karten: () => TRAKTOREN.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'geraete', kat: 'maschinen', name: 'Geräte', icon: '🔧', bonus: { geld: 60000, xp: 3000 }, hinweis: 'Kaufe dieses Gerät im Händler.', karten: () => GERAETE.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'ernter', kat: 'maschinen', name: 'Erntemaschinen', icon: '🌾', bonus: { geld: 40000, xp: 2000 }, hinweis: 'Kaufe diese Erntemaschine im Händler.', karten: () => ERNTER.map(t => ({ id: t.id, name: t.name, def: t.id })) },
+    { id: 'fruechte', kat: 'fruechte', name: 'Früchte', icon: '🥕', bonus: { geld: 25000, xp: 1500 }, hinweis: 'Ernte diese Frucht zum ersten Mal.', karten: () => FRUECHTE.map(f => ({ id: f.id, name: f.name, icon: f.ernte === 'wurzel' ? '🥔' : '🌾', fakt: FAKTEN[f.id] })) },
+    { id: 'tiere', kat: 'tiere', name: 'Tiere', icon: '🐾', bonus: { geld: 20000, xp: 1500 }, hinweis: 'Kaufe diese Tierart im Tierhof.', karten: () => TIERE.map(t => ({ id: t.id, name: t.name, icon: t.icon, fakt: FAKTEN[t.id] })) },
+    { id: 'waren', kat: 'waren', name: 'Waren', icon: '📦', bonus: { geld: 30000, xp: 2000 }, hinweis: 'Stelle diese Ware her oder sammle sie ein.', karten: () => Object.keys(WAREN).map(id => ({ id, name: WAREN[id].name, icon: WAREN[id].icon, fakt: FAKTEN[id] })) },
+    { id: 'betriebe', kat: 'betriebe', name: 'Betriebe', icon: '🏭', bonus: { geld: 40000, xp: 2000 }, hinweis: 'Baue diesen Betrieb.', karten: () => PRODUKTION.map(b => ({ id: b.id, name: b.name, icon: b.icon, fakt: FAKTEN[b.id] })) },
+    { id: 'wetter', kat: 'wetter', name: 'Wetter', icon: '🌦', bonus: { geld: 15000, xp: 1000 }, hinweis: 'Erlebe dieses Wetter, während du spielst.', karten: () => Object.keys(WETTER).map(id => ({ id, name: WETTER[id].name, icon: WETTER[id].icon, fakt: FAKTEN[id] })) }
+  ];
+
   // ---- Lager / Fahrer ----
   const SILO_STUFEN = [{ kg: 40000, preis: 0 }, { kg: 80000, preis: 15000 }, { kg: 150000, preis: 40000 }, { kg: 300000, preis: 90000 },
     { kg: 600000, preis: 200000 }, { kg: 1200000, preis: 450000 }, { kg: 2500000, preis: 900000 }];
@@ -266,7 +347,7 @@ const FarmDaten = (function () {
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
-    TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
+    ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
   };

@@ -25,11 +25,12 @@ const FarmModell = (function () {
     S = {
       v: 2, geld: D.STARTGELD, xp: 0, level: 1, zeit: jetzt, tempo: 1, anfang: true, felder: {}, flotte: [], jobs: [], silo: {},
       preise: {}, produktion: {}, auftraege: [], auftragNaechst: jetzt, preisZeit: jetzt, fahrer: 0, siloStufe: 0, nextId: 1,
-      statistik: { verkauft: 0, geerntet: 0, auftraege: 0, jobs: 0 }, erstellt: jetzt, hilfe: {}, ton: true,
+      statistik: { verkauft: 0, geerntet: 0, auftraege: 0, jobs: 0, jobsJe: {}, ernteJe: {}, produziert: 0, eingesammelt: 0, repariert: 0, maxGeld: D.STARTGELD, tage: [] },
+      album: { maschinen: {}, fruechte: {}, tiere: {}, wetter: {}, waren: {}, betriebe: {} }, erfolge: {}, albumBonus: {}, erstellt: jetzt, hilfe: {}, ton: true,
       tiere: {}, wetterstation: 0, wetterSeed: (Math.floor(jetzt / 1000) % 100003) + 17, stepZeit: jetzt
     };
     D.STARTFELDER.forEach(id => { S.felder[id] = feldNeu(); });
-    D.STARTFLOTTE.forEach(id => { S.flotte.push(maschineNeu(id)); });
+    D.STARTFLOTTE.forEach(id => { S.flotte.push(maschineNeu(id)); S.album.maschinen[id] = 1; });
     D.alleGueter().forEach(g => { S.preise[g] = 1; });
     return S;
   }
@@ -46,6 +47,23 @@ const FarmModell = (function () {
     if (!S.wetterstation) S.wetterstation = 0;
     if (!S.wetterSeed) S.wetterSeed = (Math.floor((S.erstellt || S.zeit) / 1000) % 100003) + 17;
     if (!S.stepZeit) S.stepZeit = S.zeit;
+    // Migration: Erfolge/Album (Album wird aus dem vorhandenen Stand rekonstruiert)
+    const st = S.statistik;
+    ['jobsJe', 'ernteJe'].forEach(k => { if (!st[k]) st[k] = {}; });
+    ['produziert', 'eingesammelt', 'repariert'].forEach(k => { if (!st[k]) st[k] = 0; });
+    if (!st.maxGeld) st.maxGeld = S.geld;
+    if (!st.tage) st.tage = [];
+    if (!S.erfolge) S.erfolge = {};
+    if (!S.albumBonus) S.albumBonus = {};
+    if (!S.album) {
+      S.album = { maschinen: {}, fruechte: {}, tiere: {}, wetter: {}, waren: {}, betriebe: {} };
+      S.flotte.forEach(m => { S.album.maschinen[m.id] = 1; });
+      Object.keys(S.felder).forEach(id => { const f = S.felder[id]; if (f.frucht) S.album.fruechte[f.frucht] = 1; (f.vorher || []).forEach(v => { S.album.fruechte[v] = 1; }); });
+      Object.keys(S.silo).forEach(g => { if (D.frucht(g)) S.album.fruechte[g] = 1; else if (D.WAREN[g]) S.album.waren[g] = 1; });
+      Object.keys(S.produktion).forEach(b => { S.album.betriebe[b] = 1; });
+      Object.keys(S.tiere).forEach(t => { if (S.tiere[t].anzahl > 0) S.album.tiere[t] = 1; });
+      st.jobsJe = st.jobsJe || {};
+    }
     // Migration alter Staende (Wachstum nach festem Reifezeitpunkt -> Fortschritt)
     Object.keys(S.felder).forEach(id => {
       const f = S.felder[id];
@@ -205,6 +223,7 @@ const FarmModell = (function () {
     }
   }
   function lagerEin(gutId, kg) {
+    if (D.WAREN[gutId]) albumSetzen('waren', gutId);
     const frei = Math.max(0, siloKap() - lagerMenge());
     const ein = Math.min(kg, frei), rest = kg - ein;
     if (ein > 0) S.silo[gutId] = (S.silo[gutId] || 0) + ein;
@@ -246,6 +265,7 @@ const FarmModell = (function () {
     S.geld -= d.preis;
     const m = maschineNeu(defId);
     S.flotte.push(m);
+    albumSetzen('maschinen', defId);
     ereignis('maschineGekauft', { uid: m.uid, id: defId });
     return { ok: true, maschine: m };
   }
@@ -267,7 +287,7 @@ const FarmModell = (function () {
     const k = reparaturKosten(m);
     if (m.zustand >= 99.5) return { ok: false, grund: 'Sie ist in Topform.' };
     if (S.geld < k) return { ok: false, grund: 'Es fehlen noch ' + Math.round(k - S.geld).toLocaleString('de-DE') + ' €.' };
-    S.geld -= k; m.zustand = 100;
+    S.geld -= k; m.zustand = 100; S.statistik.repariert++;
     return { ok: true, kosten: k };
   }
   function lagerAusbauen() {
@@ -379,6 +399,7 @@ const FarmModell = (function () {
     S.jobs.push(job);
     t.job = job.id; if (g) g.job = job.id;
     S.statistik.jobs++;
+    S.statistik.jobsJe[schritt] = (S.statistik.jobsJe[schritt] || 0) + 1;
     ereignis('jobStart', { job });
     return { ok: true, job };
   }
@@ -410,6 +431,8 @@ const FarmModell = (function () {
       const kg = ha * fr.ertrag * 1000 * ertragsFaktor(f, fr.id);
       const r = lagerEin(fr.id, kg);
       S.statistik.geerntet += kg;
+      S.statistik.ernteJe[fr.id] = (S.statistik.ernteJe[fr.id] || 0) + kg;
+      albumSetzen('fruechte', fr.id);
       f.vorher.unshift(fr.id); f.vorher = f.vorher.slice(0, 2);
       f.boden = Math.max(20, f.boden - 10);
       f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; f.frucht = null; f.fort = 0; f.dauer = 0; f.phase = 'stoppel';
@@ -463,6 +486,7 @@ const FarmModell = (function () {
     if (S.level < b.lvl) return { ok: false, grund: 'Ab Level ' + b.lvl + '.' };
     if (S.geld < b.preis) return { ok: false, grund: 'Es fehlen noch ' + Math.round(b.preis - S.geld).toLocaleString('de-DE') + ' €.' };
     S.geld -= b.preis; S.produktion[id] = { stufe: 0, queue: [] };
+    albumSetzen('betriebe', id);
     return { ok: true };
   }
   function produktionAusbauen(id) {
@@ -533,6 +557,7 @@ const FarmModell = (function () {
     n = Math.min(n, frei);
     if (S.geld < n * d.tierPreis) { n = Math.floor(S.geld / d.tierPreis); if (n < 1) return { ok: false, grund: 'Es fehlen noch ' + Math.round(d.tierPreis - S.geld).toLocaleString('de-DE') + ' €.' }; }
     S.geld -= n * d.tierPreis; st.anzahl += n;
+    albumSetzen('tiere', id);
     return { ok: true, anzahl: n };
   }
   function stallAusbauen(id) {
@@ -569,6 +594,7 @@ const FarmModell = (function () {
     st.lager = 0; st.voll = false;
     const r = lagerEin(d.gut, kg);
     xpGeben(Math.round(kg / 25) + 5);
+    S.statistik.eingesammelt++;
     return { ok: true, kg, gut: d.gut, ueber: r.rest, erloes: r.erloes };
   }
   // Stand eines Stalls fuer die Anzeige (hochgerechnet bis jetzt, ohne den Spielstand zu veraendern)
@@ -649,6 +675,88 @@ const FarmModell = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Album und Erfolge
+  // ----------------------------------------------------------------------------------------------
+  function albumSetzen(kat, id) {
+    if (!S.album[kat]) S.album[kat] = {};
+    if (!S.album[kat][id]) { S.album[kat][id] = 1; ereignis('karte', { kat, id }); }
+  }
+  function wetterGesehen(typ) { albumSetzen('wetter', typ); }
+  function erfolgWert(wert) {
+    const st = S.statistik;
+    switch (wert) {
+      case 'ernteT': return st.geerntet / 1000;
+      case 'jobs': return st.jobs;
+      case 'gruen': return (st.jobsJe.duengen || 0) + (st.jobsJe.spritzen || 0) + (st.jobsJe.walzen || 0);
+      case 'pflug': return st.jobsJe.pfluegen || 0;
+      case 'fruechte': return Object.keys(S.album.fruechte).length;
+      case 'felder': return Object.keys(S.felder).length;
+      case 'maschinen': return S.flotte.length;
+      case 'kraft': return S.flotte.reduce((a, m) => Math.max(a, D.def(m.id).art === 'traktor' ? D.def(m.id).ps : 0), 0);
+      case 'repariert': return st.repariert;
+      case 'fahrer': return S.fahrer;
+      case 'verkauft': return st.verkauft;
+      case 'maxGeld': return st.maxGeld;
+      case 'auftraege': return st.auftraege;
+      case 'prod': return st.produziert;
+      case 'betriebe': return Object.keys(S.produktion).length;
+      case 'tiere': return Object.keys(S.tiere).reduce((a, k) => a + S.tiere[k].anzahl, 0);
+      case 'tierarten': return Object.keys(S.tiere).filter(k => S.tiere[k].anzahl > 0).length;
+      case 'eingesammelt': return st.eingesammelt;
+      case 'wetter': return Object.keys(S.album.wetter).length;
+      case 'level': return S.level;
+      case 'tage': return st.tage.length;
+      default: return 0;
+    }
+  }
+  // Neu erreichte Erfolgsstufen feststellen (Belohnung bleibt zum Abholen liegen)
+  function erfolgePruefen() {
+    S.statistik.maxGeld = Math.max(S.statistik.maxGeld, S.geld);
+    const neu = [];
+    D.ERFOLGE.forEach(e => {
+      const w = erfolgWert(e.wert);
+      const rec = S.erfolge[e.id] || (S.erfolge[e.id] = { erreicht: 0, abgeholt: 0 });
+      let n = 0;
+      e.stufen.forEach(st => { if (w >= st.ziel) n++; });
+      if (n > rec.erreicht) { for (let i = rec.erreicht; i < n; i++) neu.push({ id: e.id, name: e.name, icon: e.icon, stufe: i + 1, von: e.stufen.length }); rec.erreicht = n; }
+    });
+    if (neu.length) ereignis('erfolg', { neu });
+  }
+  function erfolgAbholen(id) {
+    const e = D.ERFOLGE.find(x => x.id === id), rec = S.erfolge[id];
+    if (!e || !rec || rec.abgeholt >= rec.erreicht) return { ok: false, grund: 'Hier gibt es nichts abzuholen.' };
+    let geld = 0, xp = 0;
+    for (let i = rec.abgeholt; i < rec.erreicht; i++) { geld += e.stufen[i].geld; xp += e.stufen[i].xp; }
+    rec.abgeholt = rec.erreicht;
+    S.geld += geld; xpGeben(xp);
+    return { ok: true, geld, xp };
+  }
+  function albumSeite(id) {
+    const seite = D.ALBUM.find(x => x.id === id);
+    const karten = seite.karten().map(k => Object.assign({}, k, { frei: !!(S.album[seite.kat] && S.album[seite.kat][k.id]) }));
+    const gesammelt = karten.filter(k => k.frei).length;
+    return { seite, karten, gesammelt, fertig: gesammelt === karten.length, bonusAbgeholt: !!S.albumBonus[id] };
+  }
+  function albumBonusAbholen(id) {
+    const a = albumSeite(id);
+    if (!a.fertig) return { ok: false, grund: 'Die Seite ist noch nicht komplett.' };
+    if (a.bonusAbgeholt) return { ok: false, grund: 'Der Bonus ist schon abgeholt.' };
+    S.albumBonus[id] = 1; S.geld += a.seite.bonus.geld; xpGeben(a.seite.bonus.xp);
+    return { ok: true, geld: a.seite.bonus.geld, xp: a.seite.bonus.xp };
+  }
+  // Anzahl abholbarer Belohnungen (fuer das Zeichen am Knopf)
+  function abholbar() {
+    let n = 0;
+    D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) n++; });
+    D.ALBUM.forEach(a => { if (!S.albumBonus[a.id] && albumSeite(a.id).fertig) n++; });
+    return n;
+  }
+  function tagVermerken(t) {
+    const d = new Date(t), key = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+    if (S.statistik.tage.indexOf(key) < 0) S.statistik.tage.push(key);
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // Zeit fortschreiben
   // ----------------------------------------------------------------------------------------------
   function naechstes(bis) {
@@ -692,6 +800,7 @@ const FarmModell = (function () {
         const p = S.produktion[e.ref], q = p.queue.shift(), r = D.betrieb(e.ref).rezepte.find(x => x.id === q.rez);
         const res = lagerEin(r.aus, r.ausKg);
         xpGeben(25);
+        S.statistik.produziert++;
         ereignis('prodFertig', { betrieb: e.ref, gut: r.aus, kg: r.ausKg, ueber: res.rest });
         if (p.queue[0]) prodAnstossen(p, e.ref, S.zeit);
       } else if (e.art === 'auftragAblauf') {
@@ -712,6 +821,8 @@ const FarmModell = (function () {
     S.zeit = jetzt;
     schritt(jetzt);
     autoPlaner(jetzt);
+    tagVermerken(jetzt);
+    erfolgePruefen();
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -740,6 +851,7 @@ const FarmModell = (function () {
     arbeitStarten, arbeitAbbrechen, optionen, schrittErlaubt, kostenFuer, produktionBauen, produktionAusbauen, produktionStarten,
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
+    albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,
     tempoSetzen(x) { S.tempo = x; }
