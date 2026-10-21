@@ -48,7 +48,6 @@ html, body {
   font-family: var(--font);
   /* Sanfter Verlauf statt platter Einheitsflaeche - etwas Tiefe, ohne laut zu werden. */
   background: linear-gradient(180deg, #FAFAFC 0%, #EEF0F4 100%);
-  background-attachment: fixed;
   overflow: hidden;
 }
 

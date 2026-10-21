@@ -6,6 +6,9 @@ const Farm = (function () {
 
   let wurzel = null, cv = null, g = null, R = {};
   let W = 0, H = 0, dpr = 1;
+  // Auflösung passt sich der Geschwindigkeit des Geräts an (nur abwärts, damit nichts hin- und herspringt)
+  const DPR_STUFEN = [1.25, 1, 0.8, 0.65];
+  let dprStufe = 0, frameMs = 16, frameAb = 0;
   let laeuft = false, raf = 0, tLast = 0, tSpiel = 0;
   const cam = { x: 1750, y: 1450, z: 0.8, ziel: null };
   let dlg = null;                 // { typ, ... } geoeffneter Dialog
@@ -227,7 +230,7 @@ const Farm = (function () {
   }
   function groesse() {
     if (!wurzel) return;
-    dpr = Math.min(window.devicePixelRatio || 1, 1.25);
+    dpr = Math.min(window.devicePixelRatio || 1, DPR_STUFEN[dprStufe]);
     W = wurzel.clientWidth; H = wurzel.clientHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
   }
@@ -1089,6 +1092,8 @@ const Farm = (function () {
     raf = requestAnimationFrame(frame);
     let dt = tLast ? (ts - tLast) / 1000 : 0.016; tLast = ts;
     if (!(dt > 0)) dt = 0.016;
+    frameMs += (Math.min(dt, 0.1) * 1000 - frameMs) * 0.06; frameAb += dt;
+    if (frameAb > 3 && frameMs > 27 && dprStufe < DPR_STUFEN.length - 1 && !document.hidden) { dprStufe++; frameAb = 0; groesse(); }
     dt = Math.min(dt, 0.1);
     tSpiel += dt;
     const now = jetzt();

@@ -41,11 +41,26 @@ const FarmAnsicht = (function () {
   }
   const TINT = { duengen: 'rgba(255,255,255,0.20)', spritzen: 'rgba(120,200,255,0.20)', walzen: 'rgba(0,0,0,0.16)', kalken: 'rgba(255,255,255,0.34)' };
 
+  // Text samt Umrandung (Emoji-Text ist auf aelteren Tablets teuer): einmal in ein Bild rendern, danach nur noch drawImage
+  const textCache = {}; let textCacheN = 0;
+  const TXT_S = 2;
   function schildText(ctx, text, x, y, groesse, farbe) {
-    ctx.font = 'bold ' + groesse + 'px system-ui, sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.lineWidth = Math.max(1, groesse * 0.14); ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.strokeText(text, x, y);
-    ctx.fillStyle = farbe || '#fff'; ctx.fillText(text, x, y);
+    const key = text + '|' + groesse + '|' + (farbe || '#fff');
+    let c = textCache[key];
+    if (!c) {
+      if (textCacheN > 300) { Object.keys(textCache).forEach(k => delete textCache[k]); textCacheN = 0; }
+      const font = 'bold ' + groesse * TXT_S + 'px system-ui, sans-serif';
+      const mc = document.createElement('canvas').getContext('2d');
+      mc.font = font;
+      const w = Math.ceil(mc.measureText(text).width + groesse * TXT_S * 0.6), h = Math.ceil(groesse * TXT_S * 1.6);
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const g = cv.getContext('2d');
+      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = Math.max(1, groesse * 0.14) * TXT_S; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.strokeText(text, w / 2, h / 2);
+      g.fillStyle = farbe || '#fff'; g.fillText(text, w / 2, h / 2);
+      c = textCache[key] = cv; textCacheN++;
+    }
+    ctx.drawImage(c, x - c.width / TXT_S / 2, y - c.height / TXT_S / 2, c.width / TXT_S, c.height / TXT_S);
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -456,6 +471,9 @@ const FarmAnsicht = (function () {
     schildText(ctx, 'TIERHOF', th.x + 120, th.y + 22, 20, '#fff7e0');
     D.TIERE.forEach(d => {
       const st = S.tiere[d.id], h = d.haus, pen = d.auslauf;
+      // ausserhalb des Bildausschnitts nichts zeichnen (Gehege + Haus)
+      const bx0 = Math.min(pen.x, h.x) - 20, bx1 = Math.max(pen.x + pen.w, h.x + h.w) + 20, by0 = Math.min(pen.y, h.y) - 20, by1 = Math.max(pen.y + pen.h, h.y + h.h) + 20;
+      if (bx0 > sicht.x1 || bx1 < sicht.x0 || by0 > sicht.y1 || by1 < sicht.y0) return;
       // Gehege (Wiese + Zaun)
       ctx.fillStyle = d.id === 'bienen' ? '#7fb85a' : '#6fa84c'; ctx.fillRect(pen.x, pen.y, pen.w, pen.h);
       ctx.fillStyle = 'rgba(255,255,255,0.06)'; for (let k = 0; k < pen.w; k += 22) ctx.fillRect(pen.x + k, pen.y, 10, pen.h);
@@ -485,7 +503,7 @@ const FarmAnsicht = (function () {
         // Blumen
         for (let i = 0; i < 26; i++) { const x = pen.x + 12 + hz(i) * (pen.w - 24), y = pen.y + pen.h - 22 + hz(i + 7) * 12; ctx.fillStyle = ['#f6e65a', '#f08aa0', '#ffffff', '#9ab8ff'][i % 4]; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill(); }
       } else {
-        const sicht_n = Math.min(d.id === 'huehner' || d.id === 'enten' ? 40 : 24, n);
+        const sicht_n = Math.min(d.id === 'huehner' || d.id === 'enten' ? 16 : 10, n);
         for (let i = 0; i < sicht_n; i++) {
           const p = tierPos(pen, i, t);
           if (d.id === 'huehner') zeichneHuhn(ctx, p.x, p.y, p.a);

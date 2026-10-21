@@ -6,13 +6,14 @@ body.spielbuehne {
   --akzent-mathe: #5B9BFF;  --akzent-deutsch: #FF9157;  --akzent-heimat: #46CC87;  --akzent-geschichten: #B38BFF;
   --akzent-spiele: #2ED3B7; --akzent-chat: #FF6F9C;     --akzent-belohnung: #FFC93C;
 }
-body.spielbuehne #app-root { background-attachment: fixed; }
+/* Kein background-attachment: fixed - das erzwingt auf aelteren Tablets bei jedem Scroll-Bild ein Neuzeichnen der Verlaeufe */
+body.spielbuehne #app-root { background-attachment: scroll; overscroll-behavior: contain; }
 
 /* ---------- Startseite: Seitenmenue ---------- */
 body.spielbuehne .home-seitenmenue {
   background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.04));
   border: 1px solid rgba(255,255,255,.12); border-radius: 20px;
-  box-shadow: 0 14px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10); backdrop-filter: blur(8px);
+  box-shadow: 0 14px 36px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.10);
 }
 body.spielbuehne .home-gruppe-titel { color: #8E98B4; letter-spacing: .14em; }
 body.spielbuehne .sm-item { border-radius: 14px; transition: background .12s, transform .12s; }
@@ -85,7 +86,7 @@ body.spielbuehne .sub-icon {
   box-shadow: 0 6px 16px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.3);
 }
 body.spielbuehne .sub-icon::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 52%; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0)); }
-body.spielbuehne .sub-icon svg { width: 78%; height: 78%; position: relative; z-index: 1; filter: drop-shadow(0 1.5px 1.5px rgba(0,0,0,.28)); }
+body.spielbuehne .sub-icon svg { width: 78%; height: 78%; position: relative; z-index: 1; }
 body.spielbuehne .sub-label { color: #F3F1EA; font-size: 17px; font-weight: 700; }
 body.spielbuehne .sub-grid.sub-akzent-mathe { --sub-akzent: #5B9BFF; --sub-akzent-bg: rgba(91,155,255,.18);  --sub-g1: #7DB4FF; --sub-g2: #2C66D2; --sub-gd: #1F4FA8;}
 body.spielbuehne .sub-grid.sub-akzent-deutsch { --sub-akzent: #FF9157; --sub-akzent-bg: rgba(255,145,87,.18);  --sub-g1: #FFAA77; --sub-g2: #E0612A; --sub-gd: #A8421A;}
@@ -142,7 +143,7 @@ body.spielbuehne .sm-icon::after, body.spielbuehne .menu-icon::after {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 52%; pointer-events: none;
   background: linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,0));
 }
-body.spielbuehne .sm-icon svg.kat-icon, body.spielbuehne .menu-icon svg.kat-icon { width: 78%; height: 78%; position: relative; z-index: 1; filter: drop-shadow(0 1.5px 1.5px rgba(0,0,0,.28)); }
+body.spielbuehne .sm-icon svg.kat-icon, body.spielbuehne .menu-icon svg.kat-icon { width: 78%; height: 78%; position: relative; z-index: 1; }
 body.spielbuehne .sm-icon { width: 46px; height: 46px; }
 body.spielbuehne .menu-icon { width: 56px; height: 56px; }
 body.spielbuehne .icon-mathe { background: linear-gradient(150deg, #7DB4FF, #2C66D2); --kat-dunkel: #1F4FA8; }
