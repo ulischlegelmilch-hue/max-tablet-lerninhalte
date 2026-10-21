@@ -67,7 +67,8 @@ const Farm = (function () {
   .f-hinweis{flex:1;min-width:0;display:flex;justify-content:center;pointer-events:none!important}
   .f-hinweis>div{background:rgba(255,226,122,.95);color:#2a2300;border-radius:18px;padding:9px 16px;font-weight:700;font-size:15px;max-width:600px;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,.35);line-height:1.25;pointer-events:auto}
   .f-hinweis.leer>div{display:none}
-  .f-btns{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:520px}
+  .f-btns{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:600px}
+  .f-wetter{margin-top:6px;font-size:13px;padding:6px 12px;cursor:pointer;white-space:nowrap}
   .f-ib{width:56px;height:56px;border-radius:50%;background:rgba(16,26,18,.84);border:1px solid rgba(255,255,255,.18)!important;font-size:26px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.35);margin:0 0 18px 9px}
   .f-ib:active{background:rgba(60,90,60,.95)}
   .f-ib small{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:700;white-space:nowrap;text-shadow:0 1px 3px #000}
@@ -141,12 +142,14 @@ const Farm = (function () {
         <div class="f-links">
           <div class="f-pill f-geld" id="f-geld">0 €</div>
           <div class="f-pill f-lvl"><span id="f-lvl">Level 1</span><div class="bar"><div id="f-xp"></div></div></div>
+          <div class="f-pill f-wetter" id="f-wetter" data-a="wetter">☀️ Sonnig</div>
         </div>
         <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
         <div class="f-btns">
           <button class="f-ib" data-a="felder">🌾<small>Felder</small></button>
           <button class="f-ib" data-a="auftraege">📋<small>Aufträge</small><span class="pkt" id="f-pkt-auf"></span></button>
           <button class="f-ib" data-a="lager">📦<small>Lager</small></button>
+          <button class="f-ib" data-a="tiere">🐔<small>Tiere</small></button>
           <button class="f-ib" data-a="betriebe">🏭<small>Betriebe</small></button>
           <button class="f-ib" data-a="fuhrpark">🚜<small>Fuhrpark</small></button>
           <button class="f-ib" data-a="shop">🏪<small>Händler</small></button>
@@ -161,7 +164,7 @@ const Farm = (function () {
     R = {
       geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
       hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf')
+      pktAuf: wurzel.querySelector('#f-pkt-auf'), wetter: wurzel.querySelector('#f-wetter')
     };
     wurzel.addEventListener('click', klick);
     wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
@@ -244,6 +247,7 @@ const Farm = (function () {
     if (!t) return;
     if (t.art === 'feld') dialogFeld(t.id);
     else if (t.art === 'betrieb') dialogBetriebe(t.id);
+    else if (t.art === 'stall') dialogTiere(t.id);
     else if (t.id === 'handel' || t.id === 'silo') dialogLager();
     else if (t.id === 'haendler') dialogShop('traktor');
     else if (t.id === 'halle') dialogFuhrpark();
@@ -302,6 +306,7 @@ const Farm = (function () {
   }
   const gutName = id => { const x = D.gut(id); return x.icon + ' ' + x.name; };
   const sekText = sek => A.zeitText(sek * 1000);
+  const einText = r => r.ein.map(z => (z.kg / 1000) + ' t ' + D.gut(z.gut).name).join(' + ');
   const GERAET_NAME = { grubber: 'Grubber', pflug: 'Pflug', saeen: 'Sämaschine', duenger: 'Düngerstreuer', walze: 'Walze', spritze: 'Feldspritze', kalk: 'Kalkstreuer' };
 
   // ----------------------------------------------------------------------------------------------
@@ -367,7 +372,9 @@ const Farm = (function () {
       html += '<div class="f-zeile"><div class="ico">' + st.icon + '</div><div class="n">' + st.name + '<small>' + zusatz + '</small></div>' + knopf + '</div>';
     });
     if (!liste.length) html += '<div class="f-info">Hier gibt es gerade nichts zu tun.</div>';
-    if (f.phase === 'waechst') html += '<div class="f-info" style="margin-top:10px">🌱 Noch ' + sekText(Math.max(0, f.reife - now) / 1000) + ' bis zur Ernte. Düngen, Spritzen und Walzen geben mehr Ertrag.</div>';
+    if (f.beregnung) html += '<div class="f-info" style="margin-top:8px">💦 Beregnungsanlage eingebaut: Bei Hitze wächst hier alles normal weiter.</div>';
+    else if (stand().level >= D.BEREGNUNG_LVL) html += '<div class="f-zeile"><div class="ico">💦</div><div class="n">Beregnungsanlage<small>Bei Hitze wachsen die Pflanzen nicht langsamer · ' + fmt(D.feld(id).ha * D.BEREGNUNG_PREIS_HA) + ' €</small></div><button class="f-kauf sek" data-a="beregnung">Einbauen</button></div>';
+    if (f.phase === 'waechst') html += '<div class="f-info" style="margin-top:10px">🌱 Noch ' + sekText(M.restWachsen(id, now) / 1000) + ' bis zur Ernte (bei ' + D.WETTER[M.wetterTyp(now)].name + '). Düngen, Spritzen und Walzen geben mehr Ertrag.</div>';
     return html;
   }
   function saatWahl(id) {
@@ -514,7 +521,7 @@ const Farm = (function () {
       if (!p) {
         const gesperrt = S.level < b.lvl;
         html += '<div class="f-zeile"><div class="ico">' + b.icon + '</div><div class="n">' + b.name + (gesperrt ? '<span class="f-badge rot">ab Level ' + b.lvl + '</span>' : '') +
-          '<small>' + b.rezepte.map(r => (r.einKg / 1000) + ' t ' + D.gut(r.ein).name + ' → ' + r.ausKg / 1000 + ' t ' + D.gut(r.aus).name + ' (' + sekText(r.sek) + ')').join('<br>') + '</small></div>' +
+          '<small>' + b.rezepte.map(r => einText(r) + ' → ' + r.ausKg / 1000 + ' t ' + D.gut(r.aus).name + ' (' + sekText(r.sek) + ')').join('<br>') + '</small></div>' +
           '<button class="f-kauf" data-a="bauen" data-id="' + b.id + '"' + (gesperrt || S.geld < b.preis ? ' disabled' : '') + '>Bauen · ' + fmt(b.preis) + ' €</button></div>';
         return;
       }
@@ -526,8 +533,8 @@ const Farm = (function () {
       } else h += '<small>Bereit für neue Aufträge.</small>';
       h += '<div class="f-btnreihe">';
       b.rezepte.forEach(r => {
-        const hab = S.silo[r.ein] || 0, moeglich = Math.floor(hab / r.einKg);
-        h += '<button class="f-kauf sek" data-a="prod" data-id="' + b.id + ':' + r.id + ':1"' + (moeglich < 1 || p.queue.length >= 6 ? ' disabled' : '') + '>' + gutName(r.aus) + ' ×1<br><span style="font-weight:500;font-size:12px">' + (r.einKg / 1000) + ' t ' + D.gut(r.ein).name + ' (' + tonnen(hab) + ' da)</span></button>';
+        const moeglich = Math.min.apply(null, r.ein.map(z => Math.floor((S.silo[z.gut] || 0) / z.kg)));
+        h += '<button class="f-kauf sek" data-a="prod" data-id="' + b.id + ':' + r.id + ':1"' + (moeglich < 1 || p.queue.length >= 6 ? ' disabled' : '') + '>' + gutName(r.aus) + ' ×1<br><span style="font-weight:500;font-size:12px">' + einText(r) + ' (' + moeglich + '× möglich)</span></button>';
         h += '<button class="f-kauf sek" data-a="prod" data-id="' + b.id + ':' + r.id + ':9"' + (moeglich < 2 || p.queue.length >= 6 ? ' disabled' : '') + '>so viele wie möglich</button>';
       });
       h += '</div></div>';
@@ -536,6 +543,68 @@ const Farm = (function () {
       html += h;
     });
     dialogAuf(kopf('Betriebe', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Tiere
+  // ----------------------------------------------------------------------------------------------
+  function dialogTiere(fokus) { dlg = { typ: 'tiere', fokus: fokus || null }; zeichneTiere(); }
+  function stundenText(h) { return h >= 48 ? Math.floor(h / 24) + ' Tage' : h >= 1 ? Math.round(h) + ' Std' : Math.max(0, Math.round(h * 60)) + ' Min'; }
+  function zeichneTiere() {
+    const S = stand(), now = jetzt();
+    const w = D.WETTER[M.wetterTyp(now)];
+    let html = '<div class="f-info">Tiere brauchen <b>Futter</b> aus deinem Silo und liefern Rohstoffe. Alles <b>einsammeln</b>, bevor der Stall voll ist (24 Stunden Vorrat). Ein <b>Futterautomat</b> füllt automatisch nach. Aktuell: ' + w.icon + ' ' + w.name + (w.tiere !== 1 ? ' (Tiere ' + (w.tiere < 1 ? '' : '+') + Math.round((w.tiere - 1) * 100) + ' %)' : '') + '</div>';
+    D.TIERE.forEach(d => {
+      const st = S.tiere[d.id];
+      if (!st) {
+        const gesperrt = S.level < d.lvl;
+        html += '<div class="f-zeile"><div class="ico">' + d.icon + '</div><div class="n">' + d.stall + (gesperrt ? '<span class="f-badge rot">ab Level ' + d.lvl + '</span>' : '') +
+          '<small>' + d.name + ' liefern ' + D.gut(d.gut).name + (d.futter.length ? ' · Futter: ' + d.futter.map(g => D.gut(g).name).join(' / ') : ' · kein Futter nötig') + '</small>' + (d.text ? '<small>' + d.text + '</small>' : '') + '</div>' +
+          '<button class="f-kauf" data-a="stallBau" data-id="' + d.id + '"' + (gesperrt || S.geld < d.bau ? ' disabled' : '') + '>Bauen · ' + fmt(d.bau) + ' €</button></div>';
+        return;
+      }
+      const ss = M.stallStand(d.id, now);
+      const frei = ss.kap - st.anzahl;
+      const futterProz = ss.futterKap > 0 ? Math.round(st.futter / ss.futterKap * 100) : 100;
+      const lagerProz = ss.lagerKap > 0 ? Math.round(st.lager / ss.lagerKap * 100) : 0;
+      html += '<div class="f-zeile" style="align-items:flex-start' + (dlg.fokus === d.id ? ';background:rgba(255,226,122,.08);border-radius:12px' : '') + '"><div class="ico">' + d.icon + '</div><div class="n">' + d.stall + ' <span class="f-badge">Stufe ' + (st.stufe + 1) + '</span>' + (st.auto ? ' <span class="f-badge">🤖 Futterautomat</span>' : '') +
+        '<small>' + st.anzahl + ' von ' + ss.kap + ' Plätzen · ' + (ss.rateH >= 1 ? fmt1(ss.rateH) + ' kg' : fmt1(ss.rateH * 1000) + ' g') + ' ' + D.gut(d.gut).name + ' pro Stunde' + (st.anzahl && d.futterKgH && !ss.laeuft ? ' · <span class="down">kein Futter!</span>' : '') + '</small>' +
+        (d.futterKgH ? '<small style="margin-top:6px">Futter (' + d.futter.map(g => D.gut(g).name).join('/') + '): ' + Math.round(st.futter) + ' kg · reicht ' + stundenText(ss.futterStunden) + ' · Silo: ' + tonnen(ss.futterSilo) + '</small><div class="f-bal ' + (futterProz < 20 ? 'rot' : futterProz < 50 ? 'gelb' : '') + '"><div style="width:' + futterProz + '%"></div></div>' : '') +
+        '<small style="margin-top:6px">' + D.gut(d.gut).icon + ' Bereit: <b>' + (st.lager >= 1000 ? fmt1(st.lager / 1000) + ' t' : Math.round(st.lager) + ' kg') + '</b> (von ' + (ss.lagerKap >= 1000 ? fmt1(ss.lagerKap / 1000) + ' t' : Math.round(ss.lagerKap) + ' kg') + ')</small><div class="f-bal ' + (lagerProz > 90 ? 'rot' : lagerProz > 60 ? 'gelb' : '') + '"><div style="width:' + lagerProz + '%"></div></div>' +
+        '<div class="f-btnreihe">' +
+        '<button class="f-kauf gruen" data-a="einsammeln" data-id="' + d.id + '"' + (st.lager < 1 ? ' disabled' : '') + '>✋ Einsammeln</button>' +
+        (d.futterKgH ? '<button class="f-kauf sek" data-a="fuettern" data-id="' + d.id + '"' + (futterProz >= 98 || !ss.futterSilo ? ' disabled' : '') + '>🥣 Füttern</button>' : '') +
+        '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':1"' + (frei < 1 || S.geld < d.tierPreis ? ' disabled' : '') + '>+1 ' + d.tier + ' · ' + fmt(d.tierPreis) + ' €</button>' +
+        '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':10"' + (frei < 2 || S.geld < d.tierPreis * 2 ? ' disabled' : '') + '>+10 · ' + fmt(d.tierPreis * 10) + ' €</button>' +
+        (d.automat && !st.auto ? '<button class="f-kauf sek" data-a="automat" data-id="' + d.id + '"' + (S.geld < d.automat ? ' disabled' : '') + '>🤖 Futterautomat · ' + fmt(d.automat) + ' €</button>' : '') +
+        (d.ausbau[st.stufe + 1] !== undefined ? '<button class="f-kauf sek" data-a="stallAus" data-id="' + d.id + '"' + (S.geld < d.ausbau[st.stufe + 1] ? ' disabled' : '') + '>🏗 Ausbau auf ' + d.kap[st.stufe + 1] + ' · ' + fmt(d.ausbau[st.stufe + 1]) + ' €</button>' : '') +
+        '</div></div></div>';
+    });
+    dialogAuf(kopf('Tierhof', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Wetter
+  // ----------------------------------------------------------------------------------------------
+  function dialogWetter() { dlg = { typ: 'wetter' }; zeichneWetter(); }
+  function zeichneWetter() {
+    const S = stand(), now = jetzt();
+    const w = M.wetter(now);
+    const saison = { fruehling: 'Frühling', sommer: 'Sommer', herbst: 'Herbst', winter: 'Winter' }[M.jahreszeit(now)];
+    const wirkung = x => (x === 1 ? 'normal' : (x > 1 ? '+' : '−') + Math.abs(Math.round((x - 1) * 100)) + ' %');
+    const slotMs = D.WETTER_SLOT_MS;
+    const bis = (Math.floor(now / slotMs) + 1) * slotMs;
+    let html = '<div class="f-zeile"><div class="ico" style="font-size:44px;width:60px">' + w.icon + '</div><div class="n" style="font-size:20px">' + w.name + '<small>' + saison + ' · wechselt in ' + A.zeitText(bis - now) + '</small><small>' + w.text + '</small></div></div>' +
+      '<div class="f-chips"><span class="f-chip">🌱 Wachstum <b>' + wirkung(w.wachs) + '</b></span><span class="f-chip">🚜 Arbeitszeit <b>' + (w.arbeit === 1 ? 'normal' : (w.arbeit > 1 ? '+' : '−') + Math.abs(Math.round((w.arbeit - 1) * 100)) + ' %') + '</b></span><span class="f-chip">🐔 Tiere <b>' + wirkung(w.tiere) + '</b></span></div>';
+    const vor = M.wetterVorschau(now);
+    html += '<div class="f-h3">Vorhersage</div>';
+    if (vor.length) {
+      html += '<div class="f-chips">' + vor.map(v => { const x = D.WETTER[v.typ]; return '<span class="f-chip">' + x.icon + ' ' + x.name + '<br><span style="opacity:.7;font-size:11px">in ' + A.zeitText(v.von - now) + '</span></span>'; }).join('') + '</div>';
+    } else html += '<div class="f-info">Ohne Wetterstation siehst du nur das aktuelle Wetter.</div>';
+    const n = D.WETTERSTATION[S.wetterstation];
+    if (n) html += '<div class="f-zeile"><div class="ico">🌦</div><div class="n">' + n.name + '<small>Zeigt das Wetter der nächsten ' + n.slots + ' Stunden' + (S.level < n.lvl ? ' · ab Level ' + n.lvl : '') + '</small></div><button class="f-kauf" data-a="stationKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>';
+    html += '<div class="f-h3">Tipps</div><div class="f-info">☀️ Bei Sonne geht die Arbeit am schnellsten · 🌧 Regen lässt die Pflanzen schneller wachsen · 🔥 Hitze bremst Pflanzen und Tiere – eine <b>Beregnungsanlage</b> (im Feld-Dialog) schützt das Feld · ❄️ Frost und Schnee: es wächst kaum etwas.</div>';
+    dialogAuf(kopf('Wetter', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -572,7 +641,7 @@ const Farm = (function () {
       const job = M.jobAufFeld(d.id);
       let text;
       if (job) { const st = M.jobStand(job, now); text = D.SCHRITTE[job.schritt].icon + ' ' + D.SCHRITTE[job.schritt].name + ' · ' + (st.teil === 'arbeit' ? Math.round(st.p * 100) + ' % · noch ' + A.zeitText(st.restMs) : st.teil === 'hin' ? 'fährt hin' : 'fertig'); }
-      else if (f.phase === 'waechst') text = '🌱 ' + phasenText(f, now) + ' · noch ' + A.zeitText(f.reife - now);
+      else if (f.phase === 'waechst') text = '🌱 ' + phasenText(f, now) + ' · noch ' + A.zeitText(M.restWachsen(d.id, now));
       else if (f.phase === 'reif') text = '🌾 ' + phasenText(f, now);
       else text = phasenText(f, now) + ' – wartet auf dich';
       html += '<div class="f-zeile"><div class="n">' + d.name + ' · ' + fmt1(d.ha) + ' ha' + (f.auto ? ' <span class="f-badge">👨‍🌾 Fahrer</span>' : '') + (f.phase === 'reif' && !job ? ' <span class="f-badge gelb">ernten!</span>' : '') + '<small>' + text + '</small></div>' +
@@ -609,6 +678,8 @@ const Farm = (function () {
       '<li>Die Ernte liegt im <b>Silo</b> (📦 Lager). Verkaufe, wenn der Preis gut ist – oder liefere <b>Aufträge</b> (📋) für extra Lohn.</li>' +
       '<li>Mit <b>Betrieben</b> (🏭) machst du aus Weizen Mehl und Brot, aus Raps Öl …</li>' +
       '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die ein Feld ganz allein bewirtschaften.</li>' +
+      '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
+      '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
       '<li>Mit Erfahrung steigst du auf und schaltest neue Felder, Früchte und Maschinen frei.</li></ol>' +
       '<div class="f-info">⏩ Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.</div>' +
       '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Los geht\'s!</button></div></div>');
@@ -620,6 +691,9 @@ const Farm = (function () {
     D.FELDER.forEach(x => { if (x.lvl === level) neu.push('🏞 ' + x.name + ' (zu kaufen)'); });
     D.PRODUKTION.forEach(x => { if (x.lvl === level) neu.push(x.icon + ' ' + x.name); });
     D.FAHRER.forEach((x, i) => { if (x.lvl === level) neu.push('👨‍🌾 Fahrer Nr. ' + (i + 1)); });
+    D.TIERE.forEach(x => { if (x.lvl === level) neu.push(x.icon + ' ' + x.stall); });
+    D.WETTERSTATION.forEach(x => { if (x.lvl === level) neu.push('🌦 ' + x.name); });
+    if (level === D.BEREGNUNG_LVL) neu.push('💦 Beregnungsanlagen für Felder');
     dlg = { typ: 'level' };
     dialogAuf('<div class="f-kopf"><h2>🎉 Level ' + level + '!</h2><button class="f-x" data-a="zu">✕</button></div><div class="f-inhalt"><div class="f-info">Bonus: <b>+' + fmt(bonus) + ' €</b></div>' +
       (neu.length ? '<div class="f-h3">Neu freigeschaltet</div><div class="f-info">' + neu.join('<br>') + '</div>' : '') + '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Weiter</button></div></div>', true);
@@ -648,11 +722,13 @@ const Farm = (function () {
       case 'auftraege': return dialogAuftraege();
       case 'lager': return dialogLager();
       case 'betriebe': return dialogBetriebe();
+      case 'tiere': return dialogTiere();
+      case 'wetter': return dialogWetter();
       case 'fuhrpark': return dialogFuhrpark();
       case 'shop': return dialogShop(id || 'traktor');
       case 'menue': return dialogMenue();
       case 'hilfe': return dialogHilfe();
-      case 'hinweisZeigen': { const h = hinweisBerechnen(); if (h && h.feld) { const m = feldMitte(h.feld); fliegeZu(m.x, m.y, 0.85); } return; }
+      case 'hinweisZeigen': { const h = hinweisBerechnen(); if (h && h.feld) { const m = feldMitte(h.feld); fliegeZu(m.x, m.y, 0.85); } else if (h && h.tier) { const d = D.tier(h.tier); fliegeZu(d.haus.x + d.haus.w / 2, d.haus.y + 90, 0.8); } return; }
       case 'tempoKlick': tempoKlicks++; if (tempoKlicks === 5) dialogMenue(); return;
       case 'tempo': M.tempoSetzen(+id); toast('Zeitraffer ×' + id, 'gut', 'tempo'); return dialogMenue();
       case 'ton': S.ton = !S.ton; if (S.ton) tonStart(); return dialogMenue();
@@ -693,6 +769,14 @@ const Farm = (function () {
       case 'bauen': if (ergebnis(M.produktionBauen(id), 'Betrieb gebaut!')) { zeichneBetriebe(); speichern(); } return;
       case 'prodAus': if (ergebnis(M.produktionAusbauen(id), 'Betrieb ausgebaut!')) { zeichneBetriebe(); speichern(); } return;
       case 'prod': { const p = id.split(':'); const r = M.produktionStarten(p[0], p[1], +p[2], jetzt()); if (ergebnis(r, r.ok ? r.anzahl + '× in Produktion' : '', 'gut')) { zeichneBetriebe(); speichern(); } return; }
+      case 'beregnung': if (ergebnis(M.beregnungKaufen(dlg.id), 'Beregnungsanlage eingebaut!')) { zeichneFeldDialog(); speichern(); } return;
+      case 'stationKauf': if (ergebnis(M.wetterstationKaufen(), 'Wetterstation gebaut!')) { zeichneWetter(); speichern(); } return;
+      case 'stallBau': if (ergebnis(M.stallBauen(id), D.tier(id).stall + ' gebaut!')) { zeichneTiere(); speichern(); } return;
+      case 'tierKauf': { const p = id.split(':'); const r = M.tierKaufen(p[0], +p[1]); if (ergebnis(r, r.ok ? r.anzahl + '× ' + D.tier(p[0]).tier + ' gekauft' : '')) { zeichneTiere(); speichern(); } return; }
+      case 'stallAus': if (ergebnis(M.stallAusbauen(id), 'Stall ausgebaut!')) { zeichneTiere(); speichern(); } return;
+      case 'automat': if (ergebnis(M.automatKaufen(id), 'Futterautomat eingebaut!')) { zeichneTiere(); speichern(); } return;
+      case 'fuettern': { const r = M.fuettern(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter eingefüllt' : '', 'gut')) { zeichneTiere(); speichern(); } return; }
+      case 'einsammeln': { const r = M.einsammeln(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(r.gut).name + ' im Lager' + (r.ueber > 1 ? ' (Silo voll: Rest verkauft)' : '') : '', 'geld')) { zeichneTiere(); speichern(); } return; }
       case 'reparieren': if (ergebnis(M.maschineReparieren(+id), 'Repariert!')) zeichneFuhrpark(); return;
       case 'mverkauf': if (window.confirm('Maschine wirklich verkaufen?') && ergebnis(M.maschineVerkaufen(+id), 'Verkauft.', 'geld')) zeichneFuhrpark(); return;
       default: return;
@@ -723,6 +807,13 @@ const Farm = (function () {
       if (f.phase === 'stoppel') return { t: S.statistik.jobs === 0 ? 'Tippe auf dein Feld und starte das Grubbern.' : D.feld(id).name + ' wartet auf Bearbeitung – tippe darauf.', feld: id };
       if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') return { t: D.feld(id).name + ' ist bereit zum Säen – tippe darauf.', feld: id };
     }
+    for (const d of D.TIERE) {
+      const st = S.tiere[d.id];
+      if (!st || !st.anzahl) continue;
+      const ss = M.stallStand(d.id, now);
+      if (d.futterKgH && !ss.laeuft) return { t: d.icon + ' ' + d.name + ' haben kein Futter mehr – füttere sie im 🐔 Tierhof.', feld: null, tier: d.id };
+      if (ss.lagerKap > 0 && st.lager >= ss.lagerKap * 0.8) return { t: d.icon + ' ' + D.gut(d.gut).name + ' sind bereit – im 🐔 Tierhof einsammeln!', feld: null, tier: d.id };
+    }
     if (M.lagerMenge() > M.siloKap() * 0.85) return { t: 'Das Lager ist fast voll – verkaufe etwas im 📦 Lager.', feld: null };
     if (S.jobs.length) {
       const j = S.jobs[0], st = M.jobStand(j, now);
@@ -730,8 +821,8 @@ const Farm = (function () {
     }
     const w = felder.filter(id => S.felder[id].phase === 'waechst');
     if (w.length) {
-      const id = w.sort((a, b) => S.felder[a].reife - S.felder[b].reife)[0];
-      return { t: D.feld(id).name + ' wächst – noch ' + A.zeitText(S.felder[id].reife - now) + '. Düngen bringt mehr Ertrag!', feld: id };
+      const id = w.sort((a, b) => M.restWachsen(a, now) - M.restWachsen(b, now))[0];
+      return { t: D.feld(id).name + ' wächst – noch ' + A.zeitText(M.restWachsen(id, now)) + '. Düngen bringt mehr Ertrag!', feld: id };
     }
     const nf = D.FELDER.find(d => !S.felder[d.id] && S.level >= d.lvl);
     if (nf && S.geld >= nf.preis) return { t: 'Du kannst ' + nf.name + ' kaufen – tippe auf das Feld!', feld: nf.id };
@@ -750,6 +841,8 @@ const Farm = (function () {
     else if (art === 'prodFertig') { toast(D.betrieb(d.betrieb).name + ': ' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + ' fertig', 'gut', 'pf' + d.betrieb); piep('fertig'); }
     else if (art === 'auftragNeu') toast('Neuer Auftrag: ' + tonnen(d.auftrag.kg) + ' ' + D.gut(d.auftrag.gut).name, '', 'an');
     else if (art === 'anfangEnde') toast('Anfangsbonus vorbei – ab jetzt dauern Arbeiten so lange wie auf einem echten Hof!', '', 'ae');
+    else if (art === 'wetter') { const x = D.WETTER[d.typ]; toast(x.icon + ' ' + x.name + ' – ' + x.text, '', 'wetter'); }
+    else if (art === 'stallVoll') toast(D.tier(d.id).icon + ' ' + D.tier(d.id).stall + ' ist voll – einsammeln!', 'geld', 'sv' + d.id);
     else if (art === 'umgebrochen') toast(D.feld(d.feld).name + ': Der Pflug hat die Pflanzen umgebrochen.', 'warn', 'ub');
   }
 
@@ -765,6 +858,8 @@ const Farm = (function () {
     if (timer.hud > 0) return;
     timer.hud = 0.3;
     R.lvl.textContent = 'Level ' + S.level;
+    const wt = M.wetter(jetzt());
+    R.wetter.textContent = wt.icon + ' ' + wt.name;
     R.xp.style.width = Math.round(S.xp / D.xpFuerLevel(S.level) * 100) + '%';
     const h = hinweisBerechnen();
     if (h && !dlg) { R.hinweis.classList.remove('leer'); R.hinweisT.textContent = h.t; } else R.hinweis.classList.add('leer');
@@ -794,6 +889,7 @@ const Farm = (function () {
     g.translate(W / 2, H / 2); g.scale(cam.z, cam.z); g.translate(-cam.x, -cam.y);
     A.zeichneWelt(g, cam, W, H, tSpiel, now, dt);
     g.restore();
+    A.zeichneWetter(g, W, H, tSpiel, M.wetterTyp(now));
     A.zeichneBeschriftungen(g, cam, W, H, now, tSpiel);
     hudAktualisieren(dt);
     timer.dlg += dt;
@@ -804,6 +900,8 @@ const Farm = (function () {
       else if (t === 'auftraege') zeichneAuftraege();
       else if (t === 'betriebe') zeichneBetriebe();
       else if (t === 'felder') zeichneFelder();
+      else if (t === 'tiere') zeichneTiere();
+      else if (t === 'wetter') zeichneWetter();
     }
   }
 
@@ -851,6 +949,6 @@ const Farm = (function () {
 
   return {
     oeffnen, schliessen, fortschrittText,
-    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, hinweisBerechnen, cam, toast, speichern }
+    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, hinweisBerechnen, cam, toast, speichern }
   };
 })();

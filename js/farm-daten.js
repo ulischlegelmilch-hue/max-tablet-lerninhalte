@@ -6,7 +6,7 @@ const FarmDaten = (function () {
   const ZELLE = 20;
   const HA_JE_ZELLE = 0.01;
   const PX_JE_M = 28;
-  const WELT = { b: 4400, h: 3200 };
+  const WELT = { b: 4400, h: 3900 };
   const PREISFAKTOR = 1.6;           // Verkaufspreise (Fruechte/Produkte) gegenueber dem Grundwert
 
   // ---- Marken (Lackierung) ----
@@ -134,8 +134,9 @@ const FarmDaten = (function () {
   // ---- Strassen / Hof / Gebaeude ----
   const STRASSEN = [
     { x: 0, y: 1500, w: 4400, h: 90 },
-    { x: 2150, y: 0, w: 90, h: 3200 }
+    { x: 2150, y: 0, w: 90, h: 3900 }
   ];
+  const TIERHOF = { x: 2260, y: 3260, w: 1780, h: 600 };
   const HOF = { x: 1000, y: 1620, w: 1100, h: 640 };
   const PLATZ_LANDHANDEL = { x: 2260, y: 1600, w: 520, h: 200 };
   const GEBAEUDE = [
@@ -156,22 +157,77 @@ const FarmDaten = (function () {
     rapsoel: { id: 'rapsoel', name: 'Rapsöl', icon: '🫒', preis: 1300 },
     sonnenoel: { id: 'sonnenoel', name: 'Sonnenblumenöl', icon: '🌻', preis: 1250 },
     chips: { id: 'chips', name: 'Kartoffelchips', icon: '🥔', preis: 950 },
-    zucker: { id: 'zucker', name: 'Zucker', icon: '🍬', preis: 700 }
+    zucker: { id: 'zucker', name: 'Zucker', icon: '🍬', preis: 700 },
+    eier: { id: 'eier', name: 'Eier', icon: '🥚', preis: 3000 },
+    milch: { id: 'milch', name: 'Milch', icon: '🥛', preis: 1300 },
+    wolle: { id: 'wolle', name: 'Wolle', icon: '🧶', preis: 9000 },
+    honig: { id: 'honig', name: 'Honig', icon: '🍯', preis: 14000 },
+    kaese: { id: 'kaese', name: 'Käse', icon: '🧀', preis: 14000 },
+    kuchen: { id: 'kuchen', name: 'Kuchen', icon: '🎂', preis: 1200 }
   };
   // Betriebe: Position (Bauplatz), Preis, Level, Rezepte {ein, einKg, aus, ausKg, sek}
   const PRODUKTION = [
     { id: 'muehle', name: 'Mühle', icon: '🌬', lvl: 7, preis: 60000, x: 2820, y: 1630, w: 110, h: 110, dach: '#a77b4f',
-      rezepte: [{ id: 'mehl', ein: 'weizen', einKg: 1000, aus: 'mehl', ausKg: 750, sek: 10 * 60 }] },
+      rezepte: [{ id: 'mehl', ein: [{ gut: 'weizen', kg: 1000 }], aus: 'mehl', ausKg: 750, sek: 10 * 60 }] },
     { id: 'baeckerei', name: 'Bäckerei', icon: '🥖', lvl: 10, preis: 90000, x: 2950, y: 1630, w: 110, h: 110, dach: '#c07a4a',
-      rezepte: [{ id: 'brot', ein: 'mehl', einKg: 500, aus: 'brot', ausKg: 450, sek: 15 * 60 }] },
+      rezepte: [{ id: 'brot', ein: [{ gut: 'mehl', kg: 500 }], aus: 'brot', ausKg: 450, sek: 15 * 60 },
+        { id: 'kuchen', ein: [{ gut: 'mehl', kg: 400 }, { gut: 'eier', kg: 100 }], aus: 'kuchen', ausKg: 600, sek: 20 * 60 }] },
     { id: 'oelmuehle', name: 'Ölmühle', icon: '🫗', lvl: 12, preis: 110000, x: 2820, y: 1770, w: 110, h: 110, dach: '#6f8a4a',
-      rezepte: [{ id: 'rapsoel', ein: 'raps', einKg: 1000, aus: 'rapsoel', ausKg: 380, sek: 20 * 60 }, { id: 'sonnenoel', ein: 'sonnenblume', einKg: 1000, aus: 'sonnenoel', ausKg: 420, sek: 20 * 60 }] },
+      rezepte: [{ id: 'rapsoel', ein: [{ gut: 'raps', kg: 1000 }], aus: 'rapsoel', ausKg: 380, sek: 20 * 60 }, { id: 'sonnenoel', ein: [{ gut: 'sonnenblume', kg: 1000 }], aus: 'sonnenoel', ausKg: 420, sek: 20 * 60 }] },
     { id: 'chipsfabrik', name: 'Chips-Fabrik', icon: '🍟', lvl: 16, preis: 140000, x: 2950, y: 1770, w: 110, h: 110, dach: '#c9a227',
-      rezepte: [{ id: 'chips', ein: 'kartoffel', einKg: 2000, aus: 'chips', ausKg: 500, sek: 25 * 60 }] },
+      rezepte: [{ id: 'chips', ein: [{ gut: 'kartoffel', kg: 2000 }], aus: 'chips', ausKg: 500, sek: 25 * 60 }] },
     { id: 'zuckerfabrik', name: 'Zuckerfabrik', icon: '🏭', lvl: 20, preis: 180000, x: 2820, y: 1910, w: 110, h: 110, dach: '#8a8fa0',
-      rezepte: [{ id: 'zucker', ein: 'ruebe', einKg: 3000, aus: 'zucker', ausKg: 450, sek: 30 * 60 }] }
+      rezepte: [{ id: 'zucker', ein: [{ gut: 'ruebe', kg: 3000 }], aus: 'zucker', ausKg: 450, sek: 30 * 60 }] },
+    { id: 'kaeserei', name: 'Käserei', icon: '🧀', lvl: 14, preis: 120000, x: 2950, y: 1910, w: 110, h: 110, dach: '#d8b04a',
+      rezepte: [{ id: 'kaese', ein: [{ gut: 'milch', kg: 1000 }], aus: 'kaese', ausKg: 120, sek: 20 * 60 }] }
   ];
   const PROD_STUFEN = [{ faktor: 1, preis: 0 }, { faktor: 1.5, preis: 0.5 }, { faktor: 2.2, preis: 1.2 }]; // preis = Anteil des Bau-Preises
+
+  // ---- Tiere ----
+  // kap = Plaetze je Ausbaustufe, ausbau = Preis der Stufe, kgH = Ertrag je Tier und Stunde, futterKgH = Futter je Tier und Stunde
+  // (futter = geeignete Fruechte aus dem Silo). Lager fuer Futter/Ertrag: 36 h bzw. 24 h Produktion.
+  const TIERE = [
+    { id: 'huehner', name: 'Hühner', tier: 'Huhn', icon: '🐔', stall: 'Hühnerstall', lvl: 6, bau: 8000, tierPreis: 80, kap: [20, 50, 120, 300], ausbau: [0, 6000, 15000, 40000],
+      gut: 'eier', kgH: 0.30, futterKgH: 0.12, futter: ['weizen', 'gerste'], automat: 15000,
+      haus: { x: 2300, y: 3300, w: 150, h: 110, dach: '#b9783f' }, auslauf: { x: 2300, y: 3430, w: 330, h: 210 } },
+    { id: 'bienen', name: 'Bienen', tier: 'Bienenvolk', icon: '🐝', stall: 'Bienenhaus', lvl: 9, bau: 12000, tierPreis: 300, kap: [4, 10, 24, 60], ausbau: [0, 8000, 20000, 50000],
+      gut: 'honig', kgH: 0.06, futterKgH: 0, futter: [], automat: 0,
+      haus: { x: 3700, y: 3300, w: 110, h: 100, dach: '#d8a93a' }, auslauf: { x: 3700, y: 3420, w: 290, h: 210 },
+      text: 'Bienen brauchen kein Futter – und bestäuben Raps und Sonnenblumen: mehr Ertrag!' },
+    { id: 'kuehe', name: 'Kühe', tier: 'Kuh', icon: '🐄', stall: 'Kuhstall', lvl: 13, bau: 40000, tierPreis: 1800, kap: [8, 20, 45, 100], ausbau: [0, 30000, 80000, 200000],
+      gut: 'milch', kgH: 3.0, futterKgH: 2.0, futter: ['mais', 'gerste'], automat: 30000,
+      haus: { x: 2700, y: 3300, w: 330, h: 150, dach: '#8a4a3a' }, auslauf: { x: 2700, y: 3470, w: 450, h: 310 } },
+    { id: 'schafe', name: 'Schafe', tier: 'Schaf', icon: '🐑', stall: 'Schafstall', lvl: 17, bau: 30000, tierPreis: 500, kap: [10, 25, 60, 140], ausbau: [0, 15000, 40000, 100000],
+      gut: 'wolle', kgH: 0.12, futterKgH: 0.5, futter: ['gerste', 'mais'], automat: 22000,
+      haus: { x: 3250, y: 3300, w: 190, h: 120, dach: '#7d6a58' }, auslauf: { x: 3250, y: 3440, w: 390, h: 290 } }
+  ];
+  const TIER_BY_ID = {};
+  TIERE.forEach(t => { TIER_BY_ID[t.id] = t; });
+  const BIENEN_BONUS = 0.004;   // Ertragsbonus je Bienenvolk fuer Oelfruechte (max. 12 %)
+  const STALL_LAGER_H = 24, FUTTER_LAGER_H = 36;
+
+  // ---- Wetter ----
+  // Das Wetter ist eine reine Funktion der Zeit (Stundenbloecke) - so rechnet es auch offline nach und laesst sich vorhersagen.
+  // wachs = Wachstumstempo der Pflanzen, arbeit = Dauer-Faktor der Feldarbeit, tiere = Tier-Ertrag
+  const WETTER_SLOT_MS = 3600000;
+  const WETTER = {
+    sonnig: { id: 'sonnig', name: 'Sonnig', icon: '☀️', wachs: 1.0, arbeit: 0.95, tiere: 1.0, text: 'Bestes Wetter zum Arbeiten.' },
+    bewoelkt: { id: 'bewoelkt', name: 'Bewölkt', icon: '⛅', wachs: 1.0, arbeit: 1.0, tiere: 1.0, text: 'Ganz normales Wetter.' },
+    regen: { id: 'regen', name: 'Regen', icon: '🌧️', wachs: 1.3, arbeit: 1.2, tiere: 1.0, text: 'Die Pflanzen wachsen schneller, Maschinen arbeiten langsamer.' },
+    gewitter: { id: 'gewitter', name: 'Gewitter', icon: '⛈️', wachs: 1.15, arbeit: 1.45, tiere: 0.95, text: 'Viel Regen – die Arbeit geht nur zäh voran.' },
+    hitze: { id: 'hitze', name: 'Hitze', icon: '🔥', wachs: 0.7, arbeit: 1.0, tiere: 0.85, text: 'Die Pflanzen wachsen langsamer, Tiere geben weniger. Mit Beregnung bleibt das Feld fit!' },
+    nebel: { id: 'nebel', name: 'Nebel', icon: '🌫️', wachs: 1.0, arbeit: 1.15, tiere: 1.0, text: 'Schlechte Sicht – die Arbeit dauert etwas länger.' },
+    schnee: { id: 'schnee', name: 'Frost & Schnee', icon: '❄️', wachs: 0.55, arbeit: 1.25, tiere: 0.9, text: 'Es wächst kaum etwas, die Arbeit ist mühsam.' }
+  };
+  // Gewichte je Jahreszeit (nach echtem Kalendermonat)
+  const WETTER_GEWICHTE = {
+    fruehling: { sonnig: 30, bewoelkt: 22, regen: 28, gewitter: 7, hitze: 2, nebel: 8, schnee: 3 },
+    sommer: { sonnig: 42, bewoelkt: 15, regen: 12, gewitter: 10, hitze: 18, nebel: 3, schnee: 0 },
+    herbst: { sonnig: 18, bewoelkt: 27, regen: 28, gewitter: 4, hitze: 0, nebel: 22, schnee: 1 },
+    winter: { sonnig: 15, bewoelkt: 30, regen: 8, gewitter: 0, hitze: 0, nebel: 15, schnee: 32 }
+  };
+  const WETTERSTATION = [{ preis: 8000, lvl: 5, slots: 3, name: 'Wetterstation' }, { preis: 35000, lvl: 15, slots: 8, name: 'Wetterstation Pro' }];
+  const BEREGNUNG_PREIS_HA = 1500, BEREGNUNG_LVL = 8;
 
   // ---- Lager / Fahrer ----
   const SILO_STUFEN = [{ kg: 40000, preis: 0 }, { kg: 80000, preis: 15000 }, { kg: 150000, preis: 40000 }, { kg: 300000, preis: 90000 },
@@ -199,6 +255,7 @@ const FarmDaten = (function () {
   function frucht(id) { return FRUCHT_BY_ID[id]; }
   function feld(id) { return FELDER[id - 1]; }
   function betrieb(id) { return PROD_BY_ID[id]; }
+  function tier(id) { return TIER_BY_ID[id]; }
   // Gut (Frucht oder Ware): { id, name, icon, preis }
   function gut(id) {
     if (FRUCHT_BY_ID[id]) { const f = FRUCHT_BY_ID[id]; return { id, name: f.name, icon: f.ernte === 'wurzel' ? '🥔' : '🌾', preis: f.preis }; }
@@ -209,7 +266,8 @@ const FarmDaten = (function () {
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
+    TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
-    def, frucht, feld, betrieb, gut, alleGueter
+    def, frucht, feld, betrieb, gut, alleGueter, tier
   };
 })();

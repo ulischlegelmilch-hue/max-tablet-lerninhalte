@@ -18,14 +18,15 @@ const FarmModell = (function () {
   // Spielstand
   // ----------------------------------------------------------------------------------------------
   function feldNeu() {
-    return { phase: 'stoppel', frucht: null, pflanz: 0, reife: 0, bonus: { pf: 0, dg: 0, sp: 0, wa: 0 }, boden: 70, vorher: [], auto: null };
+    return { phase: 'stoppel', frucht: null, fort: 0, fortZeit: 0, dauer: 0, beregnung: false, bonus: { pf: 0, dg: 0, sp: 0, wa: 0 }, boden: 70, vorher: [], auto: null };
   }
   function maschineNeu(defId) { return { uid: S.nextId++, id: defId, zustand: 100, job: null }; }
   function neu(jetzt) {
     S = {
       v: 2, geld: D.STARTGELD, xp: 0, level: 1, zeit: jetzt, tempo: 1, anfang: true, felder: {}, flotte: [], jobs: [], silo: {},
       preise: {}, produktion: {}, auftraege: [], auftragNaechst: jetzt, preisZeit: jetzt, fahrer: 0, siloStufe: 0, nextId: 1,
-      statistik: { verkauft: 0, geerntet: 0, auftraege: 0, jobs: 0 }, erstellt: jetzt, hilfe: {}, ton: true
+      statistik: { verkauft: 0, geerntet: 0, auftraege: 0, jobs: 0 }, erstellt: jetzt, hilfe: {}, ton: true,
+      tiere: {}, wetterstation: 0, wetterSeed: (Math.floor(jetzt / 1000) % 100003) + 17, stepZeit: jetzt
     };
     D.STARTFELDER.forEach(id => { S.felder[id] = feldNeu(); });
     D.STARTFLOTTE.forEach(id => { S.flotte.push(maschineNeu(id)); });
@@ -41,6 +42,20 @@ const FarmModell = (function () {
     D.alleGueter().forEach(g => { if (S.preise[g] == null) S.preise[g] = 1; });
     if (!S.hilfe) S.hilfe = {};
     S.nextId = S.nextId || 100;
+    if (!S.tiere) S.tiere = {};
+    if (!S.wetterstation) S.wetterstation = 0;
+    if (!S.wetterSeed) S.wetterSeed = (Math.floor((S.erstellt || S.zeit) / 1000) % 100003) + 17;
+    if (!S.stepZeit) S.stepZeit = S.zeit;
+    // Migration alter Staende (Wachstum nach festem Reifezeitpunkt -> Fortschritt)
+    Object.keys(S.felder).forEach(id => {
+      const f = S.felder[id];
+      if (f.dauer === undefined) {
+        f.dauer = f.phase === 'waechst' ? Math.max(1, (f.reife || 0) - (f.pflanz || 0)) : 0;
+        f.fort = f.phase === 'waechst' ? zahl((S.zeit - (f.pflanz || 0)) / f.dauer, 0, 1) : (f.phase === 'reif' ? 1 : 0);
+        f.fortZeit = S.zeit; f.beregnung = false;
+        delete f.reife; delete f.pflanz;
+      }
+    });
     if (jetzt != null) simuliere(jetzt);
     return S;
   }
@@ -81,11 +96,76 @@ const FarmModell = (function () {
   function verschleissFaktor(m) { return m.zustand >= 50 ? 1 : 1 + (50 - m.zustand) / 50 * 0.6; }
   const einsatzbereit = m => !m.job && m.zustand >= 15;
 
+  // ----------------------------------------------------------------------------------------------
+  // Wetter (reine Funktion der Zeit)
+  // ----------------------------------------------------------------------------------------------
+  function hash(n) {
+    let x = (Math.imul(n | 0, 2654435761)) >>> 0;
+    x ^= x >>> 15; x = Math.imul(x, 2246822519) >>> 0; x ^= x >>> 13; x = Math.imul(x, 3266489917) >>> 0; x ^= x >>> 16;
+    return (x >>> 0) / 4294967296;
+  }
+  function jahreszeit(t) {
+    const m = new Date(t).getMonth();
+    return m >= 2 && m <= 4 ? 'fruehling' : m >= 5 && m <= 7 ? 'sommer' : m >= 8 && m <= 10 ? 'herbst' : 'winter';
+  }
+  function wetterRoh(slot) {
+    const gw = D.WETTER_GEWICHTE[jahreszeit(slot * D.WETTER_SLOT_MS)];
+    const ids = Object.keys(gw);
+    let total = 0; ids.forEach(k => { total += gw[k]; });
+    let r = hash(slot * 131 + (S.wetterSeed || 1)) * total;
+    for (let i = 0; i < ids.length; i++) { r -= gw[ids[i]]; if (r < 0) return ids[i]; }
+    return 'sonnig';
+  }
+  function wetterTyp(t) {
+    const slot = Math.floor(t / D.WETTER_SLOT_MS);
+    let typ = wetterRoh(slot);
+    if (hash(slot * 977 + (S.wetterSeed || 1)) < 0.4) typ = wetterRoh(slot - 1);
+    return typ;
+  }
+  function wetter(t) { return D.WETTER[wetterTyp(t)]; }
+  function wachsFaktor(f, t) {
+    const w = wetter(t);
+    return (w.id === 'hitze' && f.beregnung) ? 1 : w.wachs;
+  }
+  // Vorhersage ab jetzt: abhaengig von der Wetterstation
+  function wetterVorschau(jetzt) {
+    const n = S.wetterstation ? D.WETTERSTATION[S.wetterstation - 1].slots : 0;
+    const out = [];
+    const slot0 = Math.floor(jetzt / D.WETTER_SLOT_MS);
+    for (let i = 1; i <= n; i++) out.push({ von: (slot0 + i) * D.WETTER_SLOT_MS, typ: wetterTyp((slot0 + i) * D.WETTER_SLOT_MS) });
+    return out;
+  }
+  function wetterstationKaufen() {
+    const n = D.WETTERSTATION[S.wetterstation];
+    if (!n) return { ok: false, grund: 'Die Wetterstation ist voll ausgebaut.' };
+    if (S.level < n.lvl) return { ok: false, grund: n.name + ' gibt es ab Level ' + n.lvl + '.' };
+    if (S.geld < n.preis) return { ok: false, grund: 'Es fehlen noch ' + Math.round(n.preis - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= n.preis; S.wetterstation++;
+    return { ok: true };
+  }
+  function beregnungKaufen(feldId) {
+    const f = S.felder[feldId];
+    if (!f) return { ok: false, grund: 'Das Feld gehört dir nicht.' };
+    if (f.beregnung) return { ok: false, grund: 'Schon eingebaut.' };
+    if (S.level < D.BEREGNUNG_LVL) return { ok: false, grund: 'Beregnung gibt es ab Level ' + D.BEREGNUNG_LVL + '.' };
+    const k = Math.round(D.feld(feldId).ha * D.BEREGNUNG_PREIS_HA);
+    if (S.geld < k) return { ok: false, grund: 'Es fehlen noch ' + Math.round(k - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= k; f.beregnung = true;
+    return { ok: true };
+  }
+  function restWachsen(id, jetzt) {
+    const f = S.felder[id];
+    if (!f || f.phase !== 'waechst') return 0;
+    const noch = (1 - fortschrittWachstum(f, jetzt)) * f.dauer;
+    return Math.max(0, noch / wachsFaktor(f, jetzt));
+  }
+
   // Ertragsfaktor fuer ein Feld (zum Erntezeitpunkt)
   function ertragsFaktor(f, fruchtId) {
     const fr = D.frucht(fruchtId);
     let faktor = 0.75 + 0.25 * f.boden / 100;
     faktor *= 1 + D.BONUS.pf * f.bonus.pf + D.BONUS.dg * f.bonus.dg + D.BONUS.sp * f.bonus.sp + D.BONUS.wa * f.bonus.wa;
+    if (fr.familie === 'oel' && S.tiere.bienen && S.tiere.bienen.anzahl) faktor *= 1 + Math.min(0.12, S.tiere.bienen.anzahl * D.BIENEN_BONUS);
     const v0 = f.vorher[0] ? D.frucht(f.vorher[0]) : null;
     if (v0) {
       if (v0.id === fr.id) faktor *= 0.85;
@@ -108,7 +188,7 @@ const FarmModell = (function () {
   function fortschrittWachstum(f, jetzt) {
     if (f.phase === 'reif') return 1;
     if (f.phase !== 'waechst') return 0;
-    return zahl((jetzt - f.pflanz) / Math.max(1, f.reife - f.pflanz), 0, 1);
+    return zahl(f.fort + Math.max(0, jetzt - f.fortZeit) / Math.max(1, f.dauer) * wachsFaktor(f, jetzt), 0, 1);
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -292,7 +372,7 @@ const FarmModell = (function () {
     const kosten = kostenFuer(feldId, schritt, o.frucht);
     if (S.geld < kosten) return { ok: false, grund: 'Dafür fehlen noch ' + Math.round(kosten - S.geld).toLocaleString('de-DE') + ' €.' };
     const tf = tempoFaktor();
-    const sek = arbeitsSek(schritt, feldId, g ? D.def(g.id) : null, g ? null : D.def(t.id)) * verschleissFaktor(t) * (g ? verschleissFaktor(g) : 1) / tf;
+    const sek = arbeitsSek(schritt, feldId, g ? D.def(g.id) : null, g ? null : D.def(t.id)) * verschleissFaktor(t) * (g ? verschleissFaktor(g) : 1) * wetter(jetzt).arbeit / tf;
     const reise = wegLaenge(feldId) / (TRANSPORT_KMH * KMH_PX) / tf;
     S.geld -= kosten;
     const job = { id: S.nextId++, feld: feldId, schritt, geraet: g ? g.uid : null, traktor: t.uid, start: jetzt, hin: Math.round(reise * 1000), arbeit: Math.round(sek * 1000), rueck: Math.round(reise * 1000), frucht: o.frucht || null, kosten, fertig: false };
@@ -317,13 +397,13 @@ const FarmModell = (function () {
     const zeitEnde = j.start + j.hin + j.arbeit;
     if (j.schritt === 'grubbern') f.phase = 'bearbeitet';
     else if (j.schritt === 'pfluegen') {
-      if (f.phase === 'waechst' || f.phase === 'reif') { f.frucht = null; f.pflanz = 0; f.reife = 0; f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; ereignis('umgebrochen', { feld: j.feld }); }
+      if (f.phase === 'waechst' || f.phase === 'reif') { f.frucht = null; f.fort = 0; f.dauer = 0; f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; ereignis('umgebrochen', { feld: j.feld }); }
       f.phase = 'gepfluegt'; f.bonus.pf = 1;
     } else if (j.schritt === 'kalken') f.boden = Math.min(100, f.boden + 25);
     else if (j.schritt === 'saeen') {
       const fr = D.frucht(j.frucht);
-      f.phase = 'waechst'; f.frucht = fr.id; f.pflanz = zeitEnde;
-      f.reife = zeitEnde + Math.round(fr.dauer * 1000 / tempoFaktor());
+      f.phase = 'waechst'; f.frucht = fr.id; f.fort = 0; f.fortZeit = zeitEnde;
+      f.dauer = Math.round(fr.dauer * 1000 / tempoFaktor());
     } else if (st.bonus) f.bonus[st.bonus] = 1;
     else if (j.schritt === 'ernten') {
       const fr = D.frucht(f.frucht);
@@ -332,7 +412,7 @@ const FarmModell = (function () {
       S.statistik.geerntet += kg;
       f.vorher.unshift(fr.id); f.vorher = f.vorher.slice(0, 2);
       f.boden = Math.max(20, f.boden - 10);
-      f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; f.frucht = null; f.pflanz = 0; f.reife = 0; f.phase = 'stoppel';
+      f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; f.frucht = null; f.fort = 0; f.dauer = 0; f.phase = 'stoppel';
       ereignis('ernte', { feld: j.feld, gut: fr.id, kg, ueber: r.rest, erloes: r.erloes });
     }
     xpGeben(Math.round(ha * st.xp));
@@ -401,15 +481,15 @@ const FarmModell = (function () {
     if (!p) return { ok: false, grund: 'Noch nicht gebaut.' };
     const r = b.rezepte.find(x => x.id === rezeptId);
     if (!r) return { ok: false, grund: 'Unbekanntes Rezept.' };
-    anzahl = Math.max(1, Math.min(anzahl || 1, 6 - p.queue.length));
     if (p.queue.length >= 6) return { ok: false, grund: 'Die Warteschlange ist voll.' };
+    anzahl = Math.max(1, Math.min(anzahl || 1, 6 - p.queue.length));
     let n = 0;
-    while (n < anzahl && (S.silo[r.ein] || 0) >= r.einKg) {
-      S.silo[r.ein] -= r.einKg; if (S.silo[r.ein] < 1) delete S.silo[r.ein];
+    while (n < anzahl && r.ein.every(z => (S.silo[z.gut] || 0) >= z.kg)) {
+      r.ein.forEach(z => { S.silo[z.gut] -= z.kg; if (S.silo[z.gut] < 1) delete S.silo[z.gut]; });
       p.queue.push({ rez: r.id, start: null, dauer: 0 });
       n++;
     }
-    if (!n) return { ok: false, grund: 'Dafür fehlen ' + (r.einKg / 1000) + ' t ' + D.gut(r.ein).name + ' im Lager.' };
+    if (!n) return { ok: false, grund: 'Dafür fehlt im Lager: ' + r.ein.map(z => (z.kg / 1000) + ' t ' + D.gut(z.gut).name).join(' + ') + '.' };
     prodAnstossen(p, id, jetzt);
     return { ok: true, anzahl: n };
   }
@@ -422,6 +502,119 @@ const FarmModell = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Tiere
+  // ----------------------------------------------------------------------------------------------
+  const stall = id => S.tiere[id] || null;
+  const tempoTiere = () => S.tempo || 1;
+  function futterKap(d, st) { return st.anzahl * d.futterKgH * D.FUTTER_LAGER_H * tempoTiere(); }
+  function lagerKap(d, st) { return st.anzahl * d.kgH * D.STALL_LAGER_H * tempoTiere(); }
+  function futterImSilo(d) { return d.futter.reduce((a, g) => a + (S.silo[g] || 0), 0); }
+  function nimmFutter(d, kg) {
+    let rest = kg;
+    d.futter.forEach(g => {
+      const have = S.silo[g] || 0, nehmen = Math.min(have, rest);
+      if (nehmen > 0) { S.silo[g] -= nehmen; if (S.silo[g] < 1) delete S.silo[g]; rest -= nehmen; }
+    });
+    return kg - rest;
+  }
+  function stallBauen(id) {
+    const d = D.tier(id);
+    if (!d || S.tiere[id]) return { ok: false, grund: 'Schon gebaut.' };
+    if (S.level < d.lvl) return { ok: false, grund: d.stall + ' gibt es ab Level ' + d.lvl + '.' };
+    if (S.geld < d.bau) return { ok: false, grund: 'Es fehlen noch ' + Math.round(d.bau - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= d.bau; S.tiere[id] = { stufe: 0, anzahl: 0, futter: 0, lager: 0, auto: false, voll: false };
+    return { ok: true };
+  }
+  function tierKaufen(id, n) {
+    const d = D.tier(id), st = stall(id);
+    if (!st) return { ok: false, grund: 'Erst den Stall bauen.' };
+    const frei = d.kap[st.stufe] - st.anzahl;
+    if (frei <= 0) return { ok: false, grund: 'Der Stall ist voll – baue ihn aus.' };
+    n = Math.min(n, frei);
+    if (S.geld < n * d.tierPreis) { n = Math.floor(S.geld / d.tierPreis); if (n < 1) return { ok: false, grund: 'Es fehlen noch ' + Math.round(d.tierPreis - S.geld).toLocaleString('de-DE') + ' €.' }; }
+    S.geld -= n * d.tierPreis; st.anzahl += n;
+    return { ok: true, anzahl: n };
+  }
+  function stallAusbauen(id) {
+    const d = D.tier(id), st = stall(id);
+    if (!st) return { ok: false, grund: 'Erst den Stall bauen.' };
+    const k = d.ausbau[st.stufe + 1];
+    if (k === undefined) return { ok: false, grund: 'Voll ausgebaut.' };
+    if (S.geld < k) return { ok: false, grund: 'Es fehlen noch ' + Math.round(k - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= k; st.stufe++;
+    return { ok: true };
+  }
+  function automatKaufen(id) {
+    const d = D.tier(id), st = stall(id);
+    if (!st || !d.automat) return { ok: false, grund: 'Das geht hier nicht.' };
+    if (st.auto) return { ok: false, grund: 'Schon eingebaut.' };
+    if (S.geld < d.automat) return { ok: false, grund: 'Es fehlen noch ' + Math.round(d.automat - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= d.automat; st.auto = true;
+    return { ok: true };
+  }
+  function fuettern(id) {
+    const d = D.tier(id), st = stall(id);
+    if (!st || !st.anzahl || !d.futterKgH) return { ok: false, grund: 'Hier gibt es nichts zu füttern.' };
+    const platz = futterKap(d, st) - st.futter;
+    if (platz < 1) return { ok: false, grund: 'Der Futtervorrat ist schon voll.' };
+    const kg = nimmFutter(d, platz);
+    if (kg < 1) return { ok: false, grund: 'Im Silo fehlt Futter (' + d.futter.map(g => D.gut(g).name).join(' oder ') + ').' };
+    st.futter += kg;
+    return { ok: true, kg };
+  }
+  function einsammeln(id) {
+    const d = D.tier(id), st = stall(id);
+    if (!st || st.lager < 1) return { ok: false, grund: 'Es gibt noch nichts einzusammeln.' };
+    const kg = st.lager;
+    st.lager = 0; st.voll = false;
+    const r = lagerEin(d.gut, kg);
+    xpGeben(Math.round(kg / 25) + 5);
+    return { ok: true, kg, gut: d.gut, ueber: r.rest, erloes: r.erloes };
+  }
+  // Stand eines Stalls fuer die Anzeige (hochgerechnet bis jetzt, ohne den Spielstand zu veraendern)
+  function stallStand(id, jetzt) {
+    const d = D.tier(id), st = stall(id);
+    if (!st) return null;
+    const rate = st.anzahl * d.kgH * tempoTiere();
+    const futterStunden = d.futterKgH && st.anzahl ? st.futter / (st.anzahl * d.futterKgH * tempoTiere()) : (d.futterKgH ? 0 : 99);
+    const w = wetter(jetzt);
+    return { st, d, kap: d.kap[st.stufe], rateH: rate * w.tiere, lagerKap: lagerKap(d, st), futterKap: futterKap(d, st), futterStunden, futterSilo: futterImSilo(d), laeuft: st.anzahl > 0 && (!d.futterKgH || st.futter > 0 || (st.auto && futterImSilo(d) > 0)) };
+  }
+
+  // Zeit-Schritt: Pflanzenwachstum und Tiere bis 'bis' fortschreiben (Wetter ist im Intervall konstant)
+  function schritt(bis) {
+    const dt = bis - S.stepZeit;
+    if (dt <= 0) return;
+    const w = wetter(S.stepZeit);
+    Object.keys(S.felder).forEach(id => {
+      const f = S.felder[id];
+      if (f.phase !== 'waechst') return;
+      f.fort = Math.min(1, f.fort + dt / Math.max(1, f.dauer) * wachsFaktor(f, S.stepZeit));
+      f.fortZeit = bis;
+    });
+    const h = dt / 3600000, tempo = tempoTiere();
+    Object.keys(S.tiere).forEach(id => {
+      const st = S.tiere[id], d = D.tier(id);
+      if (!st.anzahl) return;
+      let eff = 1;
+      if (d.futterKgH > 0) {
+        const bedarf = st.anzahl * d.futterKgH * h * tempo;
+        if (st.auto) {
+          const want = Math.min(futterKap(d, st) - st.futter, bedarf);
+          if (want > 0) st.futter += nimmFutter(d, want);
+        }
+        const verbraucht = Math.min(st.futter, bedarf);
+        st.futter -= verbraucht;
+        eff = bedarf > 0 ? verbraucht / bedarf : 1;
+      }
+      const kap = lagerKap(d, st);
+      st.lager = Math.min(kap, st.lager + st.anzahl * d.kgH * h * tempo * eff * w.tiere);
+      if (!st.voll && st.lager >= kap - 0.01) { st.voll = true; ereignis('stallVoll', { id }); }
+    });
+    S.stepZeit = bis;
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // Bestellungen
   // ----------------------------------------------------------------------------------------------
   function auftragErzeugen(jetzt) {
@@ -430,9 +623,12 @@ const FarmModell = (function () {
     Object.keys(S.produktion).forEach(pid => {
       D.betrieb(pid).rezepte.forEach(r => kandidaten.push({ id: r.aus, kleinst: 500, groesst: Math.min(12000, 1500 + S.level * 300) }));
     });
+    Object.keys(S.tiere).forEach(tid => {
+      if (S.tiere[tid].anzahl > 0) kandidaten.push({ id: D.tier(tid).gut, kleinst: 100, groesst: Math.min(3000, 300 + S.level * 60), fein: true });
+    });
     if (!kandidaten.length) return null;
     const k = kandidaten[Math.floor(Math.random() * kandidaten.length)];
-    const schritt = k.wurzel ? 5000 : 1000;
+    const schritt = k.wurzel ? 5000 : k.fein ? 100 : 1000;
     let kg = Math.round(rnd(k.kleinst, k.groesst) / schritt) * schritt;
     kg = Math.max(kg, k.kleinst - (k.kleinst % schritt) || schritt);
     const lohn = Math.round(kg / 1000 * grundPreis(k.id) * rnd(1.3, 1.7) / 50) * 50;
@@ -462,7 +658,11 @@ const FarmModell = (function () {
       if (!j.fertig) kand(j.start + j.hin + j.arbeit, 'jobWirkung', j);
       else kand(j.start + j.hin + j.arbeit + j.rueck, 'jobEnde', j);
     });
-    Object.keys(S.felder).forEach(id => { const f = S.felder[id]; if (f.phase === 'waechst') kand(f.reife, 'reif', Number(id)); });
+    Object.keys(S.felder).forEach(id => {
+      const f = S.felder[id];
+      if (f.phase === 'waechst') kand(f.fortZeit + (1 - f.fort) * f.dauer / wachsFaktor(f, S.stepZeit), 'reif', Number(id));
+    });
+    kand((Math.floor(S.zeit / D.WETTER_SLOT_MS) + 1) * D.WETTER_SLOT_MS, 'wetter', null);
     Object.keys(S.produktion).forEach(id => { const p = S.produktion[id]; if (p.queue[0] && p.queue[0].start != null) kand(p.queue[0].start + p.queue[0].dauer, 'prod', id); });
     S.auftraege.forEach(a => kand(a.bis, 'auftragAblauf', a));
     if (S.auftraege.length < 4) kand(S.auftragNaechst, 'auftragNeu', null);
@@ -477,6 +677,7 @@ const FarmModell = (function () {
       const e = naechstes(jetzt);
       if (!e) break;
       S.zeit = Math.max(S.zeit, e.zeit);
+      schritt(S.zeit);
       if (e.art === 'jobWirkung') jobWirkung(e.ref);
       else if (e.art === 'jobEnde') {
         const j = e.ref;
@@ -484,7 +685,7 @@ const FarmModell = (function () {
         S.jobs.splice(S.jobs.indexOf(j), 1);
         autoPlaner(S.zeit);
       } else if (e.art === 'reif') {
-        const f = S.felder[e.ref]; f.phase = 'reif';
+        const f = S.felder[e.ref]; f.phase = 'reif'; f.fort = 1;
         ereignis('reif', { feld: e.ref });
         autoPlaner(S.zeit);
       } else if (e.art === 'prod') {
@@ -501,12 +702,15 @@ const FarmModell = (function () {
         const a = auftragErzeugen(S.zeit);
         if (a) { S.auftraege.push(a); ereignis('auftragNeu', { auftrag: a }); }
         S.auftragNaechst = S.zeit + 15 * 60000;
+      } else if (e.art === 'wetter') {
+        ereignis('wetter', { typ: wetterTyp(S.zeit), zeit: S.zeit });
       } else if (e.art === 'preis') {
         S.preisZeit += 600000;
         D.alleGueter().forEach(g => { S.preise[g] = zahl(S.preise[g] + (1 - S.preise[g]) * 0.1 + (Math.random() - 0.5) * 0.09, D.PREIS_MIN, D.PREIS_MAX); });
       }
     }
     S.zeit = jetzt;
+    schritt(jetzt);
     autoPlaner(jetzt);
   }
 
@@ -524,7 +728,7 @@ const FarmModell = (function () {
     const f = S.felder[id];
     if (!f) return null;
     const j = jobAufFeld(id);
-    return { feld: f, job: j, jobStand: j ? jobStand(j, jetzt) : null, wachstum: fortschrittWachstum(f, jetzt), restWachsen: f.phase === 'waechst' ? Math.max(0, f.reife - jetzt) : 0 };
+    return { feld: f, job: j, jobStand: j ? jobStand(j, jetzt) : null, wachstum: fortschrittWachstum(f, jetzt), restWachsen: restWachsen(id, jetzt) };
   }
   function moeglicheSchritte(feldId, jetzt) {
     return D.SCHRITT_REIHENFOLGE.filter(s => D.SCHRITTE[s].von.indexOf(S.felder[feldId].phase) >= 0).map(s => ({ schritt: s, erlaubt: schrittErlaubt(feldId, s, jetzt) }));
@@ -536,6 +740,8 @@ const FarmModell = (function () {
     arbeitStarten, arbeitAbbrechen, optionen, schrittErlaubt, kostenFuer, produktionBauen, produktionAusbauen, produktionStarten,
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
+    wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
+    stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,
     tempoSetzen(x) { S.tempo = x; }
   };
 })();

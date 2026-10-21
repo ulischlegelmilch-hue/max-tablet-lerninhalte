@@ -61,6 +61,7 @@ const FarmAnsicht = (function () {
     sperr.push({ x: D.PLATZ_LANDHANDEL.x - 50, y: D.PLATZ_LANDHANDEL.y - 50, w: D.PLATZ_LANDHANDEL.w + 100, h: D.PLATZ_LANDHANDEL.h + 450 });
     D.GEBAEUDE.forEach(g => sperr.push({ x: g.x - 70, y: g.y - 70, w: g.w + 140, h: g.h + 140 }));
     D.PRODUKTION.forEach(g => sperr.push({ x: g.x - 50, y: g.y - 50, w: g.w + 100, h: g.h + 100 }));
+    sperr.push({ x: D.TIERHOF.x - 60, y: D.TIERHOF.y - 60, w: D.TIERHOF.w + 120, h: D.TIERHOF.h + 120 });
     for (let n = 0; n < 2600 && baeume.length < 520; n++) {
       const x = 30 + rnd() * (D.WELT.b - 60), y = 30 + rnd() * (D.WELT.h - 60);
       const rand = Math.min(x, y, D.WELT.b - x, D.WELT.h - y);
@@ -289,6 +290,104 @@ const FarmAnsicht = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
+  // Tierhof
+  // ----------------------------------------------------------------------------------------------
+  function hz(i) { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+  // Bahn eines Tieres im Gehege: Position und Blickrichtung
+  function tierPos(pen, i, t) {
+    const pad = 14, w = pen.w - 2 * pad, h = pen.h - 2 * pad - 10;
+    const f1 = 0.10 + hz(i) * 0.14, f2 = 0.07 + hz(i + 9) * 0.12, p1 = hz(i + 3) * 6.28, p2 = hz(i + 5) * 6.28;
+    const u = 0.5 + 0.5 * Math.sin(t * f1 + p1), v = 0.5 + 0.5 * Math.sin(t * f2 * 1.3 + p2);
+    const du = 0.5 * Math.cos(t * f1 + p1) * f1 * w, dv = 0.5 * Math.cos(t * f2 * 1.3 + p2) * f2 * 1.3 * h;
+    return { x: pen.x + pad + u * w, y: pen.y + pad + 8 + v * h, a: Math.atan2(dv, du) };
+  }
+  function zeichneHuhn(ctx, x, y, a) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(1.35, 1.35);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(1.5, 2.5, 6.5, 4.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f6f2ea'; ctx.beginPath(); ctx.ellipse(0, 0, 6.5, 4.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e2dccf'; ctx.beginPath(); ctx.ellipse(-1.5, 0.5, 3.6, 2.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f6f2ea'; ctx.beginPath(); ctx.arc(5.8, 0, 2.7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d9332a'; ctx.beginPath(); ctx.arc(6, -2, 1.3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f2a81a'; ctx.beginPath(); ctx.moveTo(8, -0.8); ctx.lineTo(10.2, 0); ctx.lineTo(8, 0.9); ctx.fill();
+    ctx.restore();
+  }
+  function zeichneSchaf(ctx, x, y, a) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(2, 3, 10, 7.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#4a3f3a'; ctx.beginPath(); ctx.ellipse(10, 0, 4.2, 3.3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f4efe4';
+    [[-3, -4], [-3, 4], [3, -4.5], [3, 4.5], [0, 0], [-6, 0], [5, 0]].forEach(c => { ctx.beginPath(); ctx.arc(c[0], c[1], 4.6, 0, 7); ctx.fill(); });
+    ctx.fillStyle = 'rgba(160,150,135,0.45)'; ctx.beginPath(); ctx.arc(-2, 2, 3.5, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function zeichneKuh(ctx, x, y, a, i) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(2, 4, 15, 8.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f7f5f0'; ctx.beginPath(); ctx.ellipse(0, 0, 14, 8, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = hz(i) < 0.5 ? '#2a2623' : '#6b4a33';
+    ctx.beginPath(); ctx.ellipse(-4, -2.5, 4.5, 3.4, 0.4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(4, 3, 3.6, 2.8, -0.3, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f0e9df'; ctx.beginPath(); ctx.ellipse(14, 0, 5.6, 4.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8a9a0'; ctx.beginPath(); ctx.ellipse(18, 0, 2.4, 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a2623'; ctx.beginPath(); ctx.arc(14, -3.8, 1.5, 0, 7); ctx.arc(14, 3.8, 1.5, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d9d2c4'; ctx.fillRect(-14, -1, 4, 2);
+    ctx.restore();
+  }
+  function zeichneBienenstock(ctx, x, y, farbe) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x + 2, y + 3, 16, 14);
+    ctx.fillStyle = farbe; ctx.fillRect(x, y, 16, 14);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(x, y, 16, 3);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x + 6, y + 10, 4, 3);
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(x, y, 16, 14);
+  }
+  function zeichneTierhof(ctx, sicht, S, jetzt, t, m) {
+    const th = D.TIERHOF;
+    if (th.x > sicht.x1 || th.x + th.w < sicht.x0 || th.y > sicht.y1 || th.y + th.h < sicht.y0) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(th.x - 4, th.y - 4, th.w + 8, th.h + 8);
+    ctx.fillStyle = m.beton; ctx.fillRect(th.x, th.y, th.w, th.h);
+    schildText(ctx, 'TIERHOF', th.x + 120, th.y + 22, 20, '#fff7e0');
+    D.TIERE.forEach(d => {
+      const st = S.tiere[d.id], h = d.haus, pen = d.auslauf;
+      // Gehege (Wiese + Zaun)
+      ctx.fillStyle = d.id === 'bienen' ? '#7fb85a' : '#6fa84c'; ctx.fillRect(pen.x, pen.y, pen.w, pen.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)'; for (let k = 0; k < pen.w; k += 22) ctx.fillRect(pen.x + k, pen.y, 10, pen.h);
+      ctx.strokeStyle = st ? '#8a6238' : 'rgba(210,190,150,0.8)'; ctx.lineWidth = 3; if (!st) ctx.setLineDash([8, 7]);
+      ctx.strokeRect(pen.x, pen.y, pen.w, pen.h); ctx.setLineDash([]);
+      if (st) { ctx.fillStyle = '#6b4a2e'; for (let k = 0; k <= pen.w; k += 36) { ctx.fillRect(pen.x + k - 2, pen.y - 2, 4, 5); ctx.fillRect(pen.x + k - 2, pen.y + pen.h - 3, 4, 5); } }
+      if (!st) {
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(h.x, h.y, h.w, h.h);
+        ctx.setLineDash([10, 8]); ctx.strokeStyle = 'rgba(255,230,120,0.85)'; ctx.lineWidth = 3; ctx.strokeRect(h.x + 2, h.y + 2, h.w - 4, h.h - 4); ctx.setLineDash([]);
+        schildText(ctx, d.icon, h.x + h.w / 2, h.y + h.h / 2 - 12, 32, '#fff');
+        schildText(ctx, 'BAUPLATZ', h.x + h.w / 2, h.y + h.h / 2 + 16, 11, '#ffe27a');
+        schildText(ctx, d.stall + (S.level < d.lvl ? ' · Lvl ' + d.lvl : ''), h.x + h.w / 2, h.y + h.h / 2 + 31, 11, '#fff');
+        return;
+      }
+      dach(ctx, h.x, h.y, h.w, h.h, h.dach);
+      schildText(ctx, d.icon, h.x + h.w / 2, h.y + h.h / 2 - 10, 30, '#fff');
+      schildText(ctx, d.stall, h.x + h.w / 2, h.y + h.h / 2 + 20, 12, '#fff');
+      const n = st.anzahl;
+      if (d.id === 'bienen') {
+        const boxen = Math.min(12, n);
+        for (let i = 0; i < boxen; i++) zeichneBienenstock(ctx, pen.x + 26 + (i % 6) * 40, pen.y + 28 + Math.floor(i / 6) * 50, ['#e8c14a', '#7fb0e0', '#e08a8a', '#9fd68a'][i % 4]);
+        for (let i = 0; i < Math.min(30, n * 3); i++) {
+          const b = tierPos({ x: pen.x, y: pen.y, w: pen.w, h: pen.h }, i + 40, t * 3);
+          ctx.fillStyle = '#f2c21a'; ctx.beginPath(); ctx.arc(b.x, b.y, 1.7, 0, 7); ctx.fill();
+        }
+        // Blumen
+        for (let i = 0; i < 26; i++) { const x = pen.x + 12 + hz(i) * (pen.w - 24), y = pen.y + pen.h - 22 + hz(i + 7) * 12; ctx.fillStyle = ['#f6e65a', '#f08aa0', '#ffffff', '#9ab8ff'][i % 4]; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill(); }
+      } else {
+        const sicht_n = Math.min(d.id === 'huehner' ? 40 : 24, n);
+        for (let i = 0; i < sicht_n; i++) {
+          const p = tierPos(pen, i, t);
+          if (d.id === 'huehner') zeichneHuhn(ctx, p.x, p.y, p.a);
+          else if (d.id === 'schafe') zeichneSchaf(ctx, p.x, p.y, p.a);
+          else zeichneKuh(ctx, p.x, p.y, p.a, i);
+        }
+      }
+    });
+  }
+
+  // ----------------------------------------------------------------------------------------------
   // Felder
   // ----------------------------------------------------------------------------------------------
   function zeichneFeld(ctx, d, S, jetzt, m) {
@@ -393,6 +492,7 @@ const FarmAnsicht = (function () {
       if (d.x > sicht.x1 || d.x + d.c * Z < sicht.x0 || d.y > sicht.y1 || d.y + d.r * Z < sicht.y0) return;
       zeichneFeld(ctx, d, S, jetzt, m);
     });
+    zeichneTierhof(ctx, sicht, S, jetzt, t, m);
     // Maschinen
     const park = parkplaetze(S);
     const einsaetze = {};
@@ -465,7 +565,7 @@ const FarmAnsicht = (function () {
         zeilen.push(sch.icon + ' ' + sch.name + (st.teil === 'hin' ? ' · fährt hin' : st.teil === 'rueck' ? ' · fertig' : ' ' + Math.round(st.p * 100) + ' %'));
         if (st.teil !== 'rueck') zeilen.push('noch ' + zeitText(rest));
       } else if (f.phase === 'reif') { zeilen.push('🌾 ' + fn + ' erntereif!'); farbe = '#ffe27a'; }
-      else if (f.phase === 'waechst') { zeilen.push('🌱 ' + fn + ' ' + Math.round(wachstum * 100) + ' %'); zeilen.push('noch ' + zeitText(Math.max(0, f.reife - jetzt))); }
+      else if (f.phase === 'waechst') { zeilen.push('🌱 ' + fn + ' ' + Math.round(wachstum * 100) + ' %'); zeilen.push('noch ' + zeitText(M.restWachsen(d.id, jetzt))); }
       else if (f.phase === 'bearbeitet') zeilen.push('Gegrubbert – bereit zum Säen');
       else if (f.phase === 'gepfluegt') zeilen.push('Gepflügt – bereit zum Säen');
       else zeilen.push('Stoppelfeld – bearbeiten');
@@ -477,6 +577,19 @@ const FarmAnsicht = (function () {
         const k = 0.5 + 0.5 * Math.sin(t * 5);
         ctx.fillStyle = 'rgba(255,226,90,' + (0.6 + 0.4 * k) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y - zeilen.length * 11 - 20, 7 + 2 * k, 0, 7); ctx.fill();
       }
+    });
+    // Stall-Hinweise
+    D.TIERE.forEach(d => {
+      const st = S.tiere[d.id];
+      if (!st || !st.anzahl || cam.z < 0.45) return;
+      const ss = M.stallStand(d.id, jetzt);
+      const p = zuS(d.haus.x + d.haus.w / 2, d.haus.y - 10);
+      if (p.x < -150 || p.x > W + 150 || p.y < -50 || p.y > H + 50) return;
+      let text = d.icon + ' ' + st.anzahl + '/' + ss.kap + (st.lager >= 1 ? ' · ' + (st.lager >= 1000 ? (st.lager / 1000).toFixed(1) + ' t' : Math.round(st.lager) + ' kg') + ' ' + D.gut(d.gut).name : '');
+      let farbe = '#fff';
+      if (d.futterKgH && !ss.laeuft) { text = '⚠ ' + d.name + ': Futter leer'; farbe = '#ffb4a2'; }
+      else if (st.lager >= ss.lagerKap * 0.9 && ss.lagerKap > 0) { text = '✋ ' + d.name + ': einsammeln!'; farbe = '#ffe27a'; }
+      pille(p.x, p.y, text, farbe, 13);
     });
     // Betriebs-Hinweise
     D.PRODUKTION.forEach(b => {
@@ -494,6 +607,39 @@ const FarmAnsicht = (function () {
     return s + ' s';
   }
 
+  // Wetter-Effekte ueber der ganzen Szene (Bildschirmkoordinaten)
+  function zeichneWetter(ctx, W, H, t, typ) {
+    const tint = { bewoelkt: 'rgba(60,70,85,0.10)', regen: 'rgba(25,45,80,0.20)', gewitter: 'rgba(15,20,45,0.34)', hitze: 'rgba(255,150,40,0.11)', nebel: 'rgba(225,230,235,0.30)', schnee: 'rgba(235,242,255,0.20)' }[typ];
+    if (tint) { ctx.fillStyle = tint; ctx.fillRect(0, 0, W, H); }
+    if (typ === 'regen' || typ === 'gewitter') {
+      const n = typ === 'gewitter' ? 170 : 110;
+      ctx.strokeStyle = 'rgba(210,226,255,0.62)'; ctx.lineWidth = 1.6; ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const sp = 520 + hz(i) * 260;
+        const x = (hz(i + 1) * (W + 200) + t * 110 * (0.6 + hz(i + 2) * 0.5)) % (W + 200) - 100;
+        const y = (hz(i + 3) * H + t * sp) % H;
+        ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 13);
+      }
+      ctx.stroke();
+      if (typ === 'gewitter') {
+        const blitz = Math.floor(t * 1.3), phase = (t * 1.3) - blitz;
+        if (hz(blitz * 7 + 3) < 0.28 && phase < 0.12) { ctx.fillStyle = 'rgba(255,255,255,' + (0.55 * (1 - phase / 0.12)) + ')'; ctx.fillRect(0, 0, W, H); }
+      }
+    } else if (typ === 'schnee') {
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      for (let i = 0; i < 90; i++) {
+        const x = (hz(i + 1) * W + Math.sin(t * 0.8 + i) * 18 + W) % W, y = (hz(i + 3) * H + t * (30 + hz(i + 2) * 40)) % H;
+        ctx.beginPath(); ctx.arc(x, y, 1.6 + hz(i + 5) * 1.6, 0, 7); ctx.fill();
+      }
+    } else if (typ === 'nebel') {
+      const gr = ctx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, 'rgba(235,238,242,0.25)'); gr.addColorStop(1, 'rgba(235,238,242,0.05)');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    } else if (typ === 'hitze') {
+      const gr = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.9); gr.addColorStop(0, 'rgba(255,170,60,0)'); gr.addColorStop(1, 'rgba(255,120,20,0.16)');
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    }
+  }
+
   // Was liegt an Weltposition?
   function trefferBei(wx, wy, S) {
     for (let i = 0; i < D.PRODUKTION.length; i++) { const b = D.PRODUKTION[i]; if (inRect(wx, wy, b, 8)) return { art: 'betrieb', id: b.id }; }
@@ -501,9 +647,10 @@ const FarmAnsicht = (function () {
     for (let i = 0; i < D.SILOS.length; i++) { const s = D.SILOS[i]; if (Math.hypot(wx - s.x, wy - s.y) < s.r + 6) return { art: 'gebaeude', id: 'silo' }; }
     for (let i = 0; i < D.FELDER.length; i++) { const f = D.FELDER[i]; if (inRect(wx, wy, { x: f.x, y: f.y, w: f.c * Z, h: f.r * Z }, 10)) return { art: 'feld', id: f.id }; }
     if (inRect(wx, wy, D.HOF)) return { art: 'gebaeude', id: 'halle' };
+    for (let i = 0; i < D.TIERE.length; i++) { const d = D.TIERE[i]; if (inRect(wx, wy, d.haus, 8) || inRect(wx, wy, d.auslauf, 4)) return { art: 'stall', id: d.id }; }
     return null;
   }
 
   baumeErzeugen();
-  return { zeichneWelt, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen, aufBahn };
+  return { zeichneWelt, zeichneWetter, zeichneBeschriftungen, trefferBei, zeitText, jobPosen, parkplaetze, bahnen, aufBahn };
 })();
