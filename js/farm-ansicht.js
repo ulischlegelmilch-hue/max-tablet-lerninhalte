@@ -413,6 +413,34 @@ const FarmAnsicht = (function () {
     ctx.fillStyle = '#d9d2c4'; ctx.fillRect(-14, -1, 4, 2);
     ctx.restore();
   }
+  function zeichneEnte(ctx, x, y, a) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.scale(1.3, 1.3);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(1.5, 2.5, 7, 4.5, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f4efe2'; ctx.beginPath(); ctx.ellipse(0, 0, 7, 4.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d8cfb8'; ctx.beginPath(); ctx.ellipse(-1.5, 0.6, 3.8, 2.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2f7d5a'; ctx.beginPath(); ctx.arc(6.2, 0, 2.7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#f2a81a'; ctx.beginPath(); ctx.ellipse(9.3, 0, 2.2, 1.3, 0, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+  function zeichneZiege(ctx, x, y, a) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(2, 3.5, 10, 6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#e8e2d6'; ctx.beginPath(); ctx.ellipse(0, 0, 9.5, 5.2, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#b9ae98'; ctx.beginPath(); ctx.ellipse(-2, 1.5, 4.5, 2.6, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ddd5c4'; ctx.beginPath(); ctx.ellipse(10, 0, 4.2, 3, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#6b5a44'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(10, -2.2); ctx.lineTo(7.5, -5.5); ctx.moveTo(10, 2.2); ctx.lineTo(7.5, 5.5); ctx.stroke();
+    ctx.restore();
+  }
+  function zeichneAlpaka(ctx, x, y, a, i) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(2, 4, 12, 7.5, 0, 0, 7); ctx.fill();
+    const fell = ['#e9dcc6', '#a98562', '#6b4f3a', '#f4efe4'][(i * 7) % 4];
+    ctx.fillStyle = fell; ctx.beginPath(); ctx.ellipse(0, 0, 11, 7, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(11, 0, 4.2, 3.2, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.ellipse(-3, -2, 5, 3, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#3a2f28'; ctx.beginPath(); ctx.arc(14, 0, 1.3, 0, 7); ctx.fill();
+    ctx.restore();
+  }
   function zeichneBienenstock(ctx, x, y, farbe) {
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x + 2, y + 3, 16, 14);
     ctx.fillStyle = farbe; ctx.fillRect(x, y, 16, 14);
@@ -433,6 +461,7 @@ const FarmAnsicht = (function () {
       ctx.fillStyle = 'rgba(255,255,255,0.06)'; for (let k = 0; k < pen.w; k += 22) ctx.fillRect(pen.x + k, pen.y, 10, pen.h);
       ctx.strokeStyle = st ? '#8a6238' : 'rgba(210,190,150,0.8)'; ctx.lineWidth = 3; if (!st) ctx.setLineDash([8, 7]);
       ctx.strokeRect(pen.x, pen.y, pen.w, pen.h); ctx.setLineDash([]);
+      if (d.id === 'enten') { ctx.fillStyle = '#5b9bc4'; ctx.beginPath(); ctx.ellipse(pen.x + pen.w * 0.7, pen.y + pen.h * 0.55, pen.w * 0.22, pen.h * 0.28, 0, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.stroke(); }
       if (st) { ctx.fillStyle = '#6b4a2e'; for (let k = 0; k <= pen.w; k += 36) { ctx.fillRect(pen.x + k - 2, pen.y - 2, 4, 5); ctx.fillRect(pen.x + k - 2, pen.y + pen.h - 3, 4, 5); } }
       if (!st) {
         ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(h.x, h.y, h.w, h.h);
@@ -456,11 +485,14 @@ const FarmAnsicht = (function () {
         // Blumen
         for (let i = 0; i < 26; i++) { const x = pen.x + 12 + hz(i) * (pen.w - 24), y = pen.y + pen.h - 22 + hz(i + 7) * 12; ctx.fillStyle = ['#f6e65a', '#f08aa0', '#ffffff', '#9ab8ff'][i % 4]; ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 7); ctx.fill(); }
       } else {
-        const sicht_n = Math.min(d.id === 'huehner' ? 40 : 24, n);
+        const sicht_n = Math.min(d.id === 'huehner' || d.id === 'enten' ? 40 : 24, n);
         for (let i = 0; i < sicht_n; i++) {
           const p = tierPos(pen, i, t);
           if (d.id === 'huehner') zeichneHuhn(ctx, p.x, p.y, p.a);
           else if (d.id === 'schafe') zeichneSchaf(ctx, p.x, p.y, p.a);
+          else if (d.id === 'enten') zeichneEnte(ctx, p.x, p.y, p.a);
+          else if (d.id === 'ziegen') zeichneZiege(ctx, p.x, p.y, p.a);
+          else if (d.id === 'alpakas') zeichneAlpaka(ctx, p.x, p.y, p.a, i);
           else zeichneKuh(ctx, p.x, p.y, p.a, i);
         }
       }

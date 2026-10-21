@@ -6,7 +6,7 @@ const FarmDaten = (function () {
   const ZELLE = 20;
   const HA_JE_ZELLE = 0.015;
   const PX_JE_M = 28;
-  const WELT = { b: 4400, h: 3900 };
+  const WELT = { b: 4400, h: 4400 };
   // Maschinen werden kleiner gezeichnet als ihre Rohmasse (die Felder wirken sonst winzig); Arbeitsbreiten in Metern bleiben gleich.
   const MASCHINEN_SKALA = 0.55;
   // Wirtschaft (angelehnt an Farming Simulator: Land und Maschinen sind teuer, ein Hektar Weizen bringt ca. 2.000-2.500 EUR)
@@ -35,7 +35,14 @@ const FarmDaten = (function () {
     { id: 'sonnenblume', name: 'Sonnenblumen', ernte: 'korn', familie: 'oel', lvl: 9, dauer: 300 * 60, ertrag: 3.0, preis: 400, saat: 110, farben: { jung: '#7dc94f', hoch: '#4c9a2c', reif: '#f4b30f', reihe: '#6b4a1c' } },
     { id: 'soja', name: 'Soja', ernte: 'korn', familie: 'huelsen', lvl: 11, dauer: 270 * 60, ertrag: 3.5, preis: 420, saat: 180, farben: { jung: '#86cf5a', hoch: '#56ac3a', reif: '#c9a870', reihe: '#a78650' } },
     { id: 'kartoffel', name: 'Kartoffeln', ernte: 'wurzel', familie: 'hack', lvl: 12, dauer: 360 * 60, ertrag: 38.0, preis: 110, saat: 700, farben: { jung: '#7ccb55', hoch: '#3f9a3a', reif: '#6f9c3c', reihe: '#4f7a28' } },
-    { id: 'ruebe', name: 'Zuckerrüben', ernte: 'wurzel', familie: 'hack', lvl: 15, dauer: 480 * 60, ertrag: 75.0, preis: 48, saat: 250, farben: { jung: '#84cd58', hoch: '#3c9633', reif: '#2f8a3a', reihe: '#1f6a2a' } }
+    { id: 'ruebe', name: 'Zuckerrüben', ernte: 'wurzel', familie: 'hack', lvl: 15, dauer: 480 * 60, ertrag: 75.0, preis: 48, saat: 250, farben: { jung: '#84cd58', hoch: '#3c9633', reif: '#2f8a3a', reihe: '#1f6a2a' } },
+    { id: 'roggen', name: 'Roggen', ernte: 'korn', familie: 'getreide', lvl: 6, dauer: 210 * 60, ertrag: 6.5, preis: 185, saat: 130, farben: { jung: '#8ccf5a', hoch: '#6aaf45', reif: '#d9b86a', reihe: '#bf9a45' } },
+    { id: 'hafer', name: 'Hafer', ernte: 'korn', familie: 'getreide', lvl: 8, dauer: 180 * 60, ertrag: 5.5, preis: 170, saat: 120, farben: { jung: '#8fd35e', hoch: '#6fb64a', reif: '#e6d08a', reihe: '#c9ae5c' } },
+    { id: 'erbsen', name: 'Erbsen', ernte: 'korn', familie: 'huelsen', lvl: 10, dauer: 180 * 60, ertrag: 4.5, preis: 340, saat: 170, farben: { jung: '#7ccf5c', hoch: '#4fae3e', reif: '#b9c46a', reihe: '#8fa24a' } },
+    { id: 'bohnen', name: 'Bohnen', ernte: 'korn', familie: 'huelsen', lvl: 12, dauer: 210 * 60, ertrag: 4.0, preis: 380, saat: 190, farben: { jung: '#7acb5a', hoch: '#3f9a38', reif: '#a7b25c', reihe: '#76843a' } },
+    { id: 'zwiebeln', name: 'Zwiebeln', ernte: 'wurzel', familie: 'gemuese', lvl: 14, dauer: 360 * 60, ertrag: 45.0, preis: 100, saat: 650, farben: { jung: '#8bd45f', hoch: '#5fb447', reif: '#c8a65e', reihe: '#a58340' } },
+    { id: 'moehren', name: 'Möhren', ernte: 'wurzel', familie: 'gemuese', lvl: 16, dauer: 390 * 60, ertrag: 50.0, preis: 95, saat: 600, farben: { jung: '#7fd062', hoch: '#4eae45', reif: '#4d9a3a', reihe: '#3a7a2c' } },
+    { id: 'lein', name: 'Lein', ernte: 'korn', familie: 'oel', lvl: 18, dauer: 300 * 60, ertrag: 2.2, preis: 560, saat: 120, farben: { jung: '#86d06a', hoch: '#79b8d4', reif: '#cdb870', reihe: '#a89350' } }
   ];
 
   // ---- Traktoren ----  ps, kmh = Hoechstgeschwindigkeit
@@ -140,9 +147,9 @@ const FarmDaten = (function () {
   // ---- Strassen / Hof / Gebaeude ----
   const STRASSEN = [
     { x: 0, y: 1500, w: 4400, h: 90 },
-    { x: 2150, y: 0, w: 90, h: 3900 }
+    { x: 2150, y: 0, w: 90, h: 4400 }
   ];
-  const TIERHOF = { x: 2260, y: 3260, w: 1780, h: 600 };
+  const TIERHOF = { x: 2260, y: 3260, w: 2100, h: 1080 };
   const HOF = { x: 1000, y: 1620, w: 1100, h: 640 };
   const PLATZ_LANDHANDEL = { x: 2260, y: 1600, w: 520, h: 200 };
   const GEBAEUDE = [
@@ -160,7 +167,7 @@ const FarmDaten = (function () {
   const WAREN = {
     mehl: { id: 'mehl', name: 'Mehl', icon: '🥣', preis: 380 },
     brot: { id: 'brot', name: 'Brot', icon: '🍞', preis: 950 },
-    rapsoel: { id: 'rapsoel', name: 'Rapsöl', icon: '🫒', preis: 1300 },
+    rapsoel: { id: 'rapsoel', name: 'Rapsöl', icon: '🫒', preis: 1750 },
     sonnenoel: { id: 'sonnenoel', name: 'Sonnenblumenöl', icon: '🌻', preis: 1250 },
     chips: { id: 'chips', name: 'Kartoffelchips', icon: '🥔', preis: 950 },
     zucker: { id: 'zucker', name: 'Zucker', icon: '🍬', preis: 700 },
@@ -169,23 +176,63 @@ const FarmDaten = (function () {
     wolle: { id: 'wolle', name: 'Wolle', icon: '🧶', preis: 9000 },
     honig: { id: 'honig', name: 'Honig', icon: '🍯', preis: 14000 },
     kaese: { id: 'kaese', name: 'Käse', icon: '🧀', preis: 14000 },
-    kuchen: { id: 'kuchen', name: 'Kuchen', icon: '🎂', preis: 1200 }
+    kuchen: { id: 'kuchen', name: 'Kuchen', icon: '🎂', preis: 1200 },
+    roggenmehl: { id: 'roggenmehl', name: 'Roggenmehl', icon: '🌾', preis: 340 },
+    haferflocken: { id: 'haferflocken', name: 'Haferflocken', icon: '🥣', preis: 520 },
+    roggenbrot: { id: 'roggenbrot', name: 'Roggenbrot', icon: '🍞', preis: 900 },
+    honigkuchen: { id: 'honigkuchen', name: 'Honigkuchen', icon: '🍪', preis: 3200 },
+    leinoel: { id: 'leinoel', name: 'Leinöl', icon: '🫒', preis: 2600 },
+    ziegenkaese: { id: 'ziegenkaese', name: 'Ziegenkäse', icon: '🧀', preis: 18000 },
+    erbsenkonserve: { id: 'erbsenkonserve', name: 'Erbsen in der Dose', icon: '🥫', preis: 700 },
+    bohnenkonserve: { id: 'bohnenkonserve', name: 'Bohnen in der Dose', icon: '🥫', preis: 750 },
+    zwiebelsuppe: { id: 'zwiebelsuppe', name: 'Zwiebelsuppe', icon: '🍲', preis: 300 },
+    moehrensaft: { id: 'moehrensaft', name: 'Möhrensaft', icon: '🧃', preis: 250 },
+    joghurt: { id: 'joghurt', name: 'Joghurt', icon: '🍶', preis: 1900 },
+    butter: { id: 'butter', name: 'Butter', icon: '🧈', preis: 16000 },
+    wollstoff: { id: 'wollstoff', name: 'Wollstoff', icon: '🧵', preis: 16000 },
+    alpakastoff: { id: 'alpakastoff', name: 'Alpakastoff', icon: '🧣', preis: 32000 },
+    muesli: { id: 'muesli', name: 'Müsli', icon: '🥗', preis: 2200 },
+    strom: { id: 'strom', name: 'Biogas-Strom', icon: '⚡', preis: 2000 },
+    enteneier: { id: 'enteneier', name: 'Enteneier', icon: '🥚', preis: 4200 },
+    ziegenmilch: { id: 'ziegenmilch', name: 'Ziegenmilch', icon: '🥛', preis: 1700 },
+    alpakawolle: { id: 'alpakawolle', name: 'Alpakawolle', icon: '🐑', preis: 16000 }
   };
   // Betriebe: Position (Bauplatz), Preis, Level, Rezepte {ein, einKg, aus, ausKg, sek}
   const PRODUKTION = [
     { id: 'muehle', name: 'Mühle', icon: '🌬', lvl: 7, preis: 60000, x: 2820, y: 1630, w: 110, h: 110, dach: '#a77b4f',
-      rezepte: [{ id: 'mehl', ein: [{ gut: 'weizen', kg: 1000 }], aus: 'mehl', ausKg: 750, sek: 10 * 60 }] },
+      rezepte: [{ id: 'mehl', ein: [{ gut: 'weizen', kg: 1000 }], aus: 'mehl', ausKg: 750, sek: 10 * 60 },
+        { id: 'roggenmehl', ein: [{ gut: 'roggen', kg: 1000 }], aus: 'roggenmehl', ausKg: 750, sek: 10 * 60 },
+        { id: 'haferflocken', ein: [{ gut: 'hafer', kg: 1000 }], aus: 'haferflocken', ausKg: 700, sek: 12 * 60 }] },
     { id: 'baeckerei', name: 'Bäckerei', icon: '🥖', lvl: 10, preis: 90000, x: 2950, y: 1630, w: 110, h: 110, dach: '#c07a4a',
       rezepte: [{ id: 'brot', ein: [{ gut: 'mehl', kg: 500 }], aus: 'brot', ausKg: 450, sek: 15 * 60 },
-        { id: 'kuchen', ein: [{ gut: 'mehl', kg: 400 }, { gut: 'eier', kg: 100 }], aus: 'kuchen', ausKg: 600, sek: 20 * 60 }] },
+        { id: 'kuchen', ein: [{ gut: 'mehl', kg: 400 }, { gut: 'eier', kg: 100 }], aus: 'kuchen', ausKg: 600, sek: 20 * 60 },
+        { id: 'roggenbrot', ein: [{ gut: 'roggenmehl', kg: 500 }], aus: 'roggenbrot', ausKg: 450, sek: 15 * 60 },
+        { id: 'honigkuchen', ein: [{ gut: 'mehl', kg: 300 }, { gut: 'honig', kg: 50 }, { gut: 'zucker', kg: 100 }], aus: 'honigkuchen', ausKg: 400, sek: 25 * 60 }] },
     { id: 'oelmuehle', name: 'Ölmühle', icon: '🫗', lvl: 12, preis: 110000, x: 2820, y: 1770, w: 110, h: 110, dach: '#6f8a4a',
-      rezepte: [{ id: 'rapsoel', ein: [{ gut: 'raps', kg: 1000 }], aus: 'rapsoel', ausKg: 380, sek: 20 * 60 }, { id: 'sonnenoel', ein: [{ gut: 'sonnenblume', kg: 1000 }], aus: 'sonnenoel', ausKg: 420, sek: 20 * 60 }] },
+      rezepte: [{ id: 'rapsoel', ein: [{ gut: 'raps', kg: 1000 }], aus: 'rapsoel', ausKg: 380, sek: 20 * 60 }, { id: 'sonnenoel', ein: [{ gut: 'sonnenblume', kg: 1000 }], aus: 'sonnenoel', ausKg: 420, sek: 20 * 60 },
+        { id: 'leinoel', ein: [{ gut: 'lein', kg: 1000 }], aus: 'leinoel', ausKg: 320, sek: 20 * 60 }] },
     { id: 'chipsfabrik', name: 'Chips-Fabrik', icon: '🍟', lvl: 16, preis: 140000, x: 2950, y: 1770, w: 110, h: 110, dach: '#c9a227',
       rezepte: [{ id: 'chips', ein: [{ gut: 'kartoffel', kg: 2000 }], aus: 'chips', ausKg: 500, sek: 25 * 60 }] },
     { id: 'zuckerfabrik', name: 'Zuckerfabrik', icon: '🏭', lvl: 20, preis: 180000, x: 2820, y: 1910, w: 110, h: 110, dach: '#8a8fa0',
       rezepte: [{ id: 'zucker', ein: [{ gut: 'ruebe', kg: 3000 }], aus: 'zucker', ausKg: 450, sek: 30 * 60 }] },
     { id: 'kaeserei', name: 'Käserei', icon: '🧀', lvl: 14, preis: 120000, x: 2950, y: 1910, w: 110, h: 110, dach: '#d8b04a',
-      rezepte: [{ id: 'kaese', ein: [{ gut: 'milch', kg: 1000 }], aus: 'kaese', ausKg: 120, sek: 20 * 60 }] }
+      rezepte: [{ id: 'kaese', ein: [{ gut: 'milch', kg: 1000 }], aus: 'kaese', ausKg: 120, sek: 20 * 60 },
+        { id: 'ziegenkaese', ein: [{ gut: 'ziegenmilch', kg: 1000 }], aus: 'ziegenkaese', ausKg: 130, sek: 20 * 60 }] },
+    { id: 'molkerei', name: 'Molkerei', icon: '🥛', lvl: 15, preis: 100000, x: 4080, y: 3300, w: 110, h: 110, dach: '#9fb8d0',
+      rezepte: [{ id: 'joghurt', ein: [{ gut: 'milch', kg: 1000 }], aus: 'joghurt', ausKg: 950, sek: 15 * 60 },
+        { id: 'butter', ein: [{ gut: 'milch', kg: 2000 }], aus: 'butter', ausKg: 220, sek: 25 * 60 }] },
+    { id: 'konservenfabrik', name: 'Konservenfabrik', icon: '🥫', lvl: 18, preis: 150000, x: 4210, y: 3300, w: 110, h: 110, dach: '#b05a4a',
+      rezepte: [{ id: 'erbsenkonserve', ein: [{ gut: 'erbsen', kg: 1000 }], aus: 'erbsenkonserve', ausKg: 1000, sek: 20 * 60 },
+        { id: 'bohnenkonserve', ein: [{ gut: 'bohnen', kg: 1000 }], aus: 'bohnenkonserve', ausKg: 1000, sek: 20 * 60 },
+        { id: 'zwiebelsuppe', ein: [{ gut: 'zwiebeln', kg: 2000 }], aus: 'zwiebelsuppe', ausKg: 1500, sek: 25 * 60 },
+        { id: 'moehrensaft', ein: [{ gut: 'moehren', kg: 2000 }], aus: 'moehrensaft', ausKg: 1200, sek: 25 * 60 }] },
+    { id: 'muesliwerk', name: 'Müsli-Werk', icon: '🥗', lvl: 19, preis: 130000, x: 4080, y: 3440, w: 110, h: 110, dach: '#a6a05a',
+      rezepte: [{ id: 'muesli', ein: [{ gut: 'haferflocken', kg: 600 }, { gut: 'honig', kg: 40 }], aus: 'muesli', ausKg: 600, sek: 20 * 60 }] },
+    { id: 'biogasanlage', name: 'Biogasanlage', icon: '⚡', lvl: 22, preis: 200000, x: 4210, y: 3440, w: 110, h: 110, dach: '#6f7f6a',
+      rezepte: [{ id: 'strom', ein: [{ gut: 'mais', kg: 8000 }], aus: 'strom', ausKg: 1000, sek: 30 * 60 }] },
+    { id: 'weberei', name: 'Weberei', icon: '🧵', lvl: 24, preis: 170000, x: 4080, y: 3580, w: 110, h: 110, dach: '#8b6f9a',
+      rezepte: [{ id: 'wollstoff', ein: [{ gut: 'wolle', kg: 500 }], aus: 'wollstoff', ausKg: 400, sek: 25 * 60 },
+        { id: 'alpakastoff', ein: [{ gut: 'alpakawolle', kg: 500 }], aus: 'alpakastoff', ausKg: 400, sek: 30 * 60 }] }
   ];
   const PROD_STUFEN = [{ faktor: 1, preis: 0 }, { faktor: 1.5, preis: 0.5 }, { faktor: 2.2, preis: 1.2 }]; // preis = Anteil des Bau-Preises
 
@@ -207,6 +254,17 @@ const FarmDaten = (function () {
       gut: 'wolle', kgH: 0.12, futterKgH: 0.5, futter: ['gerste', 'mais'], automat: 22000,
       haus: { x: 3250, y: 3300, w: 190, h: 120, dach: '#7d6a58' }, auslauf: { x: 3250, y: 3440, w: 390, h: 290 } }
   ];
+  TIERE.push(
+    { id: 'enten', name: 'Enten', tier: 'Ente', icon: '🦆', stall: 'Entenstall', lvl: 19, bau: 18000, tierPreis: 90, kap: [20, 50, 120, 300], ausbau: [0, 8000, 20000, 50000],
+      gut: 'enteneier', kgH: 0.28, futterKgH: 0.14, futter: ['weizen', 'hafer', 'gerste'], automat: 15000,
+      haus: { x: 2700, y: 3860, w: 140, h: 100, dach: '#6f9bb0' }, auslauf: { x: 2700, y: 3980, w: 330, h: 230 } },
+    { id: 'ziegen', name: 'Ziegen', tier: 'Ziege', icon: '🐐', stall: 'Ziegenstall', lvl: 21, bau: 45000, tierPreis: 700, kap: [10, 25, 60, 140], ausbau: [0, 20000, 55000, 140000],
+      gut: 'ziegenmilch', kgH: 1.4, futterKgH: 0.6, futter: ['hafer', 'gerste'], automat: 25000,
+      haus: { x: 2300, y: 3860, w: 170, h: 110, dach: '#8a7a5a' }, auslauf: { x: 2300, y: 3990, w: 340, h: 240 } },
+    { id: 'alpakas', name: 'Alpakas', tier: 'Alpaka', icon: '🦙', stall: 'Alpakastall', lvl: 25, bau: 80000, tierPreis: 1200, kap: [6, 15, 35, 80], ausbau: [0, 40000, 100000, 260000],
+      gut: 'alpakawolle', kgH: 0.10, futterKgH: 0.6, futter: ['hafer', 'gerste', 'mais'], automat: 40000,
+      haus: { x: 3250, y: 3860, w: 190, h: 120, dach: '#a0826a' }, auslauf: { x: 3250, y: 3990, w: 390, h: 250 } }
+  );
   const TIER_BY_ID = {};
   TIERE.forEach(t => { TIER_BY_ID[t.id] = t; });
   const BIENEN_BONUS = 0.004;   // Ertragsbonus je Bienenvolk fuer Oelfruechte (max. 12 %)
@@ -244,7 +302,7 @@ const FarmDaten = (function () {
     { id: 'jobs', kat: 'Anbau', icon: '🚜', name: 'Fleißige Maschinen', text: 'Arbeitsaufträge erledigt', wert: 'jobs', einheit: '', stufen: st3([5, 50, 250, 1000], [1500, 8000, 40000, 200000]) },
     { id: 'gruen', kat: 'Anbau', icon: '🧪', name: 'Grüner Daumen', text: 'Düngen, Spritzen und Walzen', wert: 'gruen', einheit: '', stufen: st3([5, 25, 100, 400], [1500, 6000, 25000, 100000]) },
     { id: 'pflug', kat: 'Anbau', icon: '⛏', name: 'Tiefgründig', text: 'Felder gepflügt', wert: 'pflug', einheit: '', stufen: st3([3, 20, 60], [1500, 8000, 30000]) },
-    { id: 'fruechte', kat: 'Anbau', icon: '🥕', name: 'Bunter Anbau', text: 'Verschiedene Früchte geerntet', wert: 'fruechte', einheit: '', stufen: st3([2, 4, 6, 8], [2000, 8000, 25000, 80000]) },
+    { id: 'fruechte', kat: 'Anbau', icon: '🥕', name: 'Bunter Anbau', text: 'Verschiedene Früchte geerntet', wert: 'fruechte', einheit: '', stufen: st3([2, 4, 6, 9, 12, 15], [2000, 8000, 25000, 60000, 150000, 300000]) },
     { id: 'felder', kat: 'Hof', icon: '🏞', name: 'Landbesitzer', text: 'Felder besitzen', wert: 'felder', einheit: '', stufen: st3([2, 5, 10, 24], [2000, 10000, 50000, 300000]) },
     { id: 'maschinen', kat: 'Hof', icon: '🚛', name: 'Fuhrpark', text: 'Maschinen besitzen', wert: 'maschinen', einheit: '', stufen: st3([5, 10, 20, 40], [2000, 10000, 50000, 250000]) },
     { id: 'kraft', kat: 'Hof', icon: '💪', name: 'Kraftprotz', text: 'PS des stärksten Traktors', wert: 'kraft', einheit: 'PS', stufen: st3([120, 240, 390, 620], [3000, 15000, 70000, 300000]) },
@@ -254,14 +312,18 @@ const FarmDaten = (function () {
     { id: 'geld', kat: 'Handel', icon: '🏦', name: 'Reich!', text: 'Höchster Kontostand', wert: 'maxGeld', einheit: '€', stufen: st3([100000, 1000000, 10000000], [5000, 40000, 300000]) },
     { id: 'auftraege', kat: 'Handel', icon: '📋', name: 'Zuverlässiger Lieferant', text: 'Aufträge erfüllt', wert: 'auftraege', einheit: '', stufen: st3([3, 15, 50, 150], [2000, 10000, 40000, 150000]) },
     { id: 'prod', kat: 'Handel', icon: '🏭', name: 'Hofmanufaktur', text: 'Chargen produziert', wert: 'prod', einheit: '', stufen: st3([3, 25, 100], [2500, 15000, 60000]) },
-    { id: 'betriebe', kat: 'Handel', icon: '🏗', name: 'Unternehmer', text: 'Betriebe gebaut', wert: 'betriebe', einheit: '', stufen: st3([1, 3, 6], [3000, 20000, 100000]) },
+    { id: 'betriebe', kat: 'Handel', icon: '🏗', name: 'Unternehmer', text: 'Betriebe gebaut', wert: 'betriebe', einheit: '', stufen: st3([1, 3, 6, 9, 11], [3000, 20000, 100000, 200000, 400000]) },
     { id: 'tiere', kat: 'Tiere', icon: '🐾', name: 'Tierfreund', text: 'Tiere auf dem Hof', wert: 'tiere', einheit: '', stufen: st3([10, 50, 200, 800], [1500, 8000, 40000, 200000]) },
-    { id: 'tierarten', kat: 'Tiere', icon: '🦓', name: 'Ganzer Zoo', text: 'Verschiedene Tierarten', wert: 'tierarten', einheit: '', stufen: st3([2, 3, 4], [4000, 20000, 60000]) },
+    { id: 'tierarten', kat: 'Tiere', icon: '🦓', name: 'Ganzer Zoo', text: 'Verschiedene Tierarten', wert: 'tierarten', einheit: '', stufen: st3([2, 3, 4, 5, 7], [4000, 20000, 60000, 120000, 250000]) },
     { id: 'eingesammelt', kat: 'Tiere', icon: '🧺', name: 'Frühstücksservice', text: 'Mal Tierprodukte eingesammelt', wert: 'eingesammelt', einheit: '', stufen: st3([5, 30, 100], [1500, 8000, 30000]) },
     { id: 'wetter', kat: 'Natur', icon: '🌦', name: 'Wetterfrosch', text: 'Verschiedene Wetterlagen erlebt', wert: 'wetter', einheit: '', stufen: st3([3, 5, 7], [2000, 10000, 40000]) },
     { id: 'level', kat: 'Natur', icon: '⭐', name: 'Aufsteiger', text: 'Level erreicht', wert: 'level', einheit: '', stufen: st3([5, 15, 30, 50, 70], [2000, 10000, 40000, 150000, 400000]) },
+    { id: 'lernen', kat: 'Natur', icon: '📚', name: 'Eifriger Schüler', text: 'Karten gewusst (Lernrunden)', wert: 'gelernt', einheit: '', stufen: st3([5, 25, 100, 400], [2000, 8000, 30000, 100000]) },
     { id: 'tage', kat: 'Natur', icon: '📅', name: 'Treuer Landwirt', text: 'Verschiedene Tage gespielt', wert: 'tage', einheit: '', stufen: st3([3, 7, 14, 30, 60], [2000, 6000, 15000, 50000, 150000]) }
   ];
+
+  // ---- Lernen (Schulaufgaben verkuerzen die Reifezeit) ----
+  const LERN_KARTEN = 5, LERN_PRO_KARTE = 0.08, LERN_MAX_TAG = 3;   // je gewusste Karte 8 % der Wachstumszeit, hoechstens 3 Runden am Tag
 
   // ---- Tagesaufgaben ----
   // Jeden Tag (Kalendertag) gibt es 3 kleine Ziele aus dieser Liste (je nach Spielstand passend). stat = Zaehler, ziel(l) = Zielwert
@@ -275,7 +337,8 @@ const FarmDaten = (function () {
     { id: 'eingesammelt', icon: '🧺', stat: 'eingesammelt', einheit: '', ziel: l => (l >= 15 ? 2 : 1), text: 'Tierprodukte einsammeln: {ziel}×' },
     { id: 'gefuettert', icon: '🥣', stat: 'gefuettert', einheit: '', ziel: () => 1, text: 'Füttere deine Tiere' },
     { id: 'produziert', icon: '🏭', stat: 'prod', einheit: '', ziel: l => (l >= 20 ? 2 : 1), text: 'Stelle {ziel}× etwas in einem Betrieb her' },
-    { id: 'auftraege', icon: '📋', stat: 'auftraege', einheit: '', ziel: () => 1, text: 'Liefere einen Auftrag aus' }
+    { id: 'auftraege', icon: '📋', stat: 'auftraege', einheit: '', ziel: () => 1, text: 'Liefere einen Auftrag aus' },
+    { id: 'lernen', icon: '📚', stat: 'lerneinsaetze', einheit: '', ziel: () => 1, text: 'Mach eine Lernrunde (5 Karten) und lass die Saat schneller reifen' }
   ];
   const tagGeld = l => Math.round((300 + l * 120) / 50) * 50;
   const tagXp = l => 15 + l * 2;
@@ -320,7 +383,41 @@ const FarmDaten = (function () {
     oelmuehle: 'In der Ölmühle werden Samen gepresst. Das Öl fließt heraus, der Rest wird Tierfutter.',
     chipsfabrik: 'In der Chips-Fabrik werden Kartoffeln gewaschen, geschält, in Scheiben geschnitten und gebacken.',
     zuckerfabrik: 'In der Zuckerfabrik werden Rüben gewaschen, zerschnitten und mit heißem Wasser ausgelaugt – so entsteht der Zuckersaft.',
-    kaeserei: 'In der Käserei wird Milch erwärmt, dick gelegt und zu Käse geformt.'
+    kaeserei: 'In der Käserei wird Milch erwärmt, dick gelegt und zu Käse geformt.',
+    roggen: 'Roggen wächst auch auf kargem Boden. Aus Roggenmehl wird dunkles, kräftiges Brot.',
+    hafer: 'Hafer steckt voller Energie. Aus den Körnern macht man Haferflocken für Müsli und Brei.',
+    erbsen: 'Erbsen sind Hülsenfrüchte: Sie holen Stickstoff aus der Luft und düngen den Boden dabei gleich mit.',
+    bohnen: 'Bohnen wachsen in Hülsen. Sie sind eiweißreich und werden frisch, getrocknet oder aus der Dose gegessen.',
+    zwiebeln: 'Zwiebeln wachsen halb unter der Erde. Beim Schneiden brennen die Augen, weil ein Gas entsteht, das die Tränen reizt.',
+    moehren: 'Möhren sind Wurzeln. Das Orange kommt von Carotin – daraus baut der Körper Vitamin A.',
+    lein: 'Aus Leinsamen wird Leinöl gepresst. Die Stängel liefern Fasern für Leinen-Stoff.',
+    ziegen: 'Ziegen klettern sehr gut und fressen fast alles. Aus ihrer Milch macht man würzigen Ziegenkäse.',
+    enten: 'Enten haben wasserabweisende Federn. Ihre Eier sind größer als Hühnereier.',
+    alpakas: 'Alpakas kommen aus den Anden in Südamerika. Ihre Wolle ist besonders weich und warm.',
+    roggenmehl: 'Roggenmehl ist dunkler als Weizenmehl und macht das Brot kräftig im Geschmack.',
+    haferflocken: 'Haferflocken sind gewalzte, gedämpfte Haferkörner – die Grundlage für Müsli.',
+    roggenbrot: 'Roggenbrot bleibt länger frisch als Weizenbrot.',
+    honigkuchen: 'Honigkuchen wird mit Honig gesüßt und mit Gewürzen gebacken – ein Klassiker zur Weihnachtszeit.',
+    leinoel: 'Leinöl wird kalt gepresst und schmeckt am besten ohne Erhitzen, zum Beispiel zu Quark und Kartoffeln.',
+    ziegenkaese: 'Ziegenkäse schmeckt würziger als Kuhmilchkäse und ist oft weiß und bröckelig.',
+    erbsenkonserve: 'Konserven halten lange, weil sie nach dem Verschließen erhitzt werden – Keime haben keine Chance.',
+    bohnenkonserve: 'In der Dose bleiben Bohnen jahrelang haltbar.',
+    zwiebelsuppe: 'Eine gute Zwiebelsuppe wird langsam gekocht, bis die Zwiebeln süßlich schmecken.',
+    moehrensaft: 'Möhrensaft enthält viel Carotin. Ein Spritzer Öl hilft dem Körper, es aufzunehmen.',
+    joghurt: 'Joghurt entsteht, wenn Milchsäurebakterien Milch säuern.',
+    butter: 'Für ein Kilo Butter braucht man etwa 20 Liter Milch.',
+    wollstoff: 'In der Weberei kreuzen sich Längs- und Querfäden zu einem festen Stoff.',
+    alpakastoff: 'Alpakastoff ist leicht, weich und wärmt besonders gut.',
+    muesli: 'Das Müsli wurde um 1900 vom Schweizer Arzt Maximilian Bircher-Benner erfunden.',
+    strom: 'Biogas entsteht, wenn Pflanzenreste ohne Luft vergären. Ein Motor macht daraus Strom und Wärme.',
+    enteneier: 'Enteneier haben eine dickere Schale und schmecken etwas kräftiger als Hühnereier.',
+    ziegenmilch: 'Ziegenmilch ist von Natur aus etwas leichter verdaulich als Kuhmilch.',
+    alpakawolle: 'Alpakawolle enthält kein Wollfett und kratzt deshalb kaum.',
+    molkerei: 'Die Molkerei erhitzt und verarbeitet Milch zu Joghurt, Butter und Quark.',
+    konservenfabrik: 'In der Konservenfabrik wird Gemüse gewaschen, in Dosen gefüllt und erhitzt, damit es lange hält.',
+    muesliwerk: 'Im Müsli-Werk werden Flocken mit Zutaten gemischt und abgepackt.',
+    biogasanlage: 'In der Biogasanlage vergären Pflanzen im Behälter – das Gas treibt einen Motor an.',
+    weberei: 'In der Weberei werden Fäden auf einem Webstuhl zu Stoff verwebt.'
   };
   const ALBUM = [
     { id: 'traktoren', kat: 'maschinen', name: 'Traktoren', icon: '🚜', bonus: { geld: 60000, xp: 600 }, hinweis: 'Kaufe diesen Traktor im Händler.', karten: () => TRAKTOREN.map(t => ({ id: t.id, name: t.name, def: t.id })) },
@@ -384,7 +481,7 @@ const FarmDaten = (function () {
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
-    TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
+    LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
   };

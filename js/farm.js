@@ -377,17 +377,36 @@ const Farm = (function () {
     const S = stand(), id = dlg.id, d = D.feld(id), f = S.felder[id], now = jetzt();
     if (!f) { zeichneFeldKauf(); return; }
     const job = M.jobAufFeld(id);
-    const zurueck = !job && dlg.sub ? 'feldzurueck' : null;
+    const zurueck = !job && dlg.lern ? 'lernAbbruch' : (!job && dlg.sub ? 'feldzurueck' : null);
     const chips = '<div class="f-chips"><span class="f-chip">📐 <b>' + fmt1(d.ha) + ' ha</b></span><span class="f-chip">🌍 Boden <b>' + Math.round(f.boden) + ' %</b></span>' +
       '<span class="f-chip">🔁 Vorher: <b>' + (f.vorher.length ? f.vorher.map(x => D.frucht(x).name).join(', ') : '–') + '</b></span>' +
       (f.phase === 'waechst' || f.phase === 'reif' ? '<span class="f-chip">📦 Ertrag ca. <b>' + tonnen(M.ertragsSchaetzungKg(id)) + '</b></span>' : '') + '</div>';
     let inhalt;
-    if (job) inhalt = jobAnsicht(job, now);
+    if (dlg.lern) inhalt = lernAnsicht();
+    else if (job) inhalt = jobAnsicht(job, now);
     else if (dlg.sub && dlg.sub.schritt === 'saeen' && !dlg.sub.frucht) inhalt = saatWahl(id);
     else if (dlg.sub) inhalt = maschinenWahl(id, dlg.sub.schritt, dlg.sub.frucht);
     else inhalt = feldAktionen(id, f, now);
     dialogAuf(kopf(d.name + ' <span style="font-weight:500;font-size:15px;opacity:.85">· ' + phasenText(f, now) + '</span>', '', zurueck) +
-      '<div class="f-inhalt">' + chips + inhalt + (dlg.sub || job ? '' : fahrerBlock(f)) + '</div>');
+      '<div class="f-inhalt">' + (dlg.lern ? '' : chips) + inhalt + (dlg.sub || job || dlg.lern ? '' : fahrerBlock(f)) + '</div>');
+  }
+  function lernAnsicht() {
+    const L = dlg.lern;
+    if (L.ergebnis) {
+      const r = L.ergebnis;
+      let h = '<div class="f-h3">Lernrunde geschafft</div>';
+      if (!r.ok) return h + '<div class="f-info warn">' + r.grund + '</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernEnde">Zurück zum Feld</button></div>';
+      h += '<div class="f-info" style="font-size:18px">⭐ <b>' + r.richtig + ' von ' + L.karten.length + '</b> Karten gewusst' + (r.gespartMs > 0 ? '<br>⏱ Die Saat ist <b>' + A.zeitText(r.gespartMs) + '</b> schneller reif!' : '<br>Beim nächsten Mal klappt es besser – die Karten kommen bald wieder dran.') + (r.reif ? '<br>🌾 <b>Das Feld ist jetzt erntereif!</b>' : '') + '</div>';
+      const falsch = L.karten.filter((k, i) => !L.gewusst[i]);
+      if (falsch.length) h += '<div class="f-info">Das üben wir weiter:<br>' + falsch.map(k => '• ' + k.front).join('<br>') + '</div>';
+      return h + '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernEnde">Zurück zum Feld</button></div>';
+    }
+    const k = L.karten[L.i];
+    const punkte = L.karten.map((x, i) => '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;margin:0 3px;background:' + (i < L.i ? (L.gewusst[i] ? '#7fe083' : '#ff9a7a') : i === L.i ? '#ffe27a' : 'rgba(255,255,255,.25)') + '"></span>').join('');
+    return '<div style="text-align:center;margin:4px 0 10px">' + punkte + '<div style="font-size:13px;opacity:.8;margin-top:4px">Karte ' + (L.i + 1) + ' von ' + L.karten.length + ' · ' + k.titel + '</div></div>' +
+      '<div class="f-karte" style="text-align:center;min-height:190px;justify-content:center;font-size:20px;line-height:1.4"><div style="font-weight:700">' + k.front + '</div>' + (L.auf ? '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);font-size:19px">' + k.back + '</div>' : '') + '</div>' +
+      (L.auf ? '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernWeiss">✓ Gewusst</button><button class="f-kauf sek" data-a="lernNicht">✗ Noch nicht</button></div>'
+        : '<div class="f-btnreihe"><button class="f-kauf" data-a="lernUm">Umdrehen</button></div><div class="f-info" style="margin-top:12px;opacity:.85">Denk erst nach, dann umdrehen – und sei ehrlich: Nur „Gewusst“, wenn du es wirklich gewusst hast!</div>');
   }
   function jobAnsicht(job, now) {
     const st = M.jobStand(job, now), sch = D.SCHRITTE[job.schritt];
@@ -421,6 +440,11 @@ const Farm = (function () {
       html += '<div class="f-zeile"><div class="ico">' + st.icon + '</div><div class="n">' + st.name + '<small>' + zusatz + '</small></div>' + knopf + '</div>';
     });
     if (!liste.length) html += '<div class="f-info">Hier gibt es gerade nichts zu tun.</div>';
+    if (f.phase === 'waechst' && typeof FarmLernen !== 'undefined' && FarmLernen.verfuegbar()) {
+      const uebrig = M.lernRundenUebrig(now);
+      const sperre = f.lern ? 'Hier hast du schon gelernt – bei der nächsten Saat geht es wieder.' : (uebrig <= 0 ? 'Heute hast du schon ' + D.LERN_MAX_TAG + ' Lernrunden gemacht – morgen wieder!' : '');
+      html += '<div class="f-h3">Schneller reif</div><div class="f-zeile"><div class="ico">📚</div><div class="n">Lernrunde: ' + D.LERN_KARTEN + ' Karten<small>' + (sperre || 'Die Karten, die du am meisten üben solltest. Jede gewusste Karte macht die Saat ' + Math.round(D.LERN_PRO_KARTE * 100) + ' % schneller reif (bis zu −' + Math.round(D.LERN_PRO_KARTE * D.LERN_KARTEN * 100) + ' %). Heute noch ' + uebrig + ' Runde' + (uebrig === 1 ? '' : 'n') + '.') + '</small></div><button class="f-kauf gruen" data-a="lernStart"' + (sperre ? ' disabled' : '') + '>Los</button></div>';
+    }
     if (f.beregnung) html += '<div class="f-info" style="margin-top:8px">💦 Beregnungsanlage eingebaut: Bei Hitze wächst hier alles normal weiter.</div>';
     else if (stand().level >= D.BEREGNUNG_LVL) html += '<div class="f-zeile"><div class="ico">💦</div><div class="n">Beregnungsanlage<small>Bei Hitze wachsen die Pflanzen nicht langsamer · ' + fmt(D.feld(id).ha * D.BEREGNUNG_PREIS_HA) + ' €</small></div><button class="f-kauf sek" data-a="beregnung">Einbauen</button></div>';
     if (f.phase === 'waechst') html += '<div class="f-info" style="margin-top:10px">🌱 Noch ' + sekText(M.restWachsen(id, now) / 1000) + ' bis zur Ernte (bei ' + D.WETTER[M.wetterTyp(now)].name + '). Düngen, Spritzen und Walzen geben mehr Ertrag.</div>';
@@ -530,7 +554,7 @@ const Farm = (function () {
       const x = D.gut(id), p = M.preis(id), rel = S.preise[id], lager = S.silo[id] || 0;
       const trend = rel > 1.12 ? '<span class="up">▲ gut</span>' : rel < 0.9 ? '<span class="down">▼ niedrig</span>' : '<span>● normal</span>';
       const gesperrt = D.frucht(id) ? S.level < D.frucht(id).lvl : false;
-      if (!lager && gesperrt) return '';
+      if (!lager && (gesperrt || (D.WAREN[id] && !S.album.waren[id]))) return '';
       return '<div class="f-zeile"><div class="ico">' + x.icon + '</div><div class="n">' + x.name + '<small>' + fmt(p) + ' €/t · ' + trend + '</small></div>' +
         '<div style="min-width:80px;text-align:right"><b>' + tonnen(lager) + '</b></div>' +
         (lager > 0 ? '<button class="f-kauf" data-a="verkauf" data-id="' + id + ':all">Alles · ' + fmt(lager / 1000 * p) + ' €</button><button class="f-kauf sek" data-a="verkauf" data-id="' + id + ':half">Hälfte</button>' : '<span style="min-width:190px"></span>') + '</div>';
@@ -817,6 +841,7 @@ const Farm = (function () {
       '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
       '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
       '<li>Jeden Tag gibt es <b>3 Tagesaufgaben</b> (📅): Schaffe alle für einen Bonus – und halte die Serie am Leben! Neue Aufgaben kommen um Mitternacht.</li>' +
+      '<li>Auf einem Feld mit wachsender Saat gibt es die <b>Lernrunde</b> (📚): 5 Karten aus deinen schwächsten Bereichen – jede gewusste Karte lässt die Saat schneller reifen.</li>' +
       '<li>Unter 🏆 findest du <b>Erfolge</b> mit Belohnungen und dein <b>Album</b>: Sammle Karten von Maschinen, Früchten, Tieren, Waren, Betrieben und Wetter – mit Wissenswertem dazu.</li>' +
       '<li>Mit Erfahrung steigst du auf und schaltest neue Felder, Früchte und Maschinen frei.</li></ol>' +
       '<div class="f-info">⏩ Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.</div>' +
@@ -880,6 +905,23 @@ const Farm = (function () {
       case 'tempo': M.tempoSetzen(+id); toast('Zeitraffer ×' + id, 'gut', 'tempo'); return dialogMenue();
       case 'ton': S.ton = !S.ton; if (S.ton) tonStart(); return dialogMenue();
       case 'neu': bestaetigen('Wirklich alles löschen und neu anfangen?', () => { M.neu(jetzt()); M.simuliere(jetzt()); speichern(); dialogZu(); toast('Neuer Hof!', 'gut', 'neu'); }, 'Alles löschen'); return;
+      case 'lernStart': {
+        if (typeof FarmLernen === 'undefined' || !FarmLernen.verfuegbar()) { toast('Die Lernkarten gibt es nur am Tablet.', 'warn', 'lern'); return; }
+        const karten = FarmLernen.waehle(D.LERN_KARTEN);
+        if (!karten.length) { toast('Gerade sind keine Lernkarten da.', 'warn', 'lern'); return; }
+        dlg.lern = { karten, i: 0, auf: false, richtig: 0, gewusst: [], ergebnis: null }; return zeichneFeldDialog();
+      }
+      case 'lernUm': dlg.lern.auf = true; return zeichneFeldDialog();
+      case 'lernWeiss': case 'lernNicht': {
+        const L = dlg.lern, ok = a === 'lernWeiss';
+        FarmLernen.melde(L.karten[L.i], ok);
+        L.gewusst[L.i] = ok; if (ok) L.richtig++;
+        L.i++; L.auf = false;
+        if (L.i >= L.karten.length) { L.ergebnis = M.lernBeschleunigen(dlg.id, L.richtig, jetzt()); if (L.ergebnis && L.ergebnis.ok) { piep(L.richtig ? 'level' : 'fehler'); speichern(); } }
+        return zeichneFeldDialog();
+      }
+      case 'lernAbbruch': dlg.lern = null; return zeichneFeldDialog();
+      case 'lernEnde': dlg.lern = null; return zeichneFeldDialog();
       case 'confJa': { const fn = bestaetigenFn; bestaetigenFn = null; confZu(); if (fn) fn(); return; }
       case 'confNein': bestaetigenFn = null; confZu(); return;
       case 'fernNochmal': return fernStartVersuch();
@@ -1158,7 +1200,7 @@ const Farm = (function () {
     feldKaufen: 1, maschineKaufen: 1, maschineVerkaufen: 1, maschineReparieren: 1, lagerAusbauen: 0, fahrerKaufen: 0, autoSetzen: 2,
     arbeitStarten: 3, arbeitAbbrechen: 1, produktionBauen: 1, produktionAusbauen: 1, produktionStarten: 3, auftragLiefern: 1, verkaufen: 2,
     stallBauen: 1, tierKaufen: 2, stallAusbauen: 1, automatKaufen: 1, fuettern: 1, einsammeln: 1, wetterstationKaufen: 0, beregnungKaufen: 1,
-    erfolgAbholen: 1, albumBonusAbholen: 1, tagAbholen: 1, tagBonusAbholen: 0, wetterGesehen: 1, tempoSetzen: 1
+    erfolgAbholen: 1, albumBonusAbholen: 1, tagAbholen: 1, tagBonusAbholen: 0, wetterGesehen: 1, tempoSetzen: 1, lernBeschleunigen: 2
   };
   async function fernAnfrage(pfad, methode, body) {
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;

@@ -18,7 +18,7 @@ const FarmModell = (function () {
   // Spielstand
   // ----------------------------------------------------------------------------------------------
   function feldNeu() {
-    return { phase: 'stoppel', frucht: null, fort: 0, fortZeit: 0, dauer: 0, beregnung: false, bonus: { pf: 0, dg: 0, sp: 0, wa: 0 }, boden: 70, vorher: [], auto: null };
+    return { phase: 'stoppel', frucht: null, fort: 0, fortZeit: 0, dauer: 0, beregnung: false, lern: false, bonus: { pf: 0, dg: 0, sp: 0, wa: 0 }, boden: 70, vorher: [], auto: null };
   }
   function maschineNeu(defId) { return { uid: S.nextId++, id: defId, zustand: 100, job: null }; }
   function neu(jetzt) {
@@ -423,7 +423,7 @@ const FarmModell = (function () {
     } else if (j.schritt === 'kalken') f.boden = Math.min(100, f.boden + 25);
     else if (j.schritt === 'saeen') {
       const fr = D.frucht(j.frucht);
-      f.phase = 'waechst'; f.frucht = fr.id; f.fort = 0; f.fortZeit = zeitEnde;
+      f.phase = 'waechst'; f.frucht = fr.id; f.fort = 0; f.fortZeit = zeitEnde; f.lern = false;
       f.dauer = Math.round(fr.dauer * 1000 / tempoFaktor());
     } else if (st.bonus) f.bonus[st.bonus] = 1;
     else if (j.schritt === 'ernten') {
@@ -608,6 +608,35 @@ const FarmModell = (function () {
     return { st, d, kap: d.kap[st.stufe], rateH: rate * w.tiere, lagerKap: lagerKap(d, st), futterKap: futterKap(d, st), futterStunden, futterSilo: futterImSilo(d), laeuft: st.anzahl > 0 && (!d.futterKgH || st.futter > 0 || (st.auto && futterImSilo(d) > 0)) };
   }
 
+  // Lernrunde: je gewusster Karte waechst die Saat um einen Teil der Gesamtzeit weiter (einmal je Saat, hoechstens LERN_MAX_TAG Runden am Tag)
+  function lernBeschleunigen(feldId, richtig, jetzt) {
+    simuliere(jetzt);
+    const f = S.felder[feldId];
+    if (!f || f.phase !== 'waechst') return { ok: false, grund: 'Hier wächst gerade nichts.' };
+    if (f.lern) return { ok: false, grund: 'Auf diesem Feld hast du schon gelernt – bei der nächsten Saat geht es wieder.' };
+    const key = tagKey(jetzt);
+    if (!S.lernTag || S.lernTag.datum !== key) S.lernTag = { datum: key, n: 0 };
+    if (S.lernTag.n >= D.LERN_MAX_TAG) return { ok: false, grund: 'Heute hast du schon ' + D.LERN_MAX_TAG + ' Lernrunden gemacht – morgen wieder!' };
+    richtig = Math.max(0, Math.min(D.LERN_KARTEN, Math.round(Number(richtig)) || 0));
+    S.lernTag.n++;
+    S.statistik.lerneinsaetze = (S.statistik.lerneinsaetze || 0) + 1;
+    S.statistik.gelernt = (S.statistik.gelernt || 0) + richtig;
+    let gespartMs = 0, reif = false;
+    if (richtig > 0) {
+      f.lern = true;
+      const vorher = fortschrittWachstum(f, jetzt), neu = Math.min(1, vorher + D.LERN_PRO_KARTE * richtig);
+      gespartMs = (neu - vorher) * f.dauer / wachsFaktor(f, jetzt);
+      f.fort = neu; f.fortZeit = jetzt;
+      if (neu >= 1) { f.phase = 'reif'; f.fort = 1; reif = true; ereignis('reif', { feld: feldId }); }
+      xpGeben(richtig * 8);
+    }
+    return { ok: true, richtig, gespartMs, reif, rundenUebrig: D.LERN_MAX_TAG - S.lernTag.n };
+  }
+  function lernRundenUebrig(jetzt) {
+    const key = tagKey(jetzt);
+    return D.LERN_MAX_TAG - (S.lernTag && S.lernTag.datum === key ? S.lernTag.n : 0);
+  }
+
   // Zeit-Schritt: Pflanzenwachstum und Tiere bis 'bis' fortschreiben (Wetter ist im Intervall konstant)
   function schritt(bis) {
     const dt = bis - S.stepZeit;
@@ -708,6 +737,8 @@ const FarmModell = (function () {
       case 'level': return S.level;
       case 'tage': return st.tage.length;
       case 'saeen': return st.jobsJe.saeen || 0;
+      case 'gelernt': return st.gelernt || 0;
+      case 'lerneinsaetze': return st.lerneinsaetze || 0;
       case 'gefuettert': return st.gefuettert || 0;
       default: return 0;
     }
@@ -772,6 +803,7 @@ const FarmModell = (function () {
       case 'gruen': return S.level >= 3 && S.flotte.some(m => ['duenger', 'spritze', 'walze'].indexOf(D.def(m.id).typ) >= 0);
       case 'eingesammelt': return hatTiere;
       case 'gefuettert': return Object.keys(S.tiere).some(k => S.tiere[k].anzahl > 0 && D.tier(k).futterKgH > 0);
+      case 'lernen': return S.level >= 2 && Object.keys(S.felder).some(id => S.felder[id].phase === 'waechst' || S.felder[id].phase === 'stoppel');
       case 'produziert': return Object.keys(S.produktion).length > 0;
       case 'auftraege': return S.auftraege.some(o => (S.silo[o.gut] || 0) >= o.kg * 0.4);
       default: return true;
@@ -927,6 +959,7 @@ const FarmModell = (function () {
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
     tagAbholen, tagBonusAbholen, tagBonus, tagWert, tagArt, serieAktuell, naechsterTag,
+    lernBeschleunigen, lernRundenUebrig,
     albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,
