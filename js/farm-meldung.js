@@ -136,7 +136,7 @@ const FarmMeldung = (function () {
     if (!offene.length) return;
     schulLaeuft = true;
     try {
-      let min = 0, n = 0, richtig = 0, gesamt = 0;
+      let min = 0, n = 0, richtig = 0, gesamt = 0, anteil = 0, komplett = false;
       for (const x of offene) {
         let j = null;
         try {
@@ -145,11 +145,12 @@ const FarmMeldung = (function () {
           j = await r.json();
         } catch (e) { return; }           // offline: beim naechsten Mal
         const erg = j && j.ergebnis;
-        if (erg && erg.ok) { min += erg.min; n++; richtig += x.richtig; gesamt += x.n; }
+        if (erg && erg.ok) { min += erg.min; n++; richtig += x.richtig; gesamt += x.n; anteil = Math.max(anteil, erg.anteil); komplett = komplett || erg.komplett; }
         if (j) { rec.ids[x.id] = 1; localStorage.setItem(SCHUL_KEY, JSON.stringify(rec)); }   // auch eine Ablehnung ("schon belohnt") ist endgueltig
       }
       if (n) {
-        zeige({ key: 'schule', icon: '📚', titel: n === 1 ? 'Tagesaufgabe geschafft!' : n + ' Tagesaufgaben geschafft!', text: richtig + ' von ' + gesamt + ' gleich richtig → auf dem Hof sind alle Arbeiten ' + min + ' Minuten schneller fertig.', ton: 'reif' }, !!offen);
+        const wirkung = komplett ? 'Perfekt – auf dem Hof ist jetzt alles sofort fertig!' : 'Auf dem Hof sind alle Arbeiten mindestens ' + min + ' Minuten schneller, ' + Math.round(anteil * 100) + ' % der Restzeit entfällt.';
+        zeige({ key: 'schule', icon: komplett ? '🌟' : '📚', titel: komplett ? 'Alles richtig!' : (n === 1 ? 'Tagesaufgabe geschafft!' : n + ' Tagesaufgaben geschafft!'), text: richtig + ' von ' + gesamt + ' gleich richtig. ' + wirkung, ton: 'reif' }, !!offen);
         ton('reif');
       }
     } finally { schulLaeuft = false; }

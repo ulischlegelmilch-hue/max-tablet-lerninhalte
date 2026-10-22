@@ -658,39 +658,50 @@ const FarmModell = (function () {
     return { ok: true, richtig, gespartMs, reif, rundenUebrig: D.LERN_MAX_TAG - S.lernTag.n };
   }
   // Tagesaufgabe der Schule (Ferientraining-Checkliste) geschafft: alle laufenden Arbeiten, wachsenden Felder und Produktionen
-  // werden verkuerzt - adaptiv: quote (0..1) = Anteil beim ersten Versuch richtig; 20 % bis 100 % von D.SCHUL_BONUS_MIN. Jede Aufgabe (id) zaehlt einmal am Tag.
+  // werden verkuerzt - adaptiv: quote (0..1) = Anteil beim ersten Versuch richtig. Mindestens 20-100 % von D.SCHUL_BONUS_MIN Minuten, bei guter Quote
+  // einen grossen Teil der Restzeit (Quote^2), bei Quote 1 wird alles sofort fertig. Jede Aufgabe (id) zaehlt einmal am Tag.
   function schulMinuten(quote) { return Math.round(D.SCHUL_BONUS_MIN * (0.2 + 0.8 * Math.max(0, Math.min(1, Number(quote) || 0)))); }
+  // Anteil der Restzeit, den eine Aufgabe auf einen Schlag erledigt: Quote^2 (alles richtig = alles fertig, 90 % = 81 %, 50 % = 25 %)
+  function schulAnteil(quote) { const q = Math.max(0, Math.min(1, Number(quote) || 0)); return Math.round(q * q * 100) / 100; }
   function tagesaufgabeGeschafft(id, quote, jetzt) {
     simuliere(jetzt);
     id = String(id || '');
     if (!/^[a-z_]{1,24}$/.test(id)) return { ok: false, grund: 'Unbekannte Aufgabe.' };
     const key = tagKey(jetzt);
-    if (!S.schulTag || S.schulTag.datum !== key) S.schulTag = { datum: key, ids: {} };
+    if (!S.schulTag || S.schulTag.datum !== key) S.schulTag = { datum: key, ids: {}, ant: {} };
+    if (!S.schulTag.ant) S.schulTag.ant = {};
     if (S.schulTag.ids[id]) return { ok: false, grund: 'Diese Aufgabe hat heute schon Zeit gespart.' };
     if (Object.keys(S.schulTag.ids).length >= 12) return { ok: false, grund: 'Für heute ist genug Zeit gespart.' };
-    const min = schulMinuten(quote);
-    S.schulTag.ids[id] = min;
+    const min = schulMinuten(quote), anteil = schulAnteil(quote);
+    S.schulTag.ids[id] = min; S.schulTag.ant[id] = anteil;
     const ms = min * 60000;
+    // je laufender Sache: mindestens die Minuten, bei guter Quote aber einen grossen Teil der Restzeit (bei Quote 1 alles)
+    const kuerzung = rest => Math.min(rest, Math.max(ms, Math.ceil(rest * anteil)));
     let jobs = 0, felder = 0, betriebe = 0;
-    S.jobs.forEach(j => { j.start -= ms; jobs++; });
+    S.jobs.forEach(j => { j.start -= kuerzung(Math.max(0, j.start + j.hin + j.arbeit + j.rueck - jetzt)); jobs++; });
     Object.keys(S.felder).forEach(fid => {
       const f = S.felder[fid];
       if (f.phase !== 'waechst') return;
-      f.fort = Math.min(1, f.fort + ms * wachsFaktor(f, jetzt) / Math.max(1, f.dauer)); f.fortZeit = jetzt; felder++;
-      if (f.fort >= 1) { f.phase = 'reif'; f.fort = 1; ereignis('reif', { feld: +fid }); }
+      const wf = wachsFaktor(f, jetzt), rest = Math.max(0, (1 - f.fort) * f.dauer / wf);
+      f.fort = Math.min(1, f.fort + kuerzung(rest) * wf / Math.max(1, f.dauer)); f.fortZeit = jetzt; felder++;
+      if (f.fort >= 0.9999) { f.phase = 'reif'; f.fort = 1; ereignis('reif', { feld: +fid }); }
     });
     Object.keys(S.produktion).forEach(bid => {
       const q = S.produktion[bid].queue[0];
-      if (q && q.start != null) { q.start -= ms; betriebe++; }
+      if (q && q.start != null) { q.start -= kuerzung(Math.max(0, q.start + q.dauer - jetzt)); betriebe++; }
     });
     S.statistik.schulaufgaben = (S.statistik.schulaufgaben || 0) + 1;
     xpGeben(25);
     simuliere(jetzt);
-    return { ok: true, min, jobs, felder, betriebe };
+    return { ok: true, min, anteil, komplett: anteil >= 0.999, jobs, felder, betriebe };
   }
   function schulHeute(jetzt) {
     const key = tagKey(jetzt);
-    return S.schulTag && S.schulTag.datum === key ? S.schulTag.ids : {};   // id -> gutgeschriebene Minuten
+    return S.schulTag && S.schulTag.datum === key ? S.schulTag.ids : {};   // id -> gutgeschriebene Mindest-Minuten
+  }
+  function schulAnteileHeute(jetzt) {
+    const key = tagKey(jetzt);
+    return S.schulTag && S.schulTag.datum === key ? (S.schulTag.ant || {}) : {};
   }
   function lernRundenUebrig(jetzt) {
     const key = tagKey(jetzt);
@@ -1019,7 +1030,7 @@ const FarmModell = (function () {
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
     tagAbholen, tagBonusAbholen, tagBonus, tagWert, tagArt, serieAktuell, naechsterTag,
-    lernBeschleunigen, lernRundenUebrig, tagesaufgabeGeschafft, schulHeute, schulMinuten, maschinenVorteile,
+    lernBeschleunigen, lernRundenUebrig, tagesaufgabeGeschafft, schulHeute, schulAnteileHeute, schulMinuten, schulAnteil, maschinenVorteile,
     albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,

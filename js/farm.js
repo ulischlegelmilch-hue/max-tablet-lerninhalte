@@ -766,13 +766,13 @@ const Farm = (function () {
         (t.bonusAbgeholt ? '<span class="f-badge">abgeholt ✓</span>' : '<button class="f-kauf ' + (t.alle ? 'gruen' : '') + '" data-a="tagBonus"' + (t.alle ? '' : ' disabled') + '>' + (t.alle ? 'Abholen' : 'noch nicht') + '</button>') + '</div>';
       const plan = (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) ? FarmLernen.tagesplan() : [];
       if (plan.length) {
-        const belohnt = M.schulHeute(now), okN = plan.filter(x => x.fertig).length;
+        const belohnt = M.schulHeute(now), anteile = M.schulAnteileHeute(now), okN = plan.filter(x => x.fertig).length;
         const summe = Object.keys(belohnt).reduce((a, k) => a + belohnt[k], 0);
-        inhalt += '<div class="f-h3">📚 Schulaufgaben von heute</div><div class="f-info">Jede geschaffte Schulaufgabe spart auf dem Hof Zeit – bei allen laufenden Arbeiten, wachsenden Feldern und Betrieben. Je mehr du <b>beim ersten Versuch richtig</b> hast, desto mehr (bis zu <b>' + D.SCHUL_BONUS_MIN + ' Minuten</b>). Jede Aufgabe zählt einmal am Tag. ' +
+        inhalt += '<div class="f-h3">📚 Schulaufgaben von heute</div><div class="f-info">Jede geschaffte Schulaufgabe verkürzt auf dem Hof alle laufenden Arbeiten, wachsenden Felder und Betriebe. Je mehr du <b>beim ersten Versuch richtig</b> hast, desto mehr – <b>bei allem richtig wird alles sofort fertig!</b> Jede Aufgabe zählt einmal am Tag. ' +
           (okN ? 'Heute schon <b>' + summe + ' Minuten</b> gespart.' : 'Mach eine Aufgabe in der Lern-App und komm zurück!') + '</div>';
         plan.forEach(x => {
           const gespart = belohnt[x.id];
-          inhalt += '<div class="f-zeile"><div class="ico">' + (x.fertig ? '✅' : '📝') + '</div><div class="n">' + x.titel + '<small>' + (x.fertig ? (gespart ? '⏩ ' + gespart + ' Min gespart · ' + x.richtig + ' von ' + x.n + ' richtig' : 'Zeit wird gutgeschrieben …') : x.n + ' / ' + x.z + ' erledigt') + '</small></div></div>';
+          inhalt += '<div class="f-zeile"><div class="ico">' + (x.fertig ? '✅' : '📝') + '</div><div class="n">' + x.titel + '<small>' + (x.fertig ? (gespart ? '⏩ ' + (anteile[x.id] >= 0.999 ? 'alles sofort fertig' : 'mind. ' + gespart + ' Min + ' + Math.round((anteile[x.id] || 0) * 100) + ' % der Restzeit') + ' · ' + x.richtig + ' von ' + x.n + ' richtig' : 'Zeit wird gutgeschrieben …') : x.n + ' / ' + x.z + ' erledigt') + '</small></div></div>';
         });
       }
     } else if (dlg.tab === 'erfolge') {
