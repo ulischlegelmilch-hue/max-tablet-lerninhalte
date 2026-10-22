@@ -145,12 +145,35 @@ const Storage = (function () {
   const TAKTIK_FREISCHALT_MIN_VERSUCHE = 15;
   const TAKTIK_FREISCHALT_MIN_QUOTE = 0.7;
 
+  // 22.10.2026 (Uli: keine Mehrteiler bei den Lernkarten): die einzelnen "Schritt n"-Karten von rad_anfahren (Index 1-4) und
+  // rad_hindernis (Index 1-5) sind entfallen, die Sammelkarte "Nenne alle Schritte" bleibt. Die Statistik haengt am Kartenindex,
+  // deshalb einmalig nachruecken (Eintraege der entfallenen Karten fallen weg).
+  function migriereEinteiligeKarten(st) {
+    if (st.migrEinteilig1) return;
+    st.migrEinteilig1 = true;
+    const stats = st.heimatkundeLernkarten;
+    if (!stats) return;
+    [['rad_anfahren', [1, 2, 3, 4]], ['rad_hindernis', [1, 2, 3, 4, 5]]].forEach(([thema, weg]) => {
+      const alt = stats[thema];
+      if (!alt) return;
+      const neu = {};
+      Object.keys(alt).forEach(k => {
+        const i = +k;
+        if (weg.indexOf(i) >= 0) return;
+        neu[i - weg.filter(w => w < i).length] = alt[k];
+      });
+      stats[thema] = neu;
+    });
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
       if (!raw) return defaultState();
       const parsed = JSON.parse(raw);
-      return Object.assign(defaultState(), parsed);
+      const st = Object.assign(defaultState(), parsed);
+      migriereEinteiligeKarten(st);
+      return st;
     } catch (e) {
       return defaultState();
     }

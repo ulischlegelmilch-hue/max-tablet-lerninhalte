@@ -182,11 +182,7 @@ const Heimatkunde = (function () {
   // Heft S.17
   const LERNKARTEN_RAD_ANFAHREN = [
     { front: 'Warum ist das Losfahren in den fließenden Verkehr gefährlich?', back: 'Durch <strong>falsches Anfahren</strong> passieren jedes Jahr viele Unfälle.' },
-    { front: 'Anfahren - Schritt 1: Was machst du zuerst?', back: 'Ich sehe nach <strong>links und rechts</strong> und schaue, ob Gehweg und Fahrbahn frei sind. Wenn jemand kommt, nehme ich <strong>Rücksicht und warte</strong>.' },
-    { front: 'Anfahren - Schritt 2: Wie stellst du dich hin?', back: 'Ich stelle mich <strong>neben das Fahrrad</strong> und achte darauf, dass ein <strong>Pedal oben</strong> ist.' },
-    { front: 'Anfahren - Schritt 3: Was machst du, bevor du losfährst?', back: 'Ich <strong>prüfe, ob die Fahrbahn frei ist</strong>, und gebe ein <strong>Handzeichen</strong>.' },
-    { front: 'Anfahren - Schritt 4: Wie fährst du los?', back: 'Ich nehme <strong>beide Hände an den Lenker</strong> und fahre <strong>zügig</strong> an. Dabei passe ich auf, dass ich in der <strong>Spur</strong> bleibe.' },
-    { front: 'Nenne die 4 Schritte beim Anfahren in der richtigen Reihenfolge.', back: '1. Nach links und rechts sehen, Rücksicht nehmen und warten<br>2. Neben das Fahrrad stellen, Pedal oben<br>3. Prüfen, ob die Fahrbahn frei ist, Handzeichen geben<br>4. Beide Hände an den Lenker, zügig anfahren, in der Spur bleiben' },
+    { front: 'Anfahren: Nenne die 4 Schritte in der richtigen Reihenfolge.', back: '1. Nach links und rechts sehen, Rücksicht nehmen und warten<br>2. Neben das Fahrrad stellen, Pedal oben<br>3. Prüfen, ob die Fahrbahn frei ist, Handzeichen geben<br>4. Beide Hände an den Lenker, zügig anfahren, in der Spur bleiben' },
     { front: 'Du willst von einem Grundstück oder Gehweg nach links fahren. Was musst du tun?', back: 'Du musst erst dein Fahrrad über den Gehweg und die Fahrbahn auf die <strong>andere Straßenseite schieben</strong>. Dort kannst du wie beschrieben losfahren.' }
   ];
 
@@ -204,12 +200,7 @@ const Heimatkunde = (function () {
   // dem Buch S.76 - die Buch-Reihenfolge wurde bewusst entfernt)
   const LERNKARTEN_RAD_HINDERNIS = [
     { front: 'Ein parkendes Fahrzeug oder eine Baustelle versperrt den Weg. Was musst du beim Vorbeifahren tun?', back: 'Du musst beim Vorbeifahren deine <strong>Fahrspur verlassen</strong>.' },
-    { front: 'Vorbeifahren am Hindernis - Schritt 1: Was machst du zuerst?', back: '<strong>Umschauen</strong>.' },
-    { front: 'Vorbeifahren am Hindernis - Schritt 2: Was kommt nach dem Umschauen?', back: '<strong>Handzeichen links</strong> geben.' },
-    { front: 'Vorbeifahren am Hindernis - Schritt 3: Was kommt nach dem Handzeichen links?', back: '<strong>Links einordnen</strong>; wenn Gegenverkehr kommt, <strong>Vorrang gewähren</strong>.' },
-    { front: 'Vorbeifahren am Hindernis - Schritt 4: Was hältst du beim Vorbeifahren?', back: '<strong>Sicherheitsabstand</strong> halten.' },
-    { front: 'Vorbeifahren am Hindernis - Schritt 5: Was machst du zum Schluss?', back: '<strong>Handzeichen rechts</strong> geben und <strong>wieder rechts einordnen</strong>.' },
-    { front: 'Nenne alle 5 Schritte beim Vorbeifahren an einem Hindernis in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen links</strong> geben<br>3. <strong>Links einordnen</strong>; bei Gegenverkehr Vorrang gewähren<br>4. <strong>Sicherheitsabstand</strong> halten<br>5. <strong>Handzeichen rechts</strong> geben und wieder rechts einordnen' },
+    { front: 'Vorbeifahren am Hindernis: Nenne alle 5 Schritte in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen links</strong> geben<br>3. <strong>Links einordnen</strong>; bei Gegenverkehr Vorrang gewähren<br>4. <strong>Sicherheitsabstand</strong> halten<br>5. <strong>Handzeichen rechts</strong> geben und wieder rechts einordnen' },
     { front: 'Du musst beim Vorbeifahren auf die Gegenfahrbahn ausweichen und es kommt Gegenverkehr. Was tust du?', back: 'Du musst <strong>warten</strong> und den Gegenverkehr vorbeifahren lassen. Erst wenn niemand mehr kommt, darfst du fahren. Schau dich vor dem Losfahren <strong>unbedingt um</strong>, ob hinter dir jemand kommt.' },
     { front: 'Über welche Schulter machst du vor dem Ausweichen den Schulterblick?', back: 'Über die <strong>linke</strong> Schulter.' }
   ];
@@ -563,6 +554,7 @@ const Heimatkunde = (function () {
           </div>
           <div class="karteikarte-seite karteikarte-hinten">
             <div class="lernkarte-text">${karte.back}</div>
+            <div class="karteikarte-hinweis">Tippen: zurück zur Frage</div>
           </div>
         </div>
       </div>
@@ -572,10 +564,13 @@ const Heimatkunde = (function () {
     `);
   }
 
+  // Nach dem ersten Umdrehen erscheint die Bewertung; die Karte laesst sich danach beliebig oft hin- und herdrehen
   function karteUmdrehen() {
-    if (lkUmgedreht) return;
+    const inner = document.getElementById('karteikarte-inner');
+    if (!inner) return;
+    if (lkUmgedreht) { inner.classList.toggle('umgedreht'); return; }
     lkUmgedreht = true;
-    document.getElementById('karteikarte-inner').classList.add('umgedreht');
+    inner.classList.add('umgedreht');
     document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
   }
 

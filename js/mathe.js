@@ -1572,6 +1572,7 @@ const Mathe = (function () {
           </div>
           <div class="karteikarte-seite karteikarte-hinten">
             <div class="karteikarte-ergebnis">${a * b}</div>
+            <div class="karteikarte-hinweis">Tippen: zurück zur Aufgabe</div>
           </div>
         </div>
       </div>
@@ -1583,11 +1584,14 @@ const Mathe = (function () {
     starteMalfolgenCountdown();
   }
 
+  // Nach dem ersten Umdrehen erscheint die Bewertung; die Karte laesst sich danach beliebig oft hin- und herdrehen
   function karteUmdrehen() {
-    if (mfUmgedreht) return;
+    const inner = document.getElementById('karteikarte-inner');
+    if (!inner) return;
+    if (mfUmgedreht) { inner.classList.toggle('umgedreht'); return; }
     mfUmgedreht = true;
     stoppeMalfolgenCountdown();
-    document.getElementById('karteikarte-inner').classList.add('umgedreht');
+    inner.classList.add('umgedreht');
     document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
   }
 

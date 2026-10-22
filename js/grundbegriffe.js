@@ -142,6 +142,7 @@ const Grundbegriffe = (function () {
           </div>
           <div class="karteikarte-seite karteikarte-hinten">
             <div class="lernkarte-text">${k.back}</div>
+            <div class="karteikarte-hinweis">Tippen: zurück zur Frage</div>
           </div>
         </div>
       </div>
@@ -151,10 +152,13 @@ const Grundbegriffe = (function () {
       </div>`);
   }
 
+  // Nach dem ersten Umdrehen erscheint die Bewertung; die Karte laesst sich danach beliebig oft hin- und herdrehen
   function umdrehen() {
-    if (umgedreht || !session) return;
+    const inner = document.getElementById('karteikarte-inner');
+    if (!session || !inner) return;
+    if (umgedreht) { inner.classList.toggle('umgedreht'); return; }
     umgedreht = true;
-    document.getElementById('karteikarte-inner').classList.add('umgedreht');
+    inner.classList.add('umgedreht');
     document.getElementById('karteikarte-bewertung').classList.add('sichtbar');
   }
 

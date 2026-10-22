@@ -1136,9 +1136,14 @@ const App = (function () {
           <div style="margin:8px 0;">So schreibt man es richtig: <strong style="font-size:1.25em;">${f.antwort}</strong></div>
           <div class="btn-primary" id="btn-schreibweise-ok">Verstanden ✓</div>
         </div>`;
-      document.getElementById('btn-schreibweise-ok').onclick = weiter;
+      let schonOk = false;
+      document.getElementById('btn-schreibweise-ok').onclick = () => { if (schonOk) return; schonOk = true; weiter(); };
     } else {
-      setTimeout(weiter, 1400);
+      // Kein automatisches Weiterschalten (Uli 22.10.2026): erst die Antwort in Ruhe ansehen, dann bestaetigen.
+      // Die Aufgabe bleibt dabei sichtbar, so lassen sich Frage und Loesung noch einmal anschauen.
+      document.getElementById('hilfe-bereich').innerHTML = '<div class="btn-primary" id="btn-weiter-ok">Weiter ➜</div>';
+      let schonWeiter = false;
+      document.getElementById('btn-weiter-ok').onclick = () => { if (schonWeiter) return; schonWeiter = true; weiter(); };
     }
   }
 
