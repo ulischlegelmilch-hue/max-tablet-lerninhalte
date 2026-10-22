@@ -616,7 +616,7 @@ const Heimatkunde = (function () {
     const zielThema = karte._quellThema || lkSession.thema;
     const zielIdx = karte._quellThema ? karte._quellIdx : karte._idx;
     Storage.meldeLernkartenErgebnis(zielThema, zielIdx, korrekt);
-    if (lkSession.thema === TAGESKARTEN_THEMA && !karte._wiederholung) Ferientraining.melde('heimat_lernkarten');
+    if (lkSession.thema === TAGESKARTEN_THEMA && !karte._wiederholung) Ferientraining.melde('heimat_lernkarten', korrekt);
     const gained = Storage.addAntwort('heimat', korrekt, 1);
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
     lkSession.verlauf.push({ frage: textOhneBild(karte.front), ergebnis: korrekt ? 'richtig' : 'falsch' });

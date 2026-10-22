@@ -116,10 +116,45 @@ const FarmMeldung = (function () {
     if (timer) return;
     // Ton braucht eine Beruehrung, bevor der Browser Audio erlaubt
     document.addEventListener('touchstart', function frei() { audio(); document.removeEventListener('touchstart', frei, true); }, true);
-    abfragen();
-    timer = setInterval(abfragen, SYNC_MS);
+    abfragen(); schulaufgaben();
+    timer = setInterval(() => { abfragen(); schulaufgaben(); }, SYNC_MS);
   }
-  function hofOffen(an) { offen = an; if (an) ev = -1; }
+  // ---------- Tagesaufgaben der Schule -> Zeitgutschrift auf dem Hof ----------
+  // Jede geschaffte Ferientraining-Aufgabe (einmal am Tag) verkuerzt auf dem Hof alle laufenden Arbeiten um D.SCHUL_BONUS_MIN.
+  const SCHUL_KEY = 'maxlernt_farm_schul';
+  let schulLaeuft = false;
+  function heute() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function schulBeansprucht() {
+    try { const r = JSON.parse(localStorage.getItem(SCHUL_KEY) || 'null'); if (r && r.datum === heute()) return r; } catch (e) { /* leer */ }
+    return { datum: heute(), ids: {} };
+  }
+  const quote = x => Math.max(0, Math.min(1, x.n > 0 ? x.richtig / x.n : 1));   // Anteil beim ersten Versuch richtig
+  async function schulaufgaben() {
+    if (!basis || schulLaeuft || typeof Ferientraining === 'undefined' || !Ferientraining.liste) return;
+    const rec = schulBeansprucht();
+    const offene = Ferientraining.liste().filter(x => x.fertig && !rec.ids[x.id]);
+    if (!offene.length) return;
+    schulLaeuft = true;
+    try {
+      let min = 0, n = 0, richtig = 0, gesamt = 0;
+      for (const x of offene) {
+        let j = null;
+        try {
+          const r = await fetch(basis + '/api/farm/befehl', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ von: 'max', name: 'tagesaufgabeGeschafft', args: [x.id, quote(x)] }) });
+          if (r.status === 409) return;   // noch kein gemeinsamer Hof
+          j = await r.json();
+        } catch (e) { return; }           // offline: beim naechsten Mal
+        const erg = j && j.ergebnis;
+        if (erg && erg.ok) { min += erg.min; n++; richtig += x.richtig; gesamt += x.n; }
+        if (j) { rec.ids[x.id] = 1; localStorage.setItem(SCHUL_KEY, JSON.stringify(rec)); }   // auch eine Ablehnung ("schon belohnt") ist endgueltig
+      }
+      if (n) {
+        zeige({ key: 'schule', icon: '📚', titel: n === 1 ? 'Tagesaufgabe geschafft!' : n + ' Tagesaufgaben geschafft!', text: richtig + ' von ' + gesamt + ' gleich richtig → auf dem Hof sind alle Arbeiten ' + min + ' Minuten schneller fertig.', ton: 'reif' }, !!offen);
+        ton('reif');
+      }
+    } finally { schulLaeuft = false; }
+  }
+  function hofOffen(an) { offen = an; if (an) { ev = -1; schulaufgaben(); } }
 
-  return { start, ereignis, hofOffen, _t: { beschreibe, zeige, ton, abfragen } };
+  return { start, ereignis, hofOffen, schulaufgaben, _t: { beschreibe, zeige, ton, abfragen } };
 })();

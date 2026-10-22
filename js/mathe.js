@@ -1595,7 +1595,7 @@ const Mathe = (function () {
     if (!mfUmgedreht) return; // erst umdrehen, dann bewerten
     const fakt = mfSession.fakten[mfSession.index];
     Storage.meldeMalfolgenErgebnis(fakt, korrekt);
-    if (!mfSession.istWdh[mfSession.index]) Ferientraining.melde('mathe_malfolgen');
+    if (!mfSession.istWdh[mfSession.index]) Ferientraining.melde('mathe_malfolgen', korrekt);
     // Nicht gewusst: dieselbe Karte kommt ein paar Karten spaeter noch einmal dazu
     if (!korrekt) {
       const pos = Math.min(mfSession.fakten.length, mfSession.index + 4);

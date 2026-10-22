@@ -112,6 +112,29 @@ const FarmModell = (function () {
     else { w = geraetDef.w; kmh = geraetDef.kmh; }
     return D.ARBEIT_K * ha / ((w / D.PX_JE_M) * kmh * eff);
   }
+  // Bessere Maschinen haben echte Vorteile (alles aus dem Level der Maschine bzw. der Motorleistung):
+  //  - Zugreserve: ein Traktor mit mehr PS als das Geraet braucht, arbeitet schneller (bis +30 %)
+  //  - Transport: schnellere Traktoren sind schneller zum Feld und zurueck
+  //  - Verschleiss: hoeherwertige Maschinen nutzen sich langsamer ab (bis -50 %)
+  //  - Wirkung: bessere Geraete (Pflug, Streuer, Spritze, Walze) bringen mehr Ertrag je Arbeitsgang (bis +50 % des Bonus),
+  //    bessere Maehdrescher/Roder ernten sauberer (bis +10 % Ertrag)
+  const zugFaktor = (td, gd) => gd ? 1 + Math.min(0.30, Math.max(0, td.ps / gd.ps - 1) * 0.15) : 1;
+  const transportFaktor = td => td.art === 'traktor' ? td.kmh / 30 : 1;
+  const verschleissRate = d => 1 - Math.min(0.5, (d.lvl - 1) * 0.0125);
+  const wirkungFaktor = d => d.art === 'geraet' ? 1 + Math.min(0.5, (d.lvl - 1) * 0.012) : 1;
+  const erntePlus = d => d.art === 'ernter' ? 1 + Math.min(0.10, (d.lvl - 1) * 0.003) : 1;
+  function maschinenVorteile(defId) {
+    const d = D.def(defId), v = [];
+    if (!d) return v;
+    if (d.art === 'traktor') {
+      if (transportFaktor(d) > 1.01) v.push('Transport +' + Math.round((transportFaktor(d) - 1) * 100) + ' % schneller');
+      v.push('Zugreserve: bei kleineren Geräten bis +30 % Tempo');
+    }
+    if (d.art === 'geraet' && wirkungFaktor(d) > 1.001) v.push('Wirkung +' + Math.round((wirkungFaktor(d) - 1) * 100) + ' % (mehr Ertrag je Arbeitsgang)');
+    if (d.art === 'ernter' && erntePlus(d) > 1.001) v.push('Ernte +' + Math.round((erntePlus(d) - 1) * 100) + ' % (weniger Verlust)');
+    if (verschleissRate(d) < 0.999) v.push('Verschleiß −' + Math.round((1 - verschleissRate(d)) * 100) + ' %');
+    return v;
+  }
   function verschleissFaktor(m) { return m.zustand >= 50 ? 1 : 1 + (50 - m.zustand) / 50 * 0.6; }
   const einsatzbereit = m => !m.job && m.zustand >= 15;
 
@@ -330,7 +353,7 @@ const FarmModell = (function () {
         const gd = D.def(g.id);
         const t = traktoren.find(x => D.def(x.id).ps >= gd.ps);
         if (!t) { res.push({ geraet: g.uid, traktor: null, grund: 'Kein Traktor mit ' + gd.ps + ' PS frei', sek: arbeitsSek(schritt, feldId, gd, null) }); return; }
-        res.push({ geraet: g.uid, traktor: t.uid, traktoren: traktoren.filter(x => D.def(x.id).ps >= gd.ps).map(x => x.uid), sek: arbeitsSek(schritt, feldId, gd, null) * verschleissFaktor(g) * verschleissFaktor(t) });
+        res.push({ geraet: g.uid, traktor: t.uid, traktoren: traktoren.filter(x => D.def(x.id).ps >= gd.ps).map(x => x.uid), sek: arbeitsSek(schritt, feldId, gd, null) * verschleissFaktor(g) * verschleissFaktor(t) / zugFaktor(D.def(t.id), gd) });
       });
     } else {
       const f = S.felder[feldId], fr = D.frucht(fruchtId || f.frucht);
@@ -392,8 +415,8 @@ const FarmModell = (function () {
     const kosten = kostenFuer(feldId, schritt, o.frucht);
     if (S.geld < kosten) return { ok: false, grund: 'Dafür fehlen noch ' + Math.round(kosten - S.geld).toLocaleString('de-DE') + ' €.' };
     const tf = tempoFaktor();
-    const sek = arbeitsSek(schritt, feldId, g ? D.def(g.id) : null, g ? null : D.def(t.id)) * verschleissFaktor(t) * (g ? verschleissFaktor(g) : 1) * wetter(jetzt).arbeit / tf;
-    const reise = wegLaenge(feldId) / (TRANSPORT_KMH * KMH_PX) / tf;
+    const sek = arbeitsSek(schritt, feldId, g ? D.def(g.id) : null, g ? null : D.def(t.id)) * verschleissFaktor(t) * (g ? verschleissFaktor(g) : 1) * wetter(jetzt).arbeit / tf / zugFaktor(D.def(t.id), g ? D.def(g.id) : null);
+    const reise = wegLaenge(feldId) / (TRANSPORT_KMH * transportFaktor(D.def(t.id)) * KMH_PX) / tf;
     S.geld -= kosten;
     const job = { id: S.nextId++, feld: feldId, schritt, geraet: g ? g.uid : null, traktor: t.uid, start: jetzt, hin: Math.round(reise * 1000), arbeit: Math.round(sek * 1000), rueck: Math.round(reise * 1000), frucht: o.frucht || null, kosten, fertig: false };
     S.jobs.push(job);
@@ -415,20 +438,22 @@ const FarmModell = (function () {
   function jobWirkung(j) {
     const f = S.felder[j.feld], st = D.SCHRITTE[j.schritt], d = D.feld(j.feld);
     const ha = d.ha;
+    const mg = j.geraet && maschine(j.geraet), mt = maschine(j.traktor);
+    const gq = mg ? wirkungFaktor(D.def(mg.id)) : 1;   // Qualitaet des Geraets
     const zeitEnde = j.start + j.hin + j.arbeit;
     if (j.schritt === 'grubbern') f.phase = 'bearbeitet';
     else if (j.schritt === 'pfluegen') {
       if (f.phase === 'waechst' || f.phase === 'reif') { f.frucht = null; f.fort = 0; f.dauer = 0; f.bonus = { pf: 0, dg: 0, sp: 0, wa: 0 }; ereignis('umgebrochen', { feld: j.feld }); }
-      f.phase = 'gepfluegt'; f.bonus.pf = 1;
+      f.phase = 'gepfluegt'; f.bonus.pf = gq;
     } else if (j.schritt === 'kalken') f.boden = Math.min(100, f.boden + 25);
     else if (j.schritt === 'saeen') {
       const fr = D.frucht(j.frucht);
       f.phase = 'waechst'; f.frucht = fr.id; f.fort = 0; f.fortZeit = zeitEnde; f.lern = false;
       f.dauer = Math.round(fr.dauer * 1000 / tempoFaktor());
-    } else if (st.bonus) f.bonus[st.bonus] = 1;
+    } else if (st.bonus) f.bonus[st.bonus] = gq;
     else if (j.schritt === 'ernten') {
       const fr = D.frucht(f.frucht);
-      const kg = ha * fr.ertrag * 1000 * ertragsFaktor(f, fr.id);
+      const kg = ha * fr.ertrag * 1000 * ertragsFaktor(f, fr.id) * (mt ? erntePlus(D.def(mt.id)) : 1);
       const r = lagerEin(fr.id, kg);
       S.statistik.geerntet += kg;
       S.statistik.ernteJe[fr.id] = (S.statistik.ernteJe[fr.id] || 0) + kg;
@@ -443,7 +468,7 @@ const FarmModell = (function () {
     // Verschleiss
     const m1 = maschine(j.traktor), m2 = j.geraet && maschine(j.geraet);
     const stunden = j.arbeit * tempoFaktorAlt(j) / 3600000;
-    [m1, m2].forEach(m => { if (m) m.zustand = Math.max(0, m.zustand - 4 * stunden); });
+    [m1, m2].forEach(m => { if (m) m.zustand = Math.max(0, m.zustand - 4 * stunden * verschleissRate(D.def(m.id))); });
     j.fertig = true;
     ereignis('jobFertig', { job: j });
   }
@@ -631,6 +656,41 @@ const FarmModell = (function () {
       xpGeben(richtig * 8);
     }
     return { ok: true, richtig, gespartMs, reif, rundenUebrig: D.LERN_MAX_TAG - S.lernTag.n };
+  }
+  // Tagesaufgabe der Schule (Ferientraining-Checkliste) geschafft: alle laufenden Arbeiten, wachsenden Felder und Produktionen
+  // werden verkuerzt - adaptiv: quote (0..1) = Anteil beim ersten Versuch richtig; 20 % bis 100 % von D.SCHUL_BONUS_MIN. Jede Aufgabe (id) zaehlt einmal am Tag.
+  function schulMinuten(quote) { return Math.round(D.SCHUL_BONUS_MIN * (0.2 + 0.8 * Math.max(0, Math.min(1, Number(quote) || 0)))); }
+  function tagesaufgabeGeschafft(id, quote, jetzt) {
+    simuliere(jetzt);
+    id = String(id || '');
+    if (!/^[a-z_]{1,24}$/.test(id)) return { ok: false, grund: 'Unbekannte Aufgabe.' };
+    const key = tagKey(jetzt);
+    if (!S.schulTag || S.schulTag.datum !== key) S.schulTag = { datum: key, ids: {} };
+    if (S.schulTag.ids[id]) return { ok: false, grund: 'Diese Aufgabe hat heute schon Zeit gespart.' };
+    if (Object.keys(S.schulTag.ids).length >= 12) return { ok: false, grund: 'Für heute ist genug Zeit gespart.' };
+    const min = schulMinuten(quote);
+    S.schulTag.ids[id] = min;
+    const ms = min * 60000;
+    let jobs = 0, felder = 0, betriebe = 0;
+    S.jobs.forEach(j => { j.start -= ms; jobs++; });
+    Object.keys(S.felder).forEach(fid => {
+      const f = S.felder[fid];
+      if (f.phase !== 'waechst') return;
+      f.fort = Math.min(1, f.fort + ms * wachsFaktor(f, jetzt) / Math.max(1, f.dauer)); f.fortZeit = jetzt; felder++;
+      if (f.fort >= 1) { f.phase = 'reif'; f.fort = 1; ereignis('reif', { feld: +fid }); }
+    });
+    Object.keys(S.produktion).forEach(bid => {
+      const q = S.produktion[bid].queue[0];
+      if (q && q.start != null) { q.start -= ms; betriebe++; }
+    });
+    S.statistik.schulaufgaben = (S.statistik.schulaufgaben || 0) + 1;
+    xpGeben(25);
+    simuliere(jetzt);
+    return { ok: true, min, jobs, felder, betriebe };
+  }
+  function schulHeute(jetzt) {
+    const key = tagKey(jetzt);
+    return S.schulTag && S.schulTag.datum === key ? S.schulTag.ids : {};   // id -> gutgeschriebene Minuten
   }
   function lernRundenUebrig(jetzt) {
     const key = tagKey(jetzt);
@@ -959,7 +1019,7 @@ const FarmModell = (function () {
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
     tagAbholen, tagBonusAbholen, tagBonus, tagWert, tagArt, serieAktuell, naechsterTag,
-    lernBeschleunigen, lernRundenUebrig,
+    lernBeschleunigen, lernRundenUebrig, tagesaufgabeGeschafft, schulHeute, schulMinuten, maschinenVorteile,
     albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,

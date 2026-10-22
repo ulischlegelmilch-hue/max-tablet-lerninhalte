@@ -344,6 +344,7 @@ const FarmDaten = (function () {
 
   // ---- Lernen (Schulaufgaben verkuerzen die Reifezeit) ----
   const LERN_KARTEN = 5, LERN_PRO_KARTE = 0.08, LERN_MAX_TAG = 3;   // je gewusste Karte 8 % der Wachstumszeit, hoechstens 3 Runden am Tag
+  const SCHUL_BONUS_MIN = 25;   // je geschaffter Tagesaufgabe der Schule: alle laufenden Arbeiten/Wachstum/Produktion um 25 Min verkuerzt (je Aufgabe einmal am Tag)
 
   // ---- Tagesaufgaben ----
   // Jeden Tag (Kalendertag) gibt es 3 kleine Ziele aus dieser Liste (je nach Spielstand passend). stat = Zaehler, ziel(l) = Zielwert
@@ -501,7 +502,7 @@ const FarmDaten = (function () {
   return {
     ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, DEKO, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
-    LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
+    LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, SCHUL_BONUS_MIN, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
   };

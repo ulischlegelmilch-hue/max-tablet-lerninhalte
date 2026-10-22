@@ -72,5 +72,10 @@ const FarmLernen = (function () {
     } catch (e) { /* Statistik ist Zusatz */ }
   }
 
-  return { verfuegbar, waehle, melde };
+  // Tagesaufgaben der Schule (Ferientraining) fuer die Anzeige im Spiel
+  function tagesplan() {
+    try { return typeof Ferientraining !== 'undefined' && Ferientraining.liste ? Ferientraining.liste() : []; } catch (e) { return []; }
+  }
+
+  return { verfuegbar, waehle, melde, tagesplan };
 })();

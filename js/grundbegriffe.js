@@ -168,7 +168,7 @@ const Grundbegriffe = (function () {
     s.verlauf.push({ frage: nurText(k.front).slice(0, 190), ergebnis: korrekt ? 'richtig' : 'falsch', richtigeAntwort: nurText(k.back).slice(0, 55) });
     // nicht gewusst: die Karte kommt ein paar Karten spaeter noch einmal
     if (!korrekt && !k._wiederholung) s.karten.splice(Math.min(s.karten.length, s.index + 4), 0, Object.assign({}, k, { _wiederholung: true }));
-    if (s.ferienItem && !k._wiederholung) Ferientraining.melde(s.ferienItem);
+    if (s.ferienItem && !k._wiederholung) Ferientraining.melde(s.ferienItem, korrekt);
     s.index++;
     if (s.index >= s.karten.length) {
       if (s.ferienItem) { Storage.loescheOffeneSession(s.ferienItem); Ferientraining.abschluss(s.ferienItem); }

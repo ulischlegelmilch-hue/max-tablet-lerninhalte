@@ -75,16 +75,20 @@ const Ferientraining = (function () {
   function anzahlErledigt() { return PLAN.filter(i => stand(i).fertig).length; }
 
   /** Zaehlt eine erledigte Einheit fuer einen Plan-Punkt (ignoriert unbekannte ids). */
-  function melde(id) {
+  function melde(id, korrekt) {
     const item = PLAN.find(i => i.id === id);
     if (!item) return;
-    Storage.meldeFerienFortschritt(id);
+    Storage.meldeFerienFortschritt(id, korrekt);
   }
 
   /** Sitzung des Punkts ist heute komplett abgeschlossen (inkl. Wiederholungen
    *  falscher Aufgaben/Karten) -> abgehakt. */
   function abschluss(id) {
-    if (PLAN.some(i => i.id === id)) Storage.setFerienErledigt(id);
+    if (PLAN.some(i => i.id === id)) {
+      Storage.setFerienErledigt(id);
+      // Hof-Farm: jede geschaffte Tagesaufgabe verkuerzt dort die laufenden Arbeiten (siehe farm-meldung.js)
+      try { if (typeof FarmMeldung !== 'undefined') FarmMeldung.schulaufgaben(); } catch (e) { /* Spiel darf das Training nie stoeren */ }
+    }
   }
 
   /** Noch fehlende Einheiten (fuer Sitzungen, die nur den Rest abfragen sollen);
@@ -182,5 +186,8 @@ const Ferientraining = (function () {
     return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining (${anzahlErledigt()} von ${PLAN.length})</div>`;
   }
 
-  return { melde, abschluss, restAnzahl, chips, homeKarteHtml, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
+  /** Heutige Punkte fuer die Hof-Farm: [{ id, titel, fertig, n, z, richtig }] */
+  function liste() { return PLAN.map(i => { const s = stand(i); return { id: i.id, titel: i.titel, fertig: s.fertig, n: s.n, z: s.z, richtig: Math.min(s.n, Storage.getFerienRichtig(i.id)) }; }); }
+
+  return { liste, melde, abschluss, restAnzahl, chips, homeKarteHtml, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
 })();

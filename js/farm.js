@@ -193,6 +193,7 @@ const Farm = (function () {
           <div class="f-pill f-lvl"><span id="f-lvl">Level 1</span><div class="bar"><div id="f-xp"></div></div></div>
           <div class="f-pill f-wetter" id="f-wetter" data-a="wetter">☀️ Sonnig</div>
           <div class="f-pill f-wetter" id="f-tag" data-a="tagTab">📅 Heute</div>
+          <div class="f-pill f-wetter" id="f-schule" data-a="tagTab" style="display:none">📚 Schule</div>
           <div class="f-pill f-wetter f-mit" id="f-mit" style="display:none"></div>
         </div>
         <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
@@ -217,7 +218,7 @@ const Farm = (function () {
     R = {
       geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
       hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), mit: wurzel.querySelector('#f-mit'), offline: wurzel.querySelector('#f-offline'), wetter: wurzel.querySelector('#f-wetter')
+      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), schule: wurzel.querySelector('#f-schule'), mit: wurzel.querySelector('#f-mit'), offline: wurzel.querySelector('#f-offline'), wetter: wurzel.querySelector('#f-wetter')
     };
     wurzel.addEventListener('click', klick);
     wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
@@ -569,6 +570,8 @@ const Farm = (function () {
       if (d.art === 'traktor') stats = d.ps + ' PS · bis ' + d.kmh + ' km/h';
       else if (d.art === 'geraet') stats = GERAET_NAME[d.typ] + ' · ' + meter(d.w) + ' breit<br>braucht ab ' + d.ps + ' PS';
       else stats = (d.typ === 'rodemaschine' ? 'Roder (Kartoffeln, Rüben)' : 'Mähdrescher (Getreide, Raps, Mais …)') + '<br>Schneidwerk ' + meter(d.w) + ' · Tank ' + tonnen(d.tank);
+      const vor = M.maschinenVorteile(d.id);
+      if (vor.length) stats += '<br><span style="color:#9ff0a8">' + vor.map(x => '✓ ' + x).join('<br>') + '</span>';
       const hab = besitz(d.id), gesperrt = S.level < d.lvl, kann = S.geld >= d.preis;
       return '<div class="f-karte' + (gesperrt ? ' gesperrt' : '') + '"><img src="' + vorschauBild(d) + '"><b>' + d.name + (hab ? '<span class="f-badge">' + hab + '× im Hof</span>' : '') + (gesperrt ? '<span class="f-badge rot">ab Level ' + d.lvl + '</span>' : '') + '</b>' +
         '<div class="s" style="color:' + m.c1 + ';filter:brightness(1.6)">' + m.name + '</div><div class="s">' + stats + '</div>' +
@@ -761,6 +764,17 @@ const Farm = (function () {
       const b = M.tagBonus(now);
       inhalt += '<div class="f-h3">Tagesbonus</div><div class="f-zeile"><div class="ico">🎁</div><div class="n">Alle drei geschafft!<small>Bonus <b style="color:#ffe27a">' + fmt(b.geld) + ' €</b> + ' + b.xp + ' XP · jeder weitere Tag in Folge gibt +5 % (bis +50 %). Wer einen Tag auslässt, fängt die Serie neu an – kein Drama!</small></div>' +
         (t.bonusAbgeholt ? '<span class="f-badge">abgeholt ✓</span>' : '<button class="f-kauf ' + (t.alle ? 'gruen' : '') + '" data-a="tagBonus"' + (t.alle ? '' : ' disabled') + '>' + (t.alle ? 'Abholen' : 'noch nicht') + '</button>') + '</div>';
+      const plan = (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) ? FarmLernen.tagesplan() : [];
+      if (plan.length) {
+        const belohnt = M.schulHeute(now), okN = plan.filter(x => x.fertig).length;
+        const summe = Object.keys(belohnt).reduce((a, k) => a + belohnt[k], 0);
+        inhalt += '<div class="f-h3">📚 Schulaufgaben von heute</div><div class="f-info">Jede geschaffte Schulaufgabe spart auf dem Hof Zeit – bei allen laufenden Arbeiten, wachsenden Feldern und Betrieben. Je mehr du <b>beim ersten Versuch richtig</b> hast, desto mehr (bis zu <b>' + D.SCHUL_BONUS_MIN + ' Minuten</b>). Jede Aufgabe zählt einmal am Tag. ' +
+          (okN ? 'Heute schon <b>' + summe + ' Minuten</b> gespart.' : 'Mach eine Aufgabe in der Lern-App und komm zurück!') + '</div>';
+        plan.forEach(x => {
+          const gespart = belohnt[x.id];
+          inhalt += '<div class="f-zeile"><div class="ico">' + (x.fertig ? '✅' : '📝') + '</div><div class="n">' + x.titel + '<small>' + (x.fertig ? (gespart ? '⏩ ' + gespart + ' Min gespart · ' + x.richtig + ' von ' + x.n + ' richtig' : 'Zeit wird gutgeschrieben …') : x.n + ' / ' + x.z + ' erledigt') + '</small></div></div>';
+        });
+      }
     } else if (dlg.tab === 'erfolge') {
       let abh = 0, geldAbh = 0;
       D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) { abh++; for (let i = r.abgeholt; i < r.erreicht; i++) geldAbh += e.stufen[i].geld; } });
@@ -1125,6 +1139,10 @@ const Farm = (function () {
       if (da) R.mit.textContent = (anderer === 'papa' ? '👨 Papa' : '👦 Max') + ' spielt mit';
     }
     const tg = stand().tag;
+    if (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan && R.schule) {
+      const pl = FarmLernen.tagesplan();
+      if (pl.length) { const ok = pl.filter(x => x.fertig).length; R.schule.style.display = ''; R.schule.textContent = '📚 Schule ' + ok + '/' + pl.length; R.schule.style.color = ok === pl.length ? '#9ff0a8' : ''; }
+    }
     if (tg) { const fn = tg.aufgaben.filter(q => q.fertig).length, cl = tg.aufgaben.some(q => q.fertig && !q.abgeholt) || (tg.alle && !tg.bonusAbgeholt); R.tag.textContent = '📅 ' + fn + '/' + tg.aufgaben.length + (cl ? ' 🎁' : ''); R.tag.style.color = cl ? '#ffe27a' : ''; }
     const abh = M.abholbar();
     R.pktErf.style.display = abh ? 'flex' : 'none'; R.pktErf.textContent = abh;

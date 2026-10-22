@@ -314,13 +314,15 @@ const Storage = (function () {
   function getFerienFortschritt() {
     const heute = heutigesDatum();
     if (!state.ferienFortschritt || state.ferienFortschritt.datum !== heute) {
-      state.ferienFortschritt = { datum: heute, count: {}, erledigt: {} };
+      state.ferienFortschritt = { datum: heute, count: {}, richtig: {}, erledigt: {} };
       save(state);
     }
     return state.ferienFortschritt;
   }
 
   function getFerienZaehler(id) { return getFerienFortschritt().count[id] || 0; }
+  /** Davon beim ersten Versuch richtig (fuer die Hof-Farm: Zeitgutschrift je nach Trefferquote). */
+  function getFerienRichtig(id) { return (getFerienFortschritt().richtig || {})[id] || 0; }
 
   /** Ein Plan-Punkt gilt erst als erledigt, wenn die Sitzung ABGESCHLOSSEN ist
    *  (inkl. der Wiederholungen falscher Aufgaben), nicht schon beim Erreichen der Zahl. */
@@ -333,9 +335,11 @@ const Storage = (function () {
     save(state);
   }
 
-  function meldeFerienFortschritt(id) {
+  function meldeFerienFortschritt(id, korrekt) {
     const f = getFerienFortschritt();
     f.count[id] = (f.count[id] || 0) + 1;
+    if (!f.richtig) f.richtig = {};
+    if (korrekt !== false) f.richtig[id] = (f.richtig[id] || 0) + 1;
     save(state);
   }
 
@@ -1049,7 +1053,7 @@ const Storage = (function () {
     getTagesStreak, getFachFortschritt, getGeschichtenFortschritt,
     getTagesplanRegeln, setTagesplanRegeln,
     getTagesPensum, getTagesPensumAnzahl, getTagesPensumErledigt, meldeTagespensumAntwort,
-    getFerienZaehler, meldeFerienFortschritt, getFerienErledigt, setFerienErledigt,
+    getFerienZaehler, getFerienRichtig, meldeFerienFortschritt, getFerienErledigt, setFerienErledigt,
     getMalfolgenAufbau, setMalfolgenAufbau, getHeutigesDatum,
     getTaktikStats, meldeTaktikErgebnis, getTaktikFreigeschaltet,
     getKonzentrationBestzeit, meldeKoordinatenZeit,

@@ -1026,7 +1026,7 @@ const App = (function () {
     updateTopbar();
 
     const f = session.fragen[session.index];
-    if (session.ferienItem && !f._wiederholung) Ferientraining.melde(session.ferienItem);
+    if (session.ferienItem && !f._wiederholung) Ferientraining.melde(session.ferienItem, korrekt && faktor >= 1);
     // Fuer die Kategorien-/Karteikarten-Gewichtung zaehlt nur ein sauberer
     // 1.-Versuch-Erfolg als "gewusst" - 2. Versuch oder Hilfe heisst: noch
     // nicht sicher, soll also weiterhin oefter drankommen.
