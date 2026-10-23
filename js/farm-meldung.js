@@ -16,6 +16,7 @@ const FarmMeldung = (function () {
       if (art === 'prodFertig') return { key: 'pf' + d.betrieb, icon: D.betrieb(d.betrieb).icon || '🏭', titel: D.betrieb(d.betrieb).name + ' fertig', text: kg(d.kg) + ' ' + D.gut(d.gut).name + ' sind bereit.', ton: 'fertig' };
       if (art === 'stallVoll') return { key: 'sv' + d.id, icon: D.tier(d.id).icon, titel: D.tier(d.id).stall + ' ist voll', text: 'Komm zum Einsammeln!', ton: 'fertig' };
       if (art === 'auftragNeu') return { key: 'an' + d.auftrag.id, icon: '📦', titel: 'Neuer Auftrag', text: kg(d.auftrag.kg) + ' ' + D.gut(d.auftrag.gut).name + ' gesucht.', ton: 'neu' };
+      if (art === 'lohnFehlt') return { key: 'lohnfehlt', icon: '👨‍🌾', titel: 'Kein Geld für den Lohn', text: 'Die Fahrer streiken, bis der Lohn bezahlt ist.', ton: 'warn' };
       if (art === 'umgebrochen') return { key: 'ub' + d.feld, icon: '⚠️', titel: 'Pflanzen umgebrochen', text: D.feld(d.feld).name + ': Der Pflug hat die Saat zerstört.', ton: 'warn' };
     } catch (e) { /* unbekannte Daten */ }
     return null;

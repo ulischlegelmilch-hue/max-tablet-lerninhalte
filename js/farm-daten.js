@@ -454,6 +454,10 @@ const FarmDaten = (function () {
   // ---- Lager / Fahrer ----
   const SILO_STUFEN = [{ kg: 60000, preis: 0 }, { kg: 120000, preis: 25000 }, { kg: 250000, preis: 60000 }, { kg: 500000, preis: 130000 },
     { kg: 1000000, preis: 280000 }, { kg: 2000000, preis: 600000 }, { kg: 4000000, preis: 1200000 }];
+  // Notkauf im Lager/Tierhof: Getreide & Co. zum 1,9-fachen Marktpreis (Auftraege zahlen hoechstens das 1,7-fache -> kein Gewinn durch Zukaufen),
+  // und hoechstens 10 t am Tag im Lager (Futter fuers Vieh zaehlt nicht mit)
+  const ZUKAUF_FAKTOR = 1.9, ZUKAUF_MAX_TAG_KG = 10000;
+  const FAHRER_LOHN_ANTEIL = 0.05;   // Tageslohn je Fahrer = 5 % seines Einstellpreises (Fahrer 1: 600 EUR/Tag ... Fahrer 6: 26.000 EUR/Tag)
   const FAHRER = [{ preis: 12000, lvl: 8 }, { preis: 30000, lvl: 14 }, { preis: 65000, lvl: 22 }, { preis: 130000, lvl: 32 },
     { preis: 260000, lvl: 44 }, { preis: 520000, lvl: 58 }];
 
@@ -503,7 +507,7 @@ const FarmDaten = (function () {
     ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, DEKO, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
     LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, SCHUL_BONUS_MIN, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
-    SILO_STUFEN, FAHRER, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
+    SILO_STUFEN, FAHRER, FAHRER_LOHN_ANTEIL, ZUKAUF_FAKTOR, ZUKAUF_MAX_TAG_KG, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
     def, frucht, feld, betrieb, gut, alleGueter, tier
   };
 })();

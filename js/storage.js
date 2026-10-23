@@ -567,6 +567,28 @@ const Storage = (function () {
    *  reines gewichtetes Wuerfeln (auch mit Zuruecklegen) wuerde das NICHT
    *  sicherstellen, v.a. bei vielen ausgewaehlten Reihen (z.B. alle 10
    *  Reihen = 100 Fakten, aber nur 15 Karten pro Session). */
+  // ---- Rotation (23.10.2026, Uli: "es kommen immer dieselben dran"): merkt sich je Aufgaben-Topf, was zuletzt gefragt wurde.
+  // Ein Topf ('adjwort', 'doppel', 'rad_tag:...') ist ein Name; je Eintrag steht ein Zaehler (Reihenfolge der Ziehung) bzw. ein Tag.
+  function rotationTopf(topf) {
+    if (!state.rotation) state.rotation = {};
+    if (!state.rotation[topf]) state.rotation[topf] = { z: 0, s: {} };
+    return state.rotation[topf];
+  }
+  /** Eintraege in Rotationsreihenfolge: nie/lange nicht gefragt zuerst, bei Gleichstand zufaellig. */
+  function rotationOrdnen(topf, keys) {
+    const r = rotationTopf(topf);
+    return keys.map(k => ({ k, w: r.s[k] || 0, x: Math.random() })).sort((a, b) => a.w - b.w || a.x - b.x).map(o => o.k);
+  }
+  /** Merkt, dass ein Eintrag jetzt gefragt wurde (hoechster Zaehler = zuletzt). */
+  function rotationMelde(topf, key) {
+    const r = rotationTopf(topf);
+    r.s[key] = ++r.z;
+    save(state);
+  }
+  /** Freier Wert je Eintrag (z.B. Tagesnummer der letzten Abfrage); 0 = noch nie. */
+  function rotationWert(topf, key) { return rotationTopf(topf).s[key] || 0; }
+  function rotationSetzeWert(topf, key, wert) { rotationTopf(topf).s[key] = wert; save(state); }
+
   function getMalfolgenDeck() {
     if (!state.malfolgenDeck) state.malfolgenDeck = [];
     return state.malfolgenDeck;
@@ -1088,7 +1110,7 @@ const Storage = (function () {
     getZuletztGeoeffnetesBuch, setZuletztGeoeffnetesBuch,
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
     getBelohnungsVerlauf, loeseBelohnungEin,
-    getMalfolgenDeck, setMalfolgenDeck,
+    getMalfolgenDeck, setMalfolgenDeck, rotationOrdnen, rotationMelde, rotationWert, rotationSetzeWert,
     getLernkartenStats, meldeLernkartenErgebnis,
     getOffeneSession, setOffeneSession, loescheOffeneSession,
     getOffeneLernsetMeldungen, pushOffeneLernsetMeldung, entferneErsteOffeneLernsetMeldung

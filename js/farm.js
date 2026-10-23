@@ -538,13 +538,12 @@ const Farm = (function () {
   }
   function fahrerBlock(f) {
     const S = stand();
-    const html = '<div class="f-h3">Fahrer (Auto-Betrieb)</div>';
-    if (f.auto) return html + '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Ein Fahrer bewirtschaftet das Feld allein<small>Er baut immer wieder ' + D.frucht(f.auto.frucht).name + ' an: bearbeiten, säen, düngen, ernten – mit freien Maschinen.</small></div><button class="f-kauf rot" data-a="autoAus">Stoppen</button></div>';
-    if (!S.fahrer) return html + '<div class="f-info">Ein Fahrer erledigt die ganze Arbeit auf einem Feld von allein. Du kannst ihn im 🏪 Händler unter „Fahrer“ einstellen (ab Level ' + D.FAHRER[0].lvl + ').</div>';
+    const html = '<div class="f-h3">Fahrer (Routinearbeit)</div>';
+    const lohn = M.lohnProTag();
+    if (f.auto) return html + '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Ein Fahrer kümmert sich um die Routine<small>Er kalkt, grubbert und walzt mit freien Maschinen. Säen, Düngen, Spritzen und Ernten machst du selbst.' + (S.lohnOffen > 0 ? ' <b style="color:#ff9a7a">Der Lohn ist offen – er arbeitet erst nach der Zahlung.</b>' : '') + '</small></div><button class="f-kauf rot" data-a="autoAus">Abziehen</button></div>';
+    if (!S.fahrer) return html + '<div class="f-info">Ein Fahrer übernimmt auf einem Feld die Routinearbeit (Kalken, Grubbern, Walzen). Du kannst ihn im 🏪 Händler unter „Fahrer“ einstellen (ab Level ' + D.FAHRER[0].lvl + '). Er kostet jeden Tag Lohn.</div>';
     if (M.autoFelder().length >= S.fahrer) return html + '<div class="f-info">Alle deine ' + S.fahrer + ' Fahrer sind schon im Einsatz. Im Händler kannst du weitere einstellen.</div>';
-    let h = html + '<div class="f-info">Du hast einen freien Fahrer! Welche Frucht soll er anbauen?</div><div class="f-btnreihe">';
-    D.FRUECHTE.filter(fr => S.level >= fr.lvl).forEach(fr => { h += '<button class="f-kauf sek" data-a="autoAn" data-id="' + fr.id + '">' + fr.name + '</button>'; });
-    return h + '</div>';
+    return html + '<div class="f-info">Du hast einen freien Fahrer! Er kalkt, grubbert und walzt hier. Säen, Düngen, Spritzen und Ernten bleiben bei dir. (Alle Fahrer zusammen kosten ' + fmt(lohn) + ' € Lohn am Tag.)</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="autoAn" data-id="ja">👨‍🌾 Fahrer hier einsetzen</button></div>';
   }
   function zeichneFeldKauf() {
     const S = stand(), d = D.feld(dlg.id);
@@ -582,8 +581,8 @@ const Farm = (function () {
     else if (tab === 'ernter') inhalt = '<div class="f-gitter">' + D.ERNTER.map(karte).join('') + '</div>';
     else if (tab === 'fahrer') {
       const n = D.FAHRER[S.fahrer];
-      inhalt = '<div class="f-info">Ein <b>Fahrer</b> bewirtschaftet ein Feld ganz allein: Er baut die gewählte Frucht immer wieder an – bearbeiten, säen, düngen, ernten – und nimmt dafür freie Maschinen aus dem Hof. Du hast <b>' + S.fahrer + '</b> Fahrer (' + M.autoFelder().length + ' im Einsatz).</div>' +
-        (n ? '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Fahrer Nr. ' + (S.fahrer + 1) + '<small>' + (S.level < n.lvl ? 'Gibt es ab Level ' + n.lvl : 'Einstellen und auf einem Feld einsetzen') + '</small></div><button class="f-kauf" data-a="fahrerKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>' : '<div class="f-info">Mehr Fahrer gibt es nicht – dein Hof läuft wie am Schnürchen!</div>');
+      inhalt = '<div class="f-info">Ein <b>Fahrer</b> übernimmt auf einem Feld die <b>Routinearbeit</b>: Er kalkt, grubbert und walzt mit freien Maschinen. <b>Säen, Düngen, Spritzen und Ernten machst du selbst.</b> Jeder Fahrer kostet <b>jeden Tag Lohn</b> (' + fmt(Math.round(D.FAHRER_LOHN_ANTEIL * 100)) + ' % seines Einstellpreises); fehlt das Geld, streiken alle Fahrer, bis der Lohn bezahlt ist. Du hast <b>' + S.fahrer + '</b> Fahrer (' + M.autoFelder().length + ' im Einsatz), sie kosten zusammen <b>' + fmt(M.lohnProTag()) + ' € am Tag</b>' + (S.lohnOffen > 0 ? ' – <b style="color:#ff9a7a">' + fmt(S.lohnOffen) + ' € Lohn sind noch offen!</b>' : '') + '.</div>' +
+        (n ? '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Fahrer Nr. ' + (S.fahrer + 1) + '<small>' + (S.level < n.lvl ? 'Gibt es ab Level ' + n.lvl : 'Einstellen und auf einem Feld einsetzen · Lohn ' + fmt(M.fahrerLohn(S.fahrer)) + ' € am Tag') + '</small></div><button class="f-kauf" data-a="fahrerKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>' : '<div class="f-info">Mehr Fahrer gibt es nicht – dein Hof läuft wie am Schnürchen!</div>');
     } else {
       const n = D.SILO_STUFEN[S.siloStufe + 1];
       inhalt = '<div class="f-info">Dein Silo fasst <b>' + tonnen(M.siloKap()) + '</b> (' + tonnen(M.lagerMenge()) + ' belegt). Ist es voll, wird die Ernte zu 80 % des Preises sofort verkauft.</div>' +
@@ -598,7 +597,7 @@ const Farm = (function () {
   function dialogLager() { dlg = { typ: 'lager' }; zeichneLager(); }
   function zeichneLager() {
     const S = stand();
-    const kap = M.siloKap(), menge = M.lagerMenge(), voll = menge / kap;
+    const kap = M.siloKap(), menge = M.lagerMenge(), voll = menge / kap, rest1 = M.zukaufRestKg(jetzt());
     const zeilen = D.alleGueter().map(id => {
       const x = D.gut(id), p = M.preis(id), rel = S.preise[id], lager = S.silo[id] || 0;
       const trend = rel > 1.12 ? '<span class="up">▲ gut</span>' : rel < 0.9 ? '<span class="down">▼ niedrig</span>' : '<span>● normal</span>';
@@ -606,11 +605,12 @@ const Farm = (function () {
       if (!lager && (gesperrt || (D.WAREN[id] && !S.album.waren[id]))) return '';
       return '<div class="f-zeile"><div class="ico">' + x.icon + '</div><div class="n">' + x.name + '<small>' + fmt(p) + ' €/t · ' + trend + '</small></div>' +
         '<div style="min-width:80px;text-align:right"><b>' + tonnen(lager) + '</b></div>' +
-        (lager > 0 ? '<button class="f-kauf" data-a="verkauf" data-id="' + id + ':all">Alles · ' + fmt(lager / 1000 * p) + ' €</button><button class="f-kauf sek" data-a="verkauf" data-id="' + id + ':half">Hälfte</button>' : '<span style="min-width:190px"></span>') + '</div>';
+        (lager > 0 ? '<button class="f-kauf" data-a="verkauf" data-id="' + id + ':all">Alles · ' + fmt(lager / 1000 * p) + ' €</button><button class="f-kauf sek" data-a="verkauf" data-id="' + id + ':half">Hälfte</button>' : '<span style="min-width:190px"></span>') +
+        (D.frucht(id) && !gesperrt ? '<button class="f-kauf sek" data-a="zukauf" data-id="' + id + ':1000"' + (rest1 < 1000 || S.geld < M.zukaufPreisProT(id) || kap - menge < 1000 ? ' disabled' : '') + '>🛒 +1 t · ' + fmt(Math.round(M.zukaufPreisProT(id))) + ' €</button>' : '') + '</div>';
     }).join('');
     dialogAuf(kopf('Lager & Markt', '<span class="f-pill">' + tonnen(menge) + ' / ' + tonnen(kap) + '</span>' + geldPille()) +
       '<div class="f-inhalt"><div class="f-bal ' + (voll > 0.9 ? 'rot' : voll > 0.7 ? 'gelb' : '') + '"><div style="width:' + Math.round(voll * 100) + '%"></div></div>' +
-      '<div class="f-info" style="margin-top:10px">Die Ernte kommt ins Silo. Die Preise schwanken: Wenn „▲ gut“ steht, lohnt sich das Verkaufen. Mit Betrieben (🏭) wird aus Rohstoffen mehr Geld – und Aufträge (📋) zahlen extra.</div>' + zeilen + '</div>');
+      '<div class="f-info" style="margin-top:10px">Die Ernte kommt ins Silo. Die Preise schwanken: Wenn „▲ gut“ steht, lohnt sich das Verkaufen. Mit Betrieben (🏭) wird aus Rohstoffen mehr Geld – und Aufträge (📋) zahlen extra.<br><b>Zur Not zukaufen:</b> Feldfrüchte kannst du mit 🛒 zum fast doppelten Preis nachkaufen (höchstens ' + (D.ZUKAUF_MAX_TAG_KG / 1000) + ' t am Tag, heute noch ' + tonnen(rest1) + ').</div>' + zeilen + '</div>');
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -691,11 +691,12 @@ const Farm = (function () {
       const lagerProz = ss.lagerKap > 0 ? Math.round(st.lager / ss.lagerKap * 100) : 0;
       html += '<div class="f-zeile" style="align-items:flex-start' + (dlg.fokus === d.id ? ';background:rgba(255,226,122,.08);border-radius:12px' : '') + '"><div class="ico">' + d.icon + '</div><div class="n">' + d.stall + ' <span class="f-badge">Stufe ' + (st.stufe + 1) + '</span>' + (st.auto ? ' <span class="f-badge">🤖 Futterautomat</span>' : '') +
         '<small>' + st.anzahl + ' von ' + ss.kap + ' Plätzen · ' + (ss.rateH >= 1 ? fmt1(ss.rateH) + ' kg' : fmt1(ss.rateH * 1000) + ' g') + ' ' + D.gut(d.gut).name + ' pro Stunde' + (st.anzahl && d.futterKgH && !ss.laeuft ? ' · <span class="down">kein Futter!</span>' : '') + '</small>' +
-        (d.futterKgH ? '<small style="margin-top:6px">Futter (' + d.futter.map(g => D.gut(g).name).join('/') + '): ' + Math.round(st.futter) + ' kg · reicht ' + stundenText(ss.futterStunden) + ' · Silo: ' + tonnen(ss.futterSilo) + '</small><div class="f-bal ' + (futterProz < 20 ? 'rot' : futterProz < 50 ? 'gelb' : '') + '"><div style="width:' + futterProz + '%"></div></div>' : '') +
+        (d.futterKgH ? '<small style="margin-top:6px">Futter (' + d.futter.map(g => D.gut(g).name).join('/') + '): ' + Math.round(st.futter) + ' kg · reicht ' + stundenText(ss.futterStunden) + ' · Silo: ' + tonnen(ss.futterSilo) + '</small><div class="f-bal ' + (futterProz < 20 ? 'rot' : futterProz < 50 ? 'gelb' : '') + '"><div style="width:' + futterProz + '%"></div></div>' + (!ss.futterSilo && futterProz < 98 ? '<div class="f-info warn" style="margin-top:8px">⚠ Im Silo ist kein Futter. ' + d.name + ' fressen ' + d.futter.map(g => D.gut(g).name).join(' oder ') + ' – ernte welches (im Lager siehst du, was im Silo liegt) oder kaufe Futter.</div>' : '') : '') +
         '<small style="margin-top:6px">' + D.gut(d.gut).icon + ' Bereit: <b>' + (st.lager >= 1000 ? fmt1(st.lager / 1000) + ' t' : Math.round(st.lager) + ' kg') + '</b> (von ' + (ss.lagerKap >= 1000 ? fmt1(ss.lagerKap / 1000) + ' t' : Math.round(ss.lagerKap) + ' kg') + ')</small><div class="f-bal ' + (lagerProz > 90 ? 'rot' : lagerProz > 60 ? 'gelb' : '') + '"><div style="width:' + lagerProz + '%"></div></div>' +
         '<div class="f-btnreihe">' +
         '<button class="f-kauf gruen" data-a="einsammeln" data-id="' + d.id + '"' + (st.lager < 1 ? ' disabled' : '') + '>✋ Einsammeln</button>' +
-        (d.futterKgH ? '<button class="f-kauf sek" data-a="fuettern" data-id="' + d.id + '"' + (futterProz >= 98 || !ss.futterSilo ? ' disabled' : '') + '>🥣 Füttern</button>' : '') +
+        (d.futterKgH ? '<button class="f-kauf sek" data-a="fuettern" data-id="' + d.id + '"' + (futterProz >= 98 ? ' disabled' : '') + '>🥣 Aus dem Silo füttern</button>' : '') +
+        (d.futterKgH && futterProz < 98 && !ss.futterSilo ? '<button class="f-kauf" data-a="futterKauf" data-id="' + d.id + '"' + (S.geld < M.futterPreisProT(d) / 1000 ? ' disabled' : '') + '>🛒 Futter kaufen · ' + fmt(Math.round(M.futterPreisProT(d))) + ' €/t</button>' : '') +
         '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':1"' + (frei < 1 || S.geld < d.tierPreis ? ' disabled' : '') + '>+1 ' + d.tier + ' · ' + fmt(d.tierPreis) + ' €</button>' +
         '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':10"' + (frei < 2 || S.geld < d.tierPreis * 2 ? ' disabled' : '') + '>+10 · ' + fmt(d.tierPreis * 10) + ' €</button>' +
         (d.automat && !st.auto ? '<button class="f-kauf sek" data-a="automat" data-id="' + d.id + '"' + (S.geld < d.automat ? ' disabled' : '') + '>🤖 Futterautomat · ' + fmt(d.automat) + ' €</button>' : '') +
@@ -897,7 +898,7 @@ const Farm = (function () {
       '<li>Die Pflanzen <b>wachsen von allein</b> (nichts verdorrt). Wenn sie reif sind: <b>Ernten</b> mit Mähdrescher oder Roder.</li>' +
       '<li>Die Ernte liegt im <b>Silo</b> (📦 Lager). Verkaufe, wenn der Preis gut ist – oder liefere <b>Aufträge</b> (📋) für extra Lohn.</li>' +
       '<li>Mit <b>Betrieben</b> (🏭) machst du aus Weizen Mehl und Brot, aus Raps Öl …</li>' +
-      '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die ein Feld ganz allein bewirtschaften.</li>' +
+      '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die auf einem Feld die Routine (Kalken, Grubbern, Walzen) übernehmen – gegen Tageslohn.</li>' +
       '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
       '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
       '<li>Jeden Tag gibt es <b>3 Tagesaufgaben</b> (📅): Schaffe alle für einen Bonus – und halte die Serie am Leben! Neue Aufgaben kommen um Mitternacht.</li>' +
@@ -1003,7 +1004,7 @@ const Farm = (function () {
         return;
       }
       case 'jobAbbruch': bestaetigen('Arbeit wirklich abbrechen? Die Kosten sind weg.', () => { M.arbeitAbbrechen(+id); dlg.sub = null; zeichneFeldDialog(); }, 'Abbrechen'); return;
-      case 'autoAn': if (ergebnis(M.autoSetzen(dlg.id, id), 'Der Fahrer übernimmt das Feld.')) zeichneFeldDialog(); return;
+      case 'autoAn': if (ergebnis(M.autoSetzen(dlg.id, id), 'Der Fahrer kümmert sich um die Routine auf dem Feld.')) zeichneFeldDialog(); return;
       case 'autoAus': M.autoSetzen(dlg.id, null); return zeichneFeldDialog();
       case 'zeigen': { const m = feldMitte(+id); dialogZu(); fliegeZu(m.x, m.y, 0.8); return; }
       case 'feldoeffnen': return dialogFeld(+id);
@@ -1028,6 +1029,8 @@ const Farm = (function () {
       case 'tierKauf': { const p = id.split(':'); const r = M.tierKaufen(p[0], +p[1]); if (ergebnis(r, r.ok ? r.anzahl + '× ' + D.tier(p[0]).tier + ' gekauft' : '')) { zeichneTiere(); speichern(); } return; }
       case 'stallAus': if (ergebnis(M.stallAusbauen(id), 'Stall ausgebaut!')) { zeichneTiere(); speichern(); } return;
       case 'automat': if (ergebnis(M.automatKaufen(id), 'Futterautomat eingebaut!')) { zeichneTiere(); speichern(); } return;
+      case 'zukauf': { const p = id.split(':'); const r = M.zukaufen(p[0], +p[1], jetzt()); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(p[0]).name + ' gekauft (−' + fmt(r.kosten) + ' €)' : '', 'geld')) { zeichneLager(); speichern(); } return; }
+      case 'futterKauf': { const r = M.futterKaufen(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter gekauft (−' + fmt(r.kosten) + ' €)' : '', 'geld')) { zeichneTiere(); speichern(); } return; }
       case 'fuettern': { const r = M.fuettern(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter eingefüllt' : '', 'gut')) { zeichneTiere(); speichern(); } return; }
       case 'einsammeln': { const r = M.einsammeln(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(r.gut).name + ' im Lager' + (r.ueber > 1 ? ' (Silo voll: Rest verkauft)' : '') : '', 'geld')) { zeichneTiere(); speichern(); } return; }
       case 'reparieren': if (ergebnis(M.maschineReparieren(+id), 'Repariert!')) zeichneFuhrpark(); return;
@@ -1053,18 +1056,18 @@ const Farm = (function () {
   function hinweisBerechnen() {
     const S = stand(), now = jetzt();
     const felder = Object.keys(S.felder).map(Number);
-    for (const id of felder) { const f = S.felder[id]; if (!M.jobAufFeld(id) && f.phase === 'reif' && !f.auto) return { t: D.feld(id).name + ' ist erntereif – tippe darauf zum Ernten!', feld: id }; }
+    for (const id of felder) { const f = S.felder[id]; if (!M.jobAufFeld(id) && f.phase === 'reif') return { t: D.feld(id).name + ' ist erntereif – tippe darauf zum Ernten!', feld: id }; }
     for (const id of felder) {
       const f = S.felder[id];
-      if (M.jobAufFeld(id) || f.auto) continue;
-      if (f.phase === 'stoppel') return { t: S.statistik.jobs === 0 ? 'Tippe auf dein Feld und starte das Grubbern.' : D.feld(id).name + ' wartet auf Bearbeitung – tippe darauf.', feld: id };
+      if (M.jobAufFeld(id)) continue;
+      if (f.phase === 'stoppel' && !f.auto) return { t: S.statistik.jobs === 0 ? 'Tippe auf dein Feld und starte das Grubbern.' : D.feld(id).name + ' wartet auf Bearbeitung – tippe darauf.', feld: id };
       if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') return { t: D.feld(id).name + ' ist bereit zum Säen – tippe darauf.', feld: id };
     }
     for (const d of D.TIERE) {
       const st = S.tiere[d.id];
       if (!st || !st.anzahl) continue;
       const ss = M.stallStand(d.id, now);
-      if (d.futterKgH && !ss.laeuft) return { t: d.icon + ' ' + d.name + ' haben kein Futter mehr – füttere sie im 🐔 Tierhof.', feld: null, tier: d.id };
+      if (d.futterKgH && !ss.laeuft) return { t: d.icon + ' ' + d.name + ' haben kein Futter mehr – ' + (ss.futterSilo ? 'füttere sie im 🐔 Tierhof.' : 'im Silo fehlt ' + d.futter.map(g => D.gut(g).name).join(' oder ') + ': ernte welches oder kaufe Futter im 🐔 Tierhof.'), feld: null, tier: d.id };
       if (ss.lagerKap > 0 && st.lager >= ss.lagerKap * 0.8) return { t: d.icon + ' ' + D.gut(d.gut).name + ' sind bereit – im 🐔 Tierhof einsammeln!', feld: null, tier: d.id };
     }
     if (M.lagerMenge() > M.siloKap() * 0.85) return { t: 'Das Lager ist fast voll – verkaufe etwas im 📦 Lager.', feld: null };
@@ -1111,6 +1114,8 @@ const Farm = (function () {
       const k = seite && seite.karten().find(x => x.id === d.id);
       if (k) { toast('📖 Neue Albumkarte: ' + k.name, 'gut', 'karte' + d.kat); piep('fertig'); }
     }
+    else if (art === 'lohn') toast('👨‍🌾 Lohn ' + (d.nachgezahlt ? 'nachgezahlt' : 'für ' + d.fahrer + ' Fahrer') + ': −' + fmt(d.betrag) + ' €', 'geld', 'lohn');
+    else if (art === 'lohnFehlt') toast('👨‍🌾 Kein Geld für den Lohn (' + fmt(d.betrag) + ' €) – die Fahrer streiken, bis er bezahlt ist!', 'warn', 'lohnfehlt');
     else if (art === 'umgebrochen') toast(D.feld(d.feld).name + ': Der Pflug hat die Pflanzen umgebrochen.', 'warn', 'ub');
   }
 
@@ -1270,7 +1275,7 @@ const Farm = (function () {
   // ----------------------------------------------------------------------------------------------
   // Befehle, die zum Server gehen: Name -> Anzahl Argumente (Zeit-Argument wird nicht mitgeschickt)
   const FERN_BEFEHLE = {
-    feldKaufen: 1, maschineKaufen: 1, maschineVerkaufen: 1, maschineReparieren: 1, lagerAusbauen: 0, fahrerKaufen: 0, autoSetzen: 2,
+    feldKaufen: 1, maschineKaufen: 1, maschineVerkaufen: 1, maschineReparieren: 1, lagerAusbauen: 0, fahrerKaufen: 0, autoSetzen: 2, futterKaufen: 1, zukaufen: 2,
     arbeitStarten: 3, arbeitAbbrechen: 1, produktionBauen: 1, produktionAusbauen: 1, produktionStarten: 3, auftragLiefern: 1, verkaufen: 2,
     stallBauen: 1, tierKaufen: 2, stallAusbauen: 1, automatKaufen: 1, fuettern: 1, einsammeln: 1, wetterstationKaufen: 0, beregnungKaufen: 1,
     erfolgAbholen: 1, albumBonusAbholen: 1, tagAbholen: 1, tagBonusAbholen: 0, wetterGesehen: 1, tempoSetzen: 1, lernBeschleunigen: 2

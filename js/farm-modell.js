@@ -326,19 +326,47 @@ const FarmModell = (function () {
     if (S.level < n.lvl) return { ok: false, grund: 'Der nächste Fahrer ab Level ' + n.lvl + '.' };
     if (S.geld < n.preis) return { ok: false, grund: 'Es fehlen noch ' + Math.round(n.preis - S.geld).toLocaleString('de-DE') + ' €.' };
     S.geld -= n.preis; S.fahrer++;
+    if (!S.lohnTag) S.lohnTag = tagesStart(Date.now());   // erster Lohn am naechsten Tag
     return { ok: true };
   }
   function autoFelder() { return Object.keys(S.felder).filter(id => S.felder[id].auto).map(Number); }
-  function autoSetzen(feldId, fruchtId) {
+  // Fahrer (seit 23.10.2026, Uli: "Max soll nicht fuer jedes Feld einen Manager einstellen und dann nichts mehr tun muessen"):
+  // ein Fahrer erledigt nur die ROUTINE auf einem Feld - Kalken, Grubbern, Walzen. Saeen (Fruchtwahl), Duengen, Spritzen und Ernten
+  // bleiben bei Max. Jeder eingestellte Fahrer kostet jeden Tag Lohn. an = true: einsetzen, sonst abziehen (alter Parameter "Frucht" wird ignoriert).
+  function autoSetzen(feldId, an) {
     const f = S.felder[feldId];
     if (!f) return { ok: false, grund: 'Das Feld gehört dir nicht.' };
-    if (!fruchtId) { f.auto = null; return { ok: true }; }
+    if (!an) { f.auto = null; return { ok: true }; }
     if (!f.auto && autoFelder().length >= S.fahrer) return { ok: false, grund: 'Dafür brauchst du einen freien Fahrer (im Händler unter „Fahrer“).' };
-    const fr = D.frucht(fruchtId);
-    if (!fr || S.level < fr.lvl) return { ok: false, grund: 'Diese Frucht gibt es noch nicht.' };
-    f.auto = { frucht: fruchtId };
+    f.auto = { an: true };
     return { ok: true };
   }
+  // Lohn: jeden Tag (Mitternacht) fuer alle eingestellten Fahrer. Fehlt das Geld, laeuft eine Schuld auf; solange sie offen ist, arbeiten die Fahrer nicht.
+  const fahrerLohn = i => Math.round(D.FAHRER[i].preis * D.FAHRER_LOHN_ANTEIL / 50) * 50;
+  function lohnProTag() { let sum = 0; for (let i = 0; i < S.fahrer; i++) sum += fahrerLohn(i); return sum; }
+  function tagesStart(t) { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); }
+  function lohnPruefen(jetzt) {
+    const heute = tagesStart(jetzt);
+    if (!S.lohnTag) { S.lohnTag = heute; if (S.lohnOffen == null) S.lohnOffen = 0; return; }
+    if (S.lohnOffen == null) S.lohnOffen = 0;
+    let tage = 0, d = new Date(S.lohnTag);
+    for (;;) {
+      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      if (d.getTime() > heute) break;
+      tage++;
+      if (tage >= 14) { S.lohnTag = heute; break; }   // sehr lange Pause: hoechstens 14 Tage nachberechnen
+    }
+    if (tage > 0) {
+      S.lohnTag = Math.max(S.lohnTag, heute);
+      const summe = lohnProTag() * tage;
+      if (summe > 0) {
+        if (S.geld >= summe) { S.geld -= summe; S.statistik.lohn = (S.statistik.lohn || 0) + summe; ereignis('lohn', { betrag: summe, tage, fahrer: S.fahrer }); }
+        else { S.lohnOffen += summe; ereignis('lohnFehlt', { betrag: summe }); }
+      }
+    }
+    if (S.lohnOffen > 0 && S.geld >= S.lohnOffen) { const b = S.lohnOffen; S.geld -= b; S.lohnOffen = 0; S.statistik.lohn = (S.statistik.lohn || 0) + b; ereignis('lohn', { betrag: b, tage: 0, fahrer: S.fahrer, nachgezahlt: true }); autoPlaner(jetzt); }
+  }
+
 
   // ----------------------------------------------------------------------------------------------
   // Auftraege (Arbeitseinsaetze auf Feldern)
@@ -482,22 +510,19 @@ const FarmModell = (function () {
     return opts.length ? opts[0] : null;
   }
   function autoPlaner(jetzt) {
+    if (S.lohnOffen > 0) return;   // Lohn nicht bezahlt: die Fahrer streiken
     const ids = autoFelder().slice(0, S.fahrer);
     ids.forEach(id => {
       const f = S.felder[id];
       if (jobAufFeld(id)) return;
       let plan = [];
       if (f.phase === 'stoppel') plan = f.boden < 45 ? ['kalken', 'grubbern'] : ['grubbern'];
-      else if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') plan = ['saeen'];
-      else if (f.phase === 'waechst') plan = ['duengen', 'spritzen', 'walzen'];
-      else if (f.phase === 'reif') plan = ['ernten'];
+      else if (f.phase === 'waechst') plan = ['walzen'];
       for (const sch of plan) {
         if (!schrittErlaubt(id, sch, jetzt).ok) continue;
-        const fr = sch === 'saeen' ? f.auto.frucht : f.frucht;
-        if (sch === 'saeen' && S.level < D.frucht(f.auto.frucht).lvl) continue;
-        const p = bestesPaar(sch, id, fr);
+        const p = bestesPaar(sch, id, f.frucht);
         if (!p) continue;
-        const r = starteIntern(id, sch, { geraet: p.geraet, traktor: p.traktor, frucht: f.auto.frucht }, jetzt);
+        const r = starteIntern(id, sch, { geraet: p.geraet, traktor: p.traktor }, jetzt);
         if (r.ok) break;
       }
     });
@@ -612,6 +637,44 @@ const FarmModell = (function () {
     if (kg < 1) return { ok: false, grund: 'Im Silo fehlt Futter (' + d.futter.map(g => D.gut(g).name).join(' oder ') + ').' };
     st.futter += kg; S.statistik.gefuettert = (S.statistik.gefuettert || 0) + 1;
     return { ok: true, kg };
+  }
+  // Futter zukaufen (Landhandel, teuer: 1,9-facher Preis): damit Max nicht festsitzt, wenn sein Silo kein Futter hat
+  function futterPreisProT(d) { return Math.min.apply(null, d.futter.map(g => Math.max(preis(g), grundPreis(g)))) * D.ZUKAUF_FAKTOR; }
+  function futterKaufen(id) {
+    const d = D.tier(id), st = stall(id);
+    if (!st || !st.anzahl || !d.futterKgH) return { ok: false, grund: 'Hier gibt es nichts zu füttern.' };
+    const platz = futterKap(d, st) - st.futter;
+    if (platz < 1) return { ok: false, grund: 'Der Futtervorrat ist schon voll.' };
+    const proKg = futterPreisProT(d) / 1000;
+    const kg = Math.min(platz, Math.floor(S.geld / proKg));
+    if (kg < 1) return { ok: false, grund: 'Für Futter fehlt dir das Geld (' + Math.round(proKg * 1000).toLocaleString('de-DE') + ' € je Tonne).' };
+    const kosten = Math.round(kg * proKg);
+    S.geld -= kosten; st.futter += kg;
+    return { ok: true, kg, kosten };
+  }
+  // Notkauf von Feldfruechten fuers Lager (z.B. um einen Auftrag zu erfuellen oder Vieh/Betriebe zu versorgen): teuer und begrenzt
+  function zukaufPreisProT(gut) { return Math.max(preis(gut), grundPreis(gut)) * D.ZUKAUF_FAKTOR; }
+  function zukaufRestKg(jetzt) {
+    const key = tagKey(jetzt || S.zeit);
+    return D.ZUKAUF_MAX_TAG_KG - (S.zukaufTag && S.zukaufTag.datum === key ? S.zukaufTag.kg : 0);
+  }
+  function zukaufen(gut, kg, jetzt) {
+    const fr = D.frucht(gut);
+    if (!fr) return { ok: false, grund: 'Das kannst du nicht zukaufen.' };
+    if (S.level < fr.lvl) return { ok: false, grund: fr.name + ' gibt es ab Level ' + fr.lvl + '.' };
+    kg = Math.round(Number(kg));
+    if (!(kg >= 100 && kg <= D.ZUKAUF_MAX_TAG_KG)) return { ok: false, grund: 'Ungültige Menge.' };
+    const t = jetzt || S.zeit, key = tagKey(t);
+    if (!S.zukaufTag || S.zukaufTag.datum !== key) S.zukaufTag = { datum: key, kg: 0 };
+    const rest = D.ZUKAUF_MAX_TAG_KG - S.zukaufTag.kg;
+    if (kg > rest) return { ok: false, grund: rest < 100 ? 'Heute hast du schon das Zukauf-Limit (' + (D.ZUKAUF_MAX_TAG_KG / 1000) + ' t) erreicht.' : 'Heute kannst du nur noch ' + (rest / 1000).toLocaleString('de-DE') + ' t zukaufen.' };
+    const frei = siloKap() - lagerMenge();
+    if (kg > frei) return { ok: false, grund: 'Im Silo ist nicht genug Platz.' };
+    const kosten = Math.round(kg / 1000 * zukaufPreisProT(gut));
+    if (S.geld < kosten) return { ok: false, grund: 'Es fehlen noch ' + Math.round(kosten - S.geld).toLocaleString('de-DE') + ' €.' };
+    S.geld -= kosten; S.silo[gut] = (S.silo[gut] || 0) + kg; S.zukaufTag.kg += kg;
+    S.statistik.zugekauft = (S.statistik.zugekauft || 0) + kg;
+    return { ok: true, kg, kosten };
   }
   function einsammeln(id) {
     const d = D.tier(id), st = stall(id);
@@ -998,6 +1061,7 @@ const FarmModell = (function () {
     schritt(jetzt);
     autoPlaner(jetzt);
     if (S.anfang && jetzt - S.erstellt > 3 * 3600000) { S.anfang = false; ereignis('anfangEnde'); }
+    lohnPruefen(jetzt);
     tagVermerken(jetzt);
     tagPruefen(jetzt);
     erfolgePruefen();
@@ -1030,7 +1094,7 @@ const FarmModell = (function () {
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,
     tagAbholen, tagBonusAbholen, tagBonus, tagWert, tagArt, serieAktuell, naechsterTag,
-    lernBeschleunigen, lernRundenUebrig, tagesaufgabeGeschafft, schulHeute, schulAnteileHeute, schulMinuten, schulAnteil, maschinenVorteile,
+    lernBeschleunigen, lernRundenUebrig, lohnProTag, fahrerLohn, futterKaufen, futterPreisProT, zukaufen, zukaufPreisProT, zukaufRestKg, tagesaufgabeGeschafft, schulHeute, schulAnteileHeute, schulMinuten, schulAnteil, maschinenVorteile,
     albumSeite, albumBonusAbholen, abholbar, erfolgWert, erfolgAbholen, erfolgePruefen, wetterGesehen,
     wetter, wetterTyp, wetterVorschau, wetterstationKaufen, beregnungKaufen, restWachsen, jahreszeit,
     stallBauen, tierKaufen, stallAusbauen, automatKaufen, fuettern, einsammeln, stallStand,

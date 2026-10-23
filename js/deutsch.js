@@ -8,6 +8,16 @@ const Deutsch = (function () {
     return a;
   }
   function pickN(arr, n) { return shuffle(arr).slice(0, n); }
+  // Wie pickN, aber mit Gedaechtnis: was zuletzt dran war, kommt erst wieder, wenn der Rest des Topfes dran war (Uli 23.10.2026:
+  // "es kommen immer dieselben dran"). keyFn liefert den Schluessel (z.B. das Wort); gleiche Schluessel zaehlen als dasselbe Wort.
+  function pickRot(topf, arr, keyFn, n) {
+    n = n || 1;
+    const nachKey = new Map();
+    arr.forEach(x => { const k = keyFn(x); if (!nachKey.has(k)) nachKey.set(k, x); });
+    const keys = Storage.rotationOrdnen(topf, [...nachKey.keys()]).slice(0, n);
+    keys.forEach(k => Storage.rotationMelde(topf, k));
+    return keys.map(k => nachKey.get(k));
+  }
 
   // 13.09.2026 Uli-Wunsch: "innerhalb des Deutschordners sollte es keine
   // Themenbereiche geben, ich möchte da nur eine Kategorie" - die bisherigen
@@ -828,13 +838,28 @@ const Deutsch = (function () {
     { satz: 'so schwarz wie Pech', a: 'pechschwarz' },
     { satz: 'so weiß wie Schnee', a: 'schneeweiß', alt: ['schneeweiss'] },
     { satz: 'so rot wie Blut', a: 'blutrot' },
-    { satz: 'so grün wie Gras', a: 'grasgrün', alt: ['grasgruen'] },
     { satz: 'so hoch wie ein Haus', a: 'haushoch' },
     { satz: 'so müde wie ein Hund', a: 'hundemüde', alt: ['hundemuede'] },
     { satz: 'so stark wie ein Bär', a: 'bärenstark', alt: ['baerenstark'] },
     { satz: 'so flink wie ein Wiesel', a: 'wieselflink' },
     { satz: 'so glatt wie Eis', a: 'eisglatt' },
-    { satz: 'so klar wie Kristall', a: 'kristallklar' }
+    { satz: 'so klar wie Kristall', a: 'kristallklar' },
+    // 23.10.2026: mehr Woerter, damit nicht immer dieselben drankommen
+    { satz: 'so rot wie eine Tomate', a: 'tomatenrot' },
+    { satz: 'so rot wie ein Rubin', a: 'rubinrot' },
+    { satz: 'so gelb wie eine Zitrone', a: 'zitronengelb' },
+    { satz: 'so weiß wie Milch', a: 'milchweiß', alt: ['milchweiss'] },
+    { satz: 'so schwer wie Blei', a: 'bleischwer' },
+    { satz: 'so trocken wie Staub', a: 'staubtrocken' },
+    { satz: 'so nass wie ein Pudel', a: 'pudelnass' },
+    { satz: 'so stark wie ein Löwe', a: 'löwenstark', alt: ['loewenstark'] },
+    { satz: 'so scharf wie ein Messer', a: 'messerscharf' },
+    { satz: 'so gerade wie eine Kerze', a: 'kerzengerade' },
+    { satz: 'so neu wie ein Nagel', a: 'nagelneu' },
+    { satz: 'so heiß wie das Feuer', a: 'feuerheiß', alt: ['feuerheiss'] },
+    { satz: 'so alt wie Stein', a: 'steinalt' },
+    { satz: 'so blau wie das Meer', a: 'meerblau' },
+    { satz: 'so grau wie eine Maus', a: 'mausgrau' }
   ];
   // Adjektiv + Adjektiv
   const ADJ_ADJ = [
@@ -846,13 +871,16 @@ const Deutsch = (function () {
     { t: ['dunkel', 'rot'], a: 'dunkelrot' }, { t: ['hell', 'gelb'], a: 'hellgelb' },
     { t: ['blau', 'grün'], a: 'blaugrün', alt: ['blaugruen'] }, { t: ['rot', 'braun'], a: 'rotbraun' },
     { t: ['schwarz', 'weiß'], a: 'schwarzweiß', alt: ['schwarzweiss'] }, { t: ['dunkel', 'blau'], a: 'dunkelblau' },
-    { t: ['hell', 'grün'], a: 'hellgrün', alt: ['hellgruen'] }, { t: ['grau', 'blau'], a: 'graublau' }
+    { t: ['hell', 'grün'], a: 'hellgrün', alt: ['hellgruen'] }, { t: ['grau', 'blau'], a: 'graublau' },
+    { t: ['hell', 'rot'], a: 'hellrot' }, { t: ['dunkel', 'braun'], a: 'dunkelbraun' }, { t: ['hell', 'braun'], a: 'hellbraun' },
+    { t: ['hell', 'grau'], a: 'hellgrau' }, { t: ['dunkel', 'grau'], a: 'dunkelgrau' }, { t: ['bitter', 'süß'], a: 'bittersüß', alt: ['bittersuess', 'bittersüss'] },
+    { t: ['feucht', 'warm'], a: 'feuchtwarm' }, { t: ['grün', 'gelb'], a: 'grüngelb', alt: ['gruengelb'] }, { t: ['blau', 'grau'], a: 'blaugrau' }
   ];
   const ADJ_HILFE = '<strong>Merke:</strong> Zusammengesetzte Adjektive schreibt man <strong>zusammen</strong> und <strong>klein</strong>. Das letzte Wort sagt, wie etwas ist, das erste Wort sagt genauer, wie sehr oder woran man es erkennt (<em>eiskalt</em> = kalt wie Eis).';
 
   function genAdjSoWieFrage() {
-    const e = pickN(ADJ_SOWIE, 1)[0];
-    const bsp = pickN(ADJ_SOWIE.filter(x => x !== e), 1)[0];
+    const e = pickRot('adjwort', ADJ_SOWIE, x => x.a)[0];
+    const bsp = pickN(ADJ_SOWIE.filter(x => x.a !== e.a), 1)[0];
     return {
       typ: 'text',
       frage: `Bilde ein zusammengesetztes Adjektiv:<br><strong>${e.satz}</strong> = ?`,
@@ -863,8 +891,8 @@ const Deutsch = (function () {
   }
 
   function genAdjAdjFrage() {
-    const e = pickN(ADJ_ADJ, 1)[0];
-    const bsp = pickN(ADJ_ADJ.filter(x => x !== e), 1)[0];
+    const e = pickRot('adjwort', ADJ_ADJ, x => x.a)[0];
+    const bsp = pickN(ADJ_ADJ.filter(x => x.a !== e.a), 1)[0];
     return {
       typ: 'text',
       frage: `Schreibe als ein Wort:<br><strong>${e.t[0]} + ${e.t[1]}</strong> = ?`,
@@ -881,10 +909,13 @@ const Deutsch = (function () {
     ['feuerrot', 'Feuer + rot', 'sub'], ['himmelblau', 'Himmel + blau', 'sub'],
     ['nasskalt', 'nass + kalt', 'adj'], ['gelbgrün', 'gelb + grün', 'adj'], ['süßsauer', 'süß + sauer', 'adj'],
     ['hellwach', 'hell + wach', 'adj'], ['bitterböse', 'bitter + böse', 'adj'], ['hellblau', 'hell + blau', 'adj'],
-    ['dunkelgrün', 'dunkel + grün', 'adj']
+    ['dunkelgrün', 'dunkel + grün', 'adj'],
+    ['zitronengelb', 'Zitrone + gelb', 'sub'], ['steinhart', 'Stein + hart', 'sub'], ['butterweich', 'Butter + weich', 'sub'],
+    ['bärenstark', 'Bär + stark', 'sub'], ['eiskalt', 'Eis + kalt', 'sub'], ['schneeweiß', 'Schnee + weiß', 'sub'],
+    ['hellrot', 'hell + rot', 'adj'], ['dunkelbraun', 'dunkel + braun', 'adj'], ['bittersüß', 'bitter + süß', 'adj'], ['hellgrau', 'hell + grau', 'adj']
   ];
   function genAdjArtFrage() {
-    const [wort, teile, art] = pickN(ADJ_ARTEN, 1)[0];
+    const [wort, teile, art] = pickRot('adjwort', ADJ_ARTEN, x => x[0])[0];
     const optionen = ['Substantiv + Adjektiv', 'Adjektiv + Adjektiv'];
     return {
       typ: 'mc',
@@ -897,10 +928,26 @@ const Deutsch = (function () {
 
   // "Erklaere, was sie bedeuten" (Aufgabe 2): grasgruen = gruen wie das Gras
   function genAdjBedeutungFrage() {
-    const e = pickN(ADJ_SOWIE, 1)[0];
+    const e = pickRot('adjwort', ADJ_SOWIE, x => x.a)[0];
     const bedeutung = x => x.satz.replace(/^so /, '');
-    const falsche = pickN(ADJ_SOWIE.filter(x => x !== e && bedeutung(x) !== bedeutung(e)), 2).map(bedeutung);
-    const optionen = shuffle([bedeutung(e), ...falsche]);
+    // "<Adjektiv> wie <Nomen mit Artikel>" zerlegen, damit die falschen Antworten NICHT offensichtlich falsch sind: gleiches Adjektiv mit
+    // anderem Nomen (rot wie Blut statt rot wie das Feuer) und gleiches Nomen mit anderem Adjektiv (heiß wie das Feuer)
+    const teile = x => { const m = /^so (\S+) wie (.+)$/.exec(x.satz); return { adj: m[1], nomen: m[2] }; };
+    const te = teile(e), andere = ADJ_SOWIE.filter(x => x.a !== e.a);
+    const gleichesAdj = andere.filter(x => teile(x).adj === te.adj && teile(x).nomen !== te.nomen);
+    const gleichesNomen = andere.filter(x => teile(x).nomen === te.nomen && teile(x).adj !== te.adj);
+    const adjsAndere = [...new Set(andere.map(x => teile(x).adj).filter(a => a !== te.adj))];
+    const nomenAndere = [...new Set(andere.map(x => teile(x).nomen).filter(n => n !== te.nomen))];
+    const falsche = [];
+    const nimm = t => { if (t && t !== bedeutung(e) && falsche.indexOf(t) < 0) falsche.push(t); };
+    // 1) gleiches Adjektiv, anderes Nomen (aus echten Woertern, sonst gebaut)
+    nimm(gleichesAdj.length ? bedeutung(pickN(gleichesAdj, 1)[0]) : `${te.adj} wie ${pickN(nomenAndere, 1)[0]}`);
+    // 2) gleiches Nomen, anderes Adjektiv
+    nimm(gleichesNomen.length ? bedeutung(pickN(gleichesNomen, 1)[0]) : `${pickN(adjsAndere, 1)[0]} wie ${te.nomen}`);
+    // 3) auffuellen, falls etwas doppelt war
+    let guard = 0;
+    while (falsche.length < 2 && guard++ < 20) nimm(`${pickN(adjsAndere, 1)[0]} wie ${pickN(nomenAndere, 1)[0]}`);
+    const optionen = shuffle([bedeutung(e), ...falsche.slice(0, 2)]);
     return {
       typ: 'mc',
       frage: `Was bedeutet <strong>${e.a}</strong>?`,
@@ -911,7 +958,7 @@ const Deutsch = (function () {
   }
 
   function genAdjSchreibweiseFrage() {
-    const e = pickN([...ADJ_SOWIE.map(x => x.a), ...ADJ_ADJ.map(x => x.a)], 1)[0];
+    const e = pickRot('adjwort', [...ADJ_SOWIE.map(x => x.a), ...ADJ_ADJ.map(x => x.a)], x => x)[0];
     const getrennt = e.replace(/^(.{3,6}?)(blau|grün|rot|gelb|braun|weiß|kalt|schnell|leicht|hart|weich|süß|schwarz|hoch|müde|stark|flink|glatt|klar)$/, '$1 $2');
     const gross = e.charAt(0).toUpperCase() + e.slice(1);
     const optionen = shuffle([e, getrennt === e ? e.slice(0, 4) + ' ' + e.slice(4) : getrennt, gross]);
@@ -950,14 +997,32 @@ const Deutsch = (function () {
     ['Löffel', 'ff', 'Die Suppe esse ich mit dem Löffel.'], ['Affe', 'ff', 'Im Zoo klettert der Affe auf den Baum.'],
     ['Schiff', 'ff', 'Das große Schiff fährt über das Meer.'], ['Stoff', 'ff', 'Aus buntem Stoff näht Oma ein Kleid.'],
     ['Kaffee', 'ff', 'Papa trinkt jeden Morgen Kaffee.'], ['Krabbe', 'bb', 'Die Krabbe läuft seitwärts über den Sand.'],
-    ['Ebbe', 'bb', 'Bei Ebbe ist das Wasser weit draußen.'], ['Robbe', 'bb', 'Die Robbe liegt am Strand.']
+    ['Ebbe', 'bb', 'Bei Ebbe ist das Wasser weit draußen.'], ['Robbe', 'bb', 'Die Robbe liegt am Strand.'],
+    // 23.10.2026: mehr Woerter, damit nicht immer dieselben drankommen
+    ['Pfanne', 'nn', 'Mama brät die Eier in der Pfanne.'], ['Wanne', 'nn', 'Abends sitze ich in der Wanne.'],
+    ['Kinn', 'nn', 'Der Opa streicht sich über das Kinn.'], ['Rennen', 'nn', 'Max gewinnt das Rennen.'],
+    ['Teller', 'll', 'Auf dem Teller liegt ein Brot.'], ['Keller', 'll', 'Die Kartoffeln liegen im Keller.'],
+    ['Quelle', 'll', 'Das Wasser sprudelt aus der Quelle.'], ['Müll', 'll', 'Den Müll bringen wir zur Tonne.'],
+    ['Schloss', 'ss', 'Das alte Schloss steht auf dem Berg.'], ['Nuss', 'ss', 'Das Eichhörnchen knackt eine Nuss.'],
+    ['Kissen', 'ss', 'Auf dem Sofa liegt ein weiches Kissen.'], ['Sessel', 'ss', 'Opa sitzt im Sessel.'],
+    ['Pfeffer', 'ff', 'Ich streue Pfeffer auf die Suppe.'], ['Waffel', 'ff', 'Zum Nachtisch gibt es eine Waffel.'],
+    ['Flamme', 'mm', 'Die Flamme der Kerze flackert.'], ['Trommel', 'mm', 'Der Junge schlägt die Trommel.'],
+    ['Klammer', 'mm', 'Die Wäsche hängt mit einer Klammer an der Leine.'], ['Stamm', 'mm', 'Der Stamm der Eiche ist dick.'],
+    ['Schlitten', 'tt', 'Im Winter fahren wir mit dem Schlitten.'], ['Gitter', 'tt', 'Der Tiger sitzt hinter dem Gitter.'],
+    ['Futter', 'tt', 'Der Hund bekommt sein Futter.'], ['Gewitter', 'tt', 'Nach dem Gewitter kommt die Sonne.'],
+    ['Sattel', 'tt', 'Ich sitze fest im Sattel.'], ['Ritter', 'tt', 'Der Ritter reitet auf seinem Pferd.'],
+    ['Karre', 'rr', 'Opa schiebt die Karre in den Garten.'], ['Narr', 'rr', 'Der Narr macht Späße am Hof des Königs.'],
+    ['Bagger', 'gg', 'Der Bagger gräbt ein tiefes Loch.'], ['Flagge', 'gg', 'Die Flagge weht im Wind.'],
+    ['Roggen', 'gg', 'Aus Roggen backt der Bäcker dunkles Brot.'], ['Widder', 'dd', 'Der Widder steht auf der Weide.'],
+    ['Paddel', 'dd', 'Mit dem Paddel lenken wir das Boot.'], ['Pappe', 'pp', 'Aus Pappe bastle ich ein Haus.'],
+    ['Mittag', 'tt', 'Zu Mittag gibt es Nudeln.'], ['Hummel', 'mm', 'Die Hummel brummt über die Blume.']
   ];
   const DOPPEL_HILFE = '<strong>Merke:</strong> Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben: Der Mitlaut steht an der Silbengrenze zweimal.';
 
   function silben(wort, dbl) { return wort.replace(dbl, dbl[0] + '-' + dbl[1]); }
 
   function genDoppelLueckeFrage() {
-    const [wort, dbl, satz] = pickN(DOPPEL_WOERTER, 1)[0];
+    const [wort, dbl, satz] = pickRot('doppel', DOPPEL_WOERTER, x => x[0])[0];
     const luecke = wort.replace(dbl, '__');
     return {
       typ: 'text',
@@ -969,7 +1034,7 @@ const Deutsch = (function () {
   }
 
   function genDoppelWahlFrage() {
-    const [wort, dbl] = pickN(DOPPEL_WOERTER, 1)[0];
+    const [wort, dbl] = pickRot('doppel', DOPPEL_WOERTER, x => x[0])[0];
     const falsch = wort.replace(dbl, dbl[0]);
     const optionen = shuffle([wort, falsch]);
     return {

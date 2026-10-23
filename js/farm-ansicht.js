@@ -900,7 +900,7 @@ const FarmAnsicht = (function () {
       else if (f.phase === 'bearbeitet') zeilen.push('Gegrubbert – bereit zum Säen');
       else if (f.phase === 'gepfluegt') zeilen.push('Gepflügt – bereit zum Säen');
       else zeilen.push('Stoppelfeld – bearbeiten');
-      if (f.auto) zeilen.push('👨‍🌾 Fahrer: ' + D.frucht(f.auto.frucht).name);
+      if (f.auto) zeilen.push('👨‍🌾 Fahrer: Routine');
       let y = p.y - zeilen.length * 11;
       if (cam.z < 0.45) { pille(p.x, p.y, d.id + '', '#fff', 15); return; }
       zeilen.forEach((z, i) => { const h = pille(p.x, y, z, i === 0 ? farbe : '#cfe0cf', i === 0 ? 14 : 12); y += h + 3; });

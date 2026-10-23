@@ -441,9 +441,17 @@ const Heimatkunde = (function () {
     return { kann, gesamt };
   }
 
+  // Mindestens so viele Stapel, dass der Kartenvorrat doppelt so gross ist wie die Tageskarten (23.10.2026, Uli: bei den vielen Karten
+  // soll mehr Abwechslung sein) - bei 30 Karten am Tag also ca. 60 Karten statt der frueheren 4 Stapel mit 37 Karten.
+  function startStapelAnzahl(liste) {
+    let n = Math.min(START_STAPEL, liste.length), summe = 0;
+    liste.slice(0, n).forEach(k => { summe += LERNTHEMEN[k].karten().length; });
+    while (n < liste.length && summe < 2 * TAGESKARTEN_ANZAHL) { summe += LERNTHEMEN[liste[n]].karten().length; n++; }
+    return n;
+  }
   function aktiveStapel() {
     const liste = radThemen();
-    let n = Math.min(START_STAPEL, liste.length);
+    let n = startStapelAnzahl(liste);
     while (n < liste.length) {
       const z = stapelZaehlung(liste.slice(0, n));
       if (z.gesamt === 0 || z.kann / z.gesamt < WEITER_ANTEIL) break;
@@ -466,21 +474,57 @@ const Heimatkunde = (function () {
   }
 
   // n verschiedene Karten, gewichtet gezogen (ohne Zuruecklegen)
+  // Tageskarten: 30 am Tag (Uli 23.10.2026: "belasse es bei 30"). Damit nicht jeden Tag dieselben kommen, gibt es mehr aktive Stapel (siehe
+  // startStapelAnzahl) und jede Karte bekommt einen Abstands-Faktor nach dem Tag der letzten Abfrage (Storage-Rotation):
+  // heute schon dran = nie wieder, gestern = selten, vorgestern = halbe Chance, danach/nie = volle Chance. Karten, die Max noch nicht
+  // sicher kann (falsch markiert, Serie < 2), kommen frueher wieder.
+  const TAGESKARTEN_ANZAHL = 30;
+  function tagesNummer() { const d = new Date(); return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000); }
+  function abstandsFaktor(alter, schwach) {
+    if (alter === Infinity) return 1.5;
+    const f = alter <= 0 ? 0 : alter === 1 ? 0.12 : alter === 2 ? 0.5 : 1;
+    return schwach ? Math.max(f, alter <= 0 ? 0 : 0.7) : f;
+  }
+  // Neue Karten kommen Stueck fuer Stueck dazu (Uli 23.10.2026: "er soll die neuen nach und nach mit den alten lernen"): "neu" = Max hat die
+  // Karte noch nie gesehen (keine Statistik, nie als Tageskarte gezogen). Hoechstens NEU_PRO_TAG neue am Tag, der Rest sind Karten, die er
+  // schon kennt (schwache und lange nicht gefragte zuerst). Neue kommen in der Reihenfolge der Stapel, damit Zusammengehoeriges beisammen bleibt.
+  const NEU_PRO_TAG = 8;
   function baueTageskartenDeck(anzahl) {
-    const pool = [];
+    const alt = [], neu = [], heute = tagesNummer();
     aktiveStapel().forEach(key => {
       const stats = Storage.getLernkartenStats(key);
       LERNTHEMEN[key].karten().forEach((karte, i) => {
-        pool.push({ karte: { front: karte.front, back: karte.back, _quellThema: key, _quellIdx: i }, w: gewichtFuerLernkartenStat(stats[i]) });
+        const letzte = Storage.rotationWert('rad_tag', key + ':' + i);
+        const s = stats[i];
+        const eintrag = { karte: { front: karte.front, back: karte.back, _quellThema: key, _quellIdx: i }, key: key + ':' + i, w: 0 };
+        if (!s && !letzte) { neu.push(eintrag); return; }
+        const alter = letzte ? heute - letzte : Infinity;
+        const schwach = !!(s && (s.falsch || 0) > 0 && (s.serie || 0) < 2);
+        eintrag.w = Math.max(gewichtFuerLernkartenStat(s) * abstandsFaktor(alter, schwach), 0);
+        alt.push(eintrag);
       });
     });
     const gezogen = [];
+    const nimm = p => { gezogen.push(p.karte); Storage.rotationSetzeWert('rad_tag', p.key, heute); };
+    // 1) neue Karten: heute noch freies Kontingent (zaehlt auch frueher am Tag eingefuehrte mit)
+    if (Storage.rotationWert('rad_neu', 'tag') !== heute) { Storage.rotationSetzeWert('rad_neu', 'tag', heute); Storage.rotationSetzeWert('rad_neu', 'n', 0); }
+    let neuHeute = Storage.rotationWert('rad_neu', 'n');
+    // Gibt es zu wenige bekannte Karten, um den Tag zu fuellen, muessen mehr neue her (z.B. ganz am Anfang)
+    const brauchtNeu = Math.max(0, anzahl - alt.length);
+    const neuZiel = Math.min(neu.length, Math.max(NEU_PRO_TAG - neuHeute, brauchtNeu, 0), anzahl);
+    for (let k = 0; k < neuZiel; k++) { nimm(neu[k]); neuHeute++; }
+    Storage.rotationSetzeWert('rad_neu', 'n', neuHeute);
+    // 2) bekannte Karten, gewichtet (Karten mit Gewicht 0 = heute schon dran, nur wenn sonst nichts uebrig ist)
+    const pool = alt.slice();
     while (gezogen.length < anzahl && pool.length > 0) {
-      let ziel = Math.random() * pool.reduce((s, p) => s + p.w, 0);
-      let idx = pool.findIndex(p => (ziel -= p.w) <= 0);
-      if (idx < 0) idx = pool.length - 1;
-      gezogen.push(pool.splice(idx, 1)[0].karte);
+      const summe = pool.reduce((t, p) => t + p.w, 0);
+      let idx;
+      if (summe <= 0) idx = Math.floor(Math.random() * pool.length);
+      else { let ziel = Math.random() * summe; idx = pool.findIndex(p => (ziel -= p.w) <= 0); if (idx < 0) idx = pool.length - 1; }
+      nimm(pool.splice(idx, 1)[0]);
     }
+    // 3) immer noch nicht voll (kaum bekannte Karten): mit weiteren neuen auffuellen
+    for (let k = neuZiel; k < neu.length && gezogen.length < anzahl; k++) { nimm(neu[k]); neuHeute++; Storage.rotationSetzeWert('rad_neu', 'n', neuHeute); }
     return shuffle(gezogen);
   }
 
@@ -493,7 +537,7 @@ const Heimatkunde = (function () {
         richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
       };
     } else {
-      const karten = baueTageskartenDeck(Ferientraining.restAnzahl('heimat_lernkarten', 30));
+      const karten = baueTageskartenDeck(Ferientraining.restAnzahl('heimat_lernkarten', TAGESKARTEN_ANZAHL));
       lkSession = { thema: TAGESKARTEN_THEMA, titel: 'Radfahren – Tageskarten', bewertung: true, karten, index: 0, richtig: 0, sterne: 0, verlauf: [] };
     }
     App.setLastStarter(starteTagesLernkarten);
@@ -758,5 +802,5 @@ const Heimatkunde = (function () {
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 
-  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo };
+  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
 })();

@@ -20,7 +20,7 @@ const Ferientraining = (function () {
       // Start mit den gewaehlten Reihen; "die meisten" gekonnt -> naechste Reihe
       // kommt dazu (siehe Mathe.erweitereMalfolgenReihen).
       id: 'mathe_malfolgen', fach: 'mathe', icon: 'malfolgen', titel: 'Mathe: Malfolgen',
-      text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => 40,
+      text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => Math.min(40, Mathe.malfolgenAnzahl()),
       start: () => Mathe.starteMalfolgenKarten()
     },
     {
@@ -59,7 +59,7 @@ const Ferientraining = (function () {
       // weitere, sobald Max die meisten Karten der aktiven Stapel kann (siehe
       // Heimatkunde.aktiveStapel).
       id: 'heimat_lernkarten', fach: 'heimat', icon: 'verkehrszeichen', titel: 'Lernkarten Radfahren',
-      text: () => Heimatkunde.stapelText(), einheit: 'Karten', ziel: () => 30,
+      text: () => Heimatkunde.stapelText(), einheit: 'Karten', ziel: () => Heimatkunde.TAGESKARTEN_ANZAHL,
       start: () => Heimatkunde.starteTagesLernkarten()
     }
   ];

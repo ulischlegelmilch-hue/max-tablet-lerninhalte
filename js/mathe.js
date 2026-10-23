@@ -1421,9 +1421,12 @@ const Mathe = (function () {
   function ziehMalfolgenFakten(anzahl) {
     let deck = Storage.getMalfolgenDeck();
     const gezogen = [];
-    while (gezogen.length < anzahl) {
+    let versuche = 0;
+    while (gezogen.length < anzahl && versuche++ < 2000) {
       if (deck.length === 0) deck = baueMalfolgenDeck();
-      gezogen.push(deck.shift());
+      const f = deck.shift();
+      if (gezogen.indexOf(f) >= 0) continue;   // jede Aufgabe hoechstens einmal je Sitzung (schwache Kopien im Deck bleiben fuers naechste Mal)
+      gezogen.push(f);
     }
     Storage.setMalfolgenDeck(deck);
     return gezogen;
@@ -1473,7 +1476,10 @@ const Mathe = (function () {
   // Wie AKTIVITAET_GEMISCHT oben: ermoeglicht das Fortsetzen einer
   // unterbrochenen Karteikarten-Runde am selben Tag statt sie zu verwerfen.
   const AKTIVITAET_MALFOLGEN = 'malfolgen';
-  const ANZAHL_MALFOLGEN = 40; // Tagesziel im Ferientraining (siehe ferientraining.js), 11.10.2026 von 20 auf 40 erhoeht
+  const MALFOLGEN_TAGESZIEL = 40; // Tagesziel im Ferientraining (siehe ferientraining.js), 11.10.2026 von 20 auf 40 erhoeht
+  // Nie mehr Karten als es verschiedene Aufgaben gibt (23.10.2026, Uli: "anfaenglich werden dieselben Aufgaben doppelt und dreifach
+  // abgefragt"): mit nur 1-2 Reihen (10-20 Aufgaben) wuerden 40 Karten sonst jede Aufgabe mehrfach zeigen.
+  function anzahlMalfolgen() { return Math.max(1, Math.min(MALFOLGEN_TAGESZIEL, malfolgenAlleFakten().length)); }
 
   // ---- Reihen automatisch aufbauen (Ferientraining, Uli 11.10.2026): Max startet mit
   // den Reihen 5, 6, 7, 8. Kann er "die meisten" Aufgaben der gewaehlten Reihen
@@ -1536,8 +1542,8 @@ const Mathe = (function () {
         fakten: offen.fakten, index: offen.idx, richtig: offen.richtigCount || 0, sterne: offen.sessionSterne || 0,
         anzeigeOffset: 0, verlauf: offen.verlauf || [], istWdh: offen.istWdh
       };
-    } else if (offen && offen.index > 0 && offen.index < ANZAHL_MALFOLGEN) {
-      const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN - offen.index);
+    } else if (offen && offen.index > 0 && offen.index < anzahlMalfolgen()) {
+      const fakten = ziehMalfolgenFakten(anzahlMalfolgen() - offen.index);
       mfSession = {
         fakten, index: 0,
         richtig: offen.richtigCount || 0,
@@ -1547,7 +1553,7 @@ const Mathe = (function () {
       };
       mfSession.istWdh = fakten.map(() => false);
     } else {
-      const fakten = ziehMalfolgenFakten(ANZAHL_MALFOLGEN);
+      const fakten = ziehMalfolgenFakten(anzahlMalfolgen());
       mfSession = { fakten, index: 0, richtig: 0, sterne: 0, anzeigeOffset: 0, verlauf: [], istWdh: fakten.map(() => false) };
     }
     App.setLastStarter(starteMalfolgenKarten);
@@ -1601,7 +1607,7 @@ const Mathe = (function () {
     Storage.meldeMalfolgenErgebnis(fakt, korrekt);
     if (!mfSession.istWdh[mfSession.index]) Ferientraining.melde('mathe_malfolgen', korrekt);
     // Nicht gewusst: dieselbe Karte kommt ein paar Karten spaeter noch einmal dazu
-    if (!korrekt) {
+    if (!korrekt && !mfSession.istWdh[mfSession.index]) {   // nur die erste Karte wird wiederholt, nicht auch noch die Wiederholung (sonst 3x und mehr)
       const pos = Math.min(mfSession.fakten.length, mfSession.index + 4);
       mfSession.fakten.splice(pos, 0, fakt);
       mfSession.istWdh.splice(pos, 0, true);
@@ -3162,7 +3168,7 @@ const Mathe = (function () {
 
   return {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
-    starteMalfolgenKarten, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
+    starteMalfolgenKarten, malfolgenAnzahl: anzahlMalfolgen, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
     renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText, aufbauInfo
   };
