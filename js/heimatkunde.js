@@ -195,37 +195,16 @@ const Heimatkunde = (function () {
   // Darum je Uebung drei Sichten (Ausfuehrung, Muskeln, Anleit-Text zum Vorsprechen) + Umkehrfragen + Reihenfolge.
   // Die Erwaermung dauert 3 Minuten: 5 Uebungen je 30 Sekunden + kurze Wechsel (Uli 24.10.2026). Fuer ein 9-jaehriges Kind kurz und einfach:
   // 3-4 kurze Schritte, je Uebung nur 2 Muskelpartien in Kindersprache (Fachwort in Klammern).
+  // Eine Karte je Uebung: Ausfuehrung + Muskeln zum schnellen Erklaeren (Uli 24.10.2026).
   const LERNKARTEN_SPORT_UEBUNGEN = [
-    { front: 'Kniebeugen: Wie geht die Übung?', back: '1. Stell dich <strong>schulterbreit</strong> hin, Arme nach vorn.<br>2. Geh mit dem <strong>Po nach hinten unten</strong>, wie auf einen Stuhl.<br>3. Der Rücken bleibt <strong>gerade</strong>.<br>4. Steh wieder auf. <strong>30 Sekunden</strong> lang.' },
-    { front: 'Rumpfkreisen: Wie geht die Übung?', back: '1. Stell dich <strong>schulterbreit</strong> hin, <strong>Hände an die Hüfte</strong>.<br>2. Kreise mit der Hüfte <strong>große Kreise</strong>.<br>3. Erst <strong>rechts herum</strong>, dann <strong>links herum</strong>. <strong>30 Sekunden</strong> lang.' },
-    { front: 'Hampelmann: Wie geht die Übung?', back: '1. Spring und mach <strong>Beine und Arme gleichzeitig auseinander</strong>.<br>2. Die Arme gehen über den Kopf.<br>3. Spring wieder zurück. <strong>30 Sekunden</strong> lang.' },
-    { front: 'Armkreisen: Wie geht die Übung?', back: '1. Stell dich hin und streck die <strong>Arme zur Seite</strong>.<br>2. Kreise mit den Armen, erst <strong>vorwärts</strong>, dann <strong>rückwärts</strong>.<br>3. Zieh die Schultern nicht hoch. <strong>30 Sekunden</strong> lang.' },
-    { front: 'Hüftheben (Krabbenstellung): Wie geht die Übung?', back: '1. Setz dich hin, <strong>Füße auf den Boden</strong>, <strong>Hände hinter dir</strong> aufgestützt.<br>2. <strong>Heb den Po an</strong>, bis der Bauch zur Decke zeigt, und setz ihn wieder ab.<br>3. Du gehst dabei nicht. <strong>30 Sekunden</strong> lang.' }
-  ];
-  const LERNKARTEN_SPORT_MUSKELN = [
-    { front: 'Kniebeugen: Welche Muskeln arbeiten?', back: '<strong>Oberschenkel vorn</strong> (Quadrizeps): Er streckt das Knie.<br><strong>Po</strong> (Gesäß): Er richtet dich wieder auf.' },
-    { front: 'Rumpfkreisen: Welche Muskeln arbeiten?', back: '<strong>Bauchmuskeln</strong>: Sie halten den Oberkörper ruhig.<br><strong>Rückenmuskeln</strong>: Sie helfen dabei.' },
-    { front: 'Hampelmann: Welche Muskeln arbeiten?', back: '<strong>Beine</strong> (Waden und Oberschenkel): Sie springen und öffnen sich.<br><strong>Schultern</strong>: Sie heben die Arme.<br>Das <strong>Herz</strong> schlägt schneller.' },
-    { front: 'Armkreisen: Welche Muskeln arbeiten?', back: '<strong>Schultermuskeln</strong>: Sie kreisen die Arme.<br><strong>Nacken</strong>: Er wird locker.' },
-    { front: 'Hüftheben (Krabbenstellung): Welche Muskeln arbeiten?', back: '<strong>Po</strong> (Gesäß): Er hebt dich hoch.<br><strong>Oberarm hinten</strong> (Trizeps): Er stützt dich ab.' }
-  ];
-  const LERNKARTEN_SPORT_ANLEITEN = [
-    { front: 'Leite die Kniebeugen an: Was sagst du?', back: '„Wir machen <strong>Kniebeugen</strong>, 30 Sekunden. Stellt euch schulterbreit hin und streckt die Arme nach vorn. Schiebt den Po nach hinten unten, wie auf einen Stuhl. Der Rücken bleibt gerade. Das trainiert den <strong>Oberschenkel vorn</strong> und den <strong>Po</strong>.“' },
-    { front: 'Leite das Rumpfkreisen an: Was sagst du?', back: '„Jetzt das <strong>Rumpfkreisen</strong>, 30 Sekunden. Hände an die Hüfte. Kreist mit der Hüfte große Kreise, erst rechts herum, dann links herum. Das trainiert die <strong>Bauchmuskeln</strong> und die <strong>Rückenmuskeln</strong>.“' },
-    { front: 'Leite den Hampelmann an: Was sagst du?', back: '„Weiter mit dem <strong>Hampelmann</strong>, 30 Sekunden. Springt und macht Beine und Arme gleichzeitig auseinander. Die Arme gehen über den Kopf. Das trainiert die <strong>Beine</strong> und die <strong>Schultern</strong>, und das Herz schlägt schneller.“' },
-    { front: 'Leite das Armkreisen an: Was sagst du?', back: '„Jetzt das <strong>Armkreisen</strong>, 30 Sekunden. Streckt die Arme zur Seite und kreist sie, erst vorwärts, dann rückwärts. Das trainiert die <strong>Schultern</strong> und lockert den <strong>Nacken</strong>.“' },
-    { front: 'Leite das Hüftheben an: Was sagst du?', back: '„Zum Schluss das <strong>Hüftheben</strong>, 30 Sekunden. Setzt euch hin, Füße auf den Boden, Hände hinter euch aufgestützt. Hebt den Po an und setzt ihn wieder ab. Das trainiert den <strong>Po</strong> und den <strong>Oberarm hinten</strong>.“' }
-  ];
-  const LERNKARTEN_SPORT_UMKEHR = [
-    { front: 'Welche Übung bringt das Herz zum Schlagen und wärmt die Beine auf?', back: 'Der <strong>Hampelmann</strong>.' },
-    { front: 'Welche Übung wärmt Schultern und Nacken auf?', back: '<strong>Armkreisen</strong>.' },
-    { front: 'Welche Übung trainiert den Oberschenkel vorn und den Po?', back: 'Die <strong>Kniebeugen</strong>.' },
-    { front: 'Welche Übung trainiert Bauch und Rücken?', back: 'Das <strong>Rumpfkreisen</strong>.' },
-    { front: 'Welche Übung trainiert Po und Oberarm hinten?', back: 'Das <strong>Hüftheben</strong> (Krabbenstellung).' }
+    { front: 'Kniebeugen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich <strong>schulterbreit</strong> hin, Arme nach vorn.<br>2. Geh mit dem <strong>Po nach hinten unten</strong>, wie auf einen Stuhl.<br>3. Der Rücken bleibt <strong>gerade</strong>.<br>4. Steh wieder auf. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Oberschenkel vorn</strong> (Quadrizeps) streckt das Knie, der <strong>Po</strong> richtet dich auf.' },
+    { front: 'Rumpfkreisen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich <strong>schulterbreit</strong> hin, <strong>Hände an die Hüfte</strong>.<br>2. Kreise mit der Hüfte <strong>große Kreise</strong>.<br>3. Erst <strong>rechts herum</strong>, dann <strong>links herum</strong>. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Bauchmuskeln</strong> halten den Oberkörper ruhig, <strong>Rückenmuskeln</strong> helfen dabei.' },
+    { front: 'Hampelmann: Erkläre die Übung und die Muskeln.', back: '1. Spring und mach <strong>Beine und Arme gleichzeitig auseinander</strong>.<br>2. Die Arme gehen über den Kopf.<br>3. Spring wieder zurück. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Beine</strong> (Waden, Oberschenkel) springen, <strong>Schultern</strong> heben die Arme. Das <strong>Herz</strong> schlägt schneller.' },
+    { front: 'Armkreisen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich hin und streck die <strong>Arme zur Seite</strong>.<br>2. Kreise mit den Armen, erst <strong>vorwärts</strong>, dann <strong>rückwärts</strong>.<br>3. Zieh die Schultern nicht hoch. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Schultermuskeln</strong> kreisen die Arme, der <strong>Nacken</strong> wird locker.' },
+    { front: 'Hüftheben (Krabbenstellung): Erkläre die Übung und die Muskeln.', back: '1. Setz dich hin, <strong>Füße auf den Boden</strong>, <strong>Hände hinter dir</strong> aufgestützt.<br>2. <strong>Heb den Po an</strong>, bis der Bauch zur Decke zeigt, und setz ihn wieder ab.<br>3. Du gehst dabei nicht. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> Der <strong>Po</strong> (Gesäß) hebt dich hoch, der <strong>Oberarm hinten</strong> (Trizeps) stützt dich ab.' }
   ];
   const LERNKARTEN_SPORT_ABLAUF = [
-    { front: 'Die Erwärmung dauert 3 Minuten. Nenne die 5 Übungen in der richtigen Reihenfolge.', back: '1. Kniebeugen<br>2. Rumpfkreisen<br>3. Hampelmann<br>4. Armkreisen<br>5. Hüftheben (Krabbenstellung)<br><br>Jede Übung dauert <strong>30 Sekunden</strong>.' },
-    { front: 'Du leitest die Erwärmung an: Wie gehst du bei jeder Übung vor?', back: '1. <strong>Übung nennen</strong>.<br>2. <strong>Erklären</strong> und <strong>vormachen</strong>.<br>3. Sagen, welche <strong>Muskeln</strong> arbeiten.<br>4. Gemeinsam machen, <strong>30 Sekunden</strong>.' }
+    { front: 'Die Erwärmung dauert 3 Minuten. Nenne die 5 Übungen in der richtigen Reihenfolge.', back: '1. Kniebeugen<br>2. Rumpfkreisen<br>3. Hampelmann<br>4. Armkreisen<br>5. Hüftheben (Krabbenstellung)<br><br>Jede Übung dauert <strong>30 Sekunden</strong>.' }
   ];
 
   // Heft S.18
@@ -295,10 +274,7 @@ const Heimatkunde = (function () {
     // stuetzen muss, nicht auf eine eigene 'rad_falsch'-Statistik).
     rad_falsch: { gruppe: 'rad', titel: 'Falsche Karten wiederholen', icon: 'drehen', karten: sammleFalscheRadKarten, bewertung: true },
     sport_ablauf: { gruppe: 'sport', titel: 'Die Reihenfolge', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SPORT_ABLAUF, bewertung: true },
-    sport_uebungen: { gruppe: 'sport', titel: 'Die Übung erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_UEBUNGEN, bewertung: true },
-    sport_muskeln: { gruppe: 'sport', titel: 'Die Muskeln erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_MUSKELN, bewertung: true },
-    sport_anleiten: { gruppe: 'sport', titel: 'Anleiten: Das sage ich', icon: 'sport', karten: () => LERNKARTEN_SPORT_ANLEITEN, bewertung: true },
-    sport_umkehr: { gruppe: 'sport', titel: 'Welche Übung trainiert …?', icon: 'sport', karten: () => LERNKARTEN_SPORT_UMKEHR, bewertung: true }
+    sport_uebungen: { gruppe: 'sport', titel: 'Die Übungen erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_UEBUNGEN, bewertung: true },
   };
 
   // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
