@@ -407,6 +407,14 @@ const FarmModell = (function () {
     if (schritt === 'pfluegen' && f.phase === 'gepfluegt') return { ok: false, grund: 'Schon gepflügt.' };
     return { ok: true };
   }
+  // Saeen nur, wenn die Ernte auch moeglich ist (24.10.2026: Max hatte Zwiebeln gesaet, aber keinen Roder): fehlt die passende Erntemaschine, Grund-Text, sonst null
+  function ernterFehlt(fruchtId) {
+    const fr = D.frucht(fruchtId);
+    if (!fr) return null;
+    const wurzel = fr.ernte === 'wurzel', typ = wurzel ? 'rodemaschine' : 'maehdrescher';
+    if (S.flotte.some(m => D.def(m.id).typ === typ)) return null;
+    return fr.name + ' erntet ' + (wurzel ? 'nur ein Roder' : 'ein Mähdrescher') + ' – du hast keinen. Kaufe zuerst einen ' + (wurzel ? 'Roder' : 'Mähdrescher') + ' im Händler.';
+  }
   function kostenFuer(feldId, schritt, fruchtId) {
     const st = D.SCHRITTE[schritt], ha = D.feld(feldId).ha;
     if (schritt === 'saeen') return Math.round(D.frucht(fruchtId).saat * ha);
@@ -427,6 +435,8 @@ const FarmModell = (function () {
       const fr = D.frucht(o.frucht);
       if (!fr) return { ok: false, grund: 'Wähle eine Frucht.' };
       if (S.level < fr.lvl) return { ok: false, grund: fr.name + ' gibt es ab Level ' + fr.lvl + '.' };
+      const ng = ernterFehlt(fr.id);
+      if (ng) return { ok: false, grund: ng };
     }
     let g = null, t = null;
     if (st.geraet) {
@@ -1091,7 +1101,7 @@ const FarmModell = (function () {
 
   return {
     SPEICHER, neu, laden, speichern, stand, beiEreignis, simuliere,
-    feldKaufen, maschineKaufen, maschineVerkaufen, maschineReparieren, verkaufswert, reparaturKosten, lagerAusbauen, fahrerKaufen, autoSetzen, autoFelder,
+    ernterFehlt, feldKaufen, maschineKaufen, maschineVerkaufen, maschineReparieren, verkaufswert, reparaturKosten, lagerAusbauen, fahrerKaufen, autoSetzen, autoFelder,
     arbeitStarten, arbeitAbbrechen, optionen, schrittErlaubt, kostenFuer, produktionBauen, produktionAusbauen, produktionStarten,
     auftragLiefern, verkaufen, preis, grundPreis, lagerMenge, siloKap, maschine, jobAufFeld, ertragsFaktor, ertragsSchaetzungKg, fruchtfolgeHinweis,
     fortschrittWachstum, jobStand, feldStand, moeglicheSchritte, wegPunkte, wegLaenge, arbeitsSek, tempoFaktor, xpGeben,

@@ -858,6 +858,14 @@ const Deutsch = (function () {
     { satz: 'so neu wie ein Nagel', a: 'nagelneu' },
     { satz: 'so heiß wie das Feuer', a: 'feuerheiß', alt: ['feuerheiss'] },
     { satz: 'so alt wie Stein', a: 'steinalt' },
+    // 24.10.2026: Buchseite "Leuchtender Herbst" (AH S.12/13) - Uebungsmaterial der Lehrerin fuer die LK
+    { satz: 'so grün wie Moos', a: 'moosgrün', alt: ['moosgruen'] },
+    { satz: 'so gelb wie Stroh', a: 'strohgelb' },
+    { satz: 'so grün wie ein Frosch', a: 'froschgrün', alt: ['froschgruen'] },
+    { satz: 'so rot wie eine Kirsche', a: 'kirschrot' },
+    { satz: 'so rot wie Kupfer', a: 'kupferrot' },
+    { satz: 'so rot wie Rost', a: 'rostrot' },
+    { satz: 'so gelb wie Gold', a: 'goldgelb' },
     { satz: 'so blau wie das Meer', a: 'meerblau' },
     { satz: 'so grau wie eine Maus', a: 'mausgrau' }
   ];
@@ -1015,34 +1023,81 @@ const Deutsch = (function () {
     ['Bagger', 'gg', 'Der Bagger gräbt ein tiefes Loch.'], ['Flagge', 'gg', 'Die Flagge weht im Wind.'],
     ['Roggen', 'gg', 'Aus Roggen backt der Bäcker dunkles Brot.'], ['Widder', 'dd', 'Der Widder steht auf der Weide.'],
     ['Paddel', 'dd', 'Mit dem Paddel lenken wir das Boot.'], ['Pappe', 'pp', 'Aus Pappe bastle ich ein Haus.'],
-    ['Mittag', 'tt', 'Zu Mittag gibt es Nudeln.'], ['Hummel', 'mm', 'Die Hummel brummt über die Blume.']
+    ['Mittag', 'tt', 'Zu Mittag gibt es Nudeln.'], ['Hummel', 'mm', 'Die Hummel brummt über die Blume.'],
+    // 24.10.2026: Woerterleiste + Tabelle aus dem Buch (Blaue Seiten S.22, Arbeitsheft S.14) - Uebungsmaterial der Lehrerin fuer die LK
+    ['beginnen', 'nn', 'Wir beginnen mit dem Unterricht.'], ['besser', 'ss', 'Heute geht es mir besser.'],
+    ['Fell', 'll', 'Das Fell des Hundes ist weiß.'], ['Gott', 'tt', 'In der Kirche beten wir zu Gott.'],
+    ['herstellen', 'll', 'Die Firma will Spielzeug herstellen.'], ['interessant', 'ss', 'Das Buch ist sehr interessant.'],
+    ['Kompass', 'ss', 'Der Kompass zeigt nach Norden.'], ['Programm', 'mm', 'Das Programm beginnt um acht Uhr.'],
+    ['schaffen', 'ff', 'Das schaffen wir zusammen.'], ['hoffentlich', 'ff', 'Morgen scheint hoffentlich die Sonne.'],
+    ['offen', 'ff', 'Die Tür steht offen.'], ['vollständig', 'll', 'Der Satz ist vollständig.'],
+    ['Schall', 'll', 'Der Schall breitet sich in der Luft aus.'], ['still', 'll', 'In der Bibliothek ist es still.'],
+    ['Sammlung', 'mm', 'Ich habe eine Sammlung von Steinen.'], ['bestimmt', 'mm', 'Das weiß ich ganz bestimmt.'],
+    ['nummerieren', 'mm', 'Wir müssen die Seiten nummerieren.'], ['dünn', 'nn', 'Die Scheibe Brot ist sehr dünn.'],
+    ['donnern', 'nn', 'Bei Gewitter hört man es donnern.'], ['brennen', 'nn', 'Die Kerze soll brennen.'],
+    ['klettern', 'tt', 'Affen klettern auf hohe Bäume.'], ['fett', 'tt', 'Die Wurst ist sehr fett.'],
+    ['schütteln', 'tt', 'Vor dem Trinken muss man die Flasche schütteln.'], ['passen', 'ss', 'Die Schuhe passen gut.'],
+    ['Schlüssel', 'ss', 'Ich suche meinen Schlüssel.'], ['Nässe', 'ss', 'Der Regenschirm schützt vor Nässe.'],
+    ['Wetter', 'tt', 'Heute ist das Wetter schön.']
   ];
   const DOPPEL_HILFE = '<strong>Merke:</strong> Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben: Der Mitlaut steht an der Silbengrenze zweimal.';
 
   function silben(wort, dbl) { return wort.replace(dbl, dbl[0] + '-' + dbl[1]); }
 
-  function genDoppelLueckeFrage() {
+  // 24.10.2026 (Uli: "es ist ja immer das mit dem doppelten Mitlaut - zu einfach"): Haelfte der Aufgaben nutzt Woerter mit NUR EINEM
+  // Mitlaut (langer Selbstlaut), das falsche Wort hat dann den zu Unrecht verdoppelten Buchstaben. [Wort, Buchstabe (kommt genau 1x vor), Satz]
+  const EINFACH_WOERTER = [
+    ['Hase', 's', 'Der Hase hoppelt über die Wiese.'], ['Nase', 's', 'Ich putze mir die Nase.'],
+    ['Rose', 's', 'Die Rose duftet herrlich.'], ['Hose', 's', 'Meine neue Hose ist blau.'],
+    ['Wiese', 's', 'Die Kühe stehen auf der Wiese.'], ['Besen', 's', 'Mit dem Besen kehre ich den Hof.'],
+    ['Esel', 's', 'Der Esel trägt den Sack.'], ['Biene', 'n', 'Die Biene sammelt Honig.'],
+    ['Kino', 'n', 'Wir gehen heute ins Kino.'], ['Ofen', 'f', 'Im Ofen backt der Kuchen.'],
+    ['Hafen', 'f', 'Das Schiff liegt im Hafen.'], ['Käfer', 'f', 'Der Käfer krabbelt über das Blatt.'],
+    ['Tafel', 'f', 'Der Lehrer schreibt an die Tafel.'], ['Igel', 'g', 'Der Igel schläft im Laub.'],
+    ['Vogel', 'g', 'Der Vogel singt im Baum.'], ['Wagen', 'g', 'Der Wagen fährt auf der Straße.'],
+    ['Kugel', 'g', 'Die Kugel rollt über den Tisch.'], ['Tiger', 'g', 'Der Tiger lebt im Zoo.'],
+    ['Name', 'm', 'Mein Name steht auf dem Heft.'], ['Kamel', 'm', 'Das Kamel trägt einen Höcker.'],
+    ['Dame', 'm', 'Die Dame wartet an der Haltestelle.'], ['Schule', 'l', 'Morgens gehe ich in die Schule.'],
+    ['Nebel', 'b', 'Im Herbst liegt Nebel über dem Feld.'], ['Rabe', 'b', 'Der Rabe sitzt auf dem Dach.'],
+    ['Lupe', 'p', 'Mit der Lupe sehe ich den Käfer genau.'], ['Seife', 'f', 'Ich wasche mir die Hände mit Seife.'],
+    ['Wolke', 'l', 'Eine dunkle Wolke zieht auf.'], ['Hupe', 'p', 'Das Auto betätigt die Hupe.']
+  ];
+  const DOPPEL_HILFE_EINFACH = '<strong>Merke:</strong> Nach einem <strong>langen Selbstlaut</strong> steht nur <strong>ein</strong> Mitlaut. Sprich das Wort in Silben: Ha-se, Bie-ne – hier wird der Selbstlaut lang gesprochen.';
+
+  // Zieht ein Wort: ca. die Haelfte mit doppeltem, die andere Haelfte mit einfachem Mitlaut
+  function ziehDoppelWort() {
+    if (Math.random() < 0.5) {
+      const [wort, dbl, satz] = pickRot('einfach', EINFACH_WOERTER, x => x[0])[0];
+      return { wort, doppelt: false, buch: dbl, richtig: wort, falsch: wort.replace(dbl, dbl + dbl), luecke: wort.replace(dbl, '__'), antwort: dbl, satz };
+    }
     const [wort, dbl, satz] = pickRot('doppel', DOPPEL_WOERTER, x => x[0])[0];
-    const luecke = wort.replace(dbl, '__');
+    return { wort, doppelt: true, buch: dbl, richtig: wort, falsch: wort.replace(dbl, dbl[0]), luecke: wort.replace(dbl, '__'), antwort: dbl, satz };
+  }
+  function doppelHilfe(w) {
+    return w.doppelt ? `${DOPPEL_HILFE}<br>Das Wort heißt <strong>${w.wort}</strong> (${silben(w.wort, w.buch)}).`
+      : `${DOPPEL_HILFE_EINFACH}<br>Das Wort heißt <strong>${w.wort}</strong> – nur ein <strong>${w.buch}</strong>.`;
+  }
+
+  function genDoppelLueckeFrage() {
+    const w = ziehDoppelWort();
     return {
       typ: 'text',
-      frage: `Welche zwei gleichen Mitlaute fehlen?<br>${satz.replace(wort, luecke)}`,
-      verlaufText: `Doppelter Mitlaut: ${luecke}`,
-      antwort: dbl,
-      hilfe: `${DOPPEL_HILFE}<br>Das Wort heißt <strong>${wort}</strong> (${silben(wort, dbl)}).`
+      frage: `Welche Buchstaben fehlen? (ein Mitlaut oder zwei gleiche)<br>${w.satz.replace(w.wort, w.luecke)}`,
+      verlaufText: `Mitlaut ergänzen: ${w.luecke}`,
+      antwort: w.antwort,
+      hilfe: doppelHilfe(w)
     };
   }
 
   function genDoppelWahlFrage() {
-    const [wort, dbl] = pickRot('doppel', DOPPEL_WOERTER, x => x[0])[0];
-    const falsch = wort.replace(dbl, dbl[0]);
-    const optionen = shuffle([wort, falsch]);
+    const w = ziehDoppelWort();
+    const optionen = shuffle([w.richtig, w.falsch]);
     return {
       typ: 'mc',
       frage: 'Welches Wort ist richtig geschrieben?',
       optionen,
-      richtigIndex: optionen.indexOf(wort),
-      hilfe: `${DOPPEL_HILFE}<br>Richtig: <strong>${wort}</strong> (${silben(wort, dbl)}).`
+      richtigIndex: optionen.indexOf(w.richtig),
+      hilfe: doppelHilfe(w)
     };
   }
 
@@ -1124,7 +1179,8 @@ const Deutsch = (function () {
         <em>Adjektiv + Adjektiv:</em> hell + blau = <strong>hellblau</strong>, süß + sauer = <strong>süßsauer</strong>.</div></div>
       <div class="regel-karte" style="margin-bottom:16px;"><strong>Wörter mit doppelten Mitlauten</strong><div style="margin-top:8px;line-height:1.7;">
         Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben und achte darauf, wo die Silben sich trennen:<br>
-        Kof-<strong>f</strong>er → <strong>Koffer</strong>, Mut-<strong>t</strong>er → <strong>Mutter</strong>, Tas-<strong>s</strong>e → <strong>Tasse</strong>, Som-<strong>m</strong>er → <strong>Sommer</strong>.</div></div>
+        Kof-<strong>f</strong>er → <strong>Koffer</strong>, Mut-<strong>t</strong>er → <strong>Mutter</strong>, Tas-<strong>s</strong>e → <strong>Tasse</strong>, Som-<strong>m</strong>er → <strong>Sommer</strong>.<br>
+        Nach einem <strong>langen Selbstlaut</strong> steht nur <strong>ein</strong> Mitlaut: Ha-se → <strong>Hase</strong>, Bie-ne → <strong>Biene</strong>, Ofen, Igel. Prüfe also jedes Mal: kurz oder lang gesprochen?</div></div>
       <div class="weiter-row"><span class="btn-primary" onclick="Deutsch.starteFerienDeutsch()">Jetzt üben ➜ (10 Aufgaben)</span></div>
     `);
   }

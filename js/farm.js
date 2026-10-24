@@ -469,6 +469,14 @@ const Farm = (function () {
       '<div class="f-btnreihe"><button class="f-kauf sek" data-a="zeigen" data-id="' + job.feld + '">📍 Auf der Karte zeigen</button><button class="f-kauf rot" data-a="jobAbbruch" data-id="' + job.id + '">Abbrechen</button></div>' +
       '<div class="f-info" style="margin-top:12px;opacity:.85">Abbrechen verliert die Kosten (z. B. Saatgut), das Feld bleibt unverändert.</div>';
   }
+  // Meldung, wenn zum Ernten keine passende Maschine frei ist: fehlt sie ganz, oder ist sie nur beschaeftigt/kaputt?
+  function erntemaschinenHinweis(f) {
+    const fr = f.frucht && D.frucht(f.frucht), wurzel = !!(fr && fr.ernte === 'wurzel');
+    const typ = wurzel ? 'rodemaschine' : 'maehdrescher', name = wurzel ? 'Roder' : 'Mähdrescher';
+    const habe = stand().flotte.some(m => D.def(m.id).typ === typ);
+    if (!habe) return (wurzel ? fr.name + ' wachsen in der Erde – die erntet nur ein Roder.' : fr.name + ' erntet ein Mähdrescher.') + ' Dir fehlt ein ' + name + ' – kaufe einen im Händler.';
+    return 'Dein ' + name + ' ist gerade beschäftigt oder kaputt – warte oder repariere ihn.';
+  }
   function feldAktionen(id, f, now) {
     const liste = M.moeglicheSchritte(id, now);
     let html = '<div class="f-h3">Das kannst du tun</div>';
@@ -480,7 +488,7 @@ const Farm = (function () {
       const kosten = s.schritt === 'saeen' ? 'Saatgut je nach Frucht' : (st.kosten ? '− ' + fmt(M.kostenFuer(id, s.schritt)) + ' €' : '');
       if (!s.erlaubt.ok) { zusatz = s.erlaubt.grund; knopf = '<button class="f-kauf sek" disabled>–</button>'; }
       else if (!bestes) {
-        zusatz = opts.length && opts[0].grund ? opts[0].grund : (st.geraet ? 'Kein freies Gerät (' + GERAET_NAME[st.geraet] + ') – im Händler kaufen oder warten' : 'Keine freie Erntemaschine (' + (f.frucht && D.frucht(f.frucht).ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + ')');
+        zusatz = opts.length && opts[0].grund ? opts[0].grund : (st.geraet ? 'Kein freies Gerät (' + GERAET_NAME[st.geraet] + ') – im Händler kaufen oder warten' : erntemaschinenHinweis(f));
         knopf = '<button class="f-kauf sek" data-a="shop" data-id="' + (st.geraet ? 'geraet' : 'ernter') + '">🏪</button>';
       } else {
         zusatz = 'ca. ' + sekText(bestes.sek / M.tempoFaktor()) + (kosten ? ' · ' + kosten : '') + ' · ' + st.text;
@@ -503,13 +511,13 @@ const Farm = (function () {
     const S = stand();
     let html = '<div class="f-h3">Was soll gesät werden?</div><div class="f-gitter">';
     D.FRUECHTE.forEach(fr => {
-      const gesperrt = S.level < fr.lvl;
+      const ernterGrund = M.ernterFehlt(fr.id), gesperrt = S.level < fr.lvl || !!ernterGrund;
       const ertrag = D.feld(id).ha * fr.ertrag * 1000 * M.ertragsFaktor(S.felder[id], fr.id);
       const wert = ertrag / 1000 * M.grundPreis(fr.id);
       const kosten = M.kostenFuer(id, 'saeen', fr.id);
       const hinweis = M.fruchtfolgeHinweis(id, fr.id);
-      html += '<button class="f-karte' + (gesperrt ? ' gesperrt' : '') + '" data-a="saatwahl" data-id="' + fr.id + '"' + (gesperrt ? ' disabled' : '') + '><b>' + (fr.ernte === 'wurzel' ? '🥔' : '🌾') + ' ' + fr.name + (gesperrt ? '<span class="f-badge rot">ab Level ' + fr.lvl + '</span>' : '') + '</b><div class="s">' +
-        'Reif nach ' + sekText(fr.dauer / M.tempoFaktor()) + '<br>' + (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + '<br>Ertrag ca. ' + tonnen(ertrag) + '<br>Wert ca. ' + fmt(wert) + ' €<br>Saatgut ' + fmt(kosten) + ' €' +
+      html += '<button class="f-karte' + (gesperrt ? ' gesperrt' : '') + '" data-a="saatwahl" data-id="' + fr.id + '"' + (gesperrt ? ' disabled' : '') + '><b>' + (fr.ernte === 'wurzel' ? '🥔' : '🌾') + ' ' + fr.name + (S.level < fr.lvl ? '<span class="f-badge rot">ab Level ' + fr.lvl + '</span>' : ernterGrund ? '<span class="f-badge rot">' + (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + ' fehlt</span>' : '') + '</b><div class="s">' +
+        'Reif nach ' + sekText(fr.dauer / M.tempoFaktor()) + '<br>' + (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + '<br>Ertrag ca. ' + tonnen(ertrag) + '<br>Wert ca. ' + fmt(wert) + ' €<br>Saatgut ' + fmt(kosten) + ' €' + (ernterGrund && S.level >= fr.lvl ? '<br><span class="down">⚠ ' + ernterGrund + '</span>' : '') +
         (hinweis ? '<br><span class="' + (hinweis.indexOf('−') >= 0 ? 'down' : 'up') + '">' + hinweis + '</span>' : '') + '</div></button>';
     });
     return html + '</div>';
