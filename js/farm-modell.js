@@ -331,8 +331,8 @@ const FarmModell = (function () {
   }
   function autoFelder() { return Object.keys(S.felder).filter(id => S.felder[id].auto).map(Number); }
   // Fahrer (seit 23.10.2026, Uli: "Max soll nicht fuer jedes Feld einen Manager einstellen und dann nichts mehr tun muessen"):
-  // ein Fahrer erledigt nur die ROUTINE auf einem Feld - Kalken, Grubbern, Walzen. Saeen (Fruchtwahl), Duengen, Spritzen und Ernten
-  // bleiben bei Max. Jeder eingestellte Fahrer kostet jeden Tag Lohn. an = true: einsetzen, sonst abziehen (alter Parameter "Frucht" wird ignoriert).
+  // ein Fahrer erledigt auf einem Feld ALLES AUSSER SAEEN (Fruchtwahl bleibt bei Max): Kalken, Grubbern, Duengen, Walzen, Spritzen, Ernten
+  // (seit 24.10.2026, Uli: "der Fahrer soll alles machen ausser saeen"). Jeder eingestellte Fahrer kostet jeden Tag Lohn. an = true: einsetzen, sonst abziehen (alter Parameter "Frucht" wird ignoriert).
   function autoSetzen(feldId, an) {
     const f = S.felder[feldId];
     if (!f) return { ok: false, grund: 'Das Feld gehört dir nicht.' };
@@ -517,7 +517,9 @@ const FarmModell = (function () {
       if (jobAufFeld(id)) return;
       let plan = [];
       if (f.phase === 'stoppel') plan = f.boden < 45 ? ['kalken', 'grubbern'] : ['grubbern'];
-      else if (f.phase === 'waechst') plan = ['walzen'];
+      else if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') plan = ['duengen'];
+      else if (f.phase === 'waechst') plan = ['walzen', 'duengen', 'spritzen'];
+      else if (f.phase === 'reif') plan = ['ernten'];
       for (const sch of plan) {
         if (!schrittErlaubt(id, sch, jetzt).ok) continue;
         const p = bestesPaar(sch, id, f.frucht);

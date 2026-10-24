@@ -120,6 +120,8 @@ const Farm = (function () {
   .f-karte img{width:100%;height:92px;object-fit:contain;background:radial-gradient(#4c7a3d,#335a2b);border-radius:10px}
   .f-karte b{font-size:15px;margin-top:5px}
   .f-karte .s{font-size:12.5px;opacity:.88;line-height:1.35;margin-top:3px}
+  .f-karte .f-erkl{color:#ffe9a8;opacity:1;flex:1;margin-bottom:6px}
+  .f-warum{color:#ffe9a8;opacity:.95;line-height:1.35;margin-top:3px}
   .f-kauf{margin-top:8px;padding:10px 12px;border-radius:12px;background:#f0b429;color:#2b1d00;font-weight:800;font-size:14.5px}
   .f-kauf[disabled]{background:#5b6a5d;color:#c9d3ca;opacity:.85}
   .f-kauf.sek{background:rgba(255,255,255,.16);color:#fff}
@@ -484,7 +486,7 @@ const Farm = (function () {
         zusatz = 'ca. ' + sekText(bestes.sek / M.tempoFaktor()) + (kosten ? ' · ' + kosten : '') + ' · ' + st.text;
         knopf = '<button class="f-kauf gruen" data-a="schritt" data-id="' + s.schritt + '">Los</button>';
       }
-      html += '<div class="f-zeile"><div class="ico">' + st.icon + '</div><div class="n">' + st.name + '<small>' + zusatz + '</small></div>' + knopf + '</div>';
+      html += '<div class="f-zeile"><div class="ico">' + st.icon + '</div><div class="n">' + st.name + '<small>' + zusatz + '</small><small class="f-warum">💡 ' + D.SCHRITT_WARUM[s.schritt] + '</small></div>' + knopf + '</div>';
     });
     if (!liste.length) html += '<div class="f-info">Hier gibt es gerade nichts zu tun.</div>';
     if (f.phase === 'waechst' && typeof FarmLernen !== 'undefined' && FarmLernen.verfuegbar()) {
@@ -540,10 +542,10 @@ const Farm = (function () {
     const S = stand();
     const html = '<div class="f-h3">Fahrer (Routinearbeit)</div>';
     const lohn = M.lohnProTag();
-    if (f.auto) return html + '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Ein Fahrer kümmert sich um die Routine<small>Er kalkt, grubbert und walzt mit freien Maschinen. Säen, Düngen, Spritzen und Ernten machst du selbst.' + (S.lohnOffen > 0 ? ' <b style="color:#ff9a7a">Der Lohn ist offen – er arbeitet erst nach der Zahlung.</b>' : '') + '</small></div><button class="f-kauf rot" data-a="autoAus">Abziehen</button></div>';
-    if (!S.fahrer) return html + '<div class="f-info">Ein Fahrer übernimmt auf einem Feld die Routinearbeit (Kalken, Grubbern, Walzen). Du kannst ihn im 🏪 Händler unter „Fahrer“ einstellen (ab Level ' + D.FAHRER[0].lvl + '). Er kostet jeden Tag Lohn.</div>';
+    if (f.auto) return html + '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Ein Fahrer kümmert sich um die Routine<small>Er kalkt, grubbert, düngt, walzt, spritzt und erntet mit freien Maschinen. Nur das Säen machst du selbst.' + (S.lohnOffen > 0 ? ' <b style="color:#ff9a7a">Der Lohn ist offen – er arbeitet erst nach der Zahlung.</b>' : '') + '</small></div><button class="f-kauf rot" data-a="autoAus">Abziehen</button></div>';
+    if (!S.fahrer) return html + '<div class="f-info">Ein Fahrer übernimmt auf einem Feld alle Arbeiten außer Säen (Kalken, Grubbern, Düngen, Walzen, Spritzen, Ernten). Du kannst ihn im 🏪 Händler unter „Fahrer“ einstellen (ab Level ' + D.FAHRER[0].lvl + '). Er kostet jeden Tag Lohn.</div>';
     if (M.autoFelder().length >= S.fahrer) return html + '<div class="f-info">Alle deine ' + S.fahrer + ' Fahrer sind schon im Einsatz. Im Händler kannst du weitere einstellen.</div>';
-    return html + '<div class="f-info">Du hast einen freien Fahrer! Er kalkt, grubbert und walzt hier. Säen, Düngen, Spritzen und Ernten bleiben bei dir. (Alle Fahrer zusammen kosten ' + fmt(lohn) + ' € Lohn am Tag.)</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="autoAn" data-id="ja">👨‍🌾 Fahrer hier einsetzen</button></div>';
+    return html + '<div class="f-info">Du hast einen freien Fahrer! Er kalkt, grubbert, düngt, walzt, spritzt und erntet hier. Nur das Säen bleibt bei dir. (Alle Fahrer zusammen kosten ' + fmt(lohn) + ' € Lohn am Tag.)</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="autoAn" data-id="ja">👨‍🌾 Fahrer hier einsetzen</button></div>';
   }
   function zeichneFeldKauf() {
     const S = stand(), d = D.feld(dlg.id);
@@ -573,7 +575,7 @@ const Farm = (function () {
       if (vor.length) stats += '<br><span style="color:#9ff0a8">' + vor.map(x => '✓ ' + x).join('<br>') + '</span>';
       const hab = besitz(d.id), gesperrt = S.level < d.lvl, kann = S.geld >= d.preis;
       return '<div class="f-karte' + (gesperrt ? ' gesperrt' : '') + '"><img src="' + vorschauBild(d) + '"><b>' + d.name + (hab ? '<span class="f-badge">' + hab + '× im Hof</span>' : '') + (gesperrt ? '<span class="f-badge rot">ab Level ' + d.lvl + '</span>' : '') + '</b>' +
-        '<div class="s" style="color:' + m.c1 + ';filter:brightness(1.6)">' + m.name + '</div><div class="s">' + stats + '</div>' +
+        '<div class="s" style="color:' + m.c1 + ';filter:brightness(1.6)">' + m.name + '</div><div class="s">' + stats + '</div><div class="s f-erkl">💡 ' + D.maschinenInfo(d) + '</div>' +
         '<button class="f-kauf" data-a="kaufen" data-id="' + d.id + '"' + (gesperrt || !kann ? ' disabled' : '') + '>' + fmt(d.preis) + ' € kaufen</button></div>';
     };
     if (tab === 'traktor') inhalt = '<div class="f-gitter">' + D.TRAKTOREN.map(karte).join('') + '</div>';
@@ -581,7 +583,7 @@ const Farm = (function () {
     else if (tab === 'ernter') inhalt = '<div class="f-gitter">' + D.ERNTER.map(karte).join('') + '</div>';
     else if (tab === 'fahrer') {
       const n = D.FAHRER[S.fahrer];
-      inhalt = '<div class="f-info">Ein <b>Fahrer</b> übernimmt auf einem Feld die <b>Routinearbeit</b>: Er kalkt, grubbert und walzt mit freien Maschinen. <b>Säen, Düngen, Spritzen und Ernten machst du selbst.</b> Jeder Fahrer kostet <b>jeden Tag Lohn</b> (' + fmt(Math.round(D.FAHRER_LOHN_ANTEIL * 100)) + ' % seines Einstellpreises); fehlt das Geld, streiken alle Fahrer, bis der Lohn bezahlt ist. Du hast <b>' + S.fahrer + '</b> Fahrer (' + M.autoFelder().length + ' im Einsatz), sie kosten zusammen <b>' + fmt(M.lohnProTag()) + ' € am Tag</b>' + (S.lohnOffen > 0 ? ' – <b style="color:#ff9a7a">' + fmt(S.lohnOffen) + ' € Lohn sind noch offen!</b>' : '') + '.</div>' +
+      inhalt = '<div class="f-info">Ein <b>Fahrer</b> übernimmt auf einem Feld <b>alle Arbeiten außer Säen</b>: Er kalkt, grubbert, düngt, walzt, spritzt und erntet mit freien Maschinen. <b>Nur das Säen machst du selbst.</b> Jeder Fahrer kostet <b>jeden Tag Lohn</b> (' + fmt(Math.round(D.FAHRER_LOHN_ANTEIL * 100)) + ' % seines Einstellpreises); fehlt das Geld, streiken alle Fahrer, bis der Lohn bezahlt ist. Du hast <b>' + S.fahrer + '</b> Fahrer (' + M.autoFelder().length + ' im Einsatz), sie kosten zusammen <b>' + fmt(M.lohnProTag()) + ' € am Tag</b>' + (S.lohnOffen > 0 ? ' – <b style="color:#ff9a7a">' + fmt(S.lohnOffen) + ' € Lohn sind noch offen!</b>' : '') + '.</div>' +
         (n ? '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Fahrer Nr. ' + (S.fahrer + 1) + '<small>' + (S.level < n.lvl ? 'Gibt es ab Level ' + n.lvl : 'Einstellen und auf einem Feld einsetzen · Lohn ' + fmt(M.fahrerLohn(S.fahrer)) + ' € am Tag') + '</small></div><button class="f-kauf" data-a="fahrerKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>' : '<div class="f-info">Mehr Fahrer gibt es nicht – dein Hof läuft wie am Schnürchen!</div>');
     } else {
       const n = D.SILO_STUFEN[S.siloStufe + 1];
@@ -841,7 +843,7 @@ const Farm = (function () {
       const status = job ? '<span class="f-badge gelb">arbeitet: ' + D.SCHRITTE[job.schritt].name + ' · Feld ' + job.feld + '</span>' : m.zustand < 15 ? '<span class="f-badge rot">kaputt</span>' : '<span class="f-badge">frei</span>';
       const kosten = M.reparaturKosten(m);
       html += '<div class="f-zeile"><img src="' + vorschauBild(d) + '" style="width:120px;height:64px;object-fit:contain;background:#3b6a30;border-radius:8px"><div class="n">' + d.name + ' ' + status +
-        '<small>' + D.MARKEN[d.marke].name + (d.ps ? ' · ' + d.ps + ' PS' : '') + ' · Zustand ' + Math.round(m.zustand) + ' %</small><div class="f-bal ' + (m.zustand < 30 ? 'rot' : m.zustand < 60 ? 'gelb' : '') + '"><div style="width:' + Math.round(m.zustand) + '%"></div></div></div>' +
+        '<small>' + D.MARKEN[d.marke].name + (d.ps ? ' · ' + d.ps + ' PS' : '') + ' · Zustand ' + Math.round(m.zustand) + ' %</small><small class="f-warum">💡 ' + D.maschinenInfo(d) + '</small><div class="f-bal ' + (m.zustand < 30 ? 'rot' : m.zustand < 60 ? 'gelb' : '') + '"><div style="width:' + Math.round(m.zustand) + '%"></div></div></div>' +
         '<button class="f-kauf sek" data-a="reparieren" data-id="' + m.uid + '"' + (m.job || m.zustand >= 99.5 || S.geld < kosten ? ' disabled' : '') + '>🔧 ' + (m.zustand >= 99.5 ? 'top' : fmt(kosten) + ' €') + '</button>' +
         '<button class="f-kauf sek" data-a="mverkauf" data-id="' + m.uid + '"' + (m.job ? ' disabled' : '') + '>Verkaufen ' + fmt(M.verkaufswert(m)) + ' €</button></div>';
     });
@@ -898,7 +900,7 @@ const Farm = (function () {
       '<li>Die Pflanzen <b>wachsen von allein</b> (nichts verdorrt). Wenn sie reif sind: <b>Ernten</b> mit Mähdrescher oder Roder.</li>' +
       '<li>Die Ernte liegt im <b>Silo</b> (📦 Lager). Verkaufe, wenn der Preis gut ist – oder liefere <b>Aufträge</b> (📋) für extra Lohn.</li>' +
       '<li>Mit <b>Betrieben</b> (🏭) machst du aus Weizen Mehl und Brot, aus Raps Öl …</li>' +
-      '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die auf einem Feld die Routine (Kalken, Grubbern, Walzen) übernehmen – gegen Tageslohn.</li>' +
+      '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die auf einem Feld alles außer Säen übernehmen – gegen Tageslohn.</li>' +
       '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
       '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
       '<li>Jeden Tag gibt es <b>3 Tagesaufgaben</b> (📅): Schaffe alle für einen Bonus – und halte die Serie am Leben! Neue Aufgaben kommen um Mitternacht.</li>' +

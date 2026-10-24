@@ -123,6 +123,31 @@ const FarmDaten = (function () {
     ernten: { id: 'ernten', name: 'Ernten', icon: '🌾', geraet: null, von: ['reif'], nach: 'stoppel', eff: 0.5, kosten: 0, xp: 70, text: 'Der Ertrag kommt ins Silo.' }
   };
   const BONUS = { pf: 0.08, dg: 0.22, sp: 0.10, wa: 0.06 };
+  // Kleine Erklaertexte fuer Max (seit 24.10.2026): wozu ist der Arbeitsschritt / die Maschine da?
+  const SCHRITT_WARUM = {
+    grubbern: 'Nach der Ernte ist der Boden hart und voller Stoppeln und Wurzeln. Der Grubber hat Zinken, die den Boden aufreißen und lockern. Locker braucht die Saat Luft und die Wurzeln kommen leichter hinein.',
+    pfluegen: 'Der Pflug dreht den Boden um: Oben liegt dann frische Erde, die Stoppeln und Unkraut kommen nach unten. Das dauert länger als Grubbern, bringt aber mehr Ertrag. Aufpassen: Auf einem bewachsenen Feld zerstört der Pflug die Pflanzen!',
+    kalken: 'Mit der Zeit wird Ackerboden sauer, und dann wächst weniger. Kalk macht ihn wieder milder, so fühlen sich die Pflanzen wohl. Besonders sinnvoll, wenn die Bodenqualität niedrig ist.',
+    saeen: 'Die Sämaschine legt die Samenkörner in gleichmäßigen Reihen in die Erde und deckt sie zu. Hier entscheidest du, was wachsen soll. Das Saatgut kostet Geld.',
+    duengen: 'Pflanzen brauchen Nahrung, so wie du Essen. Dünger enthält Nährstoffe wie Stickstoff, damit die Pflanzen kräftig wachsen und mehr Ertrag bringen.',
+    spritzen: 'Unkraut und Schädlinge nehmen den Pflanzen Platz, Licht und Nahrung weg oder fressen sie an. Der Pflanzenschutz hält sie fern, so bleiben die Pflanzen gesund.',
+    walzen: 'Die schwere Walze drückt den Boden fest an die Samen. So haben die Wurzeln guten Kontakt zur Erde und finden Wasser. Sie hilft nur am Anfang des Wachstums.',
+    ernten: 'Wenn die Pflanzen reif sind, holt die Erntemaschine die Früchte vom Feld. Der Ertrag kommt ins Silo, dort kannst du ihn verkaufen oder weiterverarbeiten.'
+  };
+  const MASCHINEN_INFO = {
+    traktor: 'Der Traktor zieht die Geräte über das Feld. Je mehr PS er hat, desto größere und schwerere Geräte kann er ziehen. Allein kann er auf dem Feld nichts tun.',
+    grubber: 'Der Grubber lockert den Boden mit Zinken, ohne ihn umzudrehen. Er wird nach der Ernte und vor dem Säen gebraucht.',
+    pflug: 'Der Pflug dreht die Erde um und vergräbt Stoppeln und Unkraut. Das gibt mehr Ertrag, braucht aber viel Zugkraft.',
+    saeen: 'Die Sämaschine legt die Samen in saubere Reihen und deckt sie zu. Ohne sie wächst nichts.',
+    duenger: 'Der Düngerstreuer verteilt Nährstoffe auf dem Feld. So wachsen die Pflanzen besser und bringen mehr Ertrag.',
+    walze: 'Die Walze drückt den Boden fest. Das hilft den jungen Pflanzen, gut anzuwachsen.',
+    kalk: 'Der Kalkstreuer verteilt Kalk auf dem Feld. Das verbessert den Boden, wenn er zu sauer ist.',
+    spritze: 'Die Feldspritze bringt Pflanzenschutz aus. Er hält Unkraut und Schädlinge vom Feld fern.',
+    maehdrescher: 'Der Mähdrescher mäht das Getreide, drischt die Körner aus den Ähren und sammelt sie im Tank. Er erntet Getreide, Raps und Mais.',
+    rodemaschine: 'Der Roder holt Früchte aus der Erde, die unten wachsen: Kartoffeln, Rüben, Zwiebeln und Möhren. Dafür taugt ein Mähdrescher nicht.'
+  };
+  const maschinenInfo = d => d.art === 'traktor' ? MASCHINEN_INFO.traktor : MASCHINEN_INFO[d.typ];
+
   const SCHRITT_REIHENFOLGE = ['grubbern', 'pfluegen', 'kalken', 'saeen', 'duengen', 'spritzen', 'walzen', 'ernten'];
   const ARBEIT_K = 15000;      // Zeitkonstante: Sekunden * (m * km/h) je Hektar
   const ANFANGS_TEMPO = 6;    // erste Arbeiten sind schneller, bis die erste Ernte verkauft ist
@@ -504,7 +529,7 @@ const FarmDaten = (function () {
   function alleGueter() { return FRUECHTE.map(f => f.id).concat(Object.keys(WAREN)); }
 
   return {
-    ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, BONUS,
+    ZELLE, HA_JE_ZELLE, PX_JE_M, MASCHINEN_SKALA, XP_FAKTOR, WELT, PREISFAKTOR, MARKEN, FRUECHTE, TRAKTOREN, GERAETE, ERNTER, SCHRITTE, SCHRITT_REIHENFOLGE, SCHRITT_WARUM, MASCHINEN_INFO, maschinenInfo, BONUS,
     ARBEIT_K, ANFANGS_TEMPO, FELDER, STRASSEN, HOF, PLATZ_LANDHANDEL, GEBAEUDE, DEKO, SILOS, HOF_TOR, STRASSE_Y, WAREN, PRODUKTION, PROD_STUFEN,
     LERN_KARTEN, LERN_PRO_KARTE, LERN_MAX_TAG, SCHUL_BONUS_MIN, TAGESAUFGABEN, tagGeld, tagXp, ERFOLGE, ALBUM, TIERHOF, TIERE, BIENEN_BONUS, STALL_LAGER_H, FUTTER_LAGER_H, WETTER_SLOT_MS, WETTER, WETTER_GEWICHTE, WETTERSTATION, BEREGNUNG_PREIS_HA, BEREGNUNG_LVL,
     SILO_STUFEN, FAHRER, FAHRER_LOHN_ANTEIL, ZUKAUF_FAKTOR, ZUKAUF_MAX_TAG_KG, STARTGELD, STARTFLOTTE, STARTFELDER, PREIS_MIN, PREIS_MAX, xpFuerLevel,
