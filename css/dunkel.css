@@ -24,6 +24,7 @@ body.spielbuehne .sm-icon { border-radius: 13px; box-shadow: 0 4px 10px rgba(0,0
 body.spielbuehne .sm-icon.icon-mathe { box-shadow: 0 4px 10px rgba(91,155,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-deutsch { box-shadow: 0 4px 10px rgba(255,145,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-heimat { box-shadow: 0 4px 10px rgba(70,204,135,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-sport { box-shadow: 0 4px 10px rgba(255,107,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-geschichten { box-shadow: 0 4px 10px rgba(179,139,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-spiele { box-shadow: 0 4px 10px rgba(46,211,183,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-chat { box-shadow: 0 4px 10px rgba(255,111,156,.45), inset 0 1px 0 rgba(255,255,255,.28); }
@@ -91,13 +92,14 @@ body.spielbuehne .sub-label { color: #F3F1EA; font-size: 17px; font-weight: 700;
 body.spielbuehne .sub-grid.sub-akzent-mathe { --sub-akzent: #5B9BFF; --sub-akzent-bg: rgba(91,155,255,.18);  --sub-g1: #7DB4FF; --sub-g2: #2C66D2; --sub-gd: #1F4FA8;}
 body.spielbuehne .sub-grid.sub-akzent-deutsch { --sub-akzent: #FF9157; --sub-akzent-bg: rgba(255,145,87,.18);  --sub-g1: #FFAA77; --sub-g2: #E0612A; --sub-gd: #A8421A;}
 body.spielbuehne .sub-grid.sub-akzent-heimat { --sub-akzent: #46CC87; --sub-akzent-bg: rgba(70,204,135,.18);  --sub-g1: #6CE0A4; --sub-g2: #1F9E63; --sub-gd: #137548;}
+body.spielbuehne .sub-grid.sub-akzent-sport { --sub-akzent: #FF6B57; --sub-akzent-bg: rgba(255,107,87,.18);  --sub-g1: #FF8F7D; --sub-g2: #D6402A; --sub-gd: #9E2B1A;}
 body.spielbuehne .sub-grid.sub-akzent-geschichten { --sub-akzent: #B38BFF; --sub-akzent-bg: rgba(179,139,255,.18);  --sub-g1: #C9A8FF; --sub-g2: #7A4FD8; --sub-gd: #5A32A8;}
 body.spielbuehne .sub-grid.sub-akzent-belohnung { --sub-akzent: #FFC93C; --sub-akzent-bg: rgba(255,201,60,.18);  --sub-g1: #FFD966; --sub-g2: #E39A0B; --sub-gd: #A86A00;}
 body.spielbuehne .sub-grid.sub-akzent-spiele { --sub-akzent: #2ED3B7; --sub-akzent-bg: rgba(46,211,183,.18);  --sub-g1: #55E6CE; --sub-g2: #13A58C; --sub-gd: #0B7766;}
 body.spielbuehne .sub-titel { text-align: center; font-size: 30px; font-weight: 800; color: #fff; margin: 6px 0 4px; letter-spacing: .01em; }
 body.spielbuehne .sub-titel::after { content: ''; display: block; width: 64px; height: 4px; border-radius: 2px; margin: 8px auto 0; background: var(--sub-akzent, #FFB43A); box-shadow: 0 0 16px var(--sub-akzent, #FFB43A); }
 body.spielbuehne .sub-kopf-mathe { --sub-akzent: #5B9BFF; } body.spielbuehne .sub-kopf-deutsch { --sub-akzent: #FF9157; }
-body.spielbuehne .sub-kopf-heimat { --sub-akzent: #46CC87; } body.spielbuehne .sub-kopf-geschichten { --sub-akzent: #B38BFF; }
+body.spielbuehne .sub-kopf-sport { --sub-akzent: #FF6B57; } body.spielbuehne .sub-kopf-heimat { --sub-akzent: #46CC87; } body.spielbuehne .sub-kopf-geschichten { --sub-akzent: #B38BFF; }
 body.spielbuehne .sub-kopf-belohnung { --sub-akzent: #FFC93C; } body.spielbuehne .sub-kopf-spiele { --sub-akzent: #2ED3B7; }
 
 /* ---------- Spiele-Kacheln ---------- */
@@ -149,6 +151,7 @@ body.spielbuehne .menu-icon { width: 56px; height: 56px; }
 body.spielbuehne .icon-mathe { background: linear-gradient(150deg, #7DB4FF, #2C66D2); --kat-dunkel: #1F4FA8; }
 body.spielbuehne .icon-deutsch { background: linear-gradient(150deg, #FFAA77, #E0612A); --kat-dunkel: #A8421A; }
 body.spielbuehne .icon-heimat { background: linear-gradient(150deg, #6CE0A4, #1F9E63); --kat-dunkel: #137548; }
+body.spielbuehne .icon-sport { background: linear-gradient(150deg, #FF8F7D, #D6402A); --kat-dunkel: #9E2B1A; }
 body.spielbuehne .icon-geschichten { background: linear-gradient(150deg, #C9A8FF, #7A4FD8); --kat-dunkel: #5A32A8; }
 body.spielbuehne .icon-spiele { background: linear-gradient(150deg, #55E6CE, #13A58C); --kat-dunkel: #0B7766; }
 body.spielbuehne .icon-chat { background: linear-gradient(150deg, #FF8DB0, #D93A72); --kat-dunkel: #A82855; }

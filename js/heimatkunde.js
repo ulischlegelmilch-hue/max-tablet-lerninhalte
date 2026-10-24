@@ -186,6 +186,46 @@ const Heimatkunde = (function () {
     { front: 'Du willst von einem Grundstück oder Gehweg nach links fahren. Was musst du tun?', back: 'Du musst erst dein Fahrrad über den Gehweg und die Fahrbahn auf die <strong>andere Straßenseite schieben</strong>. Dort kannst du wie beschrieben losfahren.' }
   ];
 
+  // ---------------------------------------------------------------------------
+  // Sport: Erwaermung (24.10.2026, Uli-Wunsch): Max soll die Erwaermung fuer den Sportunterricht koennen und sagen koennen, welche
+  // Muskelgruppen die Uebungen ansprechen. Fuenf Uebungen (Uli): Kniebeugen, Rumpfkreisen, Hampelmann, Armkreisen, Hueftheben (Krabbenstellung).
+  // Wiederholungszahlen sind Vorschlaege (Uli hat sie nicht vorgegeben). Muskeln in Kindersprache mit Fachwort in Klammern. Mehrteiliges steht
+  // auf EINER Karte (keine Teil-n-Splits, siehe Radfahr-Lernkarten).
+  // Max soll die Erwaermung ANLEITEN koennen (Uli 24.10.2026): die Uebung erklaeren UND die angesprochenen Muskelpartien erklaeren.
+  // Darum je Uebung drei Sichten (Ausfuehrung, Muskeln, Anleit-Text zum Vorsprechen) + Umkehrfragen + Reihenfolge.
+  const LERNKARTEN_SPORT_UEBUNGEN = [
+    { front: 'Kniebeugen: Erkläre, wie die Übung ausgeführt wird.', back: '1. Stell dich <strong>schulterbreit</strong> hin, die Füße zeigen leicht nach außen.<br>2. Strecke die Arme nach vorn.<br>3. Schiebe den <strong>Po nach hinten unten</strong>, als würdest du dich auf einen Stuhl setzen.<br>4. Der <strong>Rücken bleibt gerade</strong>, die Fersen bleiben am Boden, die Knie zeigen in Richtung der Zehen.<br>5. Richte dich wieder auf. Das machst du <strong>10-mal</strong>.' },
+    { front: 'Rumpfkreisen: Erkläre, wie die Übung ausgeführt wird.', back: '1. Stell dich <strong>schulterbreit</strong> hin, die Knie sind leicht gebeugt.<br>2. Lege die <strong>Hände an die Hüfte</strong>.<br>3. Kreise mit der <strong>Hüfte in großen Kreisen</strong>, der Oberkörper bleibt dabei ruhig.<br>4. <strong>10-mal rechts herum</strong>, dann <strong>10-mal links herum</strong>.' },
+    { front: 'Hampelmann: Erkläre, wie die Übung ausgeführt wird.', back: '1. Stell dich aufrecht hin, die Füße sind zusammen, die Arme hängen am Körper.<br>2. Springe und <strong>öffne dabei Beine und Arme gleichzeitig</strong>: Die Beine gehen auseinander, die Arme schwingen seitlich über den Kopf.<br>3. Springe zurück in die Ausgangsstellung.<br>4. Lande leicht auf den Fußballen. <strong>20 Sprünge</strong> in gleichmäßigem Tempo.' },
+    { front: 'Armkreisen: Erkläre, wie die Übung ausgeführt wird.', back: '1. Stell dich <strong>schulterbreit</strong> hin und strecke die Arme seitlich aus.<br>2. Kreise mit den <strong>gestreckten Armen</strong> erst klein, dann in großen Kreisen.<br>3. <strong>10-mal vorwärts</strong>, dann <strong>10-mal rückwärts</strong>.<br>4. Halte dich dabei aufrecht und ziehe die Schultern nicht hoch.' },
+    { front: 'Hüftheben (Krabbenstellung): Erkläre, wie die Übung ausgeführt wird.', back: '1. Setze dich auf den Boden, die Beine sind angewinkelt, die <strong>Füße stehen auf dem Boden</strong>.<br>2. Stütze die <strong>Hände hinter dem Körper</strong> auf.<br>3. Hebe den <strong>Po an</strong>, bis dein Körper wie ein Tisch aussieht: Der Bauch zeigt zur Decke.<br>4. Halte kurz, setze den Po wieder ab. <strong>10-mal</strong>.' }
+  ];
+  const LERNKARTEN_SPORT_MUSKELN = [
+    { front: 'Kniebeugen: Welche Muskelpartien arbeiten, und wo sitzen sie?', back: '<strong>Oberschenkel vorn</strong> (Quadrizeps): Er streckt das Knie und drückt dich wieder nach oben.<br><strong>Gesäß</strong>: Er schiebt die Hüfte beim Aufrichten nach vorn.<br><strong>Waden</strong> (hinten am Unterschenkel): Sie halten dich im Gleichgewicht.' },
+    { front: 'Rumpfkreisen: Welche Muskelpartien arbeiten, und wo sitzen sie?', back: '<strong>Bauchmuskeln</strong> (vorn und an der Seite): Sie halten den Rumpf stabil.<br><strong>Rückenmuskeln</strong> (unterer Rücken): Sie arbeiten mit den Bauchmuskeln zusammen.<br><strong>Hüftmuskeln</strong>: Sie bewegen die Hüfte im Kreis.' },
+    { front: 'Hampelmann: Welche Muskelpartien arbeiten, und wo sitzen sie?', back: '<strong>Waden</strong>: Sie drücken dich beim Sprung ab.<br><strong>Oberschenkel und Gesäß</strong>: Sie öffnen und schließen die Beine.<br><strong>Schultern und Arme</strong>: Sie heben die Arme über den Kopf.<br>Außerdem: <strong>Herz und Kreislauf</strong> kommen in Schwung.' },
+    { front: 'Armkreisen: Welche Muskelpartien arbeiten, und wo sitzen sie?', back: '<strong>Schultermuskeln</strong>: Sie heben und kreisen die Arme.<br><strong>Oberer Rücken</strong> (zwischen den Schulterblättern): Er hält die Schultern in Position.<br><strong>Nacken</strong>: Er wird dabei gelockert.' },
+    { front: 'Hüftheben (Krabbenstellung): Welche Muskelpartien arbeiten, und wo sitzen sie?', back: '<strong>Gesäß</strong> und <strong>Oberschenkel hinten</strong>: Sie heben den Po an.<br><strong>Oberarm hinten</strong> (Trizeps): Er stützt dein Gewicht auf den Armen.<br><strong>Schultern</strong>: Sie halten die Arme stabil.<br><strong>Rumpf</strong> (Bauch und unterer Rücken): Er hält den Körper gerade.' }
+  ];
+  const LERNKARTEN_SPORT_ANLEITEN = [
+    { front: 'Leite die Kniebeugen an: Was sagst du? (Übung und Muskeln erklären)', back: '„Wir machen jetzt <strong>Kniebeugen</strong>, 10-mal. Stellt euch schulterbreit hin und streckt die Arme nach vorn. Schiebt den Po nach hinten unten, als würdet ihr euch auf einen Stuhl setzen. Der Rücken bleibt gerade. Dann richtet ihr euch wieder auf. Dabei arbeiten der <strong>Oberschenkel vorn</strong>, das <strong>Gesäß</strong> und die <strong>Waden</strong>.“' },
+    { front: 'Leite das Rumpfkreisen an: Was sagst du? (Übung und Muskeln erklären)', back: '„Weiter geht es mit dem <strong>Rumpfkreisen</strong>. Stellt euch schulterbreit hin, die Hände an die Hüfte. Jetzt kreist ihr mit der Hüfte große Kreise, der Oberkörper bleibt ruhig. 10-mal rechts herum, 10-mal links herum. Dabei arbeiten die <strong>Bauchmuskeln</strong>, die <strong>Rückenmuskeln</strong> und die <strong>Hüfte</strong>.“' },
+    { front: 'Leite den Hampelmann an: Was sagst du? (Übung und Muskeln erklären)', back: '„Jetzt kommt der <strong>Hampelmann</strong>, 20 Sprünge. Ihr springt und öffnet dabei Beine und Arme gleichzeitig: Die Arme gehen seitlich über den Kopf. Dann springt ihr zurück. Landet leicht auf den Fußballen. Dabei arbeiten die <strong>Waden</strong>, die <strong>Oberschenkel</strong>, das <strong>Gesäß</strong>, die <strong>Schultern</strong> und die <strong>Arme</strong>, und euer Kreislauf kommt in Schwung.“' },
+    { front: 'Leite das Armkreisen an: Was sagst du? (Übung und Muskeln erklären)', back: '„Als Nächstes das <strong>Armkreisen</strong>. Streckt die Arme seitlich aus und kreist erst klein, dann groß. 10-mal vorwärts, 10-mal rückwärts. Zieht die Schultern nicht hoch. Dabei arbeiten die <strong>Schultermuskeln</strong>, der <strong>obere Rücken</strong> und der <strong>Nacken</strong>.“' },
+    { front: 'Leite das Hüftheben an: Was sagst du? (Übung und Muskeln erklären)', back: '„Zum Schluss das <strong>Hüftheben</strong> in der Krabbenstellung. Setzt euch hin, stellt die Füße auf und stützt die Hände hinter euch auf. Hebt den Po an, bis euer Körper wie ein Tisch aussieht, und setzt ihn wieder ab. 10-mal. Dabei arbeiten das <strong>Gesäß</strong>, der <strong>Oberschenkel hinten</strong>, der <strong>Oberarm hinten</strong>, die <strong>Schultern</strong> und der <strong>Rumpf</strong>.“' }
+  ];
+  const LERNKARTEN_SPORT_UMKEHR = [
+    { front: 'Welche Übung bringt den ganzen Körper und den Kreislauf in Schwung?', back: 'Der <strong>Hampelmann</strong> (Waden, Oberschenkel, Gesäß, Schultern, Arme).' },
+    { front: 'Welche Übung wärmt vor allem Schultern und Nacken auf?', back: '<strong>Armkreisen</strong> (Schultermuskeln, oberer Rücken, Nacken).' },
+    { front: 'Welche Übung beansprucht vor allem die Oberschenkel vorn?', back: 'Die <strong>Kniebeugen</strong> (dazu Gesäß und Waden).' },
+    { front: 'Welche Übung trainiert Bauch- und Rückenmuskeln und die Hüfte?', back: 'Das <strong>Rumpfkreisen</strong>.' },
+    { front: 'Welche Übung kräftigt Gesäß und Oberarm hinten (Trizeps)?', back: 'Das <strong>Hüftheben</strong> in der Krabbenstellung (dazu Oberschenkel hinten, Schultern, Rumpf).' }
+  ];
+  const LERNKARTEN_SPORT_ABLAUF = [
+    { front: 'Die Erwärmung im Sportunterricht: Nenne die 5 Übungen in der richtigen Reihenfolge.', back: '1. Kniebeugen<br>2. Rumpfkreisen<br>3. Hampelmann<br>4. Armkreisen<br>5. Hüftheben (Krabbenstellung)' },
+    { front: 'Du leitest die Erwärmung an: Wie gehst du bei jeder Übung vor?', back: '1. <strong>Übung nennen</strong> und sagen, wie oft ihr sie macht.<br>2. <strong>Erklären und vormachen</strong>, wie die Übung geht.<br>3. Die <strong>Muskelpartien nennen</strong>, die dabei arbeiten.<br>4. Gemeinsam machen und laut mitzählen.' }
+  ];
+
   // Heft S.18
   const LERNKARTEN_RAD_RECHTS = [
     { front: 'Wo müssen alle auf Straßen und Radwegen fahren?', back: 'Alle müssen <strong>rechts</strong> fahren.' },
@@ -251,7 +291,12 @@ const Heimatkunde = (function () {
     // Thema behandeln (nur starteLernkarten hat unten einen Sonderfall fuer
     // den Deck-Aufbau, weil die Gewichtung sich auf die QUELL-Statistik
     // stuetzen muss, nicht auf eine eigene 'rad_falsch'-Statistik).
-    rad_falsch: { gruppe: 'rad', titel: 'Falsche Karten wiederholen', icon: 'drehen', karten: sammleFalscheRadKarten, bewertung: true }
+    rad_falsch: { gruppe: 'rad', titel: 'Falsche Karten wiederholen', icon: 'drehen', karten: sammleFalscheRadKarten, bewertung: true },
+    sport_ablauf: { gruppe: 'sport', titel: 'Die Reihenfolge', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SPORT_ABLAUF, bewertung: true },
+    sport_uebungen: { gruppe: 'sport', titel: 'Die Übung erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_UEBUNGEN, bewertung: true },
+    sport_muskeln: { gruppe: 'sport', titel: 'Die Muskeln erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_MUSKELN, bewertung: true },
+    sport_anleiten: { gruppe: 'sport', titel: 'Anleiten: Das sage ich', icon: 'sport', karten: () => LERNKARTEN_SPORT_ANLEITEN, bewertung: true },
+    sport_umkehr: { gruppe: 'sport', titel: 'Welche Übung trainiert …?', icon: 'sport', karten: () => LERNKARTEN_SPORT_UMKEHR, bewertung: true }
   };
 
   // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
@@ -369,7 +414,8 @@ const Heimatkunde = (function () {
   // fixer Werte, falls spaeter eine weitere Themengruppe dazukommt.
   let themenGruppe = 'rad';
   const GRUPPEN_INFO = {
-    rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.' }
+    rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' },
+    sport: { titel: 'Sport: Erwärmung', text: 'Lerne die Erwärmung für den Sportunterricht - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'App.gotoHome()' }
   };
 
   function starteThemenwahl(gruppe) {
@@ -380,7 +426,7 @@ const Heimatkunde = (function () {
       return `<div class="sub-card" onclick="Heimatkunde.starteLernkarten('${key}')"><span class="sub-icon">${Icons.svg(t.icon)}</span><span class="sub-label">${t.titel}</span></div>`;
     }).join('');
     App.render(`
-      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="back-row"><span class="back-btn" onclick="${gi.zurueck}">${Icons.svg('zurueck')} Zurück</span></div>
       <div class="welcome">${gi.titel}</div>
       <div class="lese-text">${gi.text}</div>
       <div class="sub-grid">${karten}</div>
@@ -797,8 +843,8 @@ const Heimatkunde = (function () {
 
   /** Alle Radfahr-Lernthemen mit ihren Karten (ohne das Sammelthema rad_falsch) - fuer den Export in die
    *  Eltern-App (tools/export_lernkarten.js). */
-  function lernthemenFuerExport() {
-    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === 'rad' && k !== 'rad_falsch')
+  function lernthemenFuerExport(gruppe) {
+    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === (gruppe || 'rad') && k !== 'rad_falsch')
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 

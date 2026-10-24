@@ -34,6 +34,7 @@
   --deutsch: #A8562E;      --deutsch-soft: #F3DDCC;
   --geschichten: #6B4A92;  --geschichten-soft: #E4D8F0;
   --heimat: #47795A;       --heimat-soft: #D9EBDD;
+  --sport: #B5472E;        --sport-soft: #F5DAD2;
   --schach: #363B4A;       --schach-soft: #DCDEE4;
   --chat: #B8456B;         --chat-soft: #F6DCE6;
   --belohnung: #B8860B;    --belohnung-soft: #F6E7BF;
@@ -322,6 +323,7 @@ html, body {
 .icon-deutsch { background: var(--deutsch); color: #fff; }
 .icon-geschichten { background: var(--geschichten); color: #fff; }
 .icon-heimat { background: var(--heimat); color: #fff; }
+.icon-sport { background: var(--sport); color: #fff; }
 .icon-schach { background: var(--schach); color: #fff; }
 .icon-chat { background: var(--chat); color: #fff; }
 .icon-belohnung { background: var(--belohnung); color: #fff; }

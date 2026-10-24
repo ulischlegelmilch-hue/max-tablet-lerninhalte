@@ -203,6 +203,7 @@ const App = (function () {
           ${smItem('mathe', 'mathe', 'Mathe', `${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst`, 'Mathe.renderMenu()')}
           ${smItem('deutsch', 'deutsch', 'Deutsch', `${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst`, 'Deutsch.renderMenu()')}
           ${smItem('heimat', 'heimat', 'Heimat &amp; Sachkunde', `${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst`, 'Heimatkunde.renderMenu()')}
+          ${smItem('sport', 'sport', 'Sport', 'Erwärmung lernen', "Heimatkunde.starteThemenwahl('sport')")}
           ${smItem('geschichten', 'geschichten', 'Geschichten', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen`, 'Geschichten.renderMenu()')}
           <div class="home-gruppe-titel">Spielen &amp; mehr</div>
           ${smItem('spiele', 'spielen', 'Spiele', 'Schach, Schiffe, Mau-Mau', 'App.renderSpieleMenu()')}
@@ -644,7 +645,7 @@ const App = (function () {
   }
 
   // Akzentfarbe je Bereich (Titel -> Schluessel), fuer das dunkle Menue-Design (css/dunkel.css)
-  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele', 'Hof-Farm': 'spiele' };
+  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Sport': 'sport', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele', 'Hof-Farm': 'spiele' };
 
   function subMenuHtml(titel, karten) {
     const schluessel = Object.keys(SUB_AKZENT).find((k) => titel === k || titel.indexOf(k) === 0);
