@@ -195,16 +195,20 @@ const Heimatkunde = (function () {
   // Darum je Uebung drei Sichten (Ausfuehrung, Muskeln, Anleit-Text zum Vorsprechen) + Umkehrfragen + Reihenfolge.
   // Die Erwaermung dauert 3 Minuten: 5 Uebungen je 30 Sekunden + kurze Wechsel (Uli 24.10.2026). Fuer ein 9-jaehriges Kind kurz und einfach:
   // 3-4 kurze Schritte, je Uebung nur 2 Muskelpartien in Kindersprache (Fachwort in Klammern).
-  // Eine Karte je Uebung: Ausfuehrung + Muskeln zum schnellen Erklaeren (Uli 24.10.2026).
+  // Eine Karte je Uebung: Ausfuehrung + Wiederholungen + einfache Muskeln (Uli 24.10.2026, ohne Fachwoerter).
   const LERNKARTEN_SPORT_UEBUNGEN = [
-    { front: 'Kniebeugen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich <strong>schulterbreit</strong> hin, Arme nach vorn.<br>2. Geh mit dem <strong>Po nach hinten unten</strong>, wie auf einen Stuhl.<br>3. Der Rücken bleibt <strong>gerade</strong>.<br>4. Steh wieder auf. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Oberschenkel vorn</strong> (Quadrizeps) streckt das Knie, der <strong>Po</strong> richtet dich auf.' },
-    { front: 'Rumpfkreisen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich <strong>schulterbreit</strong> hin, <strong>Hände an die Hüfte</strong>.<br>2. Kreise mit der Hüfte <strong>große Kreise</strong>.<br>3. Erst <strong>rechts herum</strong>, dann <strong>links herum</strong>. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Bauchmuskeln</strong> halten den Oberkörper ruhig, <strong>Rückenmuskeln</strong> helfen dabei.' },
-    { front: 'Hampelmann: Erkläre die Übung und die Muskeln.', back: '1. Spring und mach <strong>Beine und Arme gleichzeitig auseinander</strong>.<br>2. Die Arme gehen über den Kopf.<br>3. Spring wieder zurück. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Beine</strong> (Waden, Oberschenkel) springen, <strong>Schultern</strong> heben die Arme. Das <strong>Herz</strong> schlägt schneller.' },
-    { front: 'Armkreisen: Erkläre die Übung und die Muskeln.', back: '1. Stell dich hin und streck die <strong>Arme zur Seite</strong>.<br>2. Kreise mit den Armen, erst <strong>vorwärts</strong>, dann <strong>rückwärts</strong>.<br>3. Zieh die Schultern nicht hoch. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> <strong>Schultermuskeln</strong> kreisen die Arme, der <strong>Nacken</strong> wird locker.' },
-    { front: 'Hüftheben (Krabbenstellung): Erkläre die Übung und die Muskeln.', back: '1. Setz dich hin, <strong>Füße auf den Boden</strong>, <strong>Hände hinter dir</strong> aufgestützt.<br>2. <strong>Heb den Po an</strong>, bis der Bauch zur Decke zeigt, und setz ihn wieder ab.<br>3. Du gehst dabei nicht. <strong>30 Sekunden</strong> lang.<br><br><strong>Muskeln:</strong> Der <strong>Po</strong> (Gesäß) hebt dich hoch, der <strong>Oberarm hinten</strong> (Trizeps) stützt dich ab.' }
+    { front: 'Kniebeugen, 10-mal: Erkläre die Übung und die Muskeln.', back: '<strong>10-mal</strong>.<br>1. Stell dich <strong>schulterbreit</strong> hin, Arme nach vorn.<br>2. Geh mit dem <strong>Po nach hinten unten</strong>, wie auf einen Stuhl.<br>3. Der Rücken bleibt <strong>gerade</strong>.<br>4. Steh wieder auf.<br><br><strong>Muskeln:</strong> die <strong>Oberschenkelmuskeln</strong> und die <strong>Po-Muskeln</strong>.' },
+    { front: 'Rumpfkreisen, je 10-mal: Erkläre die Übung und die Muskeln.', back: '<strong>Je 10-mal</strong> rechts und links herum.<br>1. Stell dich <strong>schulterbreit</strong> hin, <strong>Hände an die Hüfte</strong>.<br>2. Kreise mit der Hüfte <strong>große Kreise</strong>.<br>3. Erst <strong>rechts herum</strong>, dann <strong>links herum</strong>.<br><br><strong>Muskeln:</strong> die <strong>Bauchmuskeln</strong> und die <strong>Rückenmuskeln</strong>.' },
+    { front: 'Hampelmann, 20-mal: Erkläre die Übung und die Muskeln.', back: '<strong>20-mal</strong>.<br>1. Spring und mach <strong>Beine und Arme gleichzeitig auseinander</strong>.<br>2. Die Arme gehen über den Kopf.<br>3. Spring wieder zurück.<br><br><strong>Muskeln:</strong> die <strong>Beinmuskeln</strong> und die <strong>Schultermuskeln</strong>. Das Herz schlägt schneller.' },
+    { front: 'Armkreisen, je 10-mal: Erkläre die Übung und die Muskeln.', back: '<strong>Je 10-mal</strong> vorwärts und rückwärts.<br>1. Stell dich hin und streck die <strong>Arme zur Seite</strong>.<br>2. Kreise mit den Armen, erst <strong>vorwärts</strong>, dann <strong>rückwärts</strong>.<br>3. Zieh die Schultern nicht hoch.<br><br><strong>Muskeln:</strong> die <strong>Schultermuskeln</strong> und die <strong>Nackenmuskeln</strong>.' },
+    { front: 'Hüftheben (Krabbenstellung), 12-mal: Erkläre die Übung und die Muskeln.', back: '<strong>12-mal</strong>.<br>1. Setz dich hin, <strong>Füße auf den Boden</strong>, <strong>Hände hinter dir</strong> aufgestützt.<br>2. <strong>Heb den Po an</strong>, bis der Bauch zur Decke zeigt, und setz ihn wieder ab.<br>3. Du gehst dabei nicht.<br><br><strong>Muskeln:</strong> die <strong>Po-Muskeln</strong> und die <strong>Armmuskeln</strong> (hinten am Oberarm).' }
   ];
   const LERNKARTEN_SPORT_ABLAUF = [
-    { front: 'Die Erwärmung dauert 3 Minuten. Nenne die 5 Übungen in der richtigen Reihenfolge.', back: '1. Kniebeugen<br>2. Rumpfkreisen<br>3. Hampelmann<br>4. Armkreisen<br>5. Hüftheben (Krabbenstellung)<br><br>Jede Übung dauert <strong>30 Sekunden</strong>.' }
+    { front: 'Erwärmung (3 Minuten): Welche Übung ist die 1.?', back: '<strong>Kniebeugen</strong>, 10-mal.' },
+    { front: 'Erwärmung (3 Minuten): Welche Übung ist die 2.?', back: '<strong>Rumpfkreisen</strong>, je 10-mal rechts und links.' },
+    { front: 'Erwärmung (3 Minuten): Welche Übung ist die 3.?', back: '<strong>Hampelmann</strong>, 20-mal.' },
+    { front: 'Erwärmung (3 Minuten): Welche Übung ist die 4.?', back: '<strong>Armkreisen</strong>, je 10-mal vorwärts und rückwärts.' },
+    { front: 'Erwärmung (3 Minuten): Welche Übung ist die 5.?', back: '<strong>Hüftheben</strong> (Krabbenstellung), 12-mal.' }
   ];
 
   // Heft S.18
@@ -273,8 +277,8 @@ const Heimatkunde = (function () {
     // den Deck-Aufbau, weil die Gewichtung sich auf die QUELL-Statistik
     // stuetzen muss, nicht auf eine eigene 'rad_falsch'-Statistik).
     rad_falsch: { gruppe: 'rad', titel: 'Falsche Karten wiederholen', icon: 'drehen', karten: sammleFalscheRadKarten, bewertung: true },
-    sport_ablauf: { gruppe: 'sport', titel: 'Die Reihenfolge', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SPORT_ABLAUF, bewertung: true },
-    sport_uebungen: { gruppe: 'sport', titel: 'Die Übungen erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_UEBUNGEN, bewertung: true },
+    sport_ablauf: { gruppe: 'sport', titel: 'Die Reihenfolge', icon: 'tagesaufgabe', karten: () => LERNKARTEN_SPORT_ABLAUF, bewertung: true, geordnet: true },
+    sport_uebungen: { gruppe: 'sport', titel: 'Die Übungen erklären', icon: 'sport', karten: () => LERNKARTEN_SPORT_UEBUNGEN, bewertung: true, geordnet: true },
   };
 
   // ---- Gewichteter Kartendeck-Aufbau fuer die bewertung:true-Themen, 1:1
@@ -325,6 +329,8 @@ const Heimatkunde = (function () {
       const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stats[i]) / 3)));
       for (let n = 0; n < kopien; n++) indexDeck.push(i);
     });
+    // geordnet: feste Reihenfolge (Sport-Erwaermung: so wird sie abgearbeitet)
+    if (LERNTHEMEN[thema] && LERNTHEMEN[thema].geordnet) return karten.map((k, i) => Object.assign({ _idx: i }, k));
     return mischeOhneNachbarWiederholung(indexDeck).map(i => Object.assign({ _idx: i }, karten[i]));
   }
 
@@ -823,7 +829,7 @@ const Heimatkunde = (function () {
    *  Eltern-App (tools/export_lernkarten.js). */
   function lernthemenFuerExport(gruppe) {
     return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === (gruppe || 'rad') && k !== 'rad_falsch')
-      .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
+      .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, geordnet: !!LERNTHEMEN[k].geordnet, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 
   return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
