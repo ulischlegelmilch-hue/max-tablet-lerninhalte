@@ -178,9 +178,6 @@ const App = (function () {
     // unten: nur ein expliziter Speichern-Klick persistiert etwas wirklich.
     regelnEntwurfAusnahmen = null;
     const streak = Storage.getTagesStreak();
-    const streakText = streak.anzahl > 0
-      ? `${streak.anzahl} ${streak.anzahl === 1 ? 'Tag' : 'Tage'} in Folge`
-      : 'Leg heute los!';
     const geschichtenFortschritt = Storage.getGeschichtenFortschritt();
 
     // Naechste Geschichte als "Extra" unter der Ferientraining-Checkliste (zaehlt nicht mit)
@@ -191,47 +188,67 @@ const App = (function () {
         <span class="fth-text"><span class="fth-titel">${GESCHICHTEN_STATUS_PRAEFIX[offen.status]}${offen.titel}</span><span class="fth-sub">Extra zum Lesen</span></span>
       </div>`;
 
-    const smItem = (accent, icon, label, sub, onclick, badge) => `
-      <div class="sm-item" onclick="${onclick}">
-        <span class="sm-icon icon-${accent}">${Icons.kat(icon === 'spielen' ? 'spiele' : icon)}${badge ? '<span class="menu-badge"></span>' : ''}</span>
-        <span class="sm-text"><span class="sm-label">${label}</span><span class="sm-sub">${sub}</span></span>
-      </div>`;
     const ungelesen = chatUngelesen();
 
-    // Startseite: links Seitenmenue (Bereiche in Gruppen), rechts das Dashboard
+    // Startseite "Dein Tag" (28.10.2026, A1 - altersgerecht fuer Max, 9 J.): oben Fritz + EIN Satz, dann die naechsten
+    // Tagesschritte als grosse Karten mit EINEM gelben Weiter-Knopf, darunter grosse Kacheln fuer alle Bereiche.
+    // Die Karten der anderen Bausteine (Papa-Nachricht, Fuchs-Schach, Zusatzaufgaben, Grundbegriffe) bleiben erhalten.
+    const plan = Ferientraining.liste();
+    const erledigt = plan.filter(i => i.fertig).length, rest = plan.length - erledigt;
+    const naechste = plan.filter(i => !i.fertig);
+    const zeigen = naechste.slice(0, 3);
+    const satz = rest === 0 ? 'Alles geschafft – jetzt ist frei!' : rest === 1 ? 'Noch 1 Aufgabe – dann ist frei.' : `Noch ${rest} Aufgaben – dann ist frei.`;
+    const fritz = typeof Fritz !== 'undefined' ? Fritz.svg(rest === 0 ? 'jubelt' : 'zeigt', 104) : '';
+    const katKachel = (accent, icon) => `<span class="st-kat icon-${accent}">${Icons.kat(icon)}</span>`;   // farbige Icon-Kachel (Farben aus dunkel.css)
+    const fachIcon = i => { const f = ['heimat', 'deutsch', 'sport'].indexOf(i.fach) >= 0 ? i.fach : 'mathe'; return katKachel(f, f); };
+    const schrittHtml = (i, nr) => `
+      <div class="st-schritt${nr === 0 ? ' st-jetzt' : ''}" onclick="Ferientraining.starte('${i.id}')">
+        <span class="st-nr">${erledigt + nr + 1}</span>
+        <span class="st-schritt-icon">${fachIcon(i)}</span>
+        <span class="st-schritt-text"><span class="st-schritt-titel">${i.titel}</span><span class="st-schritt-stand">${Math.min(i.n, i.z)} von ${i.z}</span></span>
+      </div>`;
+    const kachel = (icon, label, sub, onclick, badge, accent) => `
+      <div class="st-kachel" onclick="${onclick}">
+        <span class="st-kachel-icon">${katKachel(accent || icon, icon)}${badge ? '<span class="st-badge"></span>' : ''}</span>
+        <span class="st-kachel-label">${label}</span>${sub ? `<span class="st-kachel-sub">${sub}</span>` : ''}
+      </div>`;
+
     render(`
-      <div class="home-layout">
-        <nav class="home-seitenmenue">
-          <div class="home-gruppe-titel">Lernen</div>
-          ${smItem('mathe', 'mathe', 'Mathe', `${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst`, 'Mathe.renderMenu()')}
-          ${smItem('deutsch', 'deutsch', 'Deutsch', `${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst`, 'Deutsch.renderMenu()')}
-          ${smItem('heimat', 'heimat', 'Heimat &amp; Sachkunde', `${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst`, 'Heimatkunde.renderMenu()')}
-          ${smItem('sport', 'sport', 'Sport', 'Erwärmung lernen', "Heimatkunde.starteThemenwahl('sport')")}
-          ${smItem('geschichten', 'geschichten', 'Geschichten', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen`, 'Geschichten.renderMenu()')}
-          <div class="home-gruppe-titel">Spielen &amp; mehr</div>
-          ${smItem('spiele', 'spielen', 'Spiele', 'Schach, Schiffe, Mau-Mau', 'App.renderSpieleMenu()')}
-          ${smItem('chat', 'chat', 'Chat mit Papa', ungelesen ? '🔴 Neue Nachricht!' : 'Nachricht schreiben', 'Chat.starteAnsicht()', ungelesen)}
-          ${smItem('belohnung', 'geschenk', 'Belohnungen', `${Storage.getGuthaben()} ⭐ gesammelt`, 'Belohnungen.renderMenu()')}
-        </nav>
-        <main class="home-haupt">
-          <div class="home-greeting">
-            <div class="home-avatar">M</div>
-            <div>
-              <div class="home-greeting-hallo">Hallo Max!</div>
-              <div class="home-streak">${Icons.svg('streak')} ${streakText}</div>
-            </div>
-          </div>
+      <div class="st">
+        <div class="st-kopf">
+          <div class="st-fritz">${fritz}</div>
+          <div class="st-gruss"><div class="st-hallo">Hallo Max!</div><div class="st-satz">${satz}</div></div>
+          ${streak.anzahl > 1 ? `<div class="st-chip">${Icons.svg('streak')} ${streak.anzahl} Tage</div>` : ''}
+        </div>
 
-          ${chatHinweisHtml()}
+        ${chatHinweisHtml()}
 
+        <section class="st-tag">
+          <div class="st-tag-kopf" onclick="Ferientraining.renderListe()"><span>Dein Tag</span><span class="st-tag-zahl">${erledigt}<small> von ${plan.length}</small></span></div>
+          ${rest === 0
+            ? `<div class="st-fertig">Super, Max! Alle ${plan.length} Aufgaben sind geschafft.</div>`
+            : `<div class="st-schritte">${zeigen.map(schrittHtml).join('')}</div>
+               <button class="st-weiter" onclick="Ferientraining.starte('${naechste[0].id}')">▶ Weiter: ${naechste[0].titel}</button>`}
+          <div class="st-alle" onclick="Ferientraining.renderListe()">Alle ${plan.length} Aufgaben ansehen ›</div>
+        </section>
+
+        <section class="st-kacheln">
+          ${kachel('mathe', 'Mathe', '', 'Mathe.renderMenu()')}
+          ${kachel('deutsch', 'Deutsch', '', 'Deutsch.renderMenu()')}
+          ${kachel('heimat', 'Sachkunde', '', 'Heimatkunde.renderMenu()')}
+          ${kachel('sport', 'Sport', '', "Heimatkunde.starteThemenwahl('sport')")}
+          ${kachel('geschichten', 'Lesen', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt}`, 'Geschichten.renderMenu()')}
+          ${kachel('spiele', 'Spiele', 'Hof-Farm, Schach …', 'App.renderSpieleMenu()')}
+          ${kachel('chat', 'Papa', ungelesen ? 'Neue Nachricht!' : 'Schreiben', 'Chat.starteAnsicht()', ungelesen)}
+          ${kachel('geschenk', 'Belohnungen', `${Storage.getGuthaben()} ⭐`, 'Belohnungen.renderMenu()', false, 'belohnung')}
+        </section>
+
+        <section class="st-extra">
           ${typeof Fuchs !== 'undefined' ? Fuchs.homeKarteHtml() : ''}
-
           ${FernSync.zusatzaufgabenHtml()}
-
           ${typeof Grundbegriffe !== 'undefined' ? Grundbegriffe.homeKarteHtml() : ''}
-
-          ${Ferientraining.homeKarteHtml(extraHtml)}
-        </main>
+          ${extraHtml.replace('fth-zeile fth-extra', 'fth-zeile fth-extra st-geschichte')}
+        </section>
       </div>
     `);
     istAufHomeBildschirm = true;
@@ -260,9 +277,9 @@ const App = (function () {
           <span class="menu-icon icon-quartett">${Icons.kat('quartett')}</span>
           <span class="menu-text"><span class="menu-label">Quartett</span><span class="menu-progress">${Quartett.fortschrittText()}</span></span>
         </div>
-        <div class="menu-card accent-farm" onclick="Farm.oeffnen()">
+        <div class="menu-card accent-farm" onclick="FarmLader.oeffnen()">
           <span class="menu-icon icon-farm">${Icons.kat('farm')}</span>
-          <span class="menu-text"><span class="menu-label">Hof-Farm</span><span class="menu-progress">${Farm.fortschrittText()}</span></span>
+          <span class="menu-text"><span class="menu-label">Hof-Farm</span><span class="menu-progress">${FarmLader.fortschrittText()}</span></span>
         </div>
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
           <span class="menu-icon icon-maumau">${Icons.kat('maumau')}</span>

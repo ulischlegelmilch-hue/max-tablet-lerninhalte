@@ -187,7 +187,7 @@ const Ferientraining = (function () {
   }
 
   /** Heutige Punkte fuer die Hof-Farm: [{ id, titel, fertig, n, z, richtig }] */
-  function liste() { return PLAN.map(i => { const s = stand(i); return { id: i.id, titel: i.titel, fertig: s.fertig, n: s.n, z: s.z, richtig: Math.min(s.n, Storage.getFerienRichtig(i.id)) }; }); }
+  function liste() { return PLAN.map(i => { const s = stand(i); return { id: i.id, titel: i.titel, fach: i.fach, icon: i.icon, fertig: s.fertig, n: s.n, z: s.z, richtig: Math.min(s.n, Storage.getFerienRichtig(i.id)) }; }); }
 
   return { liste, melde, abschluss, restAnzahl, chips, homeKarteHtml, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
 })();

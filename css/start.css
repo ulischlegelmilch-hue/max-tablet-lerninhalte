@@ -1,0 +1,70 @@
+/* Startseite "Dein Tag" (28.10.2026, A1): Stil der Hof-Farm 2.0 ("Arena": Navy, dicke Kontur, 3D-Knoepfe,
+   Lilita One/Fredoka), altersgerecht fuer Max (9 J.): Ziele >= 64 px, Text >= 18 px, ein gelber Hauptknopf.
+   Schriften lokal (OFL, Lizenz in fonts/OFL-*.txt). Nur transform/opacity animiert, keine Weichzeichner. */
+@font-face { font-family: 'Lilita One'; src: url('../fonts/lilita-one-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Fredoka'; src: url('../fonts/fredoka-latin-600-normal.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Fredoka'; src: url('../fonts/fredoka-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+
+.st {
+  --st-ink: #0A0D26; --st-navy: #161C4A; --st-navy2: #1F2766; --st-navy3: #2B3589; --st-txt2: #BCC5FF;
+  --st-gelb1: #FFF07A; --st-gelb2: #FFC61A; --st-gelb3: #FF9E00; --st-gelb-k: #B35C00;
+  --st-gruen: #3FD447; --st-titel: 'Lilita One', 'Fredoka', system-ui, sans-serif; --st-text: 'Fredoka', system-ui, sans-serif;
+  max-width: 1180px; margin: 0 auto; padding: 8px 4px 28px; display: flex; flex-direction: column; gap: 18px;
+  font-family: var(--st-text); color: #fff;
+}
+.st-kopf { display: flex; align-items: center; gap: 16px; }
+.st-fritz { flex: 0 0 auto; width: 104px; height: 104px; }
+.st-fritz svg { display: block; }
+.st-gruss { flex: 1 1 auto; min-width: 0; }
+.st-hallo { font-family: var(--st-titel); font-size: 44px; line-height: 48px; text-shadow: 0 3px 0 var(--st-ink); }
+.st-satz { font-size: 23px; font-weight: 600; color: var(--st-txt2); }
+.st-chip { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 18px; border-radius: 28px; background: var(--st-navy);
+  border: 3px solid var(--st-ink); box-shadow: 0 4px 0 var(--st-ink); font-family: var(--st-titel); font-size: 24px; }
+.st-chip svg { width: 26px; height: 26px; }
+
+.st-tag { border-radius: 26px; border: 3px solid var(--st-ink); padding: 18px 20px 20px;
+  background: radial-gradient(130% 70% at 50% -8%, #34409E, #1E2667 42%, #141A4D 75%, #0F1440);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 6px 0 var(--st-ink); display: flex; flex-direction: column; gap: 16px; }
+.st-tag-kopf { display: flex; align-items: baseline; justify-content: space-between; font-family: var(--st-titel); font-size: 32px; cursor: pointer; }
+.st-tag-zahl { font-size: 36px; color: var(--st-gelb2); } .st-tag-zahl small { font-size: 22px; color: var(--st-txt2); }
+.st-schritte { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.st-schritt { position: relative; min-height: 104px; display: flex; align-items: center; gap: 14px; padding: 16px 16px 16px 18px; cursor: pointer;
+  border-radius: 22px; border: 3px solid var(--st-ink); background: linear-gradient(180deg, #2F3A9A, #1F2766);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.18), 0 6px 0 var(--st-ink); }
+.st-schritt.st-jetzt { box-shadow: inset 0 3px 0 rgba(255,255,255,.18), 0 6px 0 var(--st-ink), 0 0 0 4px var(--st-gelb2); }
+.st-schritt:active, .st-kachel:active { transform: translateY(4px); }
+.st-nr { position: absolute; top: -14px; left: -10px; width: 42px; height: 42px; border-radius: 21px; background: var(--st-gelb2); color: var(--st-ink);
+  border: 3px solid var(--st-ink); font-family: var(--st-titel); font-size: 24px; display: flex; align-items: center; justify-content: center; }
+.st-schritt-icon { flex: 0 0 60px; width: 60px; height: 60px; }
+.st-kat { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 18px; border: 3px solid var(--st-ink);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.3), 0 4px 0 var(--st-ink); }
+.st-kat svg { width: 62% !important; height: 62% !important; }
+.st-schritt-text { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.st-schritt-titel { font-family: var(--st-titel); font-size: 22px; line-height: 26px; }
+.st-schritt-stand { font-size: 19px; font-weight: 600; color: var(--st-txt2); }
+.st-weiter { display: block; width: 100%; min-height: 88px; border: 3px solid var(--st-ink); border-radius: 22px; cursor: pointer;
+  background: linear-gradient(180deg, var(--st-gelb1), var(--st-gelb2) 55%, var(--st-gelb3));
+  box-shadow: inset 0 -7px 0 var(--st-gelb-k), inset 0 3px 0 rgba(255,255,255,.55), 0 5px 0 var(--st-ink), 0 12px 16px rgba(0,0,0,.35);
+  font-family: var(--st-titel); font-size: 32px; color: #fff; padding: 10px 18px;
+  text-shadow: 2px 0 var(--st-ink), -2px 0 var(--st-ink), 0 2px var(--st-ink), 0 -2px var(--st-ink), 0 4px var(--st-ink); }
+.st-weiter:active { transform: translateY(4px); box-shadow: inset 0 -4px 0 var(--st-gelb-k), 0 1px 0 var(--st-ink); }
+.st-fertig { font-family: var(--st-titel); font-size: 28px; color: var(--st-gruen); text-align: center; padding: 14px 0; }
+.st-alle { align-self: center; min-height: 48px; display: flex; align-items: center; padding: 0 16px; font-size: 20px; font-weight: 700; color: var(--st-txt2); cursor: pointer; }
+
+.st-kacheln { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.st-kachel { min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; text-align: center;
+  border-radius: 24px; border: 3px solid var(--st-ink); background: linear-gradient(180deg, #3A47B0, #232C7C);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.2), 0 6px 0 var(--st-ink); padding: 12px 8px; }
+.st-kachel-icon { position: relative; width: 72px; height: 72px; }
+.st-kachel-label { font-family: var(--st-titel); font-size: 26px; line-height: 30px; }
+.st-kachel-sub { font-size: 18px; font-weight: 600; color: #FFE36E; }
+.st-badge { position: absolute; top: -6px; right: -8px; width: 22px; height: 22px; border-radius: 11px; background: #F2424A; border: 3px solid var(--st-ink); }
+
+.st-extra { display: flex; flex-direction: column; gap: 14px; }
+.st-geschichte { border-radius: 18px; border: 3px solid var(--st-ink); background: var(--st-navy); min-height: 72px; }
+
+@media (max-width: 820px) {
+  .st-schritte { grid-template-columns: minmax(0, 1fr); }
+  .st-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .st-hallo { font-size: 36px; line-height: 40px; }
+}

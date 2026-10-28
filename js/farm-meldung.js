@@ -88,13 +88,15 @@ const FarmMeldung = (function () {
     return box;
   }
   function zeige(m, imHof) {
+    // T4: Ohne geladene Farm fehlen Icons/Stil - einmal nachladen und dann zeigen (ohne Stil geht es notfalls auch)
+    if (!FS() && typeof FarmLader !== 'undefined' && !m.stilGeladen) { m.stilGeladen = true; FarmLader.stil().then(() => zeige(m, imHof), () => zeige(m, imHof)); return; }
     const b = behaelter(imHof);
     const alt = b.querySelector('[data-k="' + m.key + '"]'); if (alt) alt.parentNode.removeChild(alt);
     const el = document.createElement('div');
     const fs = FS();
     el.className = 'fm-karte ' + (m.ton === 'warn' || m.ton === 'reif' || m.ton === 'neu' ? m.ton : '') + (fs ? '' : ' fm-ohne');
     el.setAttribute('data-k', m.key);
-    const zumHof = !imHof && !offen && typeof Farm !== 'undefined';
+    const zumHof = !imHof && !offen && (typeof FarmLader !== 'undefined' || typeof Farm !== 'undefined');
     const iconHtml = fs ? fs.icon(fs.hatIcon(m.icon) ? m.icon : 'ausrufe', 42) : '';
     el.innerHTML = (fs ? '<div class="fm-fuchs">' + fs.fuchs(POSE[m.ton] || 'neutral', 58) + '</div>' : '') +
       '<div class="fm-icon">' + iconHtml + '</div><div class="fm-text"><div class="fm-titel"></div><div class="fm-sub"></div></div>' +
@@ -103,7 +105,7 @@ const FarmMeldung = (function () {
     el.querySelector('.fm-titel').textContent = m.titel; el.querySelector('.fm-sub').textContent = m.text;
     const weg = () => { if (el.parentNode) el.parentNode.removeChild(el); };
     el.querySelector('.fm-x').addEventListener('click', weg);
-    const zu = el.querySelector('.fm-zu'); if (zu) zu.addEventListener('click', () => { weg(); Farm.oeffnen(); });
+    const zu = el.querySelector('.fm-zu'); if (zu) zu.addEventListener('click', () => { weg(); if (typeof FarmLader !== 'undefined') FarmLader.oeffnen(); else Farm.oeffnen(); });
     b.appendChild(el);
     // ausserhalb des Hofs nur EINE Karte (sonst zwei gelbe "Zum Hof"-Knoepfe gleichzeitig) - die neueste gewinnt
     while (b.children.length > (imHof ? 3 : 1)) b.removeChild(b.firstChild);

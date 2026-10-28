@@ -8,6 +8,8 @@
 <link rel="stylesheet" href="css/spiele.css">
 <link rel="stylesheet" href="css/quartett.css">
 <link rel="stylesheet" href="css/dunkel.css">
+<link rel="stylesheet" href="css/start.css">
+<link rel="stylesheet" href="css/aufgabe.css">
 </head>
 <body class="spielbuehne">
 
@@ -37,6 +39,7 @@
 </div>
 
 <script src="js/icons.js"></script>
+<script src="js/fritz.js"></script>
 <script src="js/figuren.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/fernsync.js"></script>
@@ -76,16 +79,10 @@
 <script src="js/quartett-ui.js"></script>
 <script src="js/quartett.js"></script>
 <script src="js/quartett-online.js"></script>
-<script src="js/farm-daten.js"></script>
-<script src="js/farm-gfx.js"></script>
-<script src="js/farm-modell.js"></script>
-<script src="js/farm-icons.js"></script>
-<script src="js/farm-stil.js"></script>
-<script src="js/farm-ansicht.js"></script>
-<script src="js/farm-lernen.js"></script>
+<script src="js/farm-daten.js"></script>  <!-- 52 KB Daten: farm-meldung.js braucht die Namen -->
+<script src="js/farm-lader.js"></script>  <!-- Hof-Farm wird erst beim Oeffnen geladen (T4) -->
 <script src="js/farm-meldung.js"></script>
-<script src="js/farm.js"></script>
-<script>Farm.konfig({ fern: { basis: 'https://max-tablet-api.paceforge-pi.co.uk', von: 'max' } }); // gemeinsamer Hof auf dem Pi (backend/farm-server.js)
+<script>// Farm.konfig macht jetzt FarmLader beim ersten Oeffnen (js/farm-lader.js)
 FarmMeldung.start('https://max-tablet-api.paceforge-pi.co.uk');</script>
 <script>
   App.init();
