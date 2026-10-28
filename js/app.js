@@ -87,6 +87,9 @@ const App = (function () {
   // zwar Storage, aber ohne Neu-Rendern blieb das Badge unsichtbar.
   let istAufHomeBildschirm = false;
 
+  /** Startseite ist wirklich zu sehen (keine Aufgabe, kein Spiel, keine Hof-Farm darueber) - fuer Fuchs.tagesImpuls. */
+  function istStartSichtbar() { return istAufHomeBildschirm && !document.getElementById('farm'); }
+
   function render(html) {
     istAufHomeBildschirm = false;
     if (onLeaveScreen) {
@@ -1250,6 +1253,6 @@ const App = (function () {
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeAusnahmeHinzu, loescheAusnahme,
     speichereTagesregeln, fortschrittWirklichZuruecksetzen,
     fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,
-    aktualisiereHomeFallsAktiv
+    aktualisiereHomeFallsAktiv, istStartSichtbar
   };
 })();

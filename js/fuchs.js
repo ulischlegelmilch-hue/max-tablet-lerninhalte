@@ -103,6 +103,8 @@ const Fuchs = (function () {
       const f = Storage.getFuchs();
       if (!f.vorgestellt || Storage.fuchsHeuteGespielt() || !imZeitfenster()) return;
       if (document.getElementById('hinweis-popup') || document.getElementById('fuchs-vorstellung')) return;
+      // Nie mitten in Aufgaben/Spielen unterbrechen (28.10.2026, Uli: T1) - nur auf der Startseite; der naechste Abruf versucht es wieder
+      if (typeof App === 'undefined' || !App.istStartSichtbar || !App.istStartSichtbar()) return;
       const heute = Storage.getHeutigesDatum();
       if (f.nudgeTag !== heute) { f.nudgeTag = heute; f.nudgeAnzahl = 0; f.nudgeTs = 0; }
       if (f.nudgeAnzahl >= NUDGE_MAX_PRO_TAG || Date.now() - (f.nudgeTs || 0) < NUDGE_ABSTAND_MS) return;
@@ -113,7 +115,7 @@ const Fuchs = (function () {
       const tag = Math.floor(Date.now() / 86400000) % 3;
       let text;
       if (vonPapa) text = `Papa empfiehlt dir heute den Trick ${trick.emoji} „${trick.titel}“. Probier ihn gegen ihn aus!`;
-      else if (serie >= 2 && f.nudgeAnzahl === 1) text = `Du hast schon ${serie} Tage in Folge gegen Papa gespielt 🔥 Mach weiter – heute probierst du: ${trick.emoji} „${trick.titel}“!`;
+      else if (serie >= 2 && f.nudgeAnzahl === 1) text = `Du hast schon an ${serie} Tagen gegen Papa gespielt 🔥 Heute probierst du: ${trick.emoji} „${trick.titel}“!`;
       else text = [
         `Hey Max! Papa wartet auf dich. Lust auf eine Partie? Probier heute: ${trick.emoji} „${trick.titel}“!`,
         `Na, Schachfuchs? Eine Partie gegen Papa gefällig? Heute dein Trick: ${trick.emoji} „${trick.titel}“!`,
@@ -144,7 +146,7 @@ const Fuchs = (function () {
       const serie = Storage.fuchsSerie();
       if (Storage.fuchsHeuteGespielt()) {
         return `<div class="fuchs-karte fuchs-karte-fertig" onclick="SchachWeg.renderHub()"><span class="fuchs-karte-emoji">🦊</span>
-          <span class="fuchs-karte-text"><b>Heute schon gegen Papa gespielt – klasse!</b><small>${serie >= 2 ? `🔥 ${serie} Tage in Folge` : 'Morgen wieder?'}</small></span><span class="fuchs-karte-los">Akademie ›</span></div>`;
+          <span class="fuchs-karte-text"><b>Heute schon gegen Papa gespielt – klasse!</b><small>${serie >= 2 ? `🔥 ${serie} Spieltage` : 'Morgen wieder?'}</small></span><span class="fuchs-karte-los">Akademie ›</span></div>`;
       }
       const { trick, vonPapa } = empfohlenerTrick();
       return `<div class="fuchs-karte" onclick="Fuchs.tagesStart()"><span class="fuchs-karte-emoji">🦊</span>
@@ -173,7 +175,7 @@ const Fuchs = (function () {
     bonusOffen = false;
     const serie = Storage.fuchsSerie();
     try {
-      Hinweise.zeigePopup('🔥', 'Fuchs-Bonus!', `Du hast heute gegen Papa gespielt: +10 ⭐${serie >= 2 ? ` · ${serie} Tage in Folge!` : ''}`, [{ text: 'Super!', primaer: true }], 'fuchsbonus');
+      Hinweise.zeigePopup('🔥', 'Fuchs-Bonus!', `Du hast heute gegen Papa gespielt: +10 ⭐${serie >= 2 ? ` · schon ${serie} Spieltage!` : ''}`, [{ text: 'Super!', primaer: true }], 'fuchsbonus');
     } catch (e) { /* optional */ }
   }
 

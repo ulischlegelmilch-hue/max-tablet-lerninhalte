@@ -912,17 +912,14 @@ const Storage = (function () {
     const f = fuchsDaten();
     const heute = heutigesDatum();
     if (f.letzterTag === heute) return false;
-    f.serie = f.letzterTag === heutigesDatum(-1) ? (f.serie || 0) + 1 : 1;
+    f.serie = (f.serie || 0) + 1;   // zaehlt Spieltage; eine Pause setzt nicht zurueck (28.10.2026)
     f.letzterTag = heute;
     save(state);
     return true;
   }
   function fuchsHeuteGespielt() { return fuchsDaten().letzterTag === heutigesDatum(); }
-  /** Serie laeuft nur weiter, wenn gestern oder heute gespielt wurde. */
-  function fuchsSerie() {
-    const f = fuchsDaten();
-    return (f.letzterTag === heutigesDatum() || f.letzterTag === heutigesDatum(-1)) ? (f.serie || 0) : 0;
-  }
+  /** Anzahl Tage, an denen Max gegen Papa gespielt hat - bleibt bei einer Pause stehen (keine Strafe fuers Wegbleiben). */
+  function fuchsSerie() { return fuchsDaten().serie || 0; }
   function meldeSchachWegVersuch(id) {
     const w = getSchachWeg();
     if (!w.versuche) w.versuche = {};
