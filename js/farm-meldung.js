@@ -127,6 +127,7 @@ const FarmMeldung = (function () {
       const r = await fetch(basis + '/api/farm?von=hg&ohneStand=1' + (ev >= 0 ? '&ev=' + ev : ''));
       if (!r.ok) return;
       const j = await r.json();
+      if (j && j.zeit && typeof Storage !== 'undefined' && Storage.setServerZeit) Storage.setServerZeit(j.zeit);   // T3: Pi-Zeit gegen falsche Tablet-Uhr
       if (!j.init) return;
       if (ev >= 0 && j.ereignisse && !offen) {
         const liste = j.ereignisse.map(e => beschreibe(e.art, e.daten)).filter(Boolean);

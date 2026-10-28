@@ -189,8 +189,33 @@ const Storage = (function () {
     return Math.floor(state.sterne / 100) + 1;
   }
 
+  // ---- Uhrzeit-Korrektur (28.10.2026, T3): Nach einem Neustart stand die Tablet-Uhr schon auf dem
+  // 02.01.2025 (Diagnose-Protokoll) - dann stimmen Tagesplan, Serien und Tagesregeln nicht. Die Pi-Zeit
+  // kommt alle 15 s mit der Hof-Abfrage (farm-meldung.js -> setServerZeit). Weicht die Tablet-Uhr um mehr
+  // als 5 Min ab, rechnet die App mit der Pi-Zeit. Bis der Pi erreichbar ist, gilt: eine Geraetezeit VOR der
+  // zuletzt bekannten Pi-Zeit ist sicher falsch -> vorlaeufig die letzte bekannte Pi-Zeit nehmen.
+  const ZEIT_KEY = 'maxlernt_zeit_v1', ZEIT_TOLERANZ_MS = 5 * 60 * 1000;
+  let zeitVersatz = 0, zeitGemeldet = false;
+  (function zeitPlausibel() {
+    try {
+      const letzte = +localStorage.getItem(ZEIT_KEY) || 0;
+      if (letzte && Date.now() < letzte - 60 * 60 * 1000) zeitVersatz = letzte - Date.now();
+    } catch (e) { /* ohne Speicher: Geraetezeit */ }
+  })();
+  function jetztKorrigiert() { return new Date(Date.now() + zeitVersatz); }
+  function setServerZeit(ms) {
+    if (!(ms > 1.7e12)) return;                                  // nur plausible Zeitstempel (nach 2023)
+    const diff = ms - Date.now();
+    zeitVersatz = Math.abs(diff) > ZEIT_TOLERANZ_MS ? diff : 0;
+    try { if (ms > (+localStorage.getItem(ZEIT_KEY) || 0)) localStorage.setItem(ZEIT_KEY, String(ms)); } catch (e) { /* optional */ }
+    if (zeitVersatz && !zeitGemeldet) {
+      zeitGemeldet = true;
+      try { if (typeof AndroidBridge !== 'undefined' && AndroidBridge.logDiagnose) AndroidBridge.logDiagnose('Tablet-Uhr falsch um ' + (Math.abs(diff) >= 864e5 ? Math.round(diff / 864e5) + ' Tage' : Math.round(diff / 60000) + ' Min') + ' - nutze Pi-Zeit'); } catch (e) { /* optional */ }
+    }
+  }
+
   function heutigesDatum(versatzTage) {
-    const d = new Date();
+    const d = jetztKorrigiert();
     if (versatzTage) d.setDate(d.getDate() + versatzTage);
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
@@ -266,7 +291,7 @@ const Storage = (function () {
    *  Handy-Regel eine Tablet-Konfiguration unbeabsichtigt ueberschrieb, ohne
    *  dass die eine Seite die Regeln der anderen je zu sehen bekam. */
   function findeHeutigeRegelnKombiniert() {
-    const heute = new Date();
+    const heute = jetztKorrigiert();
     const heuteIso = heutigesDatum();
     return findeZutreffendeRegelnHeute(getFernRegeln(), heute, heuteIso);
   }
@@ -293,7 +318,7 @@ const Storage = (function () {
     const kombiniert = findeHeutigeRegelnKombiniert();
     const faecher = Object.keys(kombiniert);
     if (faecher.length === 0) {
-      const heute = new Date();
+      const heute = jetztKorrigiert();
       const jahresanfang = new Date(heute.getFullYear(), 0, 1);
       const tagDesJahres = Math.floor((heute - jahresanfang) / 86400000);
       const fach = tagDesJahres % 2 === 0 ? 'mathe' : 'deutsch';
@@ -696,7 +721,7 @@ const Storage = (function () {
    *  Abwechslung), und nur an jedem dritten Tag zusaetzlich 1 Strategie-Quiz -
    *  haelt den Plan an den meisten Tagen kurz (15-20 Minuten Zielrahmen). */
   function generiereSchachTagesplanSchritte() {
-    const heute = new Date();
+    const heute = jetztKorrigiert();
     const tag = tagDesJahres(heute);
     const frei = getTaktikFreigeschaltet();
     const schritte = [
@@ -1085,6 +1110,7 @@ const Storage = (function () {
   }
 
   return {
+    setServerZeit, jetztKorrigiert,
     addAntwort, getState, level, saveLeseFortschritt, getLeseFortschritt, markGeschichteFertig,
     getMalfolgenStats, meldeMalfolgenErgebnis, getMalfolgenReihen, setMalfolgenReihen,
     getMatheKategorienStats, meldeMatheKategorieErgebnis, getFaelleSerie, meldeFallErgebnis, addSterne,

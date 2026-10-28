@@ -90,14 +90,23 @@ const Hinweise = (function () {
   setInterval(() => akkuPruefen('timer'), 60 * 1000);
 
   // Haenger-Waechter: laeuft die Oberflaeche sichtbar, sollte dieser Takt jede Sekunde ticken. Steht
-  // sie > 8 s still (blockiert), geht das ins Diagnose-Protokoll (zusammen mit den Wach-/Schlafzeilen
-  // des Launchers sieht man dann, ob das Tablet nur schlief oder wirklich hing).
-  let letzterTick = Date.now();
+  // sie > 8 s still, geht das ins Diagnose-Protokoll - aber NUR, wenn Max kurz davor das Tablet bedient
+  // hat (28.10.2026, T2): Im Schlaf weckt der Hintergrund-Abruf die WebView alle ~18 s kurz auf, und
+  // visibilityState bleibt dabei "visible" -> frueher ~60 Fehlalarme pro Nacht, echte Haenger gingen unter.
+  // Ein Haenger, den niemand bemerkt, ist harmlos; einer waehrend der Bedienung ist der interessante Fall.
+  const BEDIENT_FENSTER_MS = 60 * 1000;
+  let letzterTick = Date.now(), letzteEingabe = 0;
+  ['pointerdown', 'touchstart', 'keydown'].forEach(art => document.addEventListener(art, () => { letzteEingabe = Date.now(); }, { capture: true, passive: true }));
+  function bildschirmName() {
+    if (document.getElementById('farm')) return 'Hof-Farm';
+    const r = document.getElementById('app-root');
+    return r ? r.textContent.replace(/\s+/g, ' ').trim().slice(0, 40) : '?';   // erste Woerter des Bildschirms
+  }
   setInterval(() => {
     const jetzt = Date.now(), luecke = jetzt - letzterTick;
     letzterTick = jetzt;
-    if (luecke > 8000 && document.visibilityState !== 'hidden') {
-      try { if (typeof AndroidBridge !== 'undefined' && AndroidBridge.logDiagnose) AndroidBridge.logDiagnose('Oberflaeche stand ' + Math.round(luecke / 1000) + ' s still (Haenger oder Schlaf)'); } catch (e) { /* optional */ }
+    if (luecke > 8000 && document.visibilityState !== 'hidden' && letzteEingabe && (jetzt - luecke) - letzteEingabe < BEDIENT_FENSTER_MS) {
+      try { if (typeof AndroidBridge !== 'undefined' && AndroidBridge.logDiagnose) AndroidBridge.logDiagnose('HAENGER: Oberflaeche stand ' + Math.round(luecke / 1000) + ' s still, ' + Math.round(((jetzt - luecke) - letzteEingabe) / 1000) + ' s nach Max\' letzter Eingabe (' + bildschirmName() + ')'); } catch (e) { /* optional */ }
     }
   }, 1000);
 
