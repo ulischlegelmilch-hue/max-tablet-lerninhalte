@@ -735,7 +735,7 @@ const Deutsch = (function () {
   const erlaubt = (x) => (Array.isArray(x) ? x : [x]);
 
   function genFormInFallFrage() {
-    const w = pickN(FORMEN, 1)[0];
+    const w = pickRot('formen', FORMEN, x => x.n)[0];
     for (let versuch = 0; versuch < 50; versuch++) {
       const von = FALL_KEYS[Math.floor(Math.random() * 4)];
       const nach = FALL_KEYS[Math.floor(Math.random() * 4)];
@@ -758,10 +758,25 @@ const Deutsch = (function () {
   // ---- Buchseite "Satzglieder" (SF S.17/18): Frage beantworten / Substantiv mit Artikel in den
   // passenden Fall setzen. f = Satzteil mit Artikel (mehrere Schreibweisen als Array). ----
   const SATZGLIEDER = [
+    // 28.10.2026 (Uli: "zu viele Fragen mit Eichhörnchen"): jedes Substantiv nur einmal, Auswahl rotiert (genSatzgliedFrage)
     { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Die Kinder beobachten ___.', fall: 'A', f: ['das Eichhörnchen'] },
-    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: '___ springt flink von Baum zu Baum.', fall: 'N', f: ['das Eichhörnchen'] },
-    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Der Schwanz ___ bewegt sich hin und her.', fall: 'G', f: ['des Eichhörnchens'] },
-    { aufg: 'Setze das Substantiv <strong>Eichhörnchen</strong> mit dem Artikel ein:', s: 'Gespannt sehen die Kinder ___ zu.', fall: 'D', f: ['dem Eichhörnchen'] },
+    { aufg: 'Setze das Substantiv <strong>Rennauto</strong> mit dem Artikel ein:', s: '___ rast über die Rennstrecke.', fall: 'N', f: ['das Rennauto'] },
+    { aufg: 'Setze das Substantiv <strong>Rennfahrer</strong> mit dem Artikel ein:', s: 'Der Helm ___ glänzt in der Sonne.', fall: 'G', f: ['des Rennfahrers'] },
+    { aufg: 'Setze das Substantiv <strong>Trainer</strong> mit dem Artikel ein:', s: 'Die Spieler hören ___ genau zu.', fall: 'D', f: ['dem Trainer'] },
+    { aufg: 'Setze das Substantiv <strong>Fußball</strong> mit dem Artikel ein:', s: 'Der Torwart fängt ___.', fall: 'A', f: ['den Fußball'] },
+    { aufg: 'Setze das Substantiv <strong>Ball</strong> mit dem Artikel ein:', s: '___ fliegt über das Tor.', fall: 'N', f: ['der Ball'] },
+    { aufg: 'Setze das Substantiv <strong>Lehrerin</strong> mit dem Artikel ein:', s: 'Die Tasche ___ steht auf dem Tisch.', fall: 'G', f: ['der Lehrerin'] },
+    { aufg: 'Setze das Substantiv <strong>Feuerwehrmann</strong> mit dem Artikel ein:', s: 'Die Kinder winken ___.', fall: 'D', f: ['dem Feuerwehrmann'] },
+    { aufg: 'Setze das Substantiv <strong>Kuchen</strong> mit dem Artikel ein:', s: 'Mama backt ___.', fall: 'A', f: ['den Kuchen'] },
+    { aufg: 'Setze das Substantiv <strong>Oma</strong> mit dem Artikel ein:', s: '___ erzählt eine spannende Geschichte.', fall: 'N', f: ['die Oma'] },
+    { aufg: 'Setze das Substantiv <strong>Zug</strong> mit dem Artikel ein:', s: 'Die Türen ___ öffnen sich.', fall: 'G', f: ['des Zuges', 'des Zugs'] },
+    { aufg: 'Setze das Substantiv <strong>Schwester</strong> mit dem Artikel ein:', s: 'Ich helfe ___ bei den Hausaufgaben.', fall: 'D', f: ['der Schwester'] },
+    { aufg: 'Setze das Substantiv <strong>Motorrad</strong> mit dem Artikel ein:', s: 'Papa repariert ___.', fall: 'A', f: ['das Motorrad'] },
+    { aufg: 'Setze das Substantiv <strong>Buch</strong> mit dem Artikel ein:', s: '___ liegt auf dem Schreibtisch.', fall: 'N', f: ['das Buch'] },
+    { aufg: 'Setze das Substantiv <strong>Pferd</strong> mit dem Artikel ein:', s: 'Die Mähne ___ ist lang.', fall: 'G', f: ['des Pferdes', 'des Pferds'] },
+    { aufg: 'Setze das Substantiv <strong>Baum</strong> mit dem Artikel ein:', s: 'Der Gärtner gibt ___ Wasser.', fall: 'D', f: ['dem Baum'] },
+    { aufg: 'Setze das Substantiv <strong>Katze</strong> mit dem Artikel ein:', s: 'Oma füttert ___.', fall: 'A', f: ['die Katze'] },
+    { aufg: 'Setze das Substantiv <strong>Kinder</strong> mit dem Artikel ein:', s: 'Der Lehrer erklärt ___ die Aufgabe.', fall: 'D', f: ['den Kindern'] },
     { q: 'Mit wem ist das Muli verwandt?', s: 'Das Muli ist mit ___ verwandt.', fall: 'D', f: ['dem Esel'] },
     { q: 'Wessen Backen sind prall gefüllt?', s: 'Die Backen ___ sind prall gefüllt.', fall: 'G', f: ['des Hamsters'] },
     { q: 'Wen frisst der Kuckuck?', s: 'Der Kuckuck frisst ___.', fall: 'A', f: ['die Raupe'] },
@@ -780,7 +795,7 @@ const Deutsch = (function () {
   ];
 
   function genSatzgliedFrage() {
-    const e = pickN(SATZGLIEDER, 1)[0];
+    const e = pickRot('satzglied', SATZGLIEDER, x => x.s)[0];
     const bsp = pickN(SATZGLIEDER.filter(x => x !== e && x.fall === e.fall), 1)[0] || pickN(SATZGLIEDER, 1)[0];
     const kopf = e.aufg || `Beantworte die Frage und schreibe den Satzteil mit Artikel auf:<br><em>${e.q}</em>`;
     const satzMitLuecke = e.s;
@@ -1119,6 +1134,74 @@ const Deutsch = (function () {
     };
   }
 
+  // 28.10.2026 (Uli, Arbeitsblatt "Woerter mit doppelten Mitlauten", Aufgabe 2): In einer Reihe ist ein Wort falsch
+  // geschrieben - finden und berichtigen. Woerter vom Blatt + weitere; Fehler wie in der Schule: Mitlaut nur einmal
+  // (der Kus) oder h statt Doppelmitlaut (Prograhm). [richtig, falsch]
+  const DOPPEL_FEHLER = [
+    ['schaffen', 'schafen'], ['der Stoff', 'der Stof'], ['hoffentlich', 'hofentlich'], ['vollständig', 'volständig'],
+    ['die Quelle', 'die Quele'], ['die Sammlung', 'die Samlung'], ['das Programm', 'das Prograhm'], ['bestimmt', 'bestimt'],
+    ['nummerieren', 'numerieren'], ['dünn', 'dün'], ['donnern', 'donern'], ['beginnen', 'begihnen'], ['brennen', 'brenen'],
+    ['klettern', 'kletern'], ['fett', 'fet'], ['schütteln', 'schüteln'], ['der Schatten', 'der Schaten'], ['passen', 'pasen'],
+    ['der Kuss', 'der Kus'], ['der Schlüssel', 'der Schlüsel'], ['die Nässe', 'die Näse'], ['der Koffer', 'der Kofer'],
+    ['der Löffel', 'der Löfel'], ['die Mutter', 'die Muter'], ['das Wasser', 'das Waser'], ['die Tasse', 'die Tase'],
+    ['die Sonne', 'die Sohne'], ['kommen', 'kohmen'], ['die Suppe', 'die Supe'], ['der Teller', 'der Teler'],
+    ['das Zimmer', 'das Zimer'], ['der Himmel', 'der Himel'], ['die Brille', 'die Brile'], ['der Kamm', 'der Kahm'],
+    ['die Nuss', 'die Nus'], ['das Schiff', 'das Schif'], ['rollen', 'rolen'], ['das Gewitter', 'das Gewiter'],
+    ['wissen', 'wisen'], ['essen', 'esen'], ['die Kette', 'die Kete'], ['der Mittag', 'der Mitag'], ['der Teppich', 'der Tepich'],
+    ['das Geschirr', 'das Geschir'], ['das Blatt', 'das Blat'], ['die Pfanne', 'die Pfane'], ['die Treppe', 'die Trepe'],
+    ['schwimmen', 'schwimen'], ['die Wolle', 'die Wole'], ['das Futter', 'das Futer'], ['still', 'stil']
+  ];
+  // langer Selbstlaut = nur EIN Mitlaut; als Fehler zu Unrecht verdoppelt (keine echten Woerter als Fehlerform)
+  const EINFACH_FEHLER = [
+    ['der Besen', 'der Bessen'], ['der Tiger', 'der Tigger'], ['die Hose', 'die Hosse'], ['der Esel', 'der Essel'],
+    ['der Igel', 'der Iggel'], ['das Brot', 'das Brott'], ['der Plan', 'der Plann'], ['die Biene', 'die Bienne'],
+    ['die Schule', 'die Schulle'], ['lesen', 'lessen'], ['malen', 'mallen'], ['der Hase', 'der Hasse']
+  ];
+  // Fehlerformen, die es als richtige Woerter gibt (Ofen, Stil, Schal ...), duerfen nicht als "richtig" in der Reihe stehen
+  const NUR_RICHTIG = ['die Nase', 'der Ofen', 'die Blume', 'der Regen', 'der Name', 'holen', 'der Hut', 'das Tor', 'der Bär',
+    'der Tag', 'der Weg', 'der Brief', 'das Schaf', 'der Hof', 'das Ziel'];
+  const ohneArtikel = w => w.replace(/^(der|die|das) /, '');
+
+  function doppelFehlerReihe() {
+    const ausDoppel = Math.random() < 0.8;
+    const [richtig, falsch] = pickRot(ausDoppel ? 'doppelfehler' : 'einfachfehler', ausDoppel ? DOPPEL_FEHLER : EINFACH_FEHLER, x => x[0])[0];
+    // drei richtige Woerter: gemischt aus Doppel- und Einfach-Woertern, damit nicht jedes Wort verdoppelt ist
+    const topf = DOPPEL_FEHLER.map(x => x[0]).concat(EINFACH_FEHLER.map(x => x[0]), NUR_RICHTIG).filter(w => w !== richtig);
+    const reihe = shuffle(pickN(topf, 3).concat([falsch]));
+    const regel = ausDoppel
+      ? `Nach dem <strong>kurzen</strong> Selbstlaut kommt ein <strong>doppelter Mitlaut</strong> (kein h!).`
+      : `Der Selbstlaut wird <strong>lang</strong> gesprochen – deshalb nur <strong>ein</strong> Mitlaut.`;
+    return { richtig, falsch, reihe, hilfe: `<strong>Falsch war:</strong> <s>${falsch}</s> → richtig: <strong>${richtig}</strong>.<br>${regel}` };
+  }
+  // Reihe wie die Tabelle auf dem Arbeitsblatt; bricht auf schmalen Bildschirmen um
+  const reiheHtml = reihe => `<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:10px;">${reihe.map(w =>
+    `<span style="border:2px solid currentColor;border-radius:6px;padding:8px 12px;white-space:nowrap;">${w}</span>`).join('')}</div>`;
+
+  function genDoppelBerichtigenFrage() {
+    const r = doppelFehlerReihe();
+    const ohne = ohneArtikel(r.richtig);
+    return {
+      typ: 'text',
+      frage: `Ein Wort ist <strong>falsch</strong> geschrieben. Schreibe es <strong>richtig</strong>!${reiheHtml(r.reihe)}`,
+      verlaufText: `Berichtigen: ${r.reihe.join(' · ')}`,
+      antwort: ohne,
+      antwortAlternativen: [r.richtig],
+      grossKleinPruefen: true,
+      hilfe: r.hilfe
+    };
+  }
+
+  function genDoppelFehlerFindenFrage() {
+    const r = doppelFehlerReihe();
+    return {
+      typ: 'mc',
+      frage: 'Welches Wort ist <strong>falsch</strong> geschrieben?',
+      optionen: r.reihe,
+      richtigIndex: r.reihe.indexOf(r.falsch),
+      hilfe: r.hilfe
+    };
+  }
+
   const ADJ_BEREICHE = [
     { kategorie: 'zusadjektive', gen: genAdjSoWieFrage },
     { kategorie: 'zusadjektive', gen: genAdjSoWieFrage },
@@ -1131,7 +1214,10 @@ const Deutsch = (function () {
     { kategorie: 'doppelmitlaute', gen: genDoppelWahlFrage },
     { kategorie: 'doppelmitlaute', gen: genDoppelWahlFrage },
     { kategorie: 'doppelmitlaute', gen: genDoppelLueckeFrage },
-    { kategorie: 'doppelmitlaute', gen: genDoppelLueckeFrage }
+    { kategorie: 'doppelmitlaute', gen: genDoppelLueckeFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelBerichtigenFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelBerichtigenFrage },
+    { kategorie: 'doppelmitlaute', gen: genDoppelFehlerFindenFrage }
   ];
 
   // Tagesaufgaben Deutsch im Ferientraining: Faelle (50 %), zusammengesetzte Adjektive
