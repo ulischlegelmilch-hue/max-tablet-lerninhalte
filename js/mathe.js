@@ -37,7 +37,7 @@ const Mathe = (function () {
     App.render(App.subMenuHtml('Mathe', [
       ...(typeof Grundbegriffe !== 'undefined' ? [Grundbegriffe.menueEintrag('mathe')] : []),
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'tagesaufgabe', titel: 'Ferien-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
+      { icon: 'tagesaufgabe', titel: 'Tages-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },

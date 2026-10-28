@@ -58,7 +58,7 @@ const Schreiben = (function () {
       </div>
       ${fertig ? `
         <div class="schreib-fertig">✅ Geschafft! Heute hast du schon geschrieben. Super!</div>
-        <div class="weiter-row"><span class="btn-primary" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining</span></div>
+        <div class="weiter-row"><span class="btn-primary" onclick="Ferientraining.renderListe()">Zurück zu deinen Aufgaben</span></div>
       ` : `
         <div class="lese-text">Schreibe auf <strong>Papier</strong> ins Heft – mit der Hand, so schön du kannst. Wenn du fertig bist, tippe auf den Knopf. Dafür bekommst du ${STERNE} ⭐</div>
         <div class="weiter-row"><span class="btn-primary" onclick="Schreiben.fertig()">Ich habe es ins Heft geschrieben ✓</span></div>

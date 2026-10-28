@@ -10,57 +10,32 @@
 // falsch beantwortete Aufgabe/Karte kommt eine weitere dazu (App.abschlussFrage
 // bzw. Heimatkunde.bewerteLernkarte).
 const Ferientraining = (function () {
+  // 28.10.2026 (Uli: "nimm das Ferienlernen raus", Deutsch-Arbeit doppelte Mitlaute + vier Faelle, "die Matheaufgaben
+  // sollten separat auch noch da sein"): Tagesplan = 2 Deutsch-Runden fuer die Arbeit + Mathe wie bisher.
+  // ACHTUNG 29.10.2026 (Deutsch-Arbeit): nach der Arbeit die beiden Deutsch-Punkte ersetzen/entfernen.
+  // Frueher hier (bei Bedarf wieder eintragen): gb_mathe/gb_deutsch (Grundbegriffe-Karten), mathe_rechenarten,
+  // deutsch_tag (Faelle-Mischung), schreiben_tag (Schreiben.render), heimat_lernkarten (Radfahren) - siehe git-Historie.
   const PLAN = [
     {
-      id: 'mathe_tag', fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Ferien-Aufgaben',
+      id: 'deutsch_doppel', fach: 'deutsch', icon: 'rechtschreibung', titel: 'Deutsch: Doppelte Mitlaute',
+      text: 'Mit und ohne Doppelbuchstaben – auch am Wortende', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Deutsch.starteDoppelTraining()
+    },
+    {
+      id: 'deutsch_faelle', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Die vier Fälle',
+      text: 'Wörter in die vier Fälle setzen', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Deutsch.starteFaelleTraining()
+    },
+    {
+      id: 'mathe_tag', fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Aufgaben',
       text: 'Zahlen bis 10 000, Zahlenstrahl, Rechenregeln', einheit: 'Aufgaben', ziel: () => 10,
       start: () => Mathe.starteFerienTraining()
     },
     {
-      // Start mit den gewaehlten Reihen; "die meisten" gekonnt -> naechste Reihe
-      // kommt dazu (siehe Mathe.erweitereMalfolgenReihen).
+      // Start mit den gewaehlten Reihen; "die meisten" gekonnt -> naechste Reihe kommt dazu (siehe Mathe.erweitereMalfolgenReihen).
       id: 'mathe_malfolgen', fach: 'mathe', icon: 'malfolgen', titel: 'Mathe: Malfolgen',
       text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => Math.min(40, Mathe.malfolgenAnzahl()),
       start: () => Mathe.starteMalfolgenKarten()
-    },
-    {
-      // Grundbegriffe-Karteikarten Mathe (20.10.2026, Uli: "vorerst bei den Tagesaufgaben jeweils ueber der
-      // praktischen Aufgabe zu diesem Thema, bis ich sage, dass du sie entfernst") - siehe grundbegriffe.js.
-      // ZUM ENTFERNEN: diese beiden Eintraege (gb_mathe, gb_deutsch) aus PLAN loeschen.
-      id: 'gb_mathe', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Grundbegriffe-Karten',
-      text: () => Grundbegriffe.statusText('mathe'), einheit: 'Karten', ziel: () => 4,
-      start: () => Grundbegriffe.starteTagesRunde('mathe')
-    },
-    {
-      id: 'mathe_rechenarten', fach: 'mathe', icon: 'wortarten', titel: 'Mathe: Rechenarten & Fachbegriffe',
-      text: 'Plus, Minus, Mal, Geteilt und ihre Namen', einheit: 'Aufgaben', ziel: () => 10,
-      start: () => Mathe.starteFachbegriffeUebung('gemischt', true)
-    },
-    {
-      id: 'gb_deutsch', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Grundbegriffe-Karten',
-      text: () => Grundbegriffe.statusText('deutsch'), einheit: 'Karten', ziel: () => 4,
-      start: () => Grundbegriffe.starteTagesRunde('deutsch')
-    },
-    {
-      // Deutsch: Die vier Faelle, zusammengesetzte Adjektive, doppelte Mitlaute (Test 29.10.2026) - 10 Aufgaben pro Tag
-      id: 'deutsch_tag', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Fälle & Rechtschreibung',
-      text: 'Vier Fälle, zusammengesetzte Adjektive, doppelte Mitlaute', einheit: 'Aufgaben', ziel: () => 10,
-      // Erst die Lernseite (was ist Genitiv usw.), dort geht es mit "Jetzt ueben" weiter
-      start: () => Deutsch.zeigeFaelleLernen()
-    },
-    {
-      // Schreibauftrag des Tages (siehe schreiben.js): Mo-Fr zum Stoff, Sa/So frei
-      id: 'schreiben_tag', fach: 'deutsch', icon: 'rechtschreibung', titel: 'Schreiben',
-      text: () => Schreiben.kurzText(), einheit: 'Auftrag', ziel: () => 1,
-      start: () => Schreiben.render()
-    },
-    {
-      // Tageskarten aus den aktiven Radfahr-Stapeln: die ersten 4 Stapel, jeder
-      // weitere, sobald Max die meisten Karten der aktiven Stapel kann (siehe
-      // Heimatkunde.aktiveStapel).
-      id: 'heimat_lernkarten', fach: 'heimat', icon: 'verkehrszeichen', titel: 'Lernkarten Radfahren',
-      text: () => Heimatkunde.stapelText(), einheit: 'Karten', ziel: () => Heimatkunde.TAGESKARTEN_ANZAHL,
-      start: () => Heimatkunde.starteTagesLernkarten()
     }
   ];
 
@@ -147,7 +122,7 @@ const Ferientraining = (function () {
     }).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Ferientraining</div>
+      <div class="welcome">Deine Aufgaben heute</div>
       <div class="lese-text">${alle ? 'Alles geschafft für heute! 🎉 Super gemacht!' : `Heute: ${erledigt} von ${PLAN.length} erledigt. Tippe auf eine Aufgabe, um loszulegen.`}</div>
       <div class="ft-liste">${zeilen}</div>
     `);
@@ -171,7 +146,7 @@ const Ferientraining = (function () {
     return `
       <div class="fth-karte">
         <div class="fth-kopf" onclick="Ferientraining.renderListe()">
-          <span class="fth-kopf-titel">Dein Ferientraining heute</span>
+          <span class="fth-kopf-titel">Deine Aufgaben heute</span>
           <span class="fth-kopf-zahl">${erledigt}<small> von ${PLAN.length}</small></span>
         </div>
         <div class="fth-balken"><div style="width:${prozent}%"></div></div>
@@ -183,11 +158,11 @@ const Ferientraining = (function () {
 
   /** Zusatz-Button "Zurück zum Ferientraining" fuer die Ergebnis-Bildschirme. */
   function rueckkehrButtonHtml() {
-    return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zum Ferientraining (${anzahlErledigt()} von ${PLAN.length})</div>`;
+    return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zu deinen Aufgaben (${anzahlErledigt()} von ${PLAN.length})</div>`;
   }
 
   /** Heutige Punkte fuer die Hof-Farm: [{ id, titel, fertig, n, z, richtig }] */
-  function liste() { return PLAN.map(i => { const s = stand(i); return { id: i.id, titel: i.titel, fach: i.fach, icon: i.icon, fertig: s.fertig, n: s.n, z: s.z, richtig: Math.min(s.n, Storage.getFerienRichtig(i.id)) }; }); }
+  function liste() { return PLAN.map(i => { const s = stand(i); return { id: i.id, titel: i.titel, fertig: s.fertig, n: s.n, z: s.z, richtig: Math.min(s.n, Storage.getFerienRichtig(i.id)) }; }); }
 
   return { liste, melde, abschluss, restAnzahl, chips, homeKarteHtml, starte, renderListe, rueckkehrButtonHtml, anzahlErledigt, anzahlPunkte: () => PLAN.length };
 })();

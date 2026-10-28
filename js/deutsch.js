@@ -1038,7 +1038,14 @@ const Deutsch = (function () {
     ['klettern', 'tt', 'Affen klettern auf hohe Bäume.'], ['fett', 'tt', 'Die Wurst ist sehr fett.'],
     ['schütteln', 'tt', 'Vor dem Trinken muss man die Flasche schütteln.'], ['passen', 'ss', 'Die Schuhe passen gut.'],
     ['Schlüssel', 'ss', 'Ich suche meinen Schlüssel.'], ['Nässe', 'ss', 'Der Regenschirm schützt vor Nässe.'],
-    ['Wetter', 'tt', 'Heute ist das Wetter schön.']
+    ['Wetter', 'tt', 'Heute ist das Wetter schön.'],
+    // 28.10.2026 (Deutsch-Arbeit: doppelte Mitlaute "auch am Ende"): mehr Woerter mit Doppel-Mitlaut am Wortende
+    ['schnell', 'll', 'Der Rennwagen fährt schnell.'], ['hell', 'll', 'Die Lampe ist hell.'],
+    ['toll', 'll', 'Das Spiel war toll.'], ['voll', 'll', 'Der Eimer ist voll.'],
+    ['Griff', 'ff', 'Der Griff der Tasse ist heiß.'], ['Fass', 'ss', 'Im Keller steht ein Fass.'],
+    ['dann', 'nn', 'Erst essen wir, dann spielen wir.'], ['Sinn', 'nn', 'Das ergibt keinen Sinn.'],
+    ['Schritt', 'tt', 'Ein Schritt nach vorn.'], ['satt', 'tt', 'Nach dem Essen bin ich satt.'],
+    ['glatt', 'tt', 'Das Eis ist glatt.'], ['nett', 'tt', 'Unser Nachbar ist nett.']
   ];
   const DOPPEL_HILFE = '<strong>Merke:</strong> Nach einem <strong>kurzen Selbstlaut</strong> (a, e, i, o, u) steht oft ein <strong>doppelter Mitlaut</strong>. Sprich das Wort in Silben: Der Mitlaut steht an der Silbengrenze zweimal.';
 
@@ -1060,7 +1067,18 @@ const Deutsch = (function () {
     ['Dame', 'm', 'Die Dame wartet an der Haltestelle.'], ['Schule', 'l', 'Morgens gehe ich in die Schule.'],
     ['Nebel', 'b', 'Im Herbst liegt Nebel über dem Feld.'], ['Rabe', 'b', 'Der Rabe sitzt auf dem Dach.'],
     ['Lupe', 'p', 'Mit der Lupe sehe ich den Käfer genau.'], ['Seife', 'f', 'Ich wasche mir die Hände mit Seife.'],
-    ['Wolke', 'l', 'Eine dunkle Wolke zieht auf.'], ['Hupe', 'p', 'Das Auto betätigt die Hupe.']
+    ['Wolke', 'l', 'Eine dunkle Wolke zieht auf.'], ['Hupe', 'p', 'Das Auto betätigt die Hupe.'],
+    // 28.10.2026 (Deutsch-Arbeit "auch am Ende"): EIN Mitlaut am Wortende nach langem Selbstlaut
+    ['Tal', 'l', 'Wir wandern durch das Tal.'], ['Schal', 'l', 'Im Winter trage ich einen Schal.'],
+    ['Ziel', 'l', 'Max läuft als Erster ins Ziel.'], ['Hof', 'f', 'Die Hühner laufen über den Hof.'],
+    ['Schaf', 'f', 'Das Schaf frisst Gras.'], ['Brief', 'f', 'Ich schreibe Oma einen Brief.'],
+    ['Ton', 'n', 'Die Flöte spielt einen hohen Ton.'], ['Plan', 'n', 'Wir haben einen guten Plan.'],
+    ['Kran', 'n', 'Der Kran hebt die schwere Last.'], ['Schwan', 'n', 'Der Schwan schwimmt auf dem See.'],
+    ['Gras', 's', 'Die Kuh frisst das grüne Gras.'], ['Glas', 's', 'Ich trinke ein Glas Milch.'],
+    ['Hut', 't', 'Opa trägt einen Hut.'], ['Brot', 't', 'Zum Frühstück esse ich ein Brot.'],
+    ['Mut', 't', 'Der Ritter hat viel Mut.'], ['Tor', 'r', 'Max schießt ein Tor.'],
+    ['Bär', 'r', 'Der Bär sucht Honig.'], ['Tag', 'g', 'Heute ist ein schöner Tag.'],
+    ['Zug', 'g', 'Der Zug fährt pünktlich ab.'], ['Weg', 'g', 'Der Weg führt in den Wald.']
   ];
   const DOPPEL_HILFE_EINFACH = '<strong>Merke:</strong> Nach einem <strong>langen Selbstlaut</strong> steht nur <strong>ein</strong> Mitlaut. Sprich das Wort in Silben: Ha-se, Bie-ne – hier wird der Selbstlaut lang gesprochen.';
 
@@ -1141,6 +1159,30 @@ const Deutsch = (function () {
     D: { art: 'dem · der · dem', satz: 'Ich gebe <mark class="fm-D">dem Hund</mark> einen Knochen.', frage: 'Wem gebe ich einen Knochen? <strong>Dem Hund.</strong>', tipp: 'Der „Wem-Fall“: Wem gibst, schenkst oder hilfst du? In der Mehrzahl kommt oft ein -n dazu: <em>den Kinder<strong>n</strong></em>.' },
     A: { art: 'den · die · das', satz: 'Ich sehe <mark class="fm-A">den Hund</mark>.', frage: 'Wen sehe ich? <strong>Den Hund.</strong>', tipp: 'Der „Wen-Fall“: Wen oder was sieht, hört oder holt jemand? Nur bei <em>der</em> ändert sich der Artikel: der → <strong>den</strong>.' }
   };
+
+  // ---- Deutsch-Arbeit (28.10.2026): zwei eigene Tagesrunden statt der Ferien-Mischung ----
+  // ACHTUNG 29.10.2026 (Deutsch-Arbeit): nach der Arbeit im Tagesplan (ferientraining.js PLAN) wieder zuruecksetzen.
+  // Vier Faelle mit Schwerpunkt "Woerter in die vier Faelle setzen" (Tabelle + Substantiv mit Artikel einsetzen).
+  const FAELLE_ARBEIT_BEREICHE = [
+    { kategorie: 'faelle', gen: genFormInFallFrage }, { kategorie: 'faelle', gen: genFormInFallFrage }, { kategorie: 'faelle', gen: genFormInFallFrage },
+    { kategorie: 'faelle', gen: genSatzgliedFrage }, { kategorie: 'faelle', gen: genSatzgliedFrage },
+    { kategorie: 'faelle', gen: genSatzteilImFallFrage }, { kategorie: 'faelle', gen: genFallBestimmenFrage },
+    { kategorie: 'faelle', gen: genFragewortFuerSatzteilFrage }, { kategorie: 'faelle', gen: genFallWissenFrage }
+  ];
+  function arbeitsAufgabe(bereiche) {
+    const f = pickN(bereiche, 1)[0].gen();
+    f.neueVersion = () => arbeitsAufgabe(bereiche);
+    return f;
+  }
+  function starteArbeitsRunde(item, titel, bereiche) {
+    App.starteFerienQuiz('deutsch', anzahl => {
+      const fragen = [];
+      for (let i = 0; i < anzahl; i++) fragen.push(arbeitsAufgabe(bereiche));
+      return fragen;
+    }, { titel, wiederholeFalsche: true, pensumFach: 'deutsch', ferienItem: item });
+  }
+  function starteDoppelTraining() { starteArbeitsRunde('deutsch_doppel', 'Doppelte Mitlaute', DOPPEL_BEREICHE); }
+  function starteFaelleTraining() { starteArbeitsRunde('deutsch_faelle', 'Die vier Fälle', FAELLE_ARBEIT_BEREICHE); }
 
   function zeigeFaelleLernen() {
     const kasten = k => {
@@ -1295,5 +1337,5 @@ const Deutsch = (function () {
     return out;
   }
 
-  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen, faelleStufen };
+  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen, faelleStufen, starteDoppelTraining, starteFaelleTraining };
 })();
