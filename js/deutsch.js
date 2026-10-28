@@ -73,7 +73,7 @@ const Deutsch = (function () {
     { satz: 'Ich ___ mir die Zähne jeden Abend.', optionen: ['putze', 'putse'], richtig: 0 },
     { satz: 'Der Zug fährt ___ pünktlich ab.', optionen: ['imer', 'immer'], richtig: 1 },
     { satz: 'Wir ___ ein tolles Fußballspiel gesehen.', optionen: ['haben', 'habn'], richtig: 0 },
-    { satz: 'Das ___ scheint heute den ganzen Tag.', optionen: ['Sonne', 'Sonne'], richtig: 0 }
+    { satz: 'Die ___ scheint heute den ganzen Tag.', optionen: ['Sonne', 'Sone'], richtig: 0 }
   ];
 
   function genRechtschreibung(anzahl) {
@@ -777,27 +777,28 @@ const Deutsch = (function () {
     { aufg: 'Setze das Substantiv <strong>Baum</strong> mit dem Artikel ein:', s: 'Der Gärtner gibt ___ Wasser.', fall: 'D', f: ['dem Baum'] },
     { aufg: 'Setze das Substantiv <strong>Katze</strong> mit dem Artikel ein:', s: 'Oma füttert ___.', fall: 'A', f: ['die Katze'] },
     { aufg: 'Setze das Substantiv <strong>Kinder</strong> mit dem Artikel ein:', s: 'Der Lehrer erklärt ___ die Aufgabe.', fall: 'D', f: ['den Kindern'] },
-    { q: 'Mit wem ist das Muli verwandt?', s: 'Das Muli ist mit ___ verwandt.', fall: 'D', f: ['dem Esel'] },
-    { q: 'Wessen Backen sind prall gefüllt?', s: 'Die Backen ___ sind prall gefüllt.', fall: 'G', f: ['des Hamsters'] },
-    { q: 'Wen frisst der Kuckuck?', s: 'Der Kuckuck frisst ___.', fall: 'A', f: ['die Raupe'] },
-    { q: 'Wem schmeckt der Klee besonders gut?', s: 'Klee schmeckt ___ besonders gut.', fall: 'D', f: ['dem Hasen'] },
-    { q: 'Wessen Schwanz ist lang und buschig?', s: 'Der Schwanz ___ ist lang und buschig.', fall: 'G', f: ['des Fuchses'] },
-    { q: 'Wen beobachtet der Förster beim Fressen?', s: 'Der Förster beobachtet ___ beim Fressen.', fall: 'A', f: ['das Wildschwein'] },
+    { q: 'Mit wem ist das Muli verwandt?', n: 'der Esel', s: 'Das Muli ist mit ___ verwandt.', fall: 'D', f: ['dem Esel'] },
+    { q: 'Wessen Backen sind prall gefüllt?', n: 'der Hamster', s: 'Die Backen ___ sind prall gefüllt.', fall: 'G', f: ['des Hamsters'] },
+    { q: 'Wen frisst der Kuckuck?', n: 'die Raupe', s: 'Der Kuckuck frisst ___.', fall: 'A', f: ['die Raupe'] },
+    { q: 'Wem schmeckt der Klee besonders gut?', n: 'der Hase', s: 'Klee schmeckt ___ besonders gut.', fall: 'D', f: ['dem Hasen'] },
+    { q: 'Wessen Schwanz ist lang und buschig?', n: 'der Fuchs', s: 'Der Schwanz ___ ist lang und buschig.', fall: 'G', f: ['des Fuchses'] },
+    { q: 'Wen beobachtet der Förster beim Fressen?', n: 'das Wildschwein', s: 'Der Förster beobachtet ___ beim Fressen.', fall: 'A', f: ['das Wildschwein'] },
     // weitere Aufgaben im gleichen Stil
-    { q: 'Wessen Fell ist braun?', s: 'Das Fell ___ ist braun.', fall: 'G', f: ['des Bären'] },
-    { q: 'Wem gibt der Förster Futter?', s: 'Der Förster gibt ___ Futter.', fall: 'D', f: ['dem Reh'] },
-    { q: 'Wen jagt der Fuchs?', s: 'Der Fuchs jagt ___.', fall: 'A', f: ['den Hasen'] },
-    { q: 'Wessen Nest ist hoch oben im Baum?', s: 'Das Nest ___ ist hoch oben im Baum.', fall: 'G', f: ['des Storches', 'des Storchs'] },
-    { q: 'Wer schläft den ganzen Winter?', s: '___ schläft den ganzen Winter.', fall: 'N', f: ['der Igel'] },
-    { q: 'Wem folgt der kleine Welpe?', s: 'Der kleine Welpe folgt ___.', fall: 'D', f: ['dem Hund'] },
-    { q: 'Wen sieht der Wolf im Wald?', s: 'Der Wolf sieht ___ im Wald.', fall: 'A', f: ['den Förster'] },
-    { q: 'Wessen Fell ist weich?', s: 'Das Fell ___ ist weich.', fall: 'G', f: ['des Hasen'] }
+    { q: 'Wessen Fell ist braun?', n: 'der Bär', s: 'Das Fell ___ ist braun.', fall: 'G', f: ['des Bären'] },
+    { q: 'Wem gibt der Förster Futter?', n: 'das Reh', s: 'Der Förster gibt ___ Futter.', fall: 'D', f: ['dem Reh'] },
+    { q: 'Wen jagt der Fuchs?', n: 'der Hase', s: 'Der Fuchs jagt ___.', fall: 'A', f: ['den Hasen'] },
+    { q: 'Wessen Nest ist hoch oben im Baum?', n: 'der Storch', s: 'Das Nest ___ ist hoch oben im Baum.', fall: 'G', f: ['des Storches', 'des Storchs'] },
+    { q: 'Wer schläft den ganzen Winter?', n: 'der Igel', s: '___ schläft den ganzen Winter.', fall: 'N', f: ['der Igel'] },
+    { q: 'Wem folgt der kleine Welpe?', n: 'der Hund', s: 'Der kleine Welpe folgt ___.', fall: 'D', f: ['dem Hund'] },
+    { q: 'Wen sieht der Wolf im Wald?', n: 'der Förster', s: 'Der Wolf sieht ___ im Wald.', fall: 'A', f: ['den Förster'] },
+    { q: 'Wessen Fell ist weich?', n: 'der Hase', s: 'Das Fell ___ ist weich.', fall: 'G', f: ['des Hasen'] }
   ];
 
   function genSatzgliedFrage() {
     const e = pickRot('satzglied', SATZGLIEDER, x => x.s)[0];
     const bsp = pickN(SATZGLIEDER.filter(x => x !== e && x.fall === e.fall), 1)[0] || pickN(SATZGLIEDER, 1)[0];
-    const kopf = e.aufg || `Beantworte die Frage und schreibe den Satzteil mit Artikel auf:<br><em>${e.q}</em>`;
+    // Das einzusetzende Wort immer nennen (Uli 28.10.2026: sonst "keinerlei Bezug zu dem Wort, was da rein muss")
+    const kopf = e.aufg || `Setze <strong>${e.n}</strong> im richtigen Fall ein. Die Frage hilft dir:<br><em>${e.q}</em>`;
     const satzMitLuecke = e.s;
     return {
       typ: 'text',
