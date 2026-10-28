@@ -1,31 +1,43 @@
-// Hof-Farm: Oberflaeche (Vollbild-Spiel). Max faehrt nicht selbst - er kauft Maschinen und schickt sie als Auftraege auf die
-// Felder. Logik: farm-modell.js, Darstellung: farm-ansicht.js, Daten: farm-daten.js, Grafik: farm-gfx.js.
+// Hof-Farm: Oberflaeche (Vollbild-Spiel), "Hof-Farm 2.0" im Stil B "Arena". Max faehrt nicht selbst - er kauft Maschinen und
+// schickt sie als Auftraege auf die Felder. Logik: farm-modell.js, Welt: farm-ansicht.js, Daten: farm-daten.js, Grafik: farm-gfx.js,
+// Stil/Icons/Fuchs/Effekte: farm-stil.js + farm-icons.js.
 // Bewusst OHNE Anbindung an Sterne/Guthaben/Lernen (Uli 21.10.2026: "erstmal nur das Spiel spielen") - Schnittstelle spaeter.
+// Regeln (Spielstand von Max!): Spielstand nur ueber M.<befehl>(...) zur Laufzeit aendern (nie Funktionsreferenzen halten,
+// fernEinhaengen ersetzt sie), nie alte S-Objekte halten (immer frisch ueber stand()), FERN_BEFEHLE unveraendert.
 const Farm = (function () {
-  const D = FarmDaten, G = FarmGfx, M = FarmModell, A = FarmAnsicht;
+  const D = FarmDaten, G = FarmGfx, M = FarmModell, A = FarmAnsicht, FS = FarmStil;
 
   let wurzel = null, cv = null, g = null, R = {};
   let W = 0, H = 0, dpr = 1;
-  // Auflösung passt sich der Geschwindigkeit des Geräts an (nur abwärts, damit nichts hin- und herspringt)
-  const DPR_STUFEN = [2, 1.5, 1.25, 1, 0.8, 0.65];
+  // Aufloesung passt sich der Geschwindigkeit des Geraets an (nur abwaerts, damit nichts hin- und herspringt).
+  // Welt-DPR hoechstens 1,5 (Gutachten: schwache GPU des Tab S 8.4); HUD/Dialoge sind DOM und bleiben scharf.
+  const DPR_STUFEN = [1.5, 1.25, 1, 0.8, 0.65];
   let dprStufe = 0, frameMs = 16, frameAb = 0;
   let laeuft = false, raf = 0, tLast = 0, tSpiel = 0;
   const cam = { x: 1750, y: 1450, z: 0.8, ziel: null };
+  let schwung = null;             // Kamera-Nachlauf nach dem Loslassen { vx, vy } in Weltpixel/s
   let dlg = null;                 // { typ, ... } geoeffneter Dialog
   let dlgAnfasst = false, dlgAnfassEnde = 0;
-  let timer = { sim: 0, speicher: 0, hud: 0, dlg: 0 };
+  let timer = { sim: 0, speicher: 0, hud: 0, dlg: 0, poll: 0 };
   let ton = null;
   let vorschauCache = {};
   let ausgang = null;
-  let geldAnzeige = 0, geldLetzt = null;
+  let geldAnzeige = 0, geldLetzt = null, geldUnterwegs = 0, geldHalten = false;
   let tempoKlicks = 0;
   let bestaetigenFn = null;
+  let letzterTipp = null;         // { x, y, t } – Startpunkt fuer Muenzflug nach einem Knopfdruck
   const zeiger = {};
+  const tippSperre = {};          // Doppeltipp-Sperre 300 ms je Knopf
 
   const fmt = n => Math.round(n).toLocaleString('de-DE');
   const fmt1 = n => (Math.round(n * 10) / 10).toLocaleString('de-DE');
   const tonnen = kg => (kg >= 100000 ? fmt(kg / 1000) : fmt1(kg / 1000)) + ' t';
   const meter = px => fmt1(px / D.PX_JE_M) + ' m';
+  const I = (name, px, kl) => FS.icon(name, px, kl);
+  const esc = t => String(t === undefined || t === null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const grob = ms => A.zeitGrob(ms);
+  const istHandy = () => { try { return window.matchMedia('(max-width: 820px), (max-height: 480px)').matches; } catch (e) { return W <= 820 || H <= 480; } };
+  const istHochHandy = () => { try { return window.matchMedia('(max-width: 820px)').matches; } catch (e) { return W <= 820; } };
   // Gemeinsamer Hof: Ist fernKonfig gesetzt ({ basis, von: 'max'|'papa' }), liegt der Spielstand auf dem Pi (backend/farm-server.js).
   // Dann rechnet NUR der Server die Zeit weiter; hier werden Befehle geschickt und der Stand per Poll geholt.
   let fernKonfig = null;
@@ -33,6 +45,29 @@ const Farm = (function () {
   function konfig(c) { fernKonfig = c && c.fern ? c.fern : null; }
   const jetzt = () => Date.now() + (fern ? fern.offset : 0);
   const stand = () => M.stand();
+
+  // Icons zu Spiel-Dingen (Namen siehe farm-icons.js)
+  const GERAET_NAME = { grubber: 'Grubber', pflug: 'Pflug', saeen: 'Sämaschine', duenger: 'Düngerstreuer', walze: 'Walze', spritze: 'Feldspritze', kalk: 'Kalkstreuer' };
+  const GERAET_ICON = { grubber: 'grubbern', pflug: 'pfluegen', saeen: 'saeen', duenger: 'duengen', walze: 'walzen', spritze: 'spritzen', kalk: 'kalken' };
+  const SCHRITT_KURZ = { grubbern: 'Grubbern', pfluegen: 'Pflügen', kalken: 'Kalken', saeen: 'Säen', duengen: 'Düngen', spritzen: 'Spritzen', walzen: 'Walzen', ernten: 'Ernten' };
+  // Kurze Saetze (max. 8 Woerter); die langen Erklaerungen (D.SCHRITT_WARUM) stehen hinter dem i-Knopf
+  const SCHRITT_SATZ = {
+    grubbern: 'Lockert den Boden für die Saat', pfluegen: 'Dreht die Erde um: mehr Ertrag', kalken: 'Macht müden Boden wieder fit',
+    saeen: 'Du bestimmst, was hier wächst', duengen: 'Futter für die Pflanzen: mehr Ertrag', spritzen: 'Hält Unkraut und Käfer fern',
+    walzen: 'Drückt die Samen gut fest', ernten: 'Die Ernte kommt ins Silo'
+  };
+  function maschinenIcon(d) {
+    if (!d) return 'traktor';
+    if (d.art === 'traktor') return 'traktor';
+    if (d.art === 'ernter') return d.typ === 'rodemaschine' ? 'roder' : 'maehdrescher';
+    return GERAET_ICON[d.typ] || 'traktor';
+  }
+  function feldIcon(f) {
+    if (!f) return 'felder';
+    if ((f.phase === 'waechst' || f.phase === 'reif') && f.frucht) return f.frucht;
+    return f.phase === 'stoppel' ? 'stoppel' : 'boden';
+  }
+  function stufeKlasse(x) { return 'fs-stufe-' + FS.stufe(x); }
 
   // ----------------------------------------------------------------------------------------------
   // Ton (kurze, leise Signale)
@@ -45,7 +80,7 @@ const Farm = (function () {
     } catch (e) { ton = null; }
   }
   function piep(art) {
-    if (!ton || !stand().ton) return;
+    if (!ton || !stand() || !stand().ton) return;
     try {
       const ac = ton.ac, t0 = ac.currentTime;
       const noten = art === 'fertig' ? [660, 880] : art === 'level' ? [520, 660, 880] : art === 'geld' ? [880, 1180] : art === 'fehler' ? [220] : [740];
@@ -59,171 +94,554 @@ const Farm = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Aufbau der Oberflaeche
+  // Farm-spezifisches Layout-CSS (Komponenten kommen aus FarmStil: fs-*). Alles unter #farm.
+  // Ebenen: Welt 0 · HUD 5 · Dock 3 · Dialog 40/41 · Level-Up 60 · Rundgang 65 · Rueckfrage 70 · Toasts 80 · offline 85 · Laden 90
   // ----------------------------------------------------------------------------------------------
   const CSS = `
-  #farm{position:fixed;left:0;top:0;right:0;bottom:0;z-index:9000;background:#2c4a24;color:#fff;font-family:system-ui,-apple-system,Roboto,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  #farm{position:fixed;left:0;top:0;right:0;bottom:0;z-index:9000;background:#2c4a24;color:#fff;font-family:"Fredoka","Trebuchet MS",sans-serif;font-weight:600;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
   #farm canvas#farm-cv{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
-  #farm button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-appearance:none;touch-action:manipulation}
-  .f-top{position:absolute;left:0;right:0;top:0;display:flex;align-items:flex-start;padding:10px 12px;pointer-events:none}
-  .f-top>*{pointer-events:auto}
-  .f-pill{background:rgba(16,26,18,.8);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:7px 14px;font-weight:700}
-  .f-links{display:flex;flex-direction:column;margin-right:10px}
-  .f-geld{font-size:21px;color:#ffe27a;text-align:center;min-width:130px}
-  .f-lvl{margin-top:6px;font-size:13px;padding:6px 12px}
-  .f-lvl .bar{height:7px;border-radius:4px;background:rgba(255,255,255,.18);margin-top:4px;overflow:hidden}
-  .f-lvl .bar>div{height:100%;background:linear-gradient(90deg,#7fe083,#4fae58);width:0}
-  .f-hinweis{flex:1;min-width:0;display:flex;justify-content:center;pointer-events:none!important}
-  .f-hinweis>div{background:rgba(255,226,122,.95);color:#2a2300;border-radius:18px;padding:9px 16px;font-weight:700;font-size:15px;max-width:600px;text-align:center;box-shadow:0 3px 12px rgba(0,0,0,.35);line-height:1.25;pointer-events:auto}
-  .f-hinweis.leer>div{display:none}
-  .f-btns{display:flex;flex-wrap:wrap;justify-content:flex-end;max-width:600px}
-  .f-wetter{margin-top:6px;font-size:13px;padding:6px 12px;cursor:pointer;white-space:nowrap}
-  .f-ib{width:56px;height:56px;border-radius:50%;background:rgba(16,26,18,.84);border:1px solid rgba(255,255,255,.18)!important;font-size:26px;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.35);margin:0 0 18px 9px}
-  .f-ib:active{background:rgba(60,90,60,.95)}
-  .f-ib small{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:700;white-space:nowrap;text-shadow:0 1px 3px #000}
-  .f-ib .pkt{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;border-radius:10px;background:#e8452c;font-size:11.5px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 4px}
-  .f-zoom{position:absolute;left:12px;bottom:18px;display:flex;flex-direction:column}
-  .f-zoom .f-ib{width:48px;height:48px;font-size:24px;font-weight:800;margin:8px 0 0 0}
-  .f-toasts{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none;width:80%;max-width:640px}
-  .f-toast{background:rgba(16,26,18,.92);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:8px 16px;font-weight:700;font-size:15px;text-align:center;margin-top:6px;animation:ftin .22s ease-out}
-  .f-toast.warn{background:rgba(120,40,26,.93);border-color:#ff9a7a}
-  .f-toast.gut{background:rgba(32,100,48,.95);border-color:#8cf09a}
-  .f-toast.geld{background:rgba(110,86,10,.95);border-color:#ffe27a;color:#fff3b8}
-  @keyframes ftin{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
-  .f-ib{transition:transform .12s,background .12s}.f-ib:active{transform:scale(.88)}
-  .f-box button{transition:transform .1s,filter .1s}.f-box button:active{transform:scale(.95);filter:brightness(1.12)}
-  .f-dlg.f-neu{animation:fdlgin .18s ease-out}.f-dlg.f-neu .f-box{animation:fboxin .26s cubic-bezier(.2,.9,.3,1.25)}
-  @keyframes fdlgin{from{background-color:rgba(6,12,8,0)}to{background-color:rgba(6,12,8,.66)}}
-  @keyframes fboxin{from{transform:scale(.9) translateY(14px);opacity:0}to{transform:none;opacity:1}}
-  .f-geld.puls{animation:fpuls .45s ease-out}
-  @keyframes fpuls{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}
-  .f-plus{position:absolute;z-index:7;pointer-events:none;font-weight:800;color:#ffe27a;text-shadow:0 2px 6px #000,0 0 12px rgba(255,200,60,.6);font-size:20px;animation:fplus 1.3s ease-out forwards;white-space:nowrap}
-  @keyframes fplus{0%{transform:translate(-50%,0) scale(.7);opacity:0}15%{transform:translate(-50%,-6px) scale(1.15);opacity:1}100%{transform:translate(-50%,-48px) scale(1);opacity:0}}
-  .f-muenze{position:absolute;z-index:7;pointer-events:none;font-size:22px;transition:transform .8s cubic-bezier(.5,0,.8,.4),opacity .8s;will-change:transform}
-  .f-konf{position:absolute;top:-16px;z-index:9;pointer-events:none;width:9px;height:14px;border-radius:2px;animation:fkonf linear forwards}
-  @keyframes fkonf{0%{transform:translateY(0) rotate(0)}100%{transform:translateY(105vh) rotate(720deg)}}
-  .f-dlg{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(6,12,8,.66);display:flex;align-items:center;justify-content:center;padding:14px;z-index:5;touch-action:pan-y}
-  .f-box{background:linear-gradient(#25362a,#1b2a1f);border:1px solid rgba(255,255,255,.2);border-radius:22px;max-width:1080px;width:100%;max-height:100%;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.6);overflow:hidden}
-  .f-box.klein{max-width:560px}
-  .f-kopf{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.12)}
-  .f-kopf h2{margin:0;font-size:21px;flex:1}
-  .f-kopf .f-pill{font-size:15px;color:#ffe27a;padding:6px 12px;margin-right:10px}
-  .f-x{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.12);font-size:22px}
-  .f-zurueck{height:44px;border-radius:22px;background:rgba(255,255,255,.12);font-size:15px;font-weight:700;padding:0 14px;margin-right:10px}
-  .f-inhalt{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px;touch-action:pan-y}
-  .f-tabs{display:flex;flex-wrap:wrap;padding:10px 16px 0}
-  .f-tab{padding:9px 16px;border-radius:14px;background:rgba(255,255,255,.1);font-weight:700;font-size:15px;margin:0 8px 8px 0}
-  .f-tab.an{background:#4fae58;color:#0d2210}
-  .f-gitter{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:12px}
-  .f-karte{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:16px;padding:10px;display:flex;flex-direction:column;text-align:left}
-  .f-karte.gesperrt{opacity:.5}
-  .f-karte img{width:100%;height:92px;object-fit:contain;background:radial-gradient(#4c7a3d,#335a2b);border-radius:10px}
-  .f-karte b{font-size:15px;margin-top:5px}
-  .f-karte .s{font-size:12.5px;opacity:.88;line-height:1.35;margin-top:3px}
-  .f-karte .f-erkl{color:#ffe9a8;opacity:1;flex:1;margin-bottom:6px}
-  .f-warum{color:#ffe9a8;opacity:.95;line-height:1.35;margin-top:3px}
-  .f-kauf{margin-top:8px;padding:10px 12px;border-radius:12px;background:#f0b429;color:#2b1d00;font-weight:800;font-size:14.5px}
-  .f-kauf[disabled]{background:#5b6a5d;color:#c9d3ca;opacity:.85}
-  .f-kauf.sek{background:rgba(255,255,255,.16);color:#fff}
-  .f-kauf.sek[disabled]{background:rgba(255,255,255,.07);color:#98a598}
-  .f-kauf.gruen{background:#4fae58;color:#08210c}
-  .f-kauf.rot{background:#a33a2a;color:#fff}
-  .f-badge{display:inline-block;background:#2f7d3a;border-radius:8px;padding:1px 7px;font-size:11.5px;margin-left:6px;font-weight:700}
-  .f-badge.rot{background:#a33a2a}.f-badge.gelb{background:#8a6d12}
-  .f-zeile{display:flex;align-items:center;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.1)}
-  .f-zeile:last-child{border:0}
-  .f-zeile>*{margin-right:12px}.f-zeile>*:last-child{margin-right:0}
-  .f-zeile .n{flex:1;font-weight:700;min-width:0}
-  .f-zeile .n small{display:block;font-weight:500;opacity:.82;font-size:12.5px;margin-top:2px}
-  .f-zeile .f-kauf{margin-top:0}
-  .f-zeile .ico{font-size:28px;width:38px;text-align:center}
-  .f-bal{height:9px;border-radius:5px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:5px}
-  .f-bal>div{height:100%;background:linear-gradient(90deg,#7fe083,#4fae58)}
-  .f-bal.gelb>div{background:linear-gradient(90deg,#ffd24a,#f4a321)}
-  .f-bal.rot>div{background:linear-gradient(90deg,#ff9a7a,#d9452c)}
-  .up{color:#7fe083}.down{color:#ff8e7a}
-  .f-chips{display:flex;flex-wrap:wrap;margin:-4px 0 10px}
-  .f-chip{background:rgba(255,255,255,.1);border-radius:12px;padding:5px 11px;font-size:13px;font-weight:600;margin:4px 8px 0 0}
-  .f-chip b{color:#ffe27a}
-  .f-info{background:rgba(255,255,255,.08);border-radius:12px;padding:9px 12px;font-size:14px;margin-bottom:10px;line-height:1.4}
-  .f-info.warn{background:rgba(160,60,36,.4)}
-  .f-h3{font-size:14px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;opacity:.75;margin:14px 0 6px}
-  .f-liste{margin:6px 0 0;padding-left:20px;line-height:1.6;font-size:15.5px}
-  .f-gross{font-size:16.5px;line-height:1.5}
-  .f-btnreihe{display:flex;flex-wrap:wrap}
-  .f-btnreihe .f-kauf{flex:1;min-width:140px;margin:8px 8px 0 0}
-  .f-album{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-  .f-card{border-radius:16px;padding:10px;display:flex;flex-direction:column;text-align:left;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.2);min-height:150px}
-  .f-card.frei{border-color:#ffd24a;box-shadow:0 0 0 1px rgba(255,210,74,.25),0 4px 14px rgba(0,0,0,.3)}
-  .f-card.zu{filter:grayscale(1);opacity:.55;border-style:dashed}
-  .f-card .gr{font-size:44px;text-align:center;line-height:1.1;margin:6px 0}
-  .f-card img{width:100%;height:84px;object-fit:contain;background:radial-gradient(#4c7a3d,#335a2b);border-radius:10px}
-  .f-card b{font-size:14.5px;margin-top:4px}
-  .f-card .s{font-size:12px;opacity:.9;line-height:1.35;margin-top:3px}
-  .f-pips{display:inline-block;letter-spacing:2px;color:#ffd24a;font-size:13px;margin-left:6px}
-  .f-offline{position:absolute;left:50%;top:6px;transform:translateX(-50%);background:rgba(160,50,30,.95);border:1px solid #ff9a7a;border-radius:14px;padding:6px 16px;font-weight:700;font-size:14px;z-index:7;display:none}
-  .f-mit{background:rgba(32,100,48,.88)!important;border-color:#8cf09a!important}
-  .f-lade{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#1d2a1f;z-index:9;text-align:center;padding:20px}
-  .f-lade h2{margin:0 0 10px}.f-lade p{opacity:.85;max-width:420px;line-height:1.45;margin:0 0 14px}
-  .f-chronik{font-size:13px;line-height:1.5}.f-chronik b{color:#ffe27a}
+  #farm button{font-family:inherit;color:inherit;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;margin:0}
+  #farm .f-hud{position:absolute;z-index:5;pointer-events:none}
+  #farm .f-hud>*{pointer-events:auto}
+  #farm .f-hud-links{left:12px;top:10px;display:flex;align-items:center;gap:6px}
+  #farm .f-hud-links .fs-level{cursor:pointer}
+  #farm .f-chips{left:14px;top:118px;display:flex;gap:12px;align-items:center}
+  #farm .f-chips .fs-chip b .fi{width:24px;height:24px;vertical-align:-4px}
+  #farm .fs-chip.fs-gruen{color:#fff;text-shadow:0 3px 0 #0A0D26,1.5px 1.5px 0 #0A0D26,-1.5px 1.5px 0 #0A0D26,1.5px -1.5px 0 #0A0D26,-1.5px -1.5px 0 #0A0D26}   /* weiss auf Hellgruen braucht Kontur (Kontrast) */
+  #farm .f-ziel-platz{left:380px;right:180px;top:12px;display:flex;justify-content:center}
+  #farm .f-ziel-platz>.fs-ziel{width:100%;max-width:540px;cursor:pointer}
+  #farm .f-ziel-platz.f-weg,#farm .f-chips.f-weg{display:none}
+  #farm .f-chips.f-verdeckt,#farm.f-panel-seite .f-hud-rechts,#farm.f-panel-seite .f-zoom,#farm.f-panel-seite .fs-dock{visibility:hidden}
+  #farm .f-ziel-neu{animation:fs-auftauchen .5s var(--fs-pop) both}
+  #farm .f-hud-rechts{right:14px;top:14px;display:flex;gap:12px}
+  #farm .f-zoom{right:16px;bottom:96px;display:flex;flex-direction:column;gap:12px} /* unten rechts liegt am Tablet das Kiosk-Schloss der App */
+  #farm .f-mit-ort{left:16px;bottom:26px}
+  #farm .f-mit-ort .fs-chip{cursor:default}
+  #farm .fs-dock{z-index:3}
+  #farm .f-plus{position:absolute;z-index:6;pointer-events:none;font-family:var(--fs-titel);font-size:30px;color:#FFF07A;white-space:nowrap;animation:f-plus 1.5s var(--fs-aus) forwards}
+  @keyframes f-plus{0%{transform:translate(-50%,6px) scale(.6);opacity:0}15%{transform:translate(-50%,0) scale(1.1);opacity:1}70%{opacity:1}100%{transform:translate(-50%,-26px) scale(1);opacity:0}}
+  #farm .f-offline{position:absolute;left:50%;top:10px;z-index:85;transform:translateX(-50%);display:none;background:linear-gradient(#FF6B72,#C81E2E)}
+  #farm .f-flug{position:fixed;left:0;top:0;width:44px;height:44px;z-index:99991;pointer-events:none;will-change:transform,opacity}
+  #farm .f-flug>svg{width:100%;height:100%}
+  /* Dialog-Rahmen: Panel rechts (Tablet) / Bottom-Sheet (Handy) / Vollbild-Panel */
+  #farm .f-dlg{position:absolute;left:0;top:0;right:0;bottom:0;z-index:40;pointer-events:none}
+  #farm .f-dlg>*{pointer-events:auto}
+  @media (min-width:821px) and (min-height:481px){ #farm .fs-sheet.f-breit{width:812px} }
+  #farm .fs-sheet-fuss:empty,#farm .f-vor:empty{display:none}
+  #farm .f-vor{flex:0 0 auto;padding:0 18px 10px}
+  #farm .fs-panel-kopf .fs-btn.fs-rund{flex:0 0 auto}
+  #farm .fs-panel-kopf .f-kopf-extra{display:flex;gap:10px;align-items:center}
+  #farm .fs-panel-kopf .f-titel-klein{font-size:30px;line-height:36px}
+  #farm .f-geldziel{height:50px;padding:0 16px 0 6px}
+  #farm .f-geldziel b{font-size:26px}
+  /* Feldkarte */
+  #farm .fs-weg{margin:0 0 16px}
+  #farm .fs-sheet .fs-weg-schritt{height:84px}
+  #farm .fs-sheet .fs-weg-schritt>.fi{width:42px;height:42px}
+  #farm .f-abschnitt-weg{margin:0 0 10px}
+  #farm .fs-weg-schritt .f-weg-haken{position:absolute;right:-9px;top:-9px;width:30px;height:30px;opacity:1}
+  #farm .f-ringzeile{display:flex;align-items:center;gap:18px;margin:0 0 18px}
+  #farm .f-stats{display:flex;flex-direction:column;gap:6px;min-width:0}
+  #farm .f-aktion-kopf{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  #farm .f-aktion-kopf>.fi{width:64px;height:64px}
+  #farm .f-aktion-tx{flex:1 1 auto;min-width:0}
+  #farm .fs-aktion .fs-btn.fs-gross{margin-top:2px}
+  #farm .fs-aktion .fs-btn .fs-btn-zeile .fi{width:22px;height:22px;vertical-align:-4px}
+  #farm .f-merk-zeile{margin:-4px 0 12px 76px}
+  #farm .f-warum-box{margin-top:12px;padding:12px 16px;font-size:19px;line-height:26px;color:#fff;font-weight:600}
+  #farm .f-kacheln{display:flex;flex-wrap:wrap;gap:16px 14px}
+  #farm .f-kacheln .fs-kachel{width:96px}
+  #farm .f-kacheln .fs-kachel .fs-badge{right:-12px;top:-12px;font-size:17px;padding:0 6px;display:flex;align-items:center;gap:1px}
+  #farm .f-kacheln .fs-kachel .fs-badge .fi{width:18px;height:18px}
+  #farm .f-zeile2{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  #farm .f-zeile2>.fs-btn{flex:1 1 auto}
+  #farm .f-fuchs-zeile{display:flex;align-items:center;gap:12px;font-size:21px;line-height:27px;margin:4px 0 14px}
+  #farm .f-fuchs-zeile>svg{flex:0 0 auto}
+  #farm .f-mehr{display:grid;grid-template-columns:44px 1fr auto;gap:10px 10px;align-items:center;padding:12px 14px;font-size:19px;margin-top:12px}
+  #farm .f-mehr b{font-family:var(--fs-titel);font-weight:400;font-size:24px;color:#fff;white-space:nowrap}
+  #farm .f-fahrer{display:flex;align-items:center;gap:12px;padding:10px 12px;margin-top:16px;font-size:19px;line-height:24px}
+  #farm .f-fahrer>.fi{width:52px;height:52px}
+  #farm .f-fahrer>div{flex:1 1 auto;min-width:0}
+  #farm .f-job-text{font-size:21px;line-height:26px;color:#fff;font-weight:700;text-shadow:0 2px 0 #0F6A25}
+  #farm .f-klein-btn{min-height:64px;font-size:20px;padding:4px 18px 8px}
+  #farm .f-preis{display:inline-flex;align-items:center;gap:4px}
+  /* Maschinenwahl */
+  #farm .f-mrow{position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;margin-bottom:16px;border-radius:20px;background:linear-gradient(#27307E,#1A2163);border:3px solid #0A0D26;box-shadow:inset 0 2px 0 rgba(255,255,255,.15),0 5px 0 #0A0D26}
+  #farm .f-mrow.f-gewaehlt{box-shadow:0 0 0 3px #FFC531,0 5px 0 3px #0A0D26}
+  #farm .f-mrow img{flex:0 0 auto;width:112px;height:66px;object-fit:contain;border-radius:12px;background:linear-gradient(#4f8a3e,#335a2b);border:2px solid #0A0D26}
+  #farm .f-mrow .f-m-tx{flex:1 1 auto;min-width:0}
+  #farm .f-mrow .f-m-name{font-family:var(--fs-titel);font-size:24px;line-height:28px}
+  #farm .f-mrow .f-m-zeile{font-size:18px;line-height:24px;color:#BCC5FF;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  #farm .f-mrow .f-m-zeile b{color:#fff}
+  #farm .f-mrow .f-m-zeile .fi{width:24px;height:24px}
+  #farm .f-mrow .fs-marke{position:absolute;right:12px;top:-14px}
+  #farm .f-trak{display:inline-flex;align-items:center;gap:4px;min-height:64px;padding:0 10px;border-radius:12px;border:2px solid #0A0D26;background:#2F3A9A;color:#fff;font-size:18px;font-weight:700}
+  #farm .f-trak .fi{width:26px;height:26px}
+  /* Saatwahl */
+  #farm .f-saat{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 18px;padding:14px 4px 6px}
+  #farm .f-saat .fs-karte>.fs-marke{position:absolute;left:12px;top:12px;z-index:2}
+  #farm .f-saat .fs-karte .fs-karte-grund{color:#FFE6A8}
+  #farm .f-saat-mehr{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin-top:18px}
+  #farm.f-level-offen .fs-toasts{bottom:auto;top:16px}
+  #farm .f-saat-fuss{display:flex;align-items:center;gap:12px}
+  #farm .f-saat-fuss>.fi{width:56px;height:56px}
+  #farm .f-saat-fuss>div{flex:1 1 auto;min-width:0;font-size:19px;line-height:24px}
+  #farm .f-saat-fuss b{font-family:var(--fs-titel);font-weight:400;font-size:22px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* Lernrunde */
+  #farm .f-lern{display:flex;flex-direction:column;align-items:center;gap:16px;padding-top:6px}
+  #farm .f-lern-punkte{display:flex;gap:10px}
+  #farm .f-lern-punkte i{display:block;width:22px;height:22px;border-radius:11px;border:3px solid #0A0D26;background:#2B3589}
+  #farm .f-lern-punkte i.ok{background:#4BE35F}#farm .f-lern-punkte i.nein{background:#FF8C8C}#farm .f-lern-punkte i.jetzt{background:#FFC61A;transform:scale(1.2)}
+  #farm .f-lern-titel{font-size:20px;color:#BCC5FF}
+  #farm .f-lk{position:relative;width:100%;max-width:760px;height:340px;perspective:1400px}
+  #farm .f-lk-innen{position:absolute;left:0;top:0;width:100%;height:100%;transform-style:preserve-3d;transition:transform .55s var(--fs-aus)}
+  #farm .f-lk.f-auf .f-lk-innen{transform:rotateY(180deg)}
+  #farm .f-lk-seite{position:absolute;left:0;top:0;right:0;bottom:0;box-sizing:border-box;display:flex;flex-direction:column;padding:24px 28px;text-align:center;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    border-radius:28px;border:4px solid #0A0D26;-webkit-backface-visibility:hidden;backface-visibility:hidden;font-weight:700;line-height:1.25;color:#24124F;
+    background:linear-gradient(180deg,#FFFFFF 0%,#F1EAFF 100%);box-shadow:inset 0 -8px 0 #CDBBF7,0 7px 0 #0A0D26,0 18px 26px rgba(0,0,0,.4)}
+  #farm .f-lk-hinten{transform:rotateY(180deg);background:linear-gradient(180deg,#F4FFF0 0%,#DDF7D2 100%);box-shadow:inset 0 -8px 0 #A9E39A,0 7px 0 #0A0D26,0 18px 26px rgba(0,0,0,.4);color:#0F3A17}
+  #farm .f-lk-text{margin:auto 0}  /* zentriert, solange es passt; laengere Antworten scrollen in der Karte */
+  #farm .f-lk-seite small{display:block;font-size:20px;font-weight:600;color:#6A5AA8;margin-bottom:10px}
+  #farm .f-lk-hinten small{color:#3E7A3A}
+  #farm .f-lern-knoepfe{display:flex;gap:16px;width:100%;max-width:760px}
+  #farm .f-lern-knoepfe>.fs-btn{flex:1 1 0}
+  #farm .f-lern-tipp{font-size:20px;color:#BCC5FF;text-align:center}
+  #farm .f-lern-erg{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+  #farm .f-lern-erg .f-gross-zahl{font-family:var(--fs-titel);font-size:48px;line-height:52px}
+  #farm .f-lern-erg p{margin:0;font-size:22px;line-height:28px}
+  #farm .f-lern-liste{font-size:19px;line-height:26px;color:#BCC5FF;max-width:640px}
+  /* Ueberlagerungen: Level-Up, Rundgang, Rueckfrage */
+  #farm .f-ueber{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;flex-direction:column;box-sizing:border-box;padding:16px;overflow:hidden}
+  #farm .f-schleier-dunkel{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(7,10,31,.66);animation:fs-blende .18s ease-out both}
+  #farm .f-level{z-index:60;background:radial-gradient(circle at 50% 36%,#7444E0 0%,#4A26B5 38%,#24166E 72%,#140C45 100%);animation:fs-blende .25s ease-out both}
+  #farm .f-strahlen{position:absolute;left:50%;top:32%;width:512px;height:512px;margin:-256px 0 0 -256px;pointer-events:none;transform:scale(3.4)}
+  #farm .f-strahlen>img{display:block;width:512px;height:512px;opacity:.5;animation:fs-drehen 60s linear infinite}
+  #farm .f-level-inhalt{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:1200px}
+  #farm .f-level-titel{font-family:var(--fs-titel);font-size:76px;line-height:80px;color:#FFE14D;letter-spacing:1px;transform:rotate(-2deg)}
+  #farm .f-level-stern{position:relative;animation:fs-auftauchen .6s var(--fs-pop) both}
+  #farm .f-level-stern .fs-level-zahl{font-family:var(--fs-level)}
+  #farm .f-level-fuchs{position:absolute;left:-150px;bottom:-16px}
+  #farm .f-lvl-karten{display:flex;flex-wrap:wrap;justify-content:center;gap:22px 18px;margin:8px 0 6px}
+  #farm .f-lvl-k{position:relative;box-sizing:border-box;width:212px;padding:26px 10px 14px;border-radius:24px;border:4px solid var(--fs-rc);text-align:center;
+    background:radial-gradient(circle at 50% 38%,var(--fs-rg) 0%,rgba(0,0,0,0) 62%),linear-gradient(180deg,#27307E 0%,#1A2163 100%);box-shadow:0 0 0 3px #0A0D26,0 7px 0 3px #0A0D26,0 16px 22px rgba(0,0,0,.35);animation:fs-auftauchen .5s var(--fs-pop) both}
+  #farm .f-lvl-k>.fi{width:104px;height:104px}
+  #farm .f-lvl-k img{display:block;width:150px;height:84px;margin:8px auto 10px;object-fit:contain}
+  #farm .f-lvl-k .f-lvl-art{position:absolute;left:50%;top:-18px;transform:translateX(-50%);white-space:nowrap;height:32px;padding:0 12px;border-radius:12px;border:3px solid #0A0D26;background:var(--fs-rc);color:#0A0D26;font-family:var(--fs-titel);font-size:18px;line-height:26px}
+  #farm .f-lvl-k .f-lvl-name{display:block;font-family:var(--fs-titel);font-size:26px;line-height:28px;margin-top:4px}
+  #farm .f-lvl-k .f-lvl-text{display:block;font-size:18px;line-height:22px;color:#BCC5FF;margin-top:2px}
+  #farm .f-lvl-karten.f-klein .f-lvl-k{width:168px;padding:22px 8px 10px}
+  #farm .f-lvl-karten.f-klein .f-lvl-k>.fi{width:72px;height:72px}
+  #farm .f-lvl-karten.f-klein .f-lvl-k img{width:120px;height:60px}
+  #farm .f-lvl-karten.f-klein .f-lvl-name{font-size:21px;line-height:23px}
+  #farm .f-lvl-karten.f-klein .f-lvl-text{font-size:18px;line-height:21px}
+  #farm .f-rund{z-index:65}
+  #farm .f-conf{z-index:70}
+  #farm .f-kasten{position:relative;width:560px;max-width:100%;box-sizing:border-box;padding:24px 24px 22px;animation:fs-auftauchen .35s var(--fs-pop) both}
+  #farm .f-kasten-kopf{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+  #farm .f-kasten-kopf>svg{flex:0 0 auto}
+  #farm .f-kasten-titel{font-family:var(--fs-titel);font-size:36px;line-height:40px}
+  #farm .f-kasten-text{font-size:23px;line-height:30px;margin:0 0 18px}
+  #farm .f-kasten-knoepfe{display:flex;gap:14px}
+  #farm .f-kasten-knoepfe>.fs-btn{flex:1 1 0}
+  #farm .f-vn{display:flex;align-items:center;justify-content:center;gap:14px;margin:0 0 20px}
+  #farm .f-vn-bild{display:flex;flex-direction:column;align-items:center;gap:4px;width:120px;padding:10px 6px;font-size:18px;color:#BCC5FF}
+  #farm .f-vn-bild .fi{width:64px;height:64px}
+  #farm .f-rund-text{font-family:var(--fs-titel);font-size:38px;line-height:44px;text-align:center;margin:10px 0 16px}
+  #farm .f-rund-punkte{display:flex;justify-content:center;gap:10px;margin-bottom:18px}
+  #farm .f-rund-punkte i{display:block;width:16px;height:16px;border-radius:8px;border:3px solid #0A0D26;background:#2B3589}
+  #farm .f-rund-punkte i.an{background:#FFC61A}
+  #farm .f-lade{z-index:90;background:#141A4D}
+  #farm .f-lade .f-kasten{text-align:center}
+  /* Menue */
+  #farm .f-menue{display:flex;flex-direction:column;gap:14px}
+  #farm .f-menue>.fs-btn{justify-content:flex-start}
+  #farm .f-menue .fs-btn.fs-breit{display:flex}
+  #farm .f-statzeile{font-size:19px;line-height:26px;color:#BCC5FF;padding:12px 14px;margin-top:6px}
+  #farm .f-chronik{font-size:18px;line-height:26px;padding:12px 14px}
+  #farm .f-chronik b{color:#FFF07A}
+  #farm .f-tempo{display:flex;gap:10px;flex-wrap:wrap}
+  /* ---- Dialog-Bausteine (Teil 2): Knopf-Zeilen, Zahl mit Icon, Reiter, Karten, Werte-Balken ---- */
+  #farm .fs-btn.fs-navy .fs-btn-zeile,#farm .fs-btn.fs-aus .fs-btn-zeile,#farm .fs-btn.fs-violett .fs-btn-zeile{color:#D5DBFF}
+  #farm .fs-btn .f-btn-titel{display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+  #farm .fs-btn .f-btn-titel>.fi{width:32px;height:32px}
+  #farm .fs-btn.fs-gross .f-btn-titel>.fi{width:42px;height:42px}
+  #farm .fs-btn .fs-btn-zeile{white-space:nowrap}
+  #farm .fs-btn .fs-btn-zeile .fi{width:24px;height:24px;vertical-align:-5px}
+  #farm .f-zi{display:inline-flex;align-items:center;gap:4px;height:46px;box-sizing:border-box;padding:0 12px 0 4px;border-radius:14px;background:#0F1442;border:2px solid #0A0D26;white-space:nowrap}
+  #farm .f-zi>.fi{width:38px;height:38px}
+  #farm .f-zi b{font-family:var(--fs-titel);font-weight:400;font-size:22px;color:#fff}
+  #farm .f-zi b:empty{display:none}
+  #farm .f-zi.f-fehlt{border-color:#F2424A;box-shadow:0 0 0 2px #F2424A}
+  #farm .f-zi.f-aus-ware{background:#173F2A}
+  #farm .f-reiter{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;touch-action:pan-x;padding:14px 4px 12px;margin:-12px -4px 0;scrollbar-width:none}
+  #farm .f-reiter::-webkit-scrollbar{display:none}
+  #farm .f-reiter>.fs-btn{flex:0 0 auto;min-height:64px;font-size:21px;padding:4px 18px 8px 10px;white-space:nowrap}
+  #farm .f-reiter>.fs-btn>.fi{width:36px;height:36px}
+  #farm .f-reiter>.fs-btn.f-an{box-shadow:inset 0 -7px 0 var(--fs-lip),inset 0 3px 0 rgba(255,255,255,.55),0 0 0 3px #fff,0 5px 0 3px #0A0D26}
+  #farm .f-vor-zeile{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  #farm .f-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:24px 18px;padding:10px 2px 8px;align-items:start}
+  #farm .f-raster.f-r2{grid-template-columns:repeat(auto-fill,minmax(400px,1fr))}
+  #farm .f-raster.f-r3{grid-template-columns:repeat(auto-fill,minmax(360px,1fr))}
+  #farm .f-k{position:relative;box-sizing:border-box;display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;border-radius:22px;border:3px solid #0A0D26;
+    background:linear-gradient(180deg,#27307E 0%,#1A2163 60%,#151B54 100%);box-shadow:inset 0 2px 0 rgba(255,255,255,.16),0 6px 0 #0A0D26,0 14px 20px rgba(0,0,0,.3)}
+  #farm .f-k.f-fokus{box-shadow:0 0 0 4px #FFC531,0 6px 0 4px #0A0D26,0 14px 20px rgba(0,0,0,.3)}
+  #farm .f-k.f-fertig{box-shadow:0 0 0 4px #4BE35F,0 6px 0 4px #0A0D26,0 14px 20px rgba(0,0,0,.3)}
+  #farm .f-k.f-hunger,#farm .f-k.f-kaputt{box-shadow:0 0 0 4px #F2424A,0 6px 0 4px #0A0D26,0 14px 20px rgba(0,0,0,.3)}
+  #farm .f-k.f-zu{background:linear-gradient(180deg,#1E2463 0%,#161B4F 100%)}
+  #farm .f-k.f-zu .f-k-titel{color:#AEB6EC}
+  #farm .f-k-kopf{display:flex;align-items:center;gap:12px;min-height:64px}
+  #farm .f-k-kopf.f-k-kopf-klein{min-height:0}
+  #farm .f-k-bild{position:relative;flex:0 0 68px;width:68px;height:68px;box-sizing:border-box;border-radius:18px;border:3px solid #0A0D26;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 55%,var(--fs-rg,rgba(63,169,255,.5)) 0%,rgba(0,0,0,0) 70%),linear-gradient(#2E3893,#1B2266);box-shadow:0 0 0 3px var(--fs-rc,#3A47B0)}
+  #farm .f-k-bild>.fi{width:52px;height:52px}
+  #farm .f-k-bild>.fi.fs-ecke{width:32px;height:32px;right:-12px;top:-12px}
+  #farm .f-zu .f-k-bild>.fi:not(.fs-ecke){opacity:.45}
+  #farm .f-k-tx{flex:1 1 auto;min-width:0}
+  #farm .f-k-titel{font-family:var(--fs-titel);font-weight:400;font-size:26px;line-height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #farm .f-k-unter{font-size:19px;line-height:24px;color:#BCC5FF}
+  #farm .f-k-unter .f-preis .fi{width:24px;height:24px;vertical-align:-5px}
+  #farm .f-k-fuss{margin-top:auto;display:flex;gap:12px}
+  #farm .f-k-fuss>.fs-btn{flex:1 1 0;min-width:0;padding-left:10px;padding-right:10px}
+  #farm .f-info-rund.fs-btn.fs-rund{flex:0 0 auto;width:64px;height:64px}
+  #farm .f-zeile2>.f-mehr-btn{flex:0 1 auto}
+  #farm .f-abschnitt-zeile{display:flex;align-items:center;gap:12px;margin:18px 0 8px}
+  #farm .f-abschnitt-zeile .fs-abschnitt{margin:0;flex:1 1 auto}
+  #farm .f-chip-klein{height:48px;font-size:19px;cursor:default}
+  #farm .f-pille-info{cursor:default}
+  #farm .f-warn{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:#5A1424;border:3px solid #0A0D26;font-size:19px;line-height:24px}
+  #farm .f-warn>.fi{width:36px;height:36px}
+  #farm .f-mehr-knoepfe{display:flex;flex-wrap:wrap;gap:12px}
+  #farm .f-mehr-knoepfe>.fs-btn{flex:1 1 200px}
+  #farm .f-mehr-knoepfe>.fs-marke{height:44px;font-size:21px}
+  #farm .f-k .f-fuchs-zeile{margin:0}
+  /* Haendler + Meine Maschinen */
+  #farm .f-foto{position:relative;height:132px;border-radius:16px;border:3px solid #0A0D26;overflow:hidden;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 62%,rgba(150,220,110,.55) 0%,rgba(0,0,0,0) 65%),linear-gradient(180deg,#4f8a3e 0%,#335a2b 100%)}
+  #farm .f-foto img{width:230px;height:124px;object-fit:contain}
+  #farm .f-zu .f-foto img{opacity:.35}
+  #farm .f-foto .fi.f-foto-schloss{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px 0 0 -30px}
+  #farm .f-foto .f-marke{position:absolute;left:8px;top:8px;height:32px;font-size:18px}
+  #farm .f-foto .f-foto-marke{position:absolute;right:8px;bottom:8px}
+  #farm .f-werte{display:flex;flex-direction:column;gap:8px}
+  #farm .f-wert{display:grid;grid-template-columns:34px 78px minmax(0,1fr) auto;align-items:center;gap:8px;font-size:19px;color:#BCC5FF}
+  #farm .f-wert>.fi{width:34px;height:34px}
+  #farm .f-wert b{font-family:var(--fs-titel);font-weight:400;font-size:21px;color:#fff;white-space:nowrap;min-width:62px;text-align:right}
+  #farm .f-wert .fs-balken{height:20px}
+  #farm .f-vorteile{display:flex;flex-direction:column;gap:4px}
+  #farm .f-vorteil{display:flex;align-items:flex-start;gap:6px;font-size:19px;line-height:23px;color:#9BF57A}
+  #farm .f-vorteil>.fi{width:24px;height:24px;flex:0 0 24px}
+  #farm .f-mk .f-k-fuss .fs-btn{min-height:72px}
+  #farm .f-mk .f-k-titel{white-space:normal;font-size:24px;line-height:27px}
+  #farm .f-raster.f-mk-raster,#farm .f-raster.f-erf-raster{align-items:stretch}
+  #farm .f-k-fuss.f-fuss-spalte{flex-direction:column}
+  #farm .f-k-fuss.f-fuss-spalte>.fs-btn{flex:0 0 auto}
+  #farm .f-mk .f-k-fuss .fs-btn.f-verk-btn{min-height:64px;font-size:21px}
+  #farm .f-erfolg .f-k-titel{white-space:normal;font-size:24px;line-height:27px}
+  #farm .f-mk .f-warum-box{margin-top:0}
+  #farm .f-zum-feld{flex:0 0 auto}
+  #farm .f-werte-gross{display:flex;align-items:center;gap:12px;font-size:19px;color:#BCC5FF}
+  #farm .f-silo{flex-direction:row;flex-wrap:wrap;align-items:center}
+  #farm .f-silo>.f-silo-zeile{flex:1 1 420px;display:flex;align-items:center;gap:14px;min-width:0}
+  #farm .f-silo>.f-fuchs-zeile{flex:1 1 100%;order:3}
+  #farm .f-silo>.f-k-fuss{flex:0 0 auto;margin:0}
+  #farm .f-silo.f-silo-gross{flex-direction:column;align-items:stretch}
+  #farm .f-silo.f-silo-gross>.f-silo-zeile{flex:0 0 auto}
+  #farm .fi.f-silo-bild{width:84px;height:84px}
+  #farm .f-silo-zahl{font-family:var(--fs-titel);font-weight:400;font-size:34px;line-height:40px;margin-bottom:6px;white-space:nowrap}
+  #farm .f-silo-zahl span{font-size:22px;color:#BCC5FF}
+  /* Lager & Markt */
+  #farm .f-lager-liste{display:flex;flex-direction:column;gap:12px}
+  #farm .f-lz{display:grid;grid-template-columns:60px minmax(0,1fr) 220px 230px 64px;grid-template-areas:"bild name preis knopf mehr" "extra extra extra extra extra";align-items:center;gap:0 14px;
+    padding:10px 12px;border-radius:20px;border:3px solid #0A0D26;background:linear-gradient(180deg,#252E7A,#1A2163);box-shadow:0 4px 0 #0A0D26}
+  #farm .fi.f-lz-bild{grid-area:bild;width:60px;height:60px}
+  #farm .f-lz-name{grid-area:name;min-width:0}
+  #farm .f-lz-name b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:25px;line-height:29px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #farm .f-lz-name span{font-family:var(--fs-titel);font-size:23px;color:#FFF07A}
+  #farm .f-lz-preis{grid-area:preis;display:flex;align-items:center;gap:8px}
+  #farm .f-lz-preis b{display:flex;align-items:center;gap:2px;font-family:var(--fs-titel);font-weight:400;font-size:24px}
+  #farm .f-lz-preis b .fi{width:28px;height:28px}
+  #farm .f-lz-preis span{display:block;font-size:19px;color:#BCC5FF}
+  #farm .f-lz-knopf{grid-area:knopf}
+  #farm .f-lz-mehr.fs-btn.fs-rund{grid-area:mehr;width:64px;height:64px}
+  #farm .f-lz-extra{grid-area:extra;display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end;padding-top:12px}
+  #farm .f-zk-raster{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  #farm .f-zk .f-k-kopf>.fi{width:56px;height:56px}
+  /* Auftragsbrett (Zettel) */
+  #farm .f-brett{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:34px 20px;padding:24px 6px 8px;align-items:start}
+  #farm .f-zettel{display:flex;flex-direction:column;gap:10px;padding:22px 14px 16px}
+  #farm .f-brett>.f-zettel:nth-child(2n){transform:rotate(.7deg)}
+  #farm .f-brett>.f-zettel:nth-child(2n+1){transform:rotate(-.5deg)}
+  #farm .fi.f-zettel-haken{position:absolute;right:-16px;top:-16px;width:58px;height:58px;z-index:2}
+  #farm .f-kunde{display:flex;align-items:center;gap:10px}
+  #farm .f-kunde-bild{flex:0 0 56px;width:56px;height:56px;box-sizing:border-box;border-radius:14px;border:3px solid #0A0D26;background:#fff;display:flex;align-items:center;justify-content:center}
+  #farm .f-kunde-bild .fi{width:44px;height:44px}
+  #farm .f-kunde b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:22px;line-height:25px;color:#3A2412}
+  #farm .f-kunde span{display:block;font-size:19px;color:#7A5A3A}
+  #farm .f-ware{display:flex;align-items:center;gap:12px;padding:8px 12px;border-radius:16px;background:#F3DFB0;border:2px solid #E3C98E}
+  #farm .f-ware>.fi{width:76px;height:76px}
+  #farm .f-ware b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:40px;line-height:42px;color:#3A2412}
+  #farm .f-ware span{display:block;font-size:20px;font-weight:700;color:#5A3A1A}
+  #farm .f-im-lager{display:flex;align-items:center;justify-content:space-between;font-size:19px;color:#5A3A1A}
+  #farm .f-im-lager span{display:flex;align-items:center;gap:4px}
+  #farm .f-im-lager .fi{width:28px;height:28px}
+  #farm .f-im-lager b{font-family:var(--fs-titel);font-weight:400;font-size:22px;color:#3A2412}
+  #farm .f-zettel .fs-balken{height:22px}
+  #farm .f-az-status{display:flex;align-items:center;gap:6px;font-size:21px;font-weight:700}
+  #farm .f-az-status .fi{width:30px;height:30px}
+  #farm .f-az-status.f-ok{color:#178A2B}
+  #farm .f-az-status.f-fehlt{color:#C2410C}
+  #farm .f-lohn{display:flex;align-items:center;justify-content:center;gap:6px;height:56px;box-sizing:border-box;padding:0 12px;border-radius:16px;background:linear-gradient(#2C3690,#1C2366);border:3px solid #0A0D26;color:#fff}
+  #farm .f-lohn .fi{width:36px;height:36px}
+  #farm .f-lohn b{font-family:var(--fs-titel);font-weight:400;font-size:26px;margin-right:8px}
+  #farm .f-lohn b:last-child{margin-right:0}
+  #farm .f-lohn.f-lohn-klein{height:48px}
+  #farm .f-lohn.f-lohn-klein b{font-size:22px}
+  #farm .f-lohn.f-lohn-klein .fi{width:30px;height:30px}
+  #farm .f-az-zeit{display:flex;align-items:center;gap:6px;font-size:19px;color:#7A5A3A}
+  #farm .f-az-zeit .fi{width:26px;height:26px}
+  #farm .f-az-hinweis{display:flex;align-items:center;gap:6px;font-size:19px;font-weight:700;color:#2F6A12}
+  #farm .f-az-hinweis .fi{width:28px;height:28px}
+  #farm .f-az-fuss{display:flex;flex-direction:column;gap:8px}
+  #farm .f-az-knoepfe{display:flex;gap:10px}
+  #farm .f-az-knoepfe>.fs-btn{flex:1 1 0;min-width:0;padding-left:6px;padding-right:6px;font-size:21px}
+  #farm .f-az-knopf.fs-btn{width:100%}
+  #farm .f-brett-fuss{display:flex;align-items:center;gap:8px;justify-content:center;font-size:19px;color:#BCC5FF;margin-top:16px}
+  #farm .f-brett-fuss .fi{width:34px;height:34px}
+  /* Rezepte / Betriebe / Tierhof */
+  #farm .f-gl{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  #farm .f-gl-pfeil .fi{width:30px;height:30px}
+  #farm .f-gl-plus{font-family:var(--fs-titel);font-size:26px;color:#BCC5FF}
+  #farm .f-rezept{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:18px;background:#141A4D;border:2px solid #0A0D26}
+  #farm .f-rezept-zeile{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  #farm .f-rezept-zeit{display:flex;align-items:center;gap:4px;font-family:var(--fs-titel);font-size:21px;color:#BCC5FF;margin-right:auto}
+  #farm .f-rezept-zeit .fi{width:28px;height:28px}
+  #farm .f-rezept-knoepfe{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  #farm .f-rezept-knoepfe>.fs-btn{min-height:64px;font-size:21px;padding:4px 14px 8px}
+  #farm .f-prod{display:flex;align-items:center;gap:14px}
+  #farm .f-prod-titel{font-family:var(--fs-titel);font-size:24px;line-height:28px}
+  #farm .f-prod-zeit{display:flex;align-items:center;gap:6px;font-size:20px;color:#E3E7FF}
+  #farm .f-prod-zeit .fi{width:28px;height:28px}
+  #farm .f-schlange{display:flex;align-items:center;gap:6px;margin-top:6px}
+  #farm .f-schlange i{display:block;width:22px;height:22px;box-sizing:border-box;border-radius:7px;border:3px solid #0A0D26;background:#2B3589}
+  #farm .f-schlange i.f-voll{background:#9A6BFF}
+  #farm .f-schlange span{font-size:19px;color:#BCC5FF;margin-left:4px}
+  #farm .f-futter-wahl{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:19px;color:#BCC5FF}
+  #farm .f-futter-wahl .fi{width:30px;height:30px}
+  #farm .f-futter-gut{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+  #farm .f-fuell{display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 10px;align-items:center}
+  #farm .f-fuell>.fi{grid-row:1 / span 2;width:44px;height:44px}
+  #farm .f-fuell-tx{display:flex;justify-content:space-between;gap:8px;font-size:19px;color:#BCC5FF}
+  #farm .f-fuell-tx b{font-family:var(--fs-titel);font-weight:400;font-size:21px;color:#fff;white-space:nowrap}
+  #farm .f-fuell-tx b.f-rot{color:#FF8C8C}
+  #farm .f-auto{flex:0 0 auto}
+  #farm .f-rate{display:block}
+  #farm .f-rate .fi{vertical-align:-5px;margin-right:4px}
+  /* Wetter */
+  #farm .fi.f-wetter-gross{width:96px;height:96px}
+  #farm .f-wirkung{display:grid;grid-template-columns:40px minmax(0,1fr) 30px auto;align-items:center;gap:10px;font-size:20px;color:#BCC5FF}
+  #farm .f-wirkung>.fi:first-child{width:40px;height:40px}
+  #farm .f-wirkung b{font-family:var(--fs-titel);font-weight:400;font-size:22px;color:#fff}
+  #farm .f-vorhersage{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;touch-action:pan-x}
+  #farm .f-vh{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px;width:108px;box-sizing:border-box;padding:10px 6px;border-radius:18px;background:#141A4D;border:3px solid #0A0D26;text-align:center}
+  #farm .f-vh .fi{width:56px;height:56px}
+  #farm .f-vh b{font-size:19px;line-height:22px}
+  #farm .f-vh span{font-size:19px;color:#BCC5FF}
+  #farm .f-wetter-alle{display:flex;flex-direction:column;gap:10px}
+  #farm .f-wa{display:flex;align-items:center;gap:12px;font-size:19px;line-height:24px}
+  #farm .f-wa .fi{width:48px;height:48px;flex:0 0 48px}
+  #farm .f-wa b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:22px}
+  #farm .f-wa span{color:#BCC5FF}
+  /* Sammlung */
+  #farm .f-heute-kopf{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;margin:6px 0 10px}
+  #farm .f-serie,#farm .f-neu-in{flex-direction:row;align-items:center}
+  #farm .fi.f-serie-bild{width:76px;height:76px;flex:0 0 76px}
+  #farm .f-serie-zahl{font-family:var(--fs-titel);font-size:30px;line-height:34px}
+  #farm .f-neu-in>.fi{width:56px;height:56px}
+  #farm .f-neu-in b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:28px;line-height:32px}
+  #farm .f-neu-in span{font-size:19px;color:#BCC5FF}
+  #farm .f-aufgaben{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+  #farm .f-aufgabe{align-items:center;text-align:center}
+  #farm .f-aufgabe .fs-ring-inhalt>.fi,#farm .f-prod .fs-ring-inhalt>.fi{width:46px!important;height:46px!important}
+  #farm .f-feld-ring .fs-ring-inhalt>.fi{width:38px;height:38px}
+  #farm .f-aufgabe-text{font-size:22px;line-height:27px;font-weight:700;min-height:54px}
+  #farm .f-aufgabe>.fs-btn{width:100%}
+  #farm .f-fortschritt{display:flex;align-items:center;gap:4px;height:64px;font-family:var(--fs-titel);font-size:26px}
+  #farm .f-fortschritt .fi{width:30px;height:30px}
+  #farm .fs-marke.f-abgeholt{height:44px;font-size:21px}
+  #farm .f-truhe{flex-direction:row;align-items:center;gap:16px;margin-top:22px}
+  #farm .fi.f-truhe-bild{width:96px;height:96px;flex:0 0 96px}
+  #farm .f-truhe>.fs-btn,#farm .f-truhe>.fs-marke{flex:0 0 auto}
+  #farm .f-truhe .f-lohn{display:inline-flex;margin-top:6px}
+  #farm .f-schul{display:flex;flex-direction:column;gap:8px}
+  #farm .f-schul-z{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 12px;border-radius:16px;background:#141A4D;border:2px solid #0A0D26;font-size:19px}
+  #farm .f-schul-z .fi{width:40px;height:40px}
+  #farm .f-schul-z span{color:#BCC5FF}
+  #farm .f-erf-kopf{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:20px;background:#141A4D;border:3px solid #0A0D26;margin-top:6px}
+  #farm .f-erf-raster{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+  #farm .f-sterne{display:flex;gap:4px;justify-content:center}
+  #farm .f-erf-fort{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+  #farm .f-erf-fort b{display:flex;align-items:center;gap:2px;font-family:var(--fs-titel);font-weight:400;font-size:20px;white-space:nowrap}
+  #farm .f-erf-fort b .fi{width:26px;height:26px}
+  #farm .f-erf-fort b.f-gold{color:#FFC531;grid-column:1 / span 2;justify-content:center;font-size:23px}
+  #farm .f-naechste{display:flex;align-items:center;justify-content:center;gap:6px;font-size:19px;color:#BCC5FF}
+  #farm .f-naechste .f-preis{font-family:var(--fs-titel);font-size:21px;color:#fff}
+  #farm .f-naechste .f-preis .fi{width:26px;height:26px}
+  #farm .f-seite-kopf{flex-direction:row;align-items:center;margin-top:4px}
+  #farm .f-seite-kopf .f-erf-fort{margin-top:6px}
+  #farm .f-bonus-zu{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:16px;background:#141A4D;border:2px solid #0A0D26}
+  #farm .f-bonus-zu>.fi{width:44px;height:44px;opacity:.7}
+  #farm .f-bonus-zu span{display:block;font-size:19px;color:#BCC5FF}
+  #farm .f-bonus-zu b{font-family:var(--fs-titel);font-weight:400;font-size:22px}
+  #farm .f-bonus-zu b .fi{width:26px;height:26px;vertical-align:-6px}
+  #farm .f-fakt{display:flex;align-items:center;gap:14px;padding:12px 14px;margin:14px 0 4px}
+  #farm .f-fakt>.fi,#farm .f-fakt>img{width:84px;height:84px;flex:0 0 84px;object-fit:contain}
+  #farm .f-fakt>div{flex:1 1 auto;min-width:0}
+  #farm .f-fakt b{display:block;font-family:var(--fs-titel);font-weight:400;font-size:24px}
+  #farm .f-fakt span{display:block;font-size:19px;line-height:25px}
+  #farm .f-fakt>.fs-btn.fs-rund{flex:0 0 auto;width:64px;height:64px}
+  #farm .f-album-tipp{display:flex;align-items:center;gap:8px;font-size:19px;color:#BCC5FF;margin:14px 0 2px}
+  #farm .f-album-raster{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:22px 16px}
+  #farm .f-ak .fs-karte-bild img{width:170px;height:92px;object-fit:contain}
+  #farm .f-ak-zu .fs-karte-bild img,#farm .f-ak-zu .fs-karte-bild>.fi:not(.fs-schloss){opacity:.14}
+  #farm .f-ak .fs-karte-name{font-size:24px;line-height:28px;text-align:center}
+  #farm .f-ak-text{font-size:19px;line-height:23px;color:#BCC5FF;text-align:center;padding:0 4px}
+  #farm .f-ak.f-ak-an{box-shadow:0 0 0 3px #fff,0 7px 0 3px #0A0D26,0 14px 20px rgba(0,0,0,.35)}
+  /* Felder, Hilfe, Chronik, Menue */
+  #farm .f-felder{grid-template-columns:repeat(auto-fill,minmax(520px,1fr))}
+  #farm .f-feldz{flex-direction:row;align-items:center}
+  #farm .f-feldz-marken{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  #farm .f-feldz-marken:empty{display:none}
+  #farm .f-feldz-knoepfe{display:flex;gap:10px;flex:0 0 auto}
+  #farm .f-hilfe{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #farm .f-hilfe-k{flex-direction:row;align-items:center;gap:14px;font-size:21px;line-height:27px;font-weight:700}
+  #farm .fi.f-hilfe-bild{width:76px;height:76px;flex:0 0 76px}
+  #farm .f-hilfe-los{display:flex;justify-content:center;margin-top:20px}
+  #farm .f-hilfe-los>.fs-btn{min-width:320px}
+  #farm .f-chronik-liste{display:flex;flex-direction:column;gap:10px}
+  #farm .f-chronik-z{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:#141A4D;border:2px solid #0A0D26;font-size:19px;line-height:24px}
+  #farm .f-chronik-z .fi{width:44px;height:44px;flex:0 0 44px}
+  #farm .f-chronik-z b{display:block;color:#FFF07A;font-family:var(--fs-titel);font-weight:400;font-size:21px}
+  #farm .f-stat-zeile{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  /* Handy: Hochformat */
   @media (max-width:820px){
-    .f-hinweis{min-width:0;overflow:hidden}.f-hinweis>div{max-width:100%;font-size:13px;padding:7px 12px}
-    .f-top{padding:6px 8px}.f-geld{font-size:17px;min-width:100px;padding:5px 10px}.f-lvl,.f-wetter{font-size:12px;padding:4px 9px}
-    .f-links{margin-right:6px}.f-ib{width:44px;height:44px;font-size:21px;margin:0 0 16px 6px}.f-ib small{font-size:9.5px;bottom:-13px}
-    .f-hinweis>div{font-size:12.5px;padding:6px 10px;max-width:58vw}
-    .f-dlg{padding:6px}.f-box{border-radius:16px}.f-inhalt{padding:10px}.f-gitter{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
-    .f-album{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}.f-zeile{flex-wrap:wrap}.f-kauf{font-size:13.5px}
-    .f-toasts{width:94%;bottom:12px}.f-toast{font-size:13.5px}
+    #farm .f-hud-links{left:8px;top:8px;gap:4px}
+    #farm .f-hud-links .fs-geld{height:52px;font-size:28px;padding:0 14px 0 54px}
+    #farm .f-hud-links .fs-geld>.fi{width:48px;height:48px;left:3px;top:-1px}
+    #farm .f-hud-rechts{right:8px;top:8px;gap:8px}
+    #farm .f-hud-rechts .fs-btn.fs-rund{width:58px;height:58px}
+    #farm .f-ziel-platz{left:8px;right:8px;top:82px}
+    #farm .f-ziel-platz>.fs-ziel{max-width:none}
+    #farm .f-chips{left:8px;top:172px;gap:10px}
+    #farm .f-chip-schule{display:none!important}
+    #farm .f-zoom{right:8px;bottom:120px;gap:10px}
+    #farm .f-mit-ort{left:8px;bottom:122px}
+    #farm .f-saat{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+    #farm .f-saat .fs-karte>.fs-marke{top:66px;left:8px}
+    #farm .f-saat-fuss>div{font-size:17px;line-height:21px}
+    #farm .f-mrow img{width:84px;height:54px}
+    #farm .f-mrow .f-m-name{font-size:21px}
+    #farm .f-level-titel{font-size:52px;line-height:56px}
+    #farm .f-level-fuchs{display:none}
+    #farm .f-lvl-k{width:160px}
+    #farm .f-level-inhalt{max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 0 8px;gap:8px}
+    #farm .f-lvl-karten.f-klein{gap:20px 8px}
+    #farm .f-lvl-karten.f-klein .f-lvl-k{width:120px;padding:20px 5px 8px}
+    #farm .f-lvl-karten.f-klein .f-lvl-k>.fi{width:56px;height:56px}
+    #farm .f-lvl-karten.f-klein .f-lvl-k img{width:96px;height:46px;margin:6px auto}
+    #farm .f-lvl-karten.f-klein .f-lvl-name{font-size:19px;line-height:21px}
+    #farm .f-lvl-karten.f-klein .f-lvl-text{font-size:16px;line-height:19px}
+    #farm .f-lvl-k .f-lvl-art{font-size:16px;padding:0 8px}
+    #farm .f-lk{height:300px}
+    #farm .f-kasten{padding:18px 16px 16px}
+    #farm .f-kasten-titel{font-size:30px;line-height:34px}
+    #farm .f-kasten-text{font-size:21px;line-height:27px}
+    #farm .f-rund-text{font-size:30px;line-height:36px}
+    #farm .fs-toasts{bottom:118px;left:6px;right:78px}
+    /* Dialoge (Teil 2) auf dem Handy: eine Spalte, Reiter wischbar, Geld oben im HUD statt im Kopf */
+    #farm .f-raster,#farm .f-raster.f-r2,#farm .f-raster.f-r3,#farm .f-felder,#farm .f-aufgaben,#farm .f-erf-raster,#farm .f-brett,#farm .f-hilfe,#farm .f-zk-raster{grid-template-columns:minmax(0,1fr)}
+    #farm .f-album-raster{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
+    #farm .f-ak .fs-karte-bild img{width:130px;height:72px}
+    #farm .f-ak .fs-karte-name{font-size:20px;line-height:24px}
+    #farm .f-geldziel{display:none}
+    #farm .f-pille-info{display:none}
+    #farm .f-reiter{gap:10px}
+    #farm .f-reiter>.fs-btn{font-size:19px;padding:4px 14px 8px 8px}
+    #farm .f-reiter>.fs-btn>.fi{width:32px;height:32px}
+    #farm .f-k{padding:12px}
+    #farm .f-k-titel{font-size:23px;line-height:27px}
+    #farm .f-k-bild{flex-basis:60px;width:60px;height:60px}
+    #farm .f-k-bild>.fi{width:46px;height:46px}
+    #farm .f-wert{grid-template-columns:30px 70px minmax(0,1fr) auto;gap:6px}
+    #farm .f-lz{grid-template-columns:48px minmax(0,1fr) 156px;grid-template-areas:"bild name knopf" "preis preis mehr" "extra extra extra";gap:6px 10px}
+    #farm .fi.f-lz-bild{width:48px;height:48px}
+    #farm .f-lz-name b{font-size:22px;line-height:26px}
+    #farm .f-lz-name span{font-size:20px}
+    #farm .f-lz-mehr.fs-btn.fs-rund{justify-self:end;width:64px;height:64px}
+    #farm .f-lz-knopf.fs-btn{padding-left:6px;padding-right:6px}
+    #farm .f-heute-kopf{grid-template-columns:minmax(0,1fr);gap:14px}
+    #farm .f-truhe,#farm .f-seite-kopf,#farm .f-erf-kopf,#farm .f-feldz{flex-wrap:wrap}
+    #farm .f-truhe>.fs-btn,#farm .f-erf-kopf>.fs-btn,#farm .f-seite-kopf>.fs-btn{flex:1 1 100%}
+    #farm .fi.f-truhe-bild{width:72px;height:72px;flex-basis:72px}
+    #farm .f-feldz-knoepfe{flex:1 1 100%;justify-content:flex-end}
+    #farm .f-silo>.f-silo-zeile{flex-basis:100%}
+    #farm .f-silo>.f-k-fuss{flex:1 1 100%}
+    #farm .fi.f-silo-bild{width:64px;height:64px}
+    #farm .f-silo-zahl{font-size:28px;line-height:34px}
+    #farm .f-silo-zahl span{font-size:19px}
+    #farm .f-hilfe-los>.fs-btn{min-width:0;width:100%}
+    #farm .f-ware b{font-size:34px;line-height:38px}
+    #farm .f-brett{gap:28px 0;padding:20px 8px 8px}
+    #farm .f-wirkung{grid-template-columns:36px minmax(0,1fr) 30px auto}
   }
-  @media (max-width:820px), (max-height:480px){
-    .f-btns{position:fixed;left:0;right:0;bottom:0;max-width:none;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;-webkit-overflow-scrolling:touch;background:rgba(14,22,16,.93);padding:6px 8px 2px;border-top:1px solid rgba(255,255,255,.15);z-index:4;touch-action:pan-x}
-    .f-btns .f-ib{flex:0 0 auto;margin:0 8px 14px 0}
-    .f-zoom{bottom:86px}.f-toasts{bottom:88px}
-  }
-  .f-wahl{display:inline-block;background:rgba(255,255,255,.14);border-radius:10px;padding:4px 10px;font-size:13px;font-weight:700}
+  @media (max-height:480px){ #farm .f-chips{display:none} }
+  @media (max-width:1180px) and (min-width:821px){ #farm .f-mit-ort{bottom:134px} #farm .f-ziel-platz{left:360px;right:170px} }
   `;
 
   function baueOberflaeche() {
+    FS.einbauen();
     wurzel = document.createElement('div');
     wurzel.id = 'farm';
     wurzel.innerHTML = `
       <style>${CSS}</style>
       <canvas id="farm-cv"></canvas>
-      <div class="f-top">
-        <div class="f-links">
-          <div class="f-pill f-geld" id="f-geld">0 €</div>
-          <div class="f-pill f-lvl"><span id="f-lvl">Level 1</span><div class="bar"><div id="f-xp"></div></div></div>
-          <div class="f-pill f-wetter" id="f-wetter" data-a="wetter">☀️ Sonnig</div>
-          <div class="f-pill f-wetter" id="f-tag" data-a="tagTab">📅 Heute</div>
-          <div class="f-pill f-wetter" id="f-schule" data-a="tagTab" style="display:none">📚 Schule</div>
-          <div class="f-pill f-wetter f-mit" id="f-mit" style="display:none"></div>
-        </div>
-        <div class="f-hinweis leer" id="f-hinweis"><div id="f-hinweis-t" data-a="hinweisZeigen"></div></div>
-        <div class="f-btns">
-          <button class="f-ib" data-a="felder">🌾<small>Felder</small></button>
-          <button class="f-ib" data-a="sammlung">🏆<small>Erfolge</small><span class="pkt" id="f-pkt-erf"></span></button>
-          <button class="f-ib" data-a="auftraege">📋<small>Aufträge</small><span class="pkt" id="f-pkt-auf"></span></button>
-          <button class="f-ib" data-a="lager">📦<small>Lager</small></button>
-          <button class="f-ib" data-a="tiere">🐔<small>Tiere</small></button>
-          <button class="f-ib" data-a="betriebe">🏭<small>Betriebe</small></button>
-          <button class="f-ib" data-a="fuhrpark">🚜<small>Fuhrpark</small></button>
-          <button class="f-ib" data-a="shop">🏪<small>Händler</small></button>
-          <button class="f-ib" data-a="menue">☰<small>Menü</small></button>
-        </div>
+      <div class="f-hud f-hud-links"><span id="f-lvl" data-a="sammlung" data-id="erfolge"></span><div class="fs-geld" id="f-geld">${I('muenze')}<span class="fs-geld-zahl" id="f-geldzahl">0</span></div></div>
+      <div class="f-hud f-chips" id="f-chips">
+        <span class="fs-chip" id="f-wetter" data-a="wetter"></span>
+        <span class="fs-chip" id="f-tag" data-a="tagTab"></span>
+        <span class="fs-chip f-chip-schule" id="f-schule" data-a="tagTab" style="display:none"></span>
       </div>
-      <div class="f-zoom"><button class="f-ib" data-a="zoom+">＋</button><button class="f-ib" data-a="zoom-">－</button></div>
-      <div class="f-offline" id="f-offline">⚠ Keine Verbindung zum Hof</div>
-      <div class="f-toasts" id="f-toasts"></div>`;
+      <div class="f-hud f-ziel-platz f-weg" id="f-ziel-platz"><div class="fs-ziel" id="f-ziel" data-a="ziel"><div class="fs-ziel-fuchs" id="f-ziel-fuchs"></div>
+        <div class="fs-ziel-text"><span class="fs-ziel-label">Nächstes Ziel</span><span class="fs-ziel-satz" id="f-ziel-satz"></span></div>
+        <button class="fs-btn fs-gelb" data-a="ziel" aria-label="Los">${I('weiter')}</button></div></div>
+      <div class="f-hud f-hud-rechts">
+        <button class="fs-btn fs-navy fs-rund" data-a="sammlung" aria-label="Erfolge">${I('pokal')}<span class="fs-badge" id="f-pkt-erf" style="display:none"></span></button>
+        <button class="fs-btn fs-navy fs-rund" data-a="menue" aria-label="Menü">${I('menue')}</button>
+      </div>
+      <div class="f-hud f-zoom"><button class="fs-btn fs-navy fs-rund" data-a="zoom+" aria-label="Näher">${I('plus')}</button><button class="fs-btn fs-navy fs-rund" data-a="zoom-" aria-label="Weiter weg">${I('minus')}</button></div>
+      <div class="f-hud f-mit-ort"><span class="fs-chip" id="f-mit" style="display:none"></span></div>
+      <div class="fs-dock" id="f-dock">
+        <button class="fs-dock-knopf" data-a="shop">${I('haendler')}<span>Händler</span></button>
+        <button class="fs-dock-knopf" data-a="lager" id="f-dock-lager">${I('silo')}<span class="fs-lang">Lager &amp; Markt</span><span class="fs-kurz">Lager</span><span class="fs-badge fs-rot" id="f-pkt-lager" style="display:none">!</span></button>
+        <button class="fs-dock-knopf" data-a="auftraege">${I('auftrag')}<span>Aufträge</span><span class="fs-badge fs-gruen" id="f-pkt-auf" style="display:none"></span></button>
+        <button class="fs-dock-knopf" data-a="tiere" id="f-dock-tiere">${I('tierhof')}<span class="fs-lang">Tierhof</span><span class="fs-kurz">Tiere</span><span class="fs-badge" id="f-pkt-tiere" style="display:none">!</span></button>
+        <button class="fs-dock-knopf" data-a="betriebe" id="f-dock-betriebe">${I('betriebe')}<span>Betriebe</span><span class="fs-badge" id="f-pkt-betr" style="display:none"></span></button>
+      </div>
+      <div class="fs-pille f-offline" id="f-offline" style="padding:6px 18px;font-size:19px;font-weight:700">${I('warnung', 30)} Keine Verbindung zum Hof</div>
+      <div class="fs-toasts" id="f-toasts"></div>`;
     document.body.appendChild(wurzel);
     cv = wurzel.querySelector('#farm-cv');
     g = cv.getContext('2d');
+    const q = s => wurzel.querySelector(s);
     R = {
-      geld: wurzel.querySelector('#f-geld'), lvl: wurzel.querySelector('#f-lvl'), xp: wurzel.querySelector('#f-xp'),
-      hinweis: wurzel.querySelector('#f-hinweis'), hinweisT: wurzel.querySelector('#f-hinweis-t'), toasts: wurzel.querySelector('#f-toasts'),
-      pktAuf: wurzel.querySelector('#f-pkt-auf'), pktErf: wurzel.querySelector('#f-pkt-erf'), tag: wurzel.querySelector('#f-tag'), schule: wurzel.querySelector('#f-schule'), mit: wurzel.querySelector('#f-mit'), offline: wurzel.querySelector('#f-offline'), wetter: wurzel.querySelector('#f-wetter')
+      lvl: q('#f-lvl'), geld: q('#f-geld'), geldZahl: q('#f-geldzahl'), chips: q('#f-chips'), wetter: q('#f-wetter'), tag: q('#f-tag'), schule: q('#f-schule'),
+      zielPlatz: q('#f-ziel-platz'), ziel: q('#f-ziel'), zielFuchs: q('#f-ziel-fuchs'), zielSatz: q('#f-ziel-satz'), pktErf: q('#f-pkt-erf'),
+      mit: q('#f-mit'), dock: q('#f-dock'), dockLager: q('#f-dock-lager'), pktAuf: q('#f-pkt-auf'), pktTiere: q('#f-pkt-tiere'), pktBetr: q('#f-pkt-betr'), pktLager: q('#f-pkt-lager'),
+      offline: q('#f-offline'), toasts: q('#f-toasts'), hudLinks: q('.f-hud-links'), hudRechts: q('.f-hud-rechts')
     };
+    hudCache = {};
+    FS.anwenden(wurzel);
     wurzel.addEventListener('click', klick);
-    wurzel.addEventListener('pointerdown', () => { dlgAnfasst = true; });
+    wurzel.addEventListener('pointerdown', e => { dlgAnfasst = true; letzterTipp = { x: e.clientX, y: e.clientY, t: Date.now() }; }, true);
     const lose = () => { dlgAnfassEnde = Date.now(); dlgAnfasst = false; };
     wurzel.addEventListener('pointerup', lose); wurzel.addEventListener('pointercancel', lose);
     kamera(cv);
@@ -238,6 +656,7 @@ const Farm = (function () {
     document.removeEventListener('visibilitychange', sichtbarkeit);
     if (wurzel && wurzel.parentNode) wurzel.parentNode.removeChild(wurzel);
     wurzel = null;
+    try { A.markiere(null); } catch (e) { /* egal */ }
   }
   function sichtbarkeit() {
     if (document.hidden) speichern();
@@ -249,59 +668,147 @@ const Farm = (function () {
     dpr = Math.min(window.devicePixelRatio || 1, DPR_STUFEN[dprStufe]);
     W = wurzel.clientWidth; H = wurzel.clientHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    hudCache.lvl = null;
+    zoneAktualisieren();
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Kamera: Ziehen, Zoomen, Antippen
+  // Sichere Zone fuer Blasen/Schilder (nicht unter HUD, Ziel-Banner, Dock, Panel) + Platz des Ziel-Banners
+  // ----------------------------------------------------------------------------------------------
+  let zoneLetzte = '';
+  function zoneAktualisieren() {
+    if (!wurzel || !W) return;
+    const handyHoch = istHochHandy();
+    const unterkante = el => (el && el.offsetParent !== null) ? el.offsetTop + el.offsetHeight : 0;
+    // Ziel-Banner: auf dem Tablet zwischen Geld und Panel einpassen, sonst ausblenden, wenn ein Panel es verdeckt
+    const sheet = wurzel.querySelector('#f-dlg .fs-sheet');
+    let zielSichtbar = !!(R.zielPlatz && R.zielPlatz.getAttribute('data-hat') === '1');
+    if (sheet && zielSichtbar) {
+      const mitte = sheet.classList.contains('fs-mitte');
+      if (mitte) zielSichtbar = false;
+      else if (handyHoch || H <= 480) zielSichtbar = false;   // Handy: Sheet offen -> Platz fuer das Feld oberhalb
+      else {
+        const frei = sheet.offsetLeft - 16 - (R.hudLinks.offsetLeft + R.hudLinks.offsetWidth + 24);
+        zielSichtbar = frei >= 470;
+        R.zielPlatz.style.right = zielSichtbar ? (W - sheet.offsetLeft + 16) + 'px' : '';
+      }
+    } else if (R.zielPlatz) R.zielPlatz.style.right = '';
+    if (R.zielPlatz) R.zielPlatz.classList.toggle('f-weg', !zielSichtbar);
+    const chipsWeg = !!(sheet && handyHoch && !sheet.classList.contains('fs-mitte'));
+    if (R.chips && R.chips.classList.contains('f-weg') !== chipsWeg) R.chips.classList.toggle('f-weg', chipsWeg);
+    // Tablet: Panel rechts offen -> Pokal/Menue, Zoom und Dock ausblenden (wie Mockup B); Chips nur, wenn das Panel sie anschneidet
+    const seite = !!(sheet && !sheet.classList.contains('fs-mitte') && !handyHoch && H > 480);
+    if (wurzel.classList.contains('f-panel-seite') !== seite) wurzel.classList.toggle('f-panel-seite', seite);
+    const chipsVerdeckt = !!(seite && R.chips && R.chips.offsetParent !== null && sheet.offsetLeft < R.chips.offsetLeft + R.chips.offsetWidth + 12);
+    if (R.chips && R.chips.classList.contains('f-verdeckt') !== chipsVerdeckt) R.chips.classList.toggle('f-verdeckt', chipsVerdeckt);
+    let oben = Math.max(unterkante(R.hudLinks), unterkante(R.hudRechts), zielSichtbar ? unterkante(R.zielPlatz) : 0);
+    oben = Math.max(oben, unterkante(R.chips));   // Blasen nie unter den Chips (Wetter, Heute, Schule)
+    let unten = R.dock ? H - R.dock.offsetTop : 120;
+    let rechts = 12;
+    if (sheet && !sheet.classList.contains('fs-mitte')) {
+      if (handyHoch || H <= 480) unten = Math.max(unten, sheet.offsetHeight);
+      else rechts = Math.max(rechts, W - sheet.offsetLeft);
+    }
+    const z = { oben: Math.round(oben + 8), unten: Math.round(unten + 6), links: 12, rechts: Math.round(rechts + 8) };
+    const k = JSON.stringify(z);
+    if (k !== zoneLetzte) { zoneLetzte = k; try { A.sichereZone(z); } catch (e) { /* aeltere Ansicht */ } }
+    return z;
+  }
+  // Sichtbarer Weltausschnitt (Bildschirmmitte der freien Flaeche)
+  function freieMitte() {
+    let z = null;
+    try { z = A.sichereZone(); } catch (e) { z = null; }
+    if (!z) return { x: W / 2, y: H / 2 };
+    return { x: (z.links + W - z.rechts) / 2, y: (z.oben + H - z.unten) / 2 };
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Kamera: Ziehen (mit Nachlauf), Zoomen um die Fingermitte, Antippen
   // ----------------------------------------------------------------------------------------------
   function klemmen() {
     cam.z = Math.max(0.3, Math.min(1.8, cam.z));
     cam.x = Math.max(0, Math.min(D.WELT.b, cam.x));
     cam.y = Math.max(0, Math.min(D.WELT.h, cam.y));
   }
+  // Zoom so aendern, dass der Weltpunkt unter (sx,sy) [Bildschirm] dort bleibt
+  function zoomUm(faktor, sx, sy) {
+    const wx = cam.x + (sx - W / 2) / cam.z, wy = cam.y + (sy - H / 2) / cam.z;
+    cam.z = Math.max(0.3, Math.min(1.8, cam.z * faktor));
+    cam.x = wx - (sx - W / 2) / cam.z; cam.y = wy - (sy - H / 2) / cam.z;
+    klemmen();
+  }
   function kamera(el) {
-    let start = null;
+    let start = null, v = { x: 0, y: 0, t: 0 }, pinch = false;
+    const lokal = e => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
     el.addEventListener('pointerdown', e => {
       e.preventDefault(); tonStart();
       try { el.setPointerCapture(e.pointerId); } catch (x) { /* egal */ }
-      zeiger[e.pointerId] = { x: e.clientX, y: e.clientY };
+      zeiger[e.pointerId] = lokal(e);
       const n = Object.keys(zeiger).length;
-      if (n === 1) start = { x: e.clientX, y: e.clientY, t: Date.now(), bewegt: false };
-      else start = null;
-      cam.ziel = null;
+      if (n === 1) { start = { x: e.clientX, y: e.clientY, t: Date.now(), bewegt: false }; pinch = false; }
+      else { start = null; pinch = true; }
+      v = { x: 0, y: 0, t: Date.now() };
+      cam.ziel = null; schwung = null;
     });
     el.addEventListener('pointermove', e => {
       const p = zeiger[e.pointerId];
       if (!p) return;
       const ids = Object.keys(zeiger);
+      const neu = lokal(e);
       if (ids.length >= 2) {
         const a = zeiger[ids[0]], b = zeiger[ids[1]];
-        const d0 = Math.hypot(a.x - b.x, a.y - b.y);
-        p.x = e.clientX; p.y = e.clientY;
-        const d1 = Math.hypot(a.x - b.x, a.y - b.y);
-        if (d0 > 10) { cam.z *= d1 / d0; klemmen(); }
+        const m0 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, d0 = Math.hypot(a.x - b.x, a.y - b.y);
+        p.x = neu.x; p.y = neu.y;
+        const m1 = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, d1 = Math.hypot(a.x - b.x, a.y - b.y);
+        // Weltpunkt unter der alten Fingermitte bleibt unter der neuen Fingermitte
+        const wx = cam.x + (m0.x - W / 2) / cam.z, wy = cam.y + (m0.y - H / 2) / cam.z;
+        if (d0 > 10) cam.z = Math.max(0.3, Math.min(1.8, cam.z * d1 / d0));
+        cam.x = wx - (m1.x - W / 2) / cam.z; cam.y = wy - (m1.y - H / 2) / cam.z;
+        klemmen();
         return;
       }
-      const dx = e.clientX - p.x, dy = e.clientY - p.y;
-      p.x = e.clientX; p.y = e.clientY;
+      const dx = neu.x - p.x, dy = neu.y - p.y;
+      p.x = neu.x; p.y = neu.y;
       if (start && !start.bewegt && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) start.bewegt = true;
-      if (start && start.bewegt) { cam.x -= dx / cam.z; cam.y -= dy / cam.z; klemmen(); }
+      if (start && start.bewegt) {
+        cam.x -= dx / cam.z; cam.y -= dy / cam.z; klemmen();
+        const t = Date.now(), dtm = Math.max(1, t - v.t);
+        const k = Math.min(1, dtm / 60);
+        v = { x: v.x * (1 - k) + (dx / dtm) * k, y: v.y * (1 - k) + (dy / dtm) * k, t };
+      }
     });
     const ende = e => {
       if (!zeiger[e.pointerId]) return;
       delete zeiger[e.pointerId];
-      if (start && !start.bewegt && Date.now() - start.t < 600 && Object.keys(zeiger).length === 0) antippen(e.clientX, e.clientY);
-      if (Object.keys(zeiger).length === 0) start = null;
+      const rest = Object.keys(zeiger).length;
+      if (start && !start.bewegt && !pinch && Date.now() - start.t < 600 && rest === 0) { const l = lokal(e); antippen(l.x, l.y); }
+      else if (start && start.bewegt && !pinch && rest === 0 && Date.now() - v.t < 90) {
+        const sp = Math.hypot(v.x, v.y);   // px/ms
+        if (sp > 0.25 && !FS.effekteWenig()) schwung = { vx: -v.x * 1000 / cam.z * 0.9, vy: -v.y * 1000 / cam.z * 0.9 };
+      }
+      if (rest === 0) { start = null; pinch = false; }
+      else if (rest === 1) { start = null; }
     };
     el.addEventListener('pointerup', ende); el.addEventListener('pointercancel', ende);
-    el.addEventListener('wheel', e => { e.preventDefault(); cam.z *= e.deltaY < 0 ? 1.12 : 1 / 1.12; klemmen(); }, { passive: false });
+    el.addEventListener('wheel', e => { e.preventDefault(); const l = lokal(e); schwung = null; cam.ziel = null; zoomUm(e.deltaY < 0 ? 1.12 : 1 / 1.12, l.x, l.y); }, { passive: false });
   }
+  function nachlauf(dt) {
+    if (!schwung) return;
+    cam.x += schwung.vx * dt; cam.y += schwung.vy * dt; klemmen();
+    const k = Math.exp(-dt * 4.5);
+    schwung.vx *= k; schwung.vy *= k;
+    if (Math.hypot(schwung.vx, schwung.vy) * cam.z < 20) schwung = null;
+  }
+  // Tipp in die Welt: zuerst Status-Blasen (A.trefferBei liefert sie zuerst), dann Felder/Gebaeude/Staelle
   function antippen(sx, sy) {
-    if (dlg) return;
-    const r = cv.getBoundingClientRect();
-    const wx = cam.x + (sx - r.left - W / 2) / cam.z, wy = cam.y + (sy - r.top - H / 2) / cam.z;
+    if (!stand()) return;
+    if (gesperrt('welt', 300)) return;
+    const wx = cam.x + (sx - W / 2) / cam.z, wy = cam.y + (sy - H / 2) / cam.z;
     const t = A.trefferBei(wx, wy, stand());
-    if (!t) return;
+    if (dlg && dlg.lern) return;
+    if (!t) { if (dlg && dlg.art !== 'mitte') dialogZu(); return; }
+    letzterTipp = { x: sx, y: sy, t: Date.now() };
+    if (t.typ === 'blase') return blaseAusfuehren(t, sx, sy);
     if (t.art === 'feld') dialogFeld(t.id);
     else if (t.art === 'betrieb') dialogBetriebe(t.id);
     else if (t.art === 'stall') dialogTiere(t.id);
@@ -310,15 +817,53 @@ const Farm = (function () {
     else if (t.id === 'halle') dialogFuhrpark();
     else if (t.id === 'haus') dialogMenue();
   }
-  function fliegeZu(x, y, z) { cam.ziel = { x, y, z: z || cam.z }; }
+  // Blase: ernten -> sofort mit bester Erntemaschine; arbeit -> Feldkarte; einsammeln/fuettern -> direkt; oeffnen -> Dialog
+  function blaseAusfuehren(t, sx, sy) {
+    const z = t.ziel || { art: t.art, id: t.id };
+    if (z.art === 'feld') {
+      if (t.aktion === 'ernten') { if (!ernteSofort(z.id, { x: sx, y: sy })) dialogFeld(z.id); return; }
+      return dialogFeld(z.id);
+    }
+    if (z.art === 'stall') {
+      if (t.aktion === 'einsammeln') return einsammelnMitEffekt(z.id, { x: sx, y: sy });
+      if (t.aktion === 'fuettern') return fuetternMitEffekt(z.id, { x: sx, y: sy });
+      return dialogTiere(z.id);
+    }
+    if (z.art === 'betrieb') return dialogBetriebe(z.id);
+    if (z.art === 'silo') return dialogLager();
+    if (t.aktion === 'abholen') return dialogSammlung();
+  }
+  function fliegeZu(x, y, z) { schwung = null; cam.ziel = { x, y, z: z || cam.z }; }
   function feldMitte(id) { const f = D.feld(id); return { x: f.x + f.c * D.ZELLE / 2, y: f.y + f.r * D.ZELLE / 2 }; }
+  // Feld in die Mitte der FREIEN Flaeche fliegen (neben dem Panel / ueber dem Bottom-Sheet)
+  function fliegeZuFeld(id, zWunsch) {
+    const m = feldMitte(id);
+    const z = Math.max(0.6, Math.min(1.25, zWunsch || cam.z));
+    const fm = freieMitte();
+    fliegeZu(m.x - (fm.x - W / 2) / z, m.y - (fm.y - H / 2) / z, z);
+  }
+  function fliegeZuPunkt(x, y, zWunsch) {
+    const z = Math.max(0.6, Math.min(1.25, zWunsch || cam.z));
+    const fm = freieMitte();
+    fliegeZu(x - (fm.x - W / 2) / z, y - (fm.y - H / 2) / z, z);
+  }
+  function weltZuBildschirm(x, y) { return { x: (x - cam.x) * cam.z + W / 2, y: (y - cam.y) * cam.z + H / 2 }; }
+  function gesperrt(key, ms) {
+    const t = Date.now();
+    if (tippSperre[key] && t - tippSperre[key] < (ms || 300)) return true;
+    tippSperre[key] = t;
+    return false;
+  }
 
   // ----------------------------------------------------------------------------------------------
-  // Meldungen
+  // Rueckmeldungen (Toasts liegen ueber Dialogen: z-index 80). Icon + max. 8 Woerter.
+  // typ: 'gut' (gruen) | 'warn' (rot) | 'geld' (gelb) | '' (navy). key: gleiche Meldung ersetzt sich.
   // ----------------------------------------------------------------------------------------------
   const toastTimer = {};
-  function toast(text, typ, key) {
-    if (!R.toasts) return;
+  const TOAST_FARBE = { gut: 'fs-gruen', warn: 'fs-rot', geld: 'fs-gelb' };
+  const TOAST_ICON = { gut: 'haken', warn: 'warnung', geld: 'muenze' };
+  function toast(text, typ, key, icon) {
+    if (!R.toasts || !text) return;
     let el = key ? R.toasts.querySelector('[data-k="' + key + '"]') : null;
     if (!el) {
       el = document.createElement('div');
@@ -326,732 +871,1721 @@ const Farm = (function () {
       R.toasts.appendChild(el);
       while (R.toasts.children.length > 3) R.toasts.removeChild(R.toasts.firstChild);
     }
-    el.className = 'f-toast' + (typ ? ' ' + typ : '');
-    el.textContent = text;
+    el.className = 'fs-toast' + (TOAST_FARBE[typ] ? ' ' + TOAST_FARBE[typ] : '');
+    el.innerHTML = I(icon || TOAST_ICON[typ] || 'info', 44) + '<span>' + esc(text) + '</span>';
     const id = key || String(Math.random());
     clearTimeout(toastTimer[id]);
-    toastTimer[id] = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 4200);
+    toastTimer[id] = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); delete toastTimer[id]; }, typ === 'warn' ? 4200 : 3200);
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog-Grundgeruest
+  // Belohnungseffekte: Muenzflug in die Geld-Pille (Zaehler zaehlt beim Auftreffen), Icon-Flug (Ernte/Eier ins Lager)
   // ----------------------------------------------------------------------------------------------
-  function dialogAuf(html, klein) {
-    let d = wurzel.querySelector('#f-dlg');
-    const war = !!d;
-    let top = 0;
-    if (d) { const sc = d.querySelector('.f-inhalt'); top = sc ? sc.scrollTop : 0; d.parentNode.removeChild(d); }
-    d = document.createElement('div');
-    d.className = 'f-dlg' + (war ? '' : ' f-neu'); d.id = 'f-dlg';
-    d.innerHTML = '<div class="f-box' + (klein ? ' klein' : '') + '">' + html + '</div>';
-    wurzel.appendChild(d);
-    const sc = d.querySelector('.f-inhalt'); if (sc && top) sc.scrollTop = top;
+  function geldZielEl() {
+    const imDialog = wurzel && wurzel.querySelector('#f-dlg .fs-sheet.fs-mitte .f-geldziel');
+    return imDialog && imDialog.offsetParent !== null ? imDialog : R.geld;
   }
-  // Kleine Belohnungseffekte (nur DOM, leicht): schwebende Zahl am Geld, fliegende Muenzen, Konfetti
-  function geldEffekt(plus) {
-    if (!wurzel || !R.geld) return;
-    R.geld.classList.remove('puls'); void R.geld.offsetWidth; R.geld.classList.add('puls');
+  function geldEffekt(plus, von) {
+    if (!wurzel || !R.geld || plus <= 0) return;
+    const zu = geldZielEl();
+    const quelle = von || (letzterTipp && Date.now() - letzterTipp.t < 2500 ? { x: letzterTipp.x, y: letzterTipp.y } : { x: W / 2, y: H * 0.55 });
+    const n = plus >= 20000 ? 12 : plus >= 5000 ? 10 : plus >= 800 ? 8 : plus >= 150 ? 6 : 5;
+    geldUnterwegs += plus;
+    let bezahlt = 0, treffN = 0;
+    plusZeigen(plus);
+    FS.muenzFlug(quelle, zu, n, {
+      treffer: (i, k) => { treffN++; const teil = treffN >= k ? plus - bezahlt : Math.min(plus - bezahlt, Math.round(plus / k)); bezahlt += teil; geldUnterwegs = Math.max(0, geldUnterwegs - teil); },
+      fertig: () => { geldUnterwegs = Math.max(0, geldUnterwegs - (plus - bezahlt)); bezahlt = plus; }
+    });
+    piep('geld');
+  }
+  function plusZeigen(plus) {
+    if (!R.geld || FS.effekteWenig()) return;
     const r = R.geld.getBoundingClientRect(), w = wurzel.getBoundingClientRect();
-    const t = document.createElement('div'); t.className = 'f-plus'; t.textContent = '+' + fmt(plus) + ' €';
-    t.style.left = (r.left - w.left + r.width / 2) + 'px'; t.style.top = (r.bottom - w.top + 2) + 'px';
-    wurzel.appendChild(t); setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 1400);
-    const n = plus >= 5000 ? 8 : plus >= 800 ? 5 : plus >= 150 ? 3 : 0;
+    const t = document.createElement('div'); t.className = 'f-plus fs-kontur';
+    t.textContent = '+' + fmt(plus);
+    t.style.left = (r.left - w.left + r.width / 2 + 20) + 'px'; t.style.top = (r.bottom - w.top + 4) + 'px';
+    wurzel.appendChild(t); setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 1600);
+  }
+  // Kleiner Flug von Icons (z. B. Koerner vom Feld ins Lager). Nur transform/opacity; bei "Effekte: wenig" aus.
+  function iconFlug(icon, von, zuEl, n) {
+    if (!wurzel || FS.effekteWenig() || !von || !zuEl || typeof Element === 'undefined' || !Element.prototype.animate) return;
+    const r = zuEl.getBoundingClientRect(); if (!r.width) return;
+    const zx = r.left + r.width / 2, zy = r.top + r.height / 2;
+    n = Math.max(1, Math.min(8, n || 5));
     for (let i = 0; i < n; i++) {
-      const m = document.createElement('div'); m.className = 'f-muenze'; m.textContent = '🪙';
-      const sx = w.width * (0.3 + Math.random() * 0.4), sy = w.height * (0.45 + Math.random() * 0.2);
-      m.style.left = sx + 'px'; m.style.top = sy + 'px'; m.style.opacity = '1';
-      wurzel.appendChild(m);
-      const tx = r.left - w.left + r.width / 2 - sx, ty = r.top - w.top + r.height / 2 - sy;
-      setTimeout(() => { m.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(.5)'; m.style.opacity = '.2'; }, 40 + i * 70);
-      setTimeout(() => { if (m.parentNode) m.parentNode.removeChild(m); }, 1100 + i * 70);
+      const el = document.createElement('div'); el.className = 'f-flug'; el.innerHTML = I(icon);
+      el.style.left = (von.x - 22) + 'px'; el.style.top = (von.y - 22) + 'px';
+      wurzel.appendChild(el);
+      const sx = (Math.random() - 0.5) * 70, sy = -30 - Math.random() * 40;
+      const dx = zx - von.x, dy = zy - von.y;
+      let an = null;
+      try {
+        an = el.animate([
+          { transform: 'translate(0px,0px) scale(.4)', opacity: 0 },
+          { transform: 'translate(' + sx.toFixed(0) + 'px,' + sy.toFixed(0) + 'px) scale(1.1)', opacity: 1, offset: 0.25 },
+          { transform: 'translate(' + (dx * 0.5 + sx).toFixed(0) + 'px,' + (Math.min(sy, dy) - 80).toFixed(0) + 'px) scale(.95)', opacity: 1, offset: 0.6 },
+          { transform: 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(.55)', opacity: 0.9 }
+        ], { duration: 820, delay: i * 45, easing: 'ease-in-out', fill: 'forwards' });
+      } catch (e) { an = null; }
+      const weg = () => { if (el.parentNode) el.parentNode.removeChild(el); };
+      if (an) { an.onfinish = weg; an.oncancel = weg; }
+      setTimeout(weg, 1400 + i * 45);
     }
   }
-  function konfetti() {
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog-Rahmen: Panel rechts (Tablet) / Bottom-Sheet (Handy, ueber farm-stil) / Vollbild-Panel fuer grosse Listen.
+  // Aktualisieren ohne Neuaufbau: der neue Inhalt wird mit dem alten verglichen (angleichen) – geaendert werden nur
+  // Texte, Attribute (Ring/Balken per style) und Teilbaeume, deren Aufbau sich wirklich geaendert hat.
+  // cfg: { art:'rechts'|'breit'|'mitte', ansicht, kopf, vor, inhalt, fuss }
+  // ----------------------------------------------------------------------------------------------
+  function knotenAngleichen(a, b) {
+    if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName ||
+      (a.nodeType === 1 && a.getAttribute('data-key') !== b.getAttribute('data-key'))) { a.parentNode.replaceChild(b, a); return; }
+    if (a.nodeType === 3 || a.nodeType === 8) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+    if (a.nodeType !== 1) return;
+    const ba = b.attributes;
+    for (let i = 0; i < ba.length; i++) { const at = ba[i]; if (a.getAttribute(at.name) !== at.value) a.setAttribute(at.name, at.value); }
+    const aa = a.attributes;
+    for (let i = aa.length - 1; i >= 0; i--) { const n = aa[i].name; if (!b.hasAttribute(n)) a.removeAttribute(n); }
+    kinderAngleichen(a, b);
+  }
+  function kinderAngleichen(a, b) {
+    const ak = Array.prototype.slice.call(a.childNodes), bk = Array.prototype.slice.call(b.childNodes);
+    if (ak.length !== bk.length) {
+      while (a.firstChild) a.removeChild(a.firstChild);
+      bk.forEach(k => a.appendChild(k));
+      return;
+    }
+    for (let i = 0; i < bk.length; i++) knotenAngleichen(ak[i], bk[i]);
+  }
+  function teilSetzen(el, html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html || '';
+    kinderAngleichen(el, tmp);
+  }
+  function rahmen(cfg) {
     if (!wurzel) return;
-    const farben = ['#ffe27a', '#7fe083', '#ff8a6a', '#8ec9ff', '#e6a8ff'];
-    for (let i = 0; i < 36; i++) {
-      const k = document.createElement('div'); k.className = 'f-konf';
-      k.style.left = (Math.random() * 100) + '%'; k.style.background = farben[i % farben.length];
-      k.style.animationDuration = (1.6 + Math.random() * 1.4) + 's'; k.style.animationDelay = (Math.random() * 0.5) + 's';
-      wurzel.appendChild(k); setTimeout(() => { if (k.parentNode) k.parentNode.removeChild(k); }, 3800);
+    let d = wurzel.querySelector('#f-dlg');
+    const neu = !d;
+    if (!d) { d = document.createElement('div'); d.className = 'f-dlg'; d.id = 'f-dlg'; wurzel.appendChild(d); }
+    const art = cfg.art || 'rechts';
+    const mitSchleier = art === 'mitte';
+    let schl = d.querySelector('.fs-schleier');
+    if (mitSchleier && !schl) { schl = document.createElement('div'); schl.className = 'fs-schleier'; schl.setAttribute('data-a', 'zu'); d.insertBefore(schl, d.firstChild); }
+    else if (!mitSchleier && schl) schl.parentNode.removeChild(schl);
+    let sh = d.querySelector('.fs-sheet');
+    const klasse = 'fs-sheet' + (art === 'mitte' ? ' fs-mitte' : art === 'breit' ? ' f-breit' : '');
+    let ansichtNeu = false;
+    if (!sh) {
+      sh = document.createElement('div');
+      sh.innerHTML = '<div class="fs-panel-kopf"></div><div class="f-vor"></div><div class="fs-sheet-inhalt"></div><div class="fs-sheet-fuss"></div>';
+      d.appendChild(sh);
+      ansichtNeu = true;
     }
+    if (sh.className !== klasse) sh.className = klasse;
+    if (sh.getAttribute('data-ansicht') !== (cfg.ansicht || '')) { sh.setAttribute('data-ansicht', cfg.ansicht || ''); ansichtNeu = true; }
+    const teile = sh.children;
+    teilSetzen(teile[0], cfg.kopf);
+    teilSetzen(teile[1], cfg.vor);
+    teilSetzen(teile[2], cfg.inhalt);
+    teilSetzen(teile[3], cfg.fuss);
+    if (ansichtNeu) teile[2].scrollTop = 0;
+    if (dlg) dlg.art = art;
+    if (!dlg || dlg.typ !== 'feld') { try { A.markiere(null); } catch (e) { /* egal */ } }
+    if (neu || ansichtNeu) zoneAktualisieren();
+    return sh;
   }
+  // Kopf: { icon, stufe, titel, unter, zurueck:[aktion,id,text], info:aktion, extra:html }
+  function kopfHtml(o) {
+    let h = '';
+    if (o.zurueck) h += '<button class="fs-btn fs-navy ' + (o.zurueck[2] ? 'f-klein-btn' : 'fs-rund') + '" data-a="' + o.zurueck[0] + '"' + (o.zurueck[1] !== undefined && o.zurueck[1] !== null ? ' data-id="' + esc(o.zurueck[1]) + '"' : '') + ' aria-label="Zurück">' + I('zurueck') + (o.zurueck[2] ? esc(o.zurueck[2]) : '') + '</button>';
+    if (o.icon) h += '<div class="fs-kopf-bild ' + (o.stufe ? 'fs-stufe-' + o.stufe : '') + '">' + I(o.icon) + '</div>';
+    h += '<div class="fs-kopf-text"><span class="fs-kopf-titel' + (o.klein ? ' f-titel-klein' : '') + '">' + o.titel + '</span>' + (o.unter ? '<span class="fs-kopf-unter">' + o.unter + '</span>' : '') + '</div>';
+    if (o.extra) h += '<div class="f-kopf-extra">' + o.extra + '</div>';
+    if (o.info) h += '<button class="fs-btn fs-cyan fs-rund" data-a="' + o.info + '" aria-label="Info">' + I('info') + '</button>';
+    h += '<button class="fs-btn fs-rot fs-rund" data-a="zu" aria-label="Schließen">' + I('schliessen') + '</button>';
+    return h;
+  }
+  // "Zurueck zum Feld" fuer Dialoge, die aus der Feldkarte geoeffnet wurden
+  let rueckFeld = null;
+  function zurueckKnopf() { return dlg && dlg.rueck ? ['zumFeld', null, 'Zum Feld'] : null; }
+  const geldPille = () => '<span class="fs-chip f-geldziel">' + I('muenze') + '<b>' + fmt(stand().geld) + '</b></span>';
+  function vorschauBild(d) {
+    if (!vorschauCache[d.id]) {
+      let url = G.vorschau(d, 170, 92);
+      // als Blob-URL ablegen: kurze src-Strings, damit das sekuendliche Angleichen der Dialoge keine 30-KB-Texte vergleicht
+      try {
+        if (url.indexOf('data:image/png;base64,') === 0 && typeof Blob !== 'undefined' && window.URL && URL.createObjectURL) {
+          const bin = atob(url.slice(22)), arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          url = URL.createObjectURL(new Blob([arr], { type: 'image/png' }));
+        }
+      } catch (e) { /* data-URL bleibt */ }
+      vorschauCache[d.id] = url;
+    }
+    return vorschauCache[d.id];
+  }
+  const gutName = id => D.gut(id).name;
+  const sekText = sek => A.zeitText(sek * 1000);
+  const einText = r => r.ein.map(z => (z.kg / 1000) + ' t ' + D.gut(z.gut).name).join(' + ');
   const levelWarte = [];
   function dialogZu() {
     const d = wurzel && wurzel.querySelector('#f-dlg');
     if (d) d.parentNode.removeChild(d);
     dlg = null;
-    if (levelWarte.length) { const n = levelWarte.shift(); dialogLevel(n.level, n.bonus); }
+    try { A.markiere(null); } catch (e) { /* egal */ }
+    zoneAktualisieren();
+    levelNaechstes();
   }
-  function kopf(titel, extra, zurueck) {
-    return '<div class="f-kopf">' + (zurueck ? '<button class="f-zurueck" data-a="' + zurueck + '">◀ Zurück</button>' : '') + '<h2>' + titel + '</h2>' + (extra || '') + '<button class="f-x" data-a="zu">✕</button></div>';
-  }
-  const geldPille = () => '<span class="f-pill">' + fmt(stand().geld) + ' €</span>';
-  function vorschauBild(d) {
-    if (!vorschauCache[d.id]) vorschauCache[d.id] = G.vorschau(d, 170, 92);
-    return vorschauCache[d.id];
-  }
-  const gutName = id => { const x = D.gut(id); return x.icon + ' ' + x.name; };
-  const sekText = sek => A.zeitText(sek * 1000);
-  const einText = r => r.ein.map(z => (z.kg / 1000) + ' t ' + D.gut(z.gut).name).join(' + ');
-  const GERAET_NAME = { grubber: 'Grubber', pflug: 'Pflug', saeen: 'Sämaschine', duenger: 'Düngerstreuer', walze: 'Walze', spritze: 'Feldspritze', kalk: 'Kalkstreuer' };
 
-  // Eigene Rueckfrage (window.confirm geht in den WebViews von Tablet und Papa-App nicht)
-  function bestaetigen(text, ja, jaText) {
+  // ----------------------------------------------------------------------------------------------
+  // Eigene Rueckfrage (window.confirm geht in den WebViews nicht). opt: { titel, vorher:[icon,text], nachher:[icon,text], neinText }
+  // ----------------------------------------------------------------------------------------------
+  function bestaetigen(text, ja, jaText, opt) {
+    opt = opt || {};
     confZu();
     const d = document.createElement('div');
-    d.className = 'f-dlg'; d.id = 'f-conf'; d.style.zIndex = '8';
-    d.innerHTML = '<div class="f-box klein"><div class="f-kopf"><h2>Sicher?</h2></div><div class="f-inhalt"><div class="f-info">' + text + '</div><div class="f-btnreihe"><button class="f-kauf sek" data-a="confNein">Abbrechen</button><button class="f-kauf rot" data-a="confJa">' + (jaText || 'Ja') + '</button></div></div></div>';
+    d.className = 'f-ueber f-conf'; d.id = 'f-conf';
+    const vn = opt.vorher && opt.nachher ? '<div class="f-vn"><div class="f-vn-bild fs-mulde">' + I(opt.vorher[0]) + esc(opt.vorher[1]) + '</div>' + I('weiter', 44) +
+      '<div class="f-vn-bild fs-mulde">' + I(opt.nachher[0]) + esc(opt.nachher[1]) + '</div></div>' : '';
+    d.innerHTML = '<div class="f-schleier-dunkel" data-a="confNein"></div><div class="fs-panel f-kasten"><div class="f-kasten-kopf">' + FS.fuchs('gruebelt', 96) +
+      '<div class="f-kasten-titel fs-kontur">' + esc(opt.titel || 'Bist du sicher?') + '</div></div><p class="f-kasten-text">' + esc(text) + '</p>' + vn +
+      '<div class="f-kasten-knoepfe"><button class="fs-btn fs-navy" data-a="confNein">' + esc(opt.neinText || 'Lieber nicht') + '</button><button class="fs-btn fs-rot" data-a="confJa">' + esc(jaText || 'Ja') + '</button></div></div>';
     wurzel.appendChild(d);
     bestaetigenFn = ja;
   }
   function confZu() { const c = wurzel && wurzel.querySelector('#f-conf'); if (c) c.parentNode.removeChild(c); }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Feld
+  // Level-Up (Vollbild): LEVEL UP!, Abzeichen mit Zahl, JEDE Freischaltung als Karte, Bonus-Karte, Fuchs jubelt, "Super!"
+  // ----------------------------------------------------------------------------------------------
+  let strahlenBild = null;
+  function strahlen() {
+    if (strahlenBild) return strahlenBild;
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 512;
+      const x = c.getContext('2d');
+      x.translate(256, 256);
+      for (let i = 0; i < 18; i++) {
+        x.rotate(Math.PI * 2 / 18);
+        x.fillStyle = i % 2 ? 'rgba(255,255,255,0.22)' : 'rgba(255,230,140,0.16)';
+        x.beginPath(); x.moveTo(0, 0); x.lineTo(-24, -256); x.lineTo(24, -256); x.closePath(); x.fill();
+      }
+      strahlenBild = c.toDataURL('image/png');
+    } catch (e) { strahlenBild = ''; }
+    return strahlenBild;
+  }
+  function freischaltungen(level) {
+    const neu = [];
+    const S = stand();
+    D.FRUECHTE.forEach(x => { if (x.lvl === level) neu.push({ art: 'Neue Frucht', icon: x.id, name: x.name, text: x.ernte === 'wurzel' ? 'Braucht einen Roder' : 'Reif nach ' + grob(x.dauer * 1000 / M.tempoFaktor()), stufe: FS.stufe(x.id) }); });
+    D.TRAKTOREN.concat(D.GERAETE, D.ERNTER).forEach(x => { if (x.lvl === level) neu.push({ art: x.art === 'traktor' ? 'Neuer Traktor' : x.art === 'ernter' ? 'Neue Erntemaschine' : 'Neues Gerät', bild: x.art === 'geraet' ? '' : vorschauBild(x), icon: maschinenIcon(x), name: x.name, text: x.art === 'traktor' ? x.ps + ' PS' : x.art === 'ernter' ? (x.typ === 'rodemaschine' ? 'Roder' : 'Mähdrescher') : GERAET_NAME[x.typ], stufe: 'blau' }); });
+    D.FELDER.forEach(x => { if (x.lvl === level) neu.push({ art: 'Neues Feld', icon: 'felder', name: x.name, text: fmt1(x.ha) + ' ha zu kaufen', stufe: 'gruen' }); });
+    D.PRODUKTION.forEach(x => { if (x.lvl === level) { const r = x.rezepte[0]; neu.push({ art: 'Neuer Betrieb', icon: x.id, name: x.name, text: D.gut(r.ein[0].gut).name + ' wird ' + D.gut(r.aus).name, stufe: 'lila' }); } });
+    D.TIERE.forEach(x => { if (x.lvl === level) neu.push({ art: 'Neuer Stall', icon: x.id, name: x.stall, text: x.name + ' liefern ' + D.gut(x.gut).name, stufe: 'lila' }); });
+    D.FAHRER.forEach((x, i) => { if (x.lvl === level) neu.push({ art: 'Fahrer', icon: 'fahrer', name: 'Fahrer Nr. ' + (i + 1), text: 'Hilft auf einem Feld', stufe: 'gruen' }); });
+    D.WETTERSTATION.forEach(x => { if (x.lvl === level) neu.push({ art: 'Wetter', icon: 'wetterstation', name: x.name, text: 'Zeigt ' + x.slots + ' Std voraus', stufe: 'blau' }); });
+    if (level === D.BEREGNUNG_LVL) neu.push({ art: 'Für Felder', icon: 'beregnung', name: 'Beregnung', text: 'Hilft bei Hitze', stufe: 'blau' });
+    return S ? neu : neu;
+  }
+  let levelOffen = null;
+  function levelZeigen(level, bonus) {
+    if (!wurzel) return;
+    if (levelOffen || (dlg && dlg.lern && !dlg.lern.ergebnis)) { levelWarte.push({ level, bonus }); return; }
+    const S = stand();
+    geldHalten = true;
+    const neu = freischaltungen(level);
+    const karte = (k, i) => '<div class="f-lvl-k fs-stufe-' + k.stufe + '" style="animation-delay:' + (0.25 + i * 0.12).toFixed(2) + 's"><span class="f-lvl-art">' + esc(k.art) + '</span>' +
+      (k.bild ? '<img src="' + k.bild + '" alt="">' : I(k.icon)) + '<span class="f-lvl-name">' + esc(k.name) + '</span><span class="f-lvl-text">' + esc(k.text) + '</span></div>';
+    const alle = [{ art: 'Bonus', icon: 'muenze', name: fmt(bonus), text: 'Münzen', stufe: 'gold' }].concat(neu);
+    const d = document.createElement('div');
+    d.className = 'f-ueber f-level'; d.id = 'f-level';
+    const sb = strahlen();
+    d.innerHTML = (sb && !FS.effekteWenig() ? '<div class="f-strahlen"><img src="' + sb + '" alt=""></div>' : '') +
+      '<div class="f-level-inhalt"><div class="f-level-titel fs-kontur-dick">LEVEL UP!</div>' +
+      '<div class="f-level-stern">' + FS.levelAbzeichen(level, 0, istHandy() ? 150 : 190) + '<div class="f-level-fuchs">' + FS.fuchs('jubelt', 150) + '</div></div>' +
+      '<div class="f-lvl-karten' + (alle.length > 4 ? ' f-klein' : '') + '">' + alle.map(karte).join('') + '</div>' +
+      '<button class="fs-btn fs-gelb fs-gross" data-a="levelZu" style="min-width:300px">Super!</button></div>';
+    wurzel.appendChild(d);
+    levelOffen = { level, bonus, el: d };
+    wurzel.classList.add('f-level-offen');
+    FS.konfetti(12);
+    piep('level');
+    void S;
+  }
+  function levelZu() {
+    if (!levelOffen) return;
+    const bonusEl = levelOffen.el.querySelector('.f-lvl-k');
+    const von = bonusEl ? (() => { const r = bonusEl.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })() : null;
+    levelOffen.el.parentNode.removeChild(levelOffen.el);
+    levelOffen = null;
+    wurzel.classList.remove('f-level-offen');
+    geldHalten = false;
+    geldNachholen(von);
+    hudCache.lvl = null;
+    levelNaechstes();
+  }
+  function levelNaechstes() {
+    if (levelOffen || !levelWarte.length || (dlg && dlg.lern && !dlg.lern.ergebnis)) return;
+    const n = levelWarte.shift();
+    levelZeigen(n.level, n.bonus);
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // "Was ist neu" – einmaliger Kurzrundgang mit Fritz (3 Karten, je max. 8 Woerter), gemerkt in FarmStil.ui()
+  // ----------------------------------------------------------------------------------------------
+  const RUNDGANG = [
+    { pose: 'jubelt', text: 'Hallo, ich bin Fritz! Ich helfe dir.' },
+    { pose: 'zeigt', text: 'Oben steht immer dein nächstes Ziel.' },
+    { pose: 'neutral', text: 'Tipp auf Blasen und Felder. Gelb = los!' }
+  ];
+  const RUNDGANG_KEY = 'hof2';
+  let rundgangSchritt = -1;
+  function rundgangNoetig() {
+    try { const u = FS.ui(); return !(u.neuGesehen && u.neuGesehen[RUNDGANG_KEY]); } catch (e) { return false; }
+  }
+  function rundgangZeigen(i) {
+    if (!wurzel) return;
+    rundgangSchritt = i;
+    let d = wurzel.querySelector('#f-rund');
+    if (i >= RUNDGANG.length) {
+      if (d) d.parentNode.removeChild(d);
+      rundgangSchritt = -1;
+      try { const u = FS.ui(); const ng = Object.assign({}, u.neuGesehen || {}); ng[RUNDGANG_KEY] = Date.now(); FS.uiSetzen({ neuGesehen: ng }); } catch (e) { /* egal */ }
+      return;
+    }
+    if (!d) { d = document.createElement('div'); d.className = 'f-ueber f-rund'; d.id = 'f-rund'; wurzel.appendChild(d); }
+    const k = RUNDGANG[i], letzte = i === RUNDGANG.length - 1;
+    d.innerHTML = '<div class="f-schleier-dunkel"></div><div class="fs-panel f-kasten" data-key="r' + i + '" style="text-align:center">' + FS.fuchs(k.pose, istHandy() ? 130 : 170) +
+      '<div class="f-rund-text fs-kontur">' + esc(k.text) + '</div><div class="f-rund-punkte">' + RUNDGANG.map((x, j) => '<i class="' + (j === i ? 'an' : '') + '"></i>').join('') + '</div>' +
+      '<button class="fs-btn fs-gelb fs-gross fs-breit" data-a="rundWeiter">' + (letzte ? 'Los geht\'s!' : 'Weiter') + '</button></div>';
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Maschinen-Wahl (Logik). Standard = Wahl des Modells (M.optionen: nach Arbeitsdauer sortiert, je Geraet der
+  // schwaechste passende Traktor – so bleiben starke Traktoren fuer schwere Geraete frei). "Maschine aendern"
+  // ueberschreibt sie fuer diesen Feld-Dialog (dlg.manuell[schritt]).
+  // Dauer wie im Modell (starteIntern): arbeitsSek x Verschleiss(Traktor) x Verschleiss(Geraet) x Wetter / Tempo / Zugreserve.
+  // Verschleiss/Zugreserve exportiert das Modell nicht – dieselbe Formel hier NUR fuer die Anzeige (Test vergleicht mit o.sek).
+  // ----------------------------------------------------------------------------------------------
+  const verschleiss = m => m.zustand >= 50 ? 1 : 1 + (50 - m.zustand) / 50 * 0.6;
+  const zugreserve = (td, gd) => gd ? 1 + Math.min(0.30, Math.max(0, td.ps / gd.ps - 1) * 0.15) : 1;
+  function dauerSek(feldId, schritt, geraetUid, traktorUid) {
+    const gm = geraetUid ? M.maschine(geraetUid) : null, tm = M.maschine(traktorUid);
+    if (!tm) return 0;
+    const gd = gm ? D.def(gm.id) : null, td = D.def(tm.id);
+    return M.arbeitsSek(schritt, feldId, gd, gd ? null : td) * verschleiss(tm) * (gm ? verschleiss(gm) : 1) / zugreserve(td, gd);
+  }
+  function ernterTypFuer(feldId, frucht) {
+    const f = stand().felder[feldId], fr = D.frucht(frucht || (f && f.frucht));
+    return fr && fr.ernte === 'wurzel' ? 'rodemaschine' : 'maehdrescher';
+  }
+  function besteWahl(feldId, schritt, frucht) {
+    const opts = M.optionen(feldId, schritt, frucht).filter(o => o.traktor);
+    const man = dlg && dlg.typ === 'feld' && dlg.id === feldId && dlg.manuell ? dlg.manuell[schritt] : null;
+    if (man) {
+      const o = opts.find(x => (x.geraet || 0) === (man.geraet || 0));
+      if (o && (o.traktoren || [o.traktor]).indexOf(man.traktor) >= 0) return { geraet: man.geraet || null, traktor: man.traktor, manuell: true };
+    }
+    if (!opts.length) return null;
+    return { geraet: opts[0].geraet || null, traktor: opts[0].traktor, manuell: false };
+  }
+  // Kann der Schritt jetzt starten? { ok, grund, loesung:'geraet'|'ernter'|'fuhrpark'|null, wahl, kosten, ms }
+  function schrittStatus(feldId, schritt, frucht) {
+    const S = stand(), now = jetzt(), st = D.SCHRITTE[schritt];
+    const kosten = schritt === 'saeen' ? (frucht ? M.kostenFuer(feldId, 'saeen', frucht) : 0) : M.kostenFuer(feldId, schritt);
+    const res = { schritt, ok: false, grund: '', loesung: null, wahl: null, kosten, ms: 0 };
+    const erl = M.schrittErlaubt(feldId, schritt, now);
+    if (!erl.ok) { res.grund = erl.grund; return res; }
+    const wahl = besteWahl(feldId, schritt, frucht);
+    if (!wahl) {
+      const typ = st.geraet || ernterTypFuer(feldId, frucht);
+      const name = st.geraet ? GERAET_NAME[st.geraet] : (typ === 'rodemaschine' ? 'Roder' : 'Mähdrescher');
+      const eigene = S.flotte.filter(m => D.def(m.id).typ === typ);
+      const alle = M.optionen(feldId, schritt, frucht);
+      res.typ = typ;
+      if (!eigene.length) { res.grund = 'Dir fehlt ein ' + name; res.loesung = st.geraet ? 'geraet' : 'ernter'; }
+      else if (alle.length && alle[0].grund) res.grund = alle[0].grund;
+      else if (eigene.every(m => !m.job && m.zustand < 15)) { res.grund = name + ' ist kaputt – reparieren!'; res.loesung = 'fuhrpark'; }
+      else res.grund = name + ' arbeitet gerade';
+      return res;
+    }
+    res.wahl = wahl;
+    res.ms = dauerSek(feldId, schritt, wahl.geraet, wahl.traktor) * M.wetter(now).arbeit / M.tempoFaktor() * 1000;
+    if (S.geld < kosten) { res.grund = 'Dir fehlen ' + fmt(kosten - S.geld) + ' Münzen'; return res; }
+    res.ok = true;
+    return res;
+  }
+  function wahlName(w) {
+    if (!w) return '';
+    const tm = M.maschine(w.traktor);
+    return tm ? D.def(tm.id).name : '';
+  }
+  function starteSchritt(feldId, schritt, frucht) {
+    const st = schrittStatus(feldId, schritt, frucht);
+    if (!st.ok) { toast(st.grund, 'warn', 'erg'); piep('fehler'); return false; }
+    const o = { geraet: st.wahl.geraet || null, traktor: st.wahl.traktor };
+    if (frucht) o.frucht = frucht;
+    const r = M.arbeitStarten(feldId, schritt, o, jetzt());
+    if (!r || !r.ok) { toast((r && r.grund) || 'Das geht gerade nicht.', 'warn', 'erg'); piep('fehler'); return false; }
+    toast((schritt === 'saeen' && frucht ? D.frucht(frucht).name + ' wird gesät!' : SCHRITT_KURZ[schritt] + ' startet!'), 'gut', 'erg', schritt === 'saeen' && frucht ? frucht : schritt);
+    piep('fertig');
+    speichern();
+    if (dlg && dlg.typ === 'feld' && dlg.id === feldId) { dlg.sub = null; dlg.fokus = null; dlg.info = false; zeichneFeldDialog(); }
+    return true;
+  }
+  // Sichel-Blase: Ernte sofort mit bester Erntemaschine. false = geht nicht (dann Feldkarte mit Loesung)
+  function ernteSofort(feldId, von) {
+    const f = stand().felder[feldId];
+    if (!f || f.phase !== 'reif' || M.jobAufFeld(feldId)) return false;
+    const st = schrittStatus(feldId, 'ernten');
+    if (!st.ok) return false;
+    const r = M.arbeitStarten(feldId, 'ernten', { geraet: null, traktor: st.wahl.traktor }, jetzt());
+    if (!r || !r.ok) return false;
+    toast('Ernte startet!', 'gut', 'erg', 'ernten');
+    piep('fertig');
+    iconFlug(f.frucht || 'weizen', von, R.dockLager, 6);
+    speichern();
+    if (dlg && dlg.typ === 'feld' && dlg.id === feldId) zeichneFeldDialog();
+    return true;
+  }
+  function einsammelnMitEffekt(tierId, von) {
+    const r = M.einsammeln(tierId);
+    if (!r || !r.ok) { toast((r && r.grund) || 'Noch nichts zum Einsammeln.', 'warn', 'erg'); piep('fehler'); return; }
+    toast(menge(r.kg) + ' ' + D.gut(r.gut).name + (r.ueber > 1 ? ' – Silo voll, Rest verkauft' : ' im Lager!'), 'gut', 'erg', r.gut);
+    piep('geld');
+    iconFlug(r.gut, von, R.dockLager, 6);
+    speichern();
+    if (dlg && dlg.typ === 'tiere') zeichneTiere();
+  }
+  function fuetternMitEffekt(tierId, von) {
+    const ss = M.stallStand(tierId, jetzt());
+    if (!ss || !ss.futterSilo) { toast('Kein Futter im Silo', 'warn', 'erg', 'futter'); dialogTiere(tierId); return; }
+    const r = M.fuettern(tierId);
+    if (!r || !r.ok) { toast((r && r.grund) || 'Das geht gerade nicht.', 'warn', 'erg'); piep('fehler'); return; }
+    toast(menge(r.kg) + ' Futter eingefüllt', 'gut', 'erg', 'futter');
+    piep('fertig');
+    if (R.dockLager && von) { const q = R.dockLager.getBoundingClientRect(); const ziel = { getBoundingClientRect: () => ({ left: von.x - 1, top: von.y - 1, width: 2, height: 2 }) }; iconFlug('futter', { x: q.left + q.width / 2, y: q.top + q.height / 2 }, ziel, 4); }
+    speichern();
+    if (dlg && dlg.typ === 'tiere') zeichneTiere();
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Feld (Feldkarte, Saatwahl, Maschinenwahl, Lernrunde, laufende Arbeit, Feld kaufen)
   // ----------------------------------------------------------------------------------------------
   function dialogFeld(id, sub) {
-    dlg = { typ: 'feld', id, sub: sub || (dlg && dlg.typ === 'feld' && dlg.id === id ? dlg.sub : null), wahl: (dlg && dlg.wahl) || {} };
+    const gleich = dlg && dlg.typ === 'feld' && dlg.id === id;
+    if (!gleich) dlg = { typ: 'feld', id, sub: null, wahl: {}, manuell: {}, fokus: null, info: false, mehr: false, alleFr: false, lern: null };
+    if (sub !== undefined) { dlg.sub = sub || null; dlg.fokus = null; }
     zeichneFeldDialog();
+    if (!gleich) {
+      // Feld in die freie Flaeche holen, wenn es unter dem Panel/Sheet liegt
+      const m = feldMitte(id), s = weltZuBildschirm(m.x, m.y);
+      let z = null; try { z = A.sichereZone(); } catch (e) { z = null; }
+      if (z && (s.x < z.links + 40 || s.x > W - z.rechts - 40 || s.y < z.oben + 30 || s.y > H - z.unten - 30)) fliegeZuFeld(id);
+    }
   }
-  function phasenText(f, now) {
-    const fn = f.frucht ? D.frucht(f.frucht).name : '';
+  function phasenText(f) {
+    const fn = f.frucht && D.frucht(f.frucht) ? D.frucht(f.frucht).name : '';
     if (f.phase === 'stoppel') return 'Stoppelfeld';
     if (f.phase === 'bearbeitet') return 'Gegrubbert';
     if (f.phase === 'gepfluegt') return 'Gepflügt';
-    if (f.phase === 'waechst') return fn + ' wächst (' + Math.round(M.fortschrittWachstum(f, now) * 100) + ' %)';
-    return fn + ' ist erntereif';
+    if (f.phase === 'waechst') return fn + ' wächst';
+    return fn + ' ist reif';
   }
   function zeichneFeldDialog() {
-    const S = stand(), id = dlg.id, d = D.feld(id), f = S.felder[id], now = jetzt();
-    if (!f) { zeichneFeldKauf(); return; }
+    if (!dlg || dlg.typ !== 'feld') return;
+    const S = stand(), id = dlg.id, f = S.felder[id];
+    try { A.markiere({ art: 'feld', id }); } catch (e) { /* egal */ }
+    if (!f) return zeichneFeldKauf();
+    if (dlg.lern) return zeichneLernrunde();
     const job = M.jobAufFeld(id);
-    const zurueck = !job && dlg.lern ? 'lernAbbruch' : (!job && dlg.sub ? 'feldzurueck' : null);
-    const chips = '<div class="f-chips"><span class="f-chip">📐 <b>' + fmt1(d.ha) + ' ha</b></span><span class="f-chip">🌍 Boden <b>' + Math.round(f.boden) + ' %</b></span>' +
-      '<span class="f-chip">🔁 Vorher: <b>' + (f.vorher.length ? f.vorher.map(x => D.frucht(x).name).join(', ') : '–') + '</b></span>' +
-      (f.phase === 'waechst' || f.phase === 'reif' ? '<span class="f-chip">📦 Ertrag ca. <b>' + tonnen(M.ertragsSchaetzungKg(id)) + '</b></span>' : '') + '</div>';
-    let inhalt;
-    if (dlg.lern) inhalt = lernAnsicht();
-    else if (job) inhalt = jobAnsicht(job, now);
-    else if (dlg.sub && dlg.sub.schritt === 'saeen' && !dlg.sub.frucht) inhalt = saatWahl(id);
-    else if (dlg.sub) inhalt = maschinenWahl(id, dlg.sub.schritt, dlg.sub.frucht);
-    else inhalt = feldAktionen(id, f, now);
-    dialogAuf(kopf(d.name + ' <span style="font-weight:500;font-size:15px;opacity:.85">· ' + phasenText(f, now) + '</span>', '', zurueck) +
-      '<div class="f-inhalt">' + (dlg.lern ? '' : chips) + inhalt + (dlg.sub || job || dlg.lern ? '' : fahrerBlock(f)) + '</div>');
+    if (job) { dlg.sub = null; dlg.fokus = null; return zeichneJob(job); }
+    if (dlg.sub && dlg.sub.schritt === 'saeen' && !dlg.sub.frucht && !dlg.sub.wahl) return zeichneSaatwahl();
+    if (dlg.sub) return zeichneMaschinenwahl();
+    return zeichneFeldkarte();
   }
-  function lernAnsicht() {
-    const L = dlg.lern;
-    if (L.ergebnis) {
-      const r = L.ergebnis;
-      let h = '<div class="f-h3">Lernrunde geschafft</div>';
-      if (!r.ok) return h + '<div class="f-info warn">' + r.grund + '</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernEnde">Zurück zum Feld</button></div>';
-      h += '<div class="f-info" style="font-size:18px">⭐ <b>' + r.richtig + ' von ' + L.karten.length + '</b> Karten gewusst' + (r.gespartMs > 0 ? '<br>⏱ Die Saat ist <b>' + A.zeitText(r.gespartMs) + '</b> schneller reif!' : '<br>Beim nächsten Mal klappt es besser – die Karten kommen bald wieder dran.') + (r.reif ? '<br>🌾 <b>Das Feld ist jetzt erntereif!</b>' : '') + '</div>';
-      const falsch = L.karten.filter((k, i) => !L.gewusst[i]);
-      if (falsch.length) h += '<div class="f-info">Das üben wir weiter:<br>' + falsch.map(k => '• ' + k.front).join('<br>') + '</div>';
-      return h + '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernEnde">Zurück zum Feld</button></div>';
+  function feldKopf(f, unter, extra) {
+    const d = D.feld(dlg.id);
+    return kopfHtml({ icon: feldIcon(f), stufe: f && f.frucht && (f.phase === 'waechst' || f.phase === 'reif') ? FS.stufe(f.frucht) : 'blau', titel: esc(d.name), unter: unter || (phasenText(f) + ' · ' + fmt1(d.ha) + ' ha'), extra });
+  }
+  // "Dein Weg zur Ernte": Boden › Saeen › Wachsen › Ernten, aktueller Schritt gelb
+  const PFEIL = '<svg class="fs-weg-pfeil" viewBox="0 0 14 28" aria-hidden="true"><path d="M3 4 L11 14 L3 24" stroke="#3A47B0" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  function wegHtml(f, job) {
+    const boden = f.phase === 'gepfluegt' || (job && job.schritt === 'pfluegen') ? 'pfluegen' : 'grubbern';
+    const schritte = [[boden, SCHRITT_KURZ[boden]], ['saeen', 'Säen'], ['spross', 'Wachsen'], ['ernten', 'Ernten']];
+    let jetztI = { stoppel: 0, bearbeitet: 1, gepfluegt: 1, waechst: 2, reif: 3 }[f.phase];
+    if (job) { const j = { grubbern: 0, pfluegen: 0, saeen: 1, ernten: 3 }[job.schritt]; if (j !== undefined) jetztI = j; }
+    return '<div class="fs-abschnitt f-abschnitt-weg">Dein Weg zur Ernte</div><div class="fs-weg">' + schritte.map((s, i) =>
+      '<div class="fs-weg-schritt' + (i === jetztI ? ' fs-jetzt' : i < jetztI ? ' fs-erledigt' : '') + '">' + I(s[0]) + s[1] + (i < jetztI ? I('haken', 0, 'f-weg-haken') : '') + '</div>'
+    ).join(PFEIL) + '</div>';
+  }
+  function ertragWert(id, f) {
+    const kg = M.ertragsSchaetzungKg(id);
+    return { kg, wert: kg / 1000 * M.grundPreis(f.frucht) };
+  }
+  function ringZeile(id, f, now) {
+    const gr = istHandy() ? 112 : 128;
+    const ew = ertragWert(id, f);
+    if (f.phase === 'reif') {
+      return '<div class="f-ringzeile">' + FS.ring(1, gr, { icon: 'reif', text: 'Reif!', farbe: 'gelb' }) + '<div class="f-stats">' +
+        '<div class="fs-stat">' + I(f.frucht) + '<span class="fs-stat-zahl">' + tonnen(ew.kg) + '</span><span class="fs-stat-text">Ernte</span></div>' +
+        '<div class="fs-stat">' + I('muenze') + '<span class="fs-stat-zahl">' + fmt(ew.wert) + '</span><span class="fs-stat-text">Wert</span></div></div></div>';
     }
-    const k = L.karten[L.i];
-    const punkte = L.karten.map((x, i) => '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;margin:0 3px;background:' + (i < L.i ? (L.gewusst[i] ? '#7fe083' : '#ff9a7a') : i === L.i ? '#ffe27a' : 'rgba(255,255,255,.25)') + '"></span>').join('');
-    return '<div style="text-align:center;margin:4px 0 10px">' + punkte + '<div style="font-size:13px;opacity:.8;margin-top:4px">Karte ' + (L.i + 1) + ' von ' + L.karten.length + ' · ' + k.titel + '</div></div>' +
-      '<div class="f-karte" style="text-align:center;min-height:190px;justify-content:center;font-size:20px;line-height:1.4"><div style="font-weight:700">' + k.front + '</div>' + (L.auf ? '<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.25);font-size:19px">' + k.back + '</div>' : '') + '</div>' +
-      (L.auf ? '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="lernWeiss">✓ Gewusst</button><button class="f-kauf sek" data-a="lernNicht">✗ Noch nicht</button></div>'
-        : '<div class="f-btnreihe"><button class="f-kauf" data-a="lernUm">Umdrehen</button></div><div class="f-info" style="margin-top:12px;opacity:.85">Denk erst nach, dann umdrehen – und sei ehrlich: Nur „Gewusst“, wenn du es wirklich gewusst hast!</div>');
+    const w = M.fortschrittWachstum(f, now);
+    return '<div class="f-ringzeile">' + FS.ring(w, gr, { icon: 'spross', text: Math.floor(w * 100) + ' %', klasse: 'f-live-ring' }) + '<div class="f-stats">' +
+      '<div class="fs-stat">' + I('uhr') + '<span class="fs-stat-zahl" data-live="rest">' + grob(M.restWachsen(id, now)) + '</span><span class="fs-stat-text">bis reif</span></div>' +
+      '<div class="fs-stat">' + I(f.frucht) + '<span class="fs-stat-zahl">' + tonnen(ew.kg) + '</span><span class="fs-stat-text">Ernte</span></div>' +
+      '<div class="fs-stat">' + I('muenze') + '<span class="fs-stat-zahl">' + fmt(ew.wert) + '</span><span class="fs-stat-text">Wert</span></div></div></div>';
   }
-  function jobAnsicht(job, now) {
+  function lernMoeglich(f, now) {
+    if (f.phase !== 'waechst' || typeof FarmLernen === 'undefined' || !FarmLernen.verfuegbar()) return { da: false };
+    const uebrig = M.lernRundenUebrig(now);
+    if (f.lern) return { da: true, ok: false, grund: 'Hier schon gelernt – nächste Saat wieder' };
+    if (uebrig <= 0) return { da: true, ok: false, grund: 'Heute ' + D.LERN_MAX_TAG + ' Runden geschafft – morgen wieder!' };
+    return { da: true, ok: true, uebrig };
+  }
+  // Was ist die EINE Hauptaktion?
+  function hauptBestimmen(id, f, now) {
+    if (dlg.fokus === 'beregnung') return { art: 'beregnung' };
+    if (dlg.fokus && D.SCHRITTE[dlg.fokus]) return { art: dlg.fokus === 'saeen' ? 'saat' : 'schritt', schritt: dlg.fokus, fokus: true };
+    if (f.phase === 'stoppel') return { art: 'schritt', schritt: 'grubbern' };
+    if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') return { art: 'saat', schritt: 'saeen' };
+    if (f.phase === 'reif') return { art: 'schritt', schritt: 'ernten' };
+    const lm = lernMoeglich(f, now);
+    if (lm.ok) return { art: 'lern' };
+    // Ohne Lernrunde (Papa-Handy ohne FarmLernen, oder heute schon gelernt): Bonus-Schritt nur, wenn er sofort starten kann
+    const bonus = ['duengen', 'spritzen', 'walzen'].find(s => M.schrittErlaubt(id, s, now).ok && schrittStatus(id, s).ok);
+    if (bonus) return { art: 'schritt', schritt: bonus };
+    return { art: 'wachsen' };
+  }
+  function infoKnopf(aktion) { return '<button class="fs-btn fs-cyan fs-rund" data-a="' + aktion + '" aria-label="Warum?">' + I('info') + '</button>'; }
+  function zurueckKlein(aktion) { return '<button class="fs-btn fs-navy fs-rund" data-a="' + aktion + '" aria-label="Zurück">' + I('zurueck') + '</button>'; }
+  function warumBox(text) { return dlg.info ? '<div class="fs-mulde f-warum-box">' + esc(text) + '</div>' : ''; }
+  function knopfZeile(st) {
+    const teile = [];
+    if (st.ms) teile.push(grob(st.ms));
+    if (st.wahl) teile.push(esc(wahlName(st.wahl)));
+    if (st.kosten) teile.push('<span class="f-preis">' + I('muenze') + fmt(st.kosten) + '</span>');
+    return teile.join(' · ');
+  }
+  function hauptHtml(h, id, f, now) {
+    const S = stand();
+    if (h.art === 'lern') {
+      const lm = lernMoeglich(f, now);
+      const rest = M.restWachsen(id, now), w = M.fortschrittWachstum(f, now);
+      const maxMs = w < 1 ? rest * Math.min(1 - w, D.LERN_PRO_KARTE * D.LERN_KARTEN) / (1 - w) : 0;
+      return '<div class="fs-aktion" data-live="haupt"><div class="f-aktion-kopf">' + I('lernen') + '<div class="f-aktion-tx"><div class="fs-aktion-titel">Schneller reif!</div><div class="fs-aktion-text">' + D.LERN_KARTEN + ' Karten · ' + grob(maxMs) + ' schneller</div></div>' + infoKnopf('feldInfo') + '</div>' +
+        '<div class="f-merk-zeile"><span class="fs-merk">heute noch ' + lm.uebrig + ' Runde' + (lm.uebrig === 1 ? '' : 'n') + '</span></div>' +
+        '<button class="fs-btn fs-gelb fs-gross fs-breit" data-a="lernStart">' + I('lernen', 40) + 'Lernrunde starten</button>' +
+        warumBox('Du bekommst ' + D.LERN_KARTEN + ' Karten, die du am meisten üben solltest. Jede Karte, die du wirklich weißt, lässt die Saat schneller reif werden. Sei ehrlich: Nur „Gewusst“, wenn du es gewusst hast!') + '</div>';
+    }
+    if (h.art === 'wachsen') {
+      return '<div class="f-fuchs-zeile">' + FS.fuchs('neutral', 72) + '<div>Wächst von allein. Schau bald wieder!</div></div>';
+    }
+    if (h.art === 'beregnung') {
+      const preis = D.feld(id).ha * D.BEREGNUNG_PREIS_HA, kann = S.geld >= preis;
+      return '<div class="fs-aktion fs-gruen" data-live="haupt"><div class="f-aktion-kopf">' + I('beregnung') + '<div class="f-aktion-tx"><div class="fs-aktion-titel">Beregnung</div><div class="fs-aktion-text">Bei Hitze wächst alles normal weiter</div></div>' + zurueckKlein('fokusWeg') + '</div>' +
+        '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte' + (kann ? '' : ' fs-aus') + '" data-a="beregnung"' + (kann ? '' : ' data-grund="Dir fehlen ' + fmt(preis - S.geld) + ' Münzen"') + '><span>Einbauen</span><span class="fs-btn-zeile"><span class="f-preis">' + I('muenze') + fmt(preis) + '</span></span></button></div>';
+    }
+    const s = h.schritt;
+    const titel = SCHRITT_KURZ[s];
+    const kopfH = '<div class="f-aktion-kopf">' + I(s) + '<div class="f-aktion-tx"><div class="fs-aktion-titel">' + titel + '</div><div class="fs-aktion-text">' + SCHRITT_SATZ[s] + '</div></div>' + (h.fokus ? zurueckKlein('fokusWeg') : '') + infoKnopf('feldInfo') + '</div>';
+    let knopf;
+    if (h.art === 'saat') {
+      const st = schrittStatus(id, 'saeen');
+      if (st.wahl || (!st.loesung && st.grund && st.grund.indexOf('fehlen') >= 0)) knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte" data-a="saatwahl"><span>Frucht auswählen</span><span class="fs-btn-zeile">' + esc(wahlName(st.wahl)) + ' ist bereit</span></button>';
+      else if (st.loesung) knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte" data-a="zumHaendler" data-id="' + st.loesung + ':' + st.typ + '"><span>Zum Händler</span><span class="fs-btn-zeile">' + esc(st.grund) + '</span></button>';
+      else knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte fs-aus" data-a="saatwahl" data-grund="' + esc(st.grund) + '"><span>Frucht auswählen</span><span class="fs-btn-zeile">' + esc(st.grund) + '</span></button>';
+    } else {
+      const st = schrittStatus(id, s);
+      const gefahr = s === 'pfluegen' && (f.phase === 'waechst' || f.phase === 'reif');
+      if (st.ok) knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte" data-a="' + (gefahr ? 'gefahr' : 'starte') + '" data-id="' + s + '"><span>' + titel + ' starten</span><span class="fs-btn-zeile">' + knopfZeile(st) + '</span></button>';
+      else if (st.loesung === 'fuhrpark') knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte" data-a="fuhrpark"><span>Zur Werkstatt</span><span class="fs-btn-zeile">' + esc(st.grund) + '</span></button>';
+      else if (st.loesung) knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte" data-a="zumHaendler" data-id="' + st.loesung + ':' + st.typ + '"><span>Zum Händler</span><span class="fs-btn-zeile">' + esc(st.grund) + '</span></button>';
+      else knopf = '<button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte fs-aus" data-a="starte" data-id="' + s + '" data-grund="' + esc(st.grund) + '"><span>' + titel + ' starten</span><span class="fs-btn-zeile">' + esc(st.grund) + '</span></button>';
+    }
+    return '<div class="fs-aktion fs-gruen" data-live="haupt">' + kopfH + knopf + warumBox(D.SCHRITT_WARUM[s]) + '</div>';
+  }
+  // Mehr-Ertrag eines Bonus-Schritts in Muenzen (nur Anzeige; Formel wie ertragsFaktor: Boni addieren sich)
+  function bonusWert(id, f, s) {
+    const st = D.SCHRITTE[s];
+    if (!st.bonus || !f.frucht || (f.phase !== 'waechst' && f.phase !== 'reif')) return 0;
+    const summe = D.BONUS.pf * f.bonus.pf + D.BONUS.dg * f.bonus.dg + D.BONUS.sp * f.bonus.sp + D.BONUS.wa * f.bonus.wa;
+    return ertragWert(id, f).wert * D.BONUS[st.bonus] / (1 + summe);
+  }
+  function kachelnHtml(id, f, h, now) {
+    const S = stand();
+    const liste = M.moeglicheSchritte(id, now).filter(x => x.schritt !== h.schritt && x.schritt !== 'saeen' && x.schritt !== 'ernten');
+    let k = '';
+    liste.forEach(x => {
+      const s = x.schritt, gefahr = s === 'pfluegen' && (f.phase === 'waechst' || f.phase === 'reif');
+      const grund = x.erlaubt.ok ? '' : x.erlaubt.grund;
+      const erledigt = /^Schon /.test(grund);
+      let ecke = '', badge = '', aus = false, g = '';
+      if (erledigt) ecke = I('haken', 0, 'fs-ecke');
+      else if (!x.erlaubt.ok) { ecke = I('schloss', 0, 'fs-ecke'); aus = true; g = grund; }
+      else if (gefahr) ecke = I('gefahr', 0, 'fs-ecke');
+      else {
+        const st = schrittStatus(id, s);
+        if (!st.ok) { ecke = I('schloss', 0, 'fs-ecke'); aus = true; g = st.grund; }
+        const bw = bonusWert(id, f, s);
+        if (!aus && bw >= 1) badge = '<span class="fs-badge fs-gruen">+' + fmt(bw) + '</span>';
+        else if (!aus && (s === 'duengen' || s === 'spritzen' || s === 'walzen' || s === 'pfluegen')) badge = '<span class="fs-badge fs-gruen">' + I('ertrag') + '</span>';
+      }
+      k += '<button class="fs-kachel' + (aus ? ' fs-aus' : '') + '" data-a="' + (gefahr ? 'gefahr' : erledigt ? 'erledigt' : 'kachel') + '" data-id="' + s + '"' + (aus ? ' data-grund="' + esc(g) + '"' : erledigt ? ' data-grund="' + esc(grund) + '"' : '') + '>' + I(s) + SCHRITT_KURZ[s] + ecke + badge + '</button>';
+    });
+    const lm = lernMoeglich(f, now);
+    if (lm.da && !lm.ok) k += '<button class="fs-kachel fs-aus" data-a="kachel" data-id="lern" data-grund="' + esc(lm.grund) + '">' + I('lernen') + 'Lernen' + I('schloss', 0, 'fs-ecke') + '</button>';
+    if (h.art !== 'beregnung') {
+      if (f.beregnung) k += '<button class="fs-kachel" data-a="erledigt" data-grund="Beregnung ist schon eingebaut.">' + I('beregnung') + 'Regner' + I('haken', 0, 'fs-ecke') + '</button>';
+      else if (S.level >= D.BEREGNUNG_LVL) k += '<button class="fs-kachel" data-a="kachel" data-id="beregnung">' + I('beregnung') + 'Regner</button>';
+    }
+    return k ? '<div class="fs-abschnitt">Auch möglich</div><div class="f-kacheln">' + k + '</div>' : '';
+  }
+  function fahrerHtml(f) {
+    const S = stand();
+    if (f.auto) return '<div class="fs-mulde f-fahrer">' + I('fahrer') + '<div>Ein Fahrer kümmert sich hier.' + (S.lohnOffen > 0 ? ' <b style="color:#FF9C9C">Lohn offen – er streikt!</b>' : '') + '</div><button class="fs-btn fs-navy f-klein-btn" data-a="autoAus">Abziehen</button></div>';
+    if (S.fahrer > M.autoFelder().length) return '<div class="fs-mulde f-fahrer">' + I('fahrer') + '<div>Ein Fahrer ist frei!</div><button class="fs-btn fs-gruen f-klein-btn" data-a="autoAn" data-id="ja">Hier einsetzen</button></div>';
+    return '';
+  }
+  function mehrHtml(id, f) {
+    if (!dlg.mehr) return '';
+    const vorher = f.vorher && f.vorher.length ? f.vorher.map(x => I(x, 32)).join('') : '–';
+    let h = '<div class="fs-mulde f-mehr">' + I('boden', 40) + '<span>Boden</span><b>' + Math.round(f.boden) + ' %</b>' +
+      I('stoppel', 40) + '<span>Vorher gewachsen</span><b>' + vorher + '</b>';
+    if (f.phase === 'waechst' || f.phase === 'reif') h += I('ertrag', 40) + '<span>Ertrag ca.</span><b>' + tonnen(M.ertragsSchaetzungKg(id)) + '</b>';
+    h += I('beregnung', 40) + '<span>Beregnung</span><b>' + (f.beregnung ? 'an' : 'keine') + '</b>';
+    return h + '</div>';
+  }
+  function zeichneFeldkarte() {
+    const S = stand(), id = dlg.id, f = S.felder[id], now = jetzt();
+    let html = wegHtml(f, null);
+    if (f.phase === 'waechst' || f.phase === 'reif') html += ringZeile(id, f, now);
+    const h = hauptBestimmen(id, f, now);
+    dlg.haupt = h;
+    html += hauptHtml(h, id, f, now);
+    if ((h.art === 'schritt' || h.art === 'saat') && M.optionen(id, h.schritt).some(o => o.traktor)) html += '<div class="f-zeile2"><button class="fs-btn fs-navy f-klein-btn" data-a="maschineAendern">' + I('traktor') + 'Maschine ändern</button></div>';
+    html += kachelnHtml(id, f, h, now);
+    html += fahrerHtml(f);
+    html += '<div class="f-zeile2"><button class="fs-btn fs-navy f-klein-btn" data-a="mehr">' + I(dlg.mehr ? 'minus' : 'statistik') + (dlg.mehr ? 'Weniger zeigen' : 'Mehr über das Feld') + '</button></div>' + mehrHtml(id, f);
+    rahmen({ art: 'rechts', ansicht: 'feld' + id, kopf: feldKopf(f), inhalt: html });
+  }
+  function zeichneJob(job) {
+    const S = stand(), id = dlg.id, f = S.felder[id], now = jetzt();
     const st = M.jobStand(job, now), sch = D.SCHRITTE[job.schritt];
     const tm = M.maschine(job.traktor), gm = job.geraet ? M.maschine(job.geraet) : null;
+    const td = tm ? D.def(tm.id) : null, gd = gm ? D.def(gm.id) : null;
     const gesamt = job.hin + job.arbeit + job.rueck;
-    const p = Math.min(1, (now - job.start) / gesamt);
-    return '<div class="f-info"><b>' + sch.icon + ' ' + sch.name + '</b> läuft gerade.</div>' +
-      '<div class="f-zeile"><div class="ico">' + (gm ? '🔧' : '🌾') + '</div><div class="n">' + (gm ? D.def(gm.id).name + ' + ' : '') + D.def(tm.id).name +
-      '<small>' + (st.teil === 'hin' ? 'Fährt aufs Feld …' : st.teil === 'rueck' ? 'Fährt zurück zum Hof' : 'Arbeitet – noch ' + sekText(st.restMs / 1000)) + '</small></div></div>' +
-      '<div class="f-bal"><div style="width:' + Math.round(p * 100) + '%"></div></div>' +
-      '<div class="f-btnreihe"><button class="f-kauf sek" data-a="zeigen" data-id="' + job.feld + '">📍 Auf der Karte zeigen</button><button class="f-kauf rot" data-a="jobAbbruch" data-id="' + job.id + '">Abbrechen</button></div>' +
-      '<div class="f-info" style="margin-top:12px;opacity:.85">Abbrechen verliert die Kosten (z. B. Saatgut), das Feld bleibt unverändert.</div>';
-  }
-  // Meldung, wenn zum Ernten keine passende Maschine frei ist: fehlt sie ganz, oder ist sie nur beschaeftigt/kaputt?
-  function erntemaschinenHinweis(f) {
-    const fr = f.frucht && D.frucht(f.frucht), wurzel = !!(fr && fr.ernte === 'wurzel');
-    const typ = wurzel ? 'rodemaschine' : 'maehdrescher', name = wurzel ? 'Roder' : 'Mähdrescher';
-    const habe = stand().flotte.some(m => D.def(m.id).typ === typ);
-    if (!habe) return (wurzel ? fr.name + ' wachsen in der Erde – die erntet nur ein Roder.' : fr.name + ' erntet ein Mähdrescher.') + ' Dir fehlt ein ' + name + ' – kaufe einen im Händler.';
-    return 'Dein ' + name + ' ist gerade beschäftigt oder kaputt – warte oder repariere ihn.';
-  }
-  function feldAktionen(id, f, now) {
-    const liste = M.moeglicheSchritte(id, now);
-    let html = '<div class="f-h3">Das kannst du tun</div>';
-    liste.forEach(s => {
-      const st = D.SCHRITTE[s.schritt];
-      const opts = M.optionen(id, s.schritt, f.frucht);
-      const bestes = opts.find(o => o.traktor);
-      let zusatz, knopf;
-      const kosten = s.schritt === 'saeen' ? 'Saatgut je nach Frucht' : (st.kosten ? '− ' + fmt(M.kostenFuer(id, s.schritt)) + ' €' : '');
-      if (!s.erlaubt.ok) { zusatz = s.erlaubt.grund; knopf = '<button class="f-kauf sek" disabled>–</button>'; }
-      else if (!bestes) {
-        zusatz = opts.length && opts[0].grund ? opts[0].grund : (st.geraet ? 'Kein freies Gerät (' + GERAET_NAME[st.geraet] + ') – im Händler kaufen oder warten' : erntemaschinenHinweis(f));
-        knopf = '<button class="f-kauf sek" data-a="shop" data-id="' + (st.geraet ? 'geraet' : 'ernter') + '">🏪</button>';
-      } else {
-        zusatz = 'ca. ' + sekText(bestes.sek / M.tempoFaktor()) + (kosten ? ' · ' + kosten : '') + ' · ' + st.text;
-        knopf = '<button class="f-kauf gruen" data-a="schritt" data-id="' + s.schritt + '">Los</button>';
-      }
-      html += '<div class="f-zeile"><div class="ico">' + st.icon + '</div><div class="n">' + st.name + '<small>' + zusatz + '</small><small class="f-warum">💡 ' + D.SCHRITT_WARUM[s.schritt] + '</small></div>' + knopf + '</div>';
-    });
-    if (!liste.length) html += '<div class="f-info">Hier gibt es gerade nichts zu tun.</div>';
-    if (f.phase === 'waechst' && typeof FarmLernen !== 'undefined' && FarmLernen.verfuegbar()) {
-      const uebrig = M.lernRundenUebrig(now);
-      const sperre = f.lern ? 'Hier hast du schon gelernt – bei der nächsten Saat geht es wieder.' : (uebrig <= 0 ? 'Heute hast du schon ' + D.LERN_MAX_TAG + ' Lernrunden gemacht – morgen wieder!' : '');
-      html += '<div class="f-h3">Schneller reif</div><div class="f-zeile"><div class="ico">📚</div><div class="n">Lernrunde: ' + D.LERN_KARTEN + ' Karten<small>' + (sperre || 'Die Karten, die du am meisten üben solltest. Jede gewusste Karte macht die Saat ' + Math.round(D.LERN_PRO_KARTE * 100) + ' % schneller reif (bis zu −' + Math.round(D.LERN_PRO_KARTE * D.LERN_KARTEN * 100) + ' %). Heute noch ' + uebrig + ' Runde' + (uebrig === 1 ? '' : 'n') + '.') + '</small></div><button class="f-kauf gruen" data-a="lernStart"' + (sperre ? ' disabled' : '') + '>Los</button></div>';
-    }
-    if (f.beregnung) html += '<div class="f-info" style="margin-top:8px">💦 Beregnungsanlage eingebaut: Bei Hitze wächst hier alles normal weiter.</div>';
-    else if (stand().level >= D.BEREGNUNG_LVL) html += '<div class="f-zeile"><div class="ico">💦</div><div class="n">Beregnungsanlage<small>Bei Hitze wachsen die Pflanzen nicht langsamer · ' + fmt(D.feld(id).ha * D.BEREGNUNG_PREIS_HA) + ' €</small></div><button class="f-kauf sek" data-a="beregnung">Einbauen</button></div>';
-    if (f.phase === 'waechst') html += '<div class="f-info" style="margin-top:10px">🌱 Noch ' + sekText(M.restWachsen(id, now) / 1000) + ' bis zur Ernte (bei ' + D.WETTER[M.wetterTyp(now)].name + '). Düngen, Spritzen und Walzen geben mehr Ertrag.</div>';
-    return html;
-  }
-  function saatWahl(id) {
-    const S = stand();
-    let html = '<div class="f-h3">Was soll gesät werden?</div><div class="f-gitter">';
-    D.FRUECHTE.forEach(fr => {
-      const ernterGrund = M.ernterFehlt(fr.id), gesperrt = S.level < fr.lvl || !!ernterGrund;
-      const ertrag = D.feld(id).ha * fr.ertrag * 1000 * M.ertragsFaktor(S.felder[id], fr.id);
-      const wert = ertrag / 1000 * M.grundPreis(fr.id);
-      const kosten = M.kostenFuer(id, 'saeen', fr.id);
-      const hinweis = M.fruchtfolgeHinweis(id, fr.id);
-      html += '<button class="f-karte' + (gesperrt ? ' gesperrt' : '') + '" data-a="saatwahl" data-id="' + fr.id + '"' + (gesperrt ? ' disabled' : '') + '><b>' + (fr.ernte === 'wurzel' ? '🥔' : '🌾') + ' ' + fr.name + (S.level < fr.lvl ? '<span class="f-badge rot">ab Level ' + fr.lvl + '</span>' : ernterGrund ? '<span class="f-badge rot">' + (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + ' fehlt</span>' : '') + '</b><div class="s">' +
-        'Reif nach ' + sekText(fr.dauer / M.tempoFaktor()) + '<br>' + (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + '<br>Ertrag ca. ' + tonnen(ertrag) + '<br>Wert ca. ' + fmt(wert) + ' €<br>Saatgut ' + fmt(kosten) + ' €' + (ernterGrund && S.level >= fr.lvl ? '<br><span class="down">⚠ ' + ernterGrund + '</span>' : '') +
-        (hinweis ? '<br><span class="' + (hinweis.indexOf('−') >= 0 ? 'down' : 'up') + '">' + hinweis + '</span>' : '') + '</div></button>';
-    });
-    return html + '</div>';
-  }
-  function maschinenWahl(id, schritt, fruchtId) {
-    const st = D.SCHRITTE[schritt];
-    const opts = M.optionen(id, schritt, fruchtId).filter(o => o.traktor);
-    let html = '<div class="f-h3">' + st.icon + ' ' + st.name + (fruchtId ? ' · ' + D.frucht(fruchtId).name : '') + ' – welche Maschine?</div>';
-    const kosten = M.kostenFuer(id, schritt, fruchtId);
-    html += '<div class="f-info">Kosten: <b>' + fmt(kosten) + ' €</b>' + (stand().geld < kosten ? ' <span class="down">– so viel Geld hast du noch nicht</span>' : '') + '</div>';
-    if (!opts.length) return html + '<div class="f-info warn">Keine freie Maschine. Warte, bis eine fertig ist, oder kaufe im Händler eine neue.</div><div class="f-btnreihe"><button class="f-kauf" data-a="shop" data-id="' + (st.geraet ? 'geraet' : 'ernter') + '">🏪 Zum Händler</button></div>';
-    opts.forEach(o => {
-      const gm = o.geraet ? M.maschine(o.geraet) : null;
-      const key = o.geraet || o.traktor;
-      const liste = o.traktoren || [o.traktor];
-      const wahlIdx = Math.min(dlg.wahl[key] || 0, liste.length - 1);
-      const tm = M.maschine(liste[wahlIdx]);
-      const td = D.def(tm.id);
-      const bild = D.def(gm ? gm.id : tm.id);
-      const sek = (gm ? M.arbeitsSek(schritt, id, D.def(gm.id), null) : M.arbeitsSek(schritt, id, null, td)) / M.tempoFaktor();
-      const kaputt = (gm && gm.zustand < 50) || tm.zustand < 50;
-      html += '<div class="f-zeile"><img src="' + vorschauBild(bild) + '" style="width:120px;height:64px;object-fit:contain;background:#3b6a30;border-radius:8px">' +
-        '<div class="n">' + (gm ? D.def(gm.id).name : td.name) + '<small>' + (gm ? 'mit <span class="f-wahl" data-a="traktorWechsel" data-id="' + key + '">' + td.name + ' (' + td.ps + ' PS) ⟳</span>' : 'selbstfahrend') + '</small>' +
-        '<small>Dauer ca. <b>' + sekText(sek) + '</b>' + (kaputt ? ' <span class="down">· abgenutzt – langsamer</span>' : '') + '</small></div>' +
-        '<button class="f-kauf gruen" data-a="start" data-id="' + (o.geraet || 0) + ':' + tm.uid + '"' + (stand().geld < kosten ? ' disabled' : '') + '>Starten</button></div>';
-    });
-    return html;
-  }
-  function fahrerBlock(f) {
-    const S = stand();
-    const html = '<div class="f-h3">Fahrer (Routinearbeit)</div>';
-    const lohn = M.lohnProTag();
-    if (f.auto) return html + '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Ein Fahrer kümmert sich um die Routine<small>Er kalkt, grubbert, düngt, walzt, spritzt und erntet mit freien Maschinen. Nur das Säen machst du selbst.' + (S.lohnOffen > 0 ? ' <b style="color:#ff9a7a">Der Lohn ist offen – er arbeitet erst nach der Zahlung.</b>' : '') + '</small></div><button class="f-kauf rot" data-a="autoAus">Abziehen</button></div>';
-    if (!S.fahrer) return html + '<div class="f-info">Ein Fahrer übernimmt auf einem Feld alle Arbeiten außer Säen (Kalken, Grubbern, Düngen, Walzen, Spritzen, Ernten). Du kannst ihn im 🏪 Händler unter „Fahrer“ einstellen (ab Level ' + D.FAHRER[0].lvl + '). Er kostet jeden Tag Lohn.</div>';
-    if (M.autoFelder().length >= S.fahrer) return html + '<div class="f-info">Alle deine ' + S.fahrer + ' Fahrer sind schon im Einsatz. Im Händler kannst du weitere einstellen.</div>';
-    return html + '<div class="f-info">Du hast einen freien Fahrer! Er kalkt, grubbert, düngt, walzt, spritzt und erntet hier. Nur das Säen bleibt bei dir. (Alle Fahrer zusammen kosten ' + fmt(lohn) + ' € Lohn am Tag.)</div><div class="f-btnreihe"><button class="f-kauf gruen" data-a="autoAn" data-id="ja">👨‍🌾 Fahrer hier einsetzen</button></div>';
+    const p = Math.min(1, Math.max(0, (now - job.start) / gesamt));
+    const teil = st.teil === 'hin' ? 'Fährt zum Feld …' : st.teil === 'rueck' ? 'Fertig! Fährt heim.' : 'Arbeitet – noch ' + grob(st.restMs);
+    const name = (gd ? gd.name + ' + ' : '') + (td ? td.name : '');
+    const html = wegHtml(f, job) +
+      '<div class="fs-aktion fs-gruen" data-live="job"><div class="f-aktion-kopf">' + I(maschinenIcon(td)) + '<div class="f-aktion-tx"><div class="fs-aktion-titel">' + SCHRITT_KURZ[job.schritt] + ' läuft</div><div class="fs-aktion-text">' + esc(name) + '</div></div></div>' +
+      '<div class="f-ringzeile" style="margin:4px 0 14px">' + FS.ring(p, istHandy() ? 118 : 136, { farbe: 'cyan', icon: job.schritt, klasse: 'f-live-ring' }) +
+      '<div class="f-job-text"><span class="fs-stat-zahl" data-live="pct">' + Math.round(p * 100) + ' %</span><br><span data-live="teil">' + teil + '</span></div></div>' +
+      '<button class="fs-btn fs-gelb fs-gross fs-breit" data-a="zeigen" data-id="' + job.feld + '">' + I('karte_zeigen', 40) + 'Auf der Karte zeigen</button></div>' +
+      '<div class="f-zeile2"><button class="fs-btn fs-navy f-klein-btn" data-a="jobAbbruch" data-id="' + job.id + '">' + I('schliessen', 28) + 'Abbrechen</button></div>';
+    void sch;
+    rahmen({ art: 'rechts', ansicht: 'job' + job.id, kopf: feldKopf(f, SCHRITT_KURZ[job.schritt] + ' läuft · ' + fmt1(D.feld(id).ha) + ' ha'), inhalt: html });
   }
   function zeichneFeldKauf() {
     const S = stand(), d = D.feld(dlg.id);
     const gesperrt = S.level < d.lvl, kann = S.geld >= d.preis;
-    dialogAuf(kopf(d.name + ' <span style="font-weight:500;font-size:15px;opacity:.85">· zu verkaufen</span>', geldPille()) +
-      '<div class="f-inhalt"><div class="f-chips"><span class="f-chip">📐 <b>' + fmt1(d.ha) + ' ha</b></span><span class="f-chip">💶 <b>' + fmt(d.preisHa) + ' €/ha</b></span></div>' +
-      '<div class="f-info">Preis: <b>' + fmt(d.preis) + ' €</b>' + (gesperrt ? '<br><span class="down">Dieses Feld gibt es ab Level ' + d.lvl + '.</span>' : '') + '</div>' +
-      '<div class="f-btnreihe"><button class="f-kauf" data-a="feldkauf" data-id="' + d.id + '"' + (gesperrt || !kann ? ' disabled' : '') + '>' + (gesperrt ? '🔒 ab Level ' + d.lvl : kann ? 'Feld kaufen' : 'Noch ' + fmt(d.preis - S.geld) + ' € fehlen') + '</button></div></div>', true);
+    const grund = gesperrt ? 'Gibt es ab Level ' + d.lvl : 'Dir fehlen ' + fmt(d.preis - S.geld) + ' Münzen';
+    const html = '<div class="f-fuchs-zeile">' + FS.fuchs(gesperrt ? 'gruebelt' : 'zeigt', 80) + '<div>' + (gesperrt ? 'Dieses Feld kommt später dazu.' : 'Ein neues Feld für deinen Hof!') + '</div></div>' +
+      '<div class="fs-mulde f-mehr">' + I('felder', 40) + '<span>Größe</span><b>' + fmt1(d.ha) + ' ha</b>' + I('muenze', 40) + '<span>Preis</span><b>' + fmt(d.preis) + '</b>' + I('level', 40) + '<span>Ab Level</span><b>' + d.lvl + '</b></div>' +
+      '<div style="margin-top:18px"><button class="fs-btn fs-gelb fs-gross fs-breit fs-spalte' + (gesperrt || !kann ? ' fs-aus' : '') + '" data-a="feldkauf" data-id="' + d.id + '"' + (gesperrt || !kann ? ' data-grund="' + esc(grund) + '"' : '') + '>' +
+      '<span>' + (gesperrt ? 'Noch gesperrt' : 'Feld kaufen') + '</span><span class="fs-btn-zeile">' + (gesperrt || !kann ? esc(grund) : '<span class="f-preis">' + I('muenze') + fmt(d.preis) + '</span>') + '</span></button></div>';
+    rahmen({ art: 'rechts', ansicht: 'kauf' + d.id, kopf: kopfHtml({ icon: gesperrt ? 'schloss' : 'felder', stufe: 'gold', titel: esc(d.name), unter: 'Zu verkaufen · ' + fmt1(d.ha) + ' ha' }), inhalt: html });
+  }
+  // Maschinenwahl ("Maschine aendern")
+  function zeichneMaschinenwahl() {
+    const S = stand(), id = dlg.id, schritt = dlg.sub.schritt, f = S.felder[id];
+    const st = D.SCHRITTE[schritt];
+    const alle = M.optionen(id, schritt, dlg.sub.frucht);
+    const opts = alle.filter(o => o.traktor);
+    const aktuell = besteWahl(id, schritt, dlg.sub.frucht);
+    let html = '';
+    if (dlg.info) {
+      const typen = {};
+      opts.concat(alle).forEach(o => { if (o.geraet) { const gd = D.def(M.maschine(o.geraet).id); typen[gd.typ] = D.maschinenInfo(gd); } });
+      if (!st.geraet) typen.ernter = D.MASCHINEN_INFO[ernterTypFuer(id, dlg.sub.frucht)];
+      else typen.traktor = D.MASCHINEN_INFO.traktor;
+      html += '<div class="fs-mulde f-warum-box" style="margin:0 0 16px">' + Object.keys(typen).map(k => esc(typen[k])).join('<br><br>') + '</div>';
+    }
+    if (!opts.length) {
+      const ss = schrittStatus(id, schritt, dlg.sub.frucht);
+      html += '<div class="f-fuchs-zeile">' + FS.fuchs('gruebelt', 80) + '<div>' + esc(ss.grund || 'Keine Maschine frei.') + '</div></div>' +
+        '<button class="fs-btn fs-gelb fs-gross fs-breit" data-a="zumHaendler" data-id="' + (st.geraet ? 'geraet:' + st.geraet : 'ernter:' + ernterTypFuer(id, dlg.sub.frucht)) + '">' + I('haendler', 40) + 'Zum Händler</button>';
+    }
+    opts.forEach((o, i) => {
+      const gm = o.geraet ? M.maschine(o.geraet) : null;
+      const key = String(o.geraet || o.traktor);
+      const liste = o.traktoren || [o.traktor];
+      let tIdx = dlg.wahl[key];
+      if (tIdx === undefined) { tIdx = 0; if (aktuell && (aktuell.geraet || 0) === (o.geraet || 0)) { const j = liste.indexOf(aktuell.traktor); if (j >= 0) tIdx = j; } }
+      tIdx = Math.min(tIdx, liste.length - 1);
+      const tm = M.maschine(liste[tIdx]), td = D.def(tm.id);
+      const bild = D.def(gm ? gm.id : tm.id);
+      const ms = dauerSek(id, schritt, o.geraet, tm.uid) * M.wetter(jetzt()).arbeit / M.tempoFaktor() * 1000;
+      const kaputt = (gm && gm.zustand < 50) || tm.zustand < 50;
+      const gewaehlt = aktuell && (aktuell.geraet || 0) === (o.geraet || 0) && aktuell.traktor === tm.uid;
+      html += '<div class="f-mrow' + (gewaehlt ? ' f-gewaehlt' : '') + '">' + (gewaehlt ? '<span class="fs-marke fs-gelb">' + I('haken') + 'Gewählt</span>' : i === 0 ? '<span class="fs-marke">Am schnellsten</span>' : '') +
+        '<img src="' + vorschauBild(bild) + '" alt=""><div class="f-m-tx"><div class="f-m-name">' + esc(bild.name) + '</div>' +
+        '<div class="f-m-zeile">' + (gm ? (liste.length > 1 ? '<button class="f-trak" data-a="traktorWechsel" data-id="' + key + '">' + I('traktor') + esc(td.name) + '' + I('weiter', 22) + '</button>' : 'mit <b>' + esc(td.name) + '</b>') : 'fährt selbst') + '</div>' +
+        '<div class="f-m-zeile">' + I('uhr') + '<b>' + grob(ms) + '</b>' + (kaputt ? I('warnung') + 'abgenutzt' : '') + '</div></div>' +
+        '<button class="fs-btn fs-gruen f-klein-btn" data-a="nimm" data-id="' + (o.geraet || 0) + ':' + tm.uid + '">Nehmen</button></div>';
+    });
+    alle.filter(o => !o.traktor).forEach(o => {
+      const gd = D.def(M.maschine(o.geraet).id);
+      html += '<div class="f-mrow" style="opacity:.6"><img src="' + vorschauBild(gd) + '" alt=""><div class="f-m-tx"><div class="f-m-name">' + esc(gd.name) + '</div><div class="f-m-zeile">' + I('schloss') + esc(o.grund || 'nicht frei') + '</div></div></div>';
+    });
+    html += '<div class="f-zeile2">' + (opts.length ? '<button class="fs-btn fs-navy f-klein-btn" data-a="zumHaendler" data-id="' + (st.geraet ? 'geraet:' + st.geraet : 'ernter:' + ernterTypFuer(id, dlg.sub.frucht)) + '">' + I('haendler') + 'Neue kaufen</button>' : '') +
+      '<button class="fs-btn fs-cyan f-klein-btn" data-a="feldInfo">' + I('info') + (dlg.info ? 'Info schließen' : 'Was macht sie?') + '</button></div>';
+    rahmen({ art: 'rechts', ansicht: 'mwahl' + id + schritt, kopf: kopfHtml({ zurueck: ['feldzurueck'], titel: 'Welche Maschine?', klein: true, unter: SCHRITT_KURZ[schritt] + ' · ' + esc(D.feld(id).name) }), inhalt: html });
+    void f;
+  }
+  // Saatwahl: hoechstens 6 Karten + "N weitere", ganze Karte = Start mit bester Saemaschine
+  function saatListe(id) {
+    const S = stand(), f = S.felder[id], ha = D.feld(id).ha;
+    const liste = D.FRUECHTE.map(fr => {
+      const ernter = M.ernterFehlt(fr.id);
+      const kg = ha * fr.ertrag * 1000 * M.ertragsFaktor(f, fr.id);
+      const wert = kg / 1000 * M.grundPreis(fr.id);
+      const kosten = M.kostenFuer(id, 'saeen', fr.id);
+      const hinweis = M.fruchtfolgeHinweis(id, fr.id);
+      const gut = hinweis.indexOf('+') >= 0, schlecht = hinweis.indexOf('−') >= 0;
+      const delta = gut ? wert - wert / 1.06 : schlecht ? wert - wert / 0.85 : 0;
+      let grund = '', art = '';
+      if (S.level < fr.lvl) { grund = 'ab Level ' + fr.lvl; art = 'level'; }
+      else if (ernter) { grund = (fr.ernte === 'wurzel' ? 'Roder' : 'Mähdrescher') + ' fehlt'; art = 'ernter'; }
+      else if (S.geld < kosten) { grund = 'Dir fehlen ' + fmt(kosten - S.geld); art = 'geld'; }
+      return { fr, wert, kosten, delta, gut, schlecht, grund, art, frei: !grund };
+    });
+    const frei = liste.filter(x => x.frei).sort((a, b) => b.wert - a.wert);
+    const tippKand = frei.filter(x => x.gut).length ? frei.filter(x => x.gut) : frei.filter(x => !x.schlecht);
+    const tipp = tippKand.length ? tippKand[0] : null;
+    if (tipp) { tipp.tipp = true; frei.splice(frei.indexOf(tipp), 1); frei.unshift(tipp); }
+    const zu = liste.filter(x => !x.frei).sort((a, b) => (a.art === 'ernter' ? 0 : a.art === 'geld' ? 1 : 2) - (b.art === 'ernter' ? 0 : b.art === 'geld' ? 1 : 2) || a.fr.lvl - b.fr.lvl);
+    const sichtbar = frei.slice(0, Math.max(5, 6 - zu.length)).concat(zu).slice(0, 6);
+    const rest = frei.concat(zu).filter(x => sichtbar.indexOf(x) < 0);
+    return { sichtbar, rest };
+  }
+  function saatKarte(x) {
+    const fr = x.fr;
+    let s = '<button class="fs-karte fs-stufe-' + FS.stufe(fr.id) + (x.frei ? '' : ' fs-gesperrt') + '" data-a="saat" data-id="' + fr.id + '">';
+    if (x.frei && x.delta) s += '<span class="fs-marke' + (x.delta < 0 ? ' fs-rot' : '') + '">' + I('ertrag') + (x.delta > 0 ? '+' : '−') + fmt(Math.abs(x.delta)) + '</span>';
+    if (x.tipp) s += '<span class="fs-wimpel">' + FS.fuchs('neutral', 40) + 'Tipp!</span>';
+    s += '<div class="fs-karte-bild">' + I(fr.id) + (x.frei ? '' : I('schloss', 0, 'fs-schloss')) + '</div><div class="fs-karte-name">' + esc(fr.name) + '</div>';
+    if (x.frei) s += '<div class="fs-karte-zeile"><span class="fs-karte-wert">' + I('uhr') + grob(fr.dauer * 1000 / M.tempoFaktor()) + '</span><span class="fs-karte-wert">' + I('muenze') + fmt(x.wert) + '</span></div>';
+    else s += '<div class="fs-karte-grund">' + I(x.art === 'ernter' ? 'haendler' : 'schloss') + esc(x.grund) + '</div>';
+    return s + '</button>';
+  }
+  function zeichneSaatwahl() {
+    const S = stand(), id = dlg.id, f = S.felder[id], d = D.feld(id);
+    const l = saatListe(id);
+    const karten = dlg.alleFr ? l.sichtbar.concat(l.rest) : l.sichtbar;
+    let html = '', infoBox = '';
+    if (dlg.info) {
+      const v0 = f.vorher[0] ? D.frucht(f.vorher[0]) : null;
+      infoBox = '<div class="fs-mulde f-warum-box" style="margin:16px 0 0">' + (v0 ? 'Vorher wuchs hier ' + esc(v0.name) + '. ' : '') + 'Eine andere Pflanzenfamilie als vorher mag der Boden: mehr Ertrag (grünes Schild). Die gleiche Frucht noch einmal bringt weniger (rotes Schild). ' + esc(D.SCHRITT_WARUM.saeen) + '</div>';
+    }
+    html += '<div class="f-saat">' + karten.map(saatKarte).join('') + '</div>';
+    html += '<div class="f-saat-mehr">' + (l.rest.length ? '<button class="fs-btn fs-navy f-klein-btn" data-a="saatMehr">' + (dlg.alleFr ? 'Weniger zeigen' : l.rest.length + ' weitere Früchte') + '</button>' : '') +
+      '<button class="fs-btn fs-cyan f-klein-btn" data-a="feldInfo">' + I('info') + (dlg.info ? 'Info schließen' : 'Was heißt das Schild?') + '</button></div>' + infoBox;
+    const st = schrittStatus(id, 'saeen');
+    let fuss;
+    if (st.wahl) {
+      const w = st.wahl, gm = w.geraet ? M.maschine(w.geraet) : null;
+      fuss = '<div class="f-saat-fuss">' + I('traktor') + '<div><b>' + esc(wahlName(w) + (gm ? ' + ' + D.def(gm.id).name : '')) + '</b><span class="fs-lang">Tipp auf eine Frucht – los geht\'s!</span><span class="fs-kurz">Tipp auf eine Frucht!</span></div><button class="fs-btn fs-navy f-klein-btn" data-a="saatMaschine">Maschine ändern</button></div>';
+    } else if (st.loesung) fuss = '<div class="f-saat-fuss">' + I('warnung') + '<div><b>' + esc(st.grund) + '</b>Ohne Sämaschine wächst nichts.</div><button class="fs-btn fs-gelb f-klein-btn" data-a="zumHaendler" data-id="' + st.loesung + ':' + st.typ + '">Zum Händler</button></div>';
+    else fuss = '<div class="f-saat-fuss">' + I('uhr') + '<div><b>' + esc(st.grund) + '</b>Warte kurz, dann geht es los.</div></div>';
+    rahmen({ art: 'breit', ansicht: 'saat' + id, kopf: kopfHtml({ zurueck: ['feldzurueck'], titel: 'Was säen wir?', unter: esc(d.name) + ' · ' + phasenText(f).toLowerCase() + ' · ' + fmt1(d.ha) + ' ha' }), inhalt: html, fuss });
+  }
+  function saatGewaehlt(frId) {
+    const id = dlg.id;
+    const x = saatListe(id);
+    const e = x.sichtbar.concat(x.rest).find(y => y.fr.id === frId);
+    if (!e) return;
+    if (e.art === 'level') { toast(e.fr.name + ' gibt es ab Level ' + e.fr.lvl, 'warn', 'erg', 'schloss'); piep('fehler'); return; }
+    if (e.art === 'ernter') { toast(e.grund + ' – ab zum Händler!', 'warn', 'erg', 'haendler'); zumHaendler('ernter:' + (e.fr.ernte === 'wurzel' ? 'rodemaschine' : 'maehdrescher')); return; }
+    if (e.art === 'geld') { toast(e.grund + ' Münzen', 'warn', 'erg', 'muenze'); piep('fehler'); return; }
+    starteSchritt(id, 'saeen', frId);
+  }
+  // Aus der Feldkarte heraus geoeffnete Dialoge merken sich das Feld ("Zurueck zum Feld")
+  function merkeFeld() { if (dlg && dlg.typ === 'feld') rueckFeld = { id: dlg.id, sub: dlg.sub, manuell: dlg.manuell }; }
+  function zumHaendler(tab) {
+    merkeFeld();
+    dialogShop(tab || 'traktor');
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Haendler
+  // Lernrunde (Vollbild-Panel): Aufgabe riesig, Umdrehen (transform), Gewusst / Noch nicht
   // ----------------------------------------------------------------------------------------------
-  function dialogShop(tab) { dlg = { typ: 'shop', tab: tab || 'traktor' }; zeichneShop(); }
+  function textGroesse(html) {
+    const n = String(html || '').replace(/<[^>]*>/g, '').length;
+    return n <= 14 ? 60 : n <= 32 ? 46 : n <= 70 ? 36 : n <= 140 ? 28 : n <= 240 ? 23 : 20;
+  }
+  function zeichneLernrunde() {
+    const L = dlg.lern, d = D.feld(dlg.id);
+    let html;
+    if (L.ergebnis) {
+      const r = L.ergebnis;
+      if (!r.ok) html = '<div class="f-lern-erg">' + FS.fuchs('gruebelt', 140) + '<p>' + esc(r.grund) + '</p><button class="fs-btn fs-gelb fs-gross" data-a="lernEnde">Zurück zum Feld</button></div>';
+      else {
+        const falsch = L.karten.filter((k, i) => !L.gewusst[i]);
+        html = '<div class="f-lern-erg">' + FS.fuchs(r.richtig >= 3 ? 'jubelt' : 'neutral', 150) +
+          '<div class="f-gross-zahl fs-kontur">' + r.richtig + ' von ' + L.karten.length + ' gewusst!</div>' +
+          (r.gespartMs > 0 ? '<p>Die Saat ist <b>' + grob(r.gespartMs) + '</b> schneller reif!</p>' : '<p>Nächstes Mal klappt es besser!</p>') +
+          (r.reif ? '<p><b>Das Feld ist jetzt reif!</b></p>' : '') +
+          (falsch.length ? '<div class="fs-mulde f-lern-liste" style="padding:12px 16px">Das üben wir noch:<br>' + falsch.map(k => '• ' + k.front).join('<br>') + '</div>' : '') +
+          '<button class="fs-btn fs-gelb fs-gross" data-a="lernEnde" style="min-width:320px">Zurück zum Feld</button></div>';
+      }
+    } else {
+      const k = L.karten[L.i];
+      html = '<div class="f-lern"><div class="f-lern-punkte">' + L.karten.map((x, i) => '<i class="' + (i < L.i ? (L.gewusst[i] ? 'ok' : 'nein') : i === L.i ? 'jetzt' : '') + '"></i>').join('') + '</div>' +
+        '<div class="f-lk' + (L.auf ? ' f-auf' : '') + '" data-key="k' + L.i + '"><div class="f-lk-innen">' +
+        '<div class="f-lk-seite" style="font-size:' + textGroesse(k.front) + 'px"><small>Karte ' + (L.i + 1) + ' von ' + L.karten.length + (k.titel ? ' · ' + esc(k.titel) : '') + '</small><div class="f-lk-text">' + k.front + '</div></div>' +
+        '<div class="f-lk-seite f-lk-hinten" style="font-size:' + textGroesse(k.back) + 'px"><small>Antwort</small><div class="f-lk-text">' + k.back + '</div></div></div></div>' +
+        (L.auf ? '<div class="f-lern-knoepfe"><button class="fs-btn fs-gruen fs-gross" data-a="lernWeiss">' + I('haken', 44) + 'Gewusst</button><button class="fs-btn fs-navy fs-gross" data-a="lernNicht">Noch nicht</button></div>'
+          : '<div class="f-lern-knoepfe"><button class="fs-btn fs-gelb fs-gross" data-a="lernUm">Umdrehen</button></div><div class="f-lern-tipp">Erst nachdenken, dann umdrehen!</div>') + '</div>';
+    }
+    rahmen({ art: 'mitte', ansicht: 'lern' + dlg.id, kopf: kopfHtml({ zurueck: L.ergebnis ? null : ['lernAbbruch'], icon: 'lernen', stufe: 'lila', titel: 'Lernrunde', unter: esc(d.name) + ' · schneller reif' }), inhalt: html });
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Bausteine fuer die Dialoge (Stil B): Knopf mit Grund, Zahl mit Icon, Reiter, Trend-Pfeil, Sterne, Werte-Balken
+  // ----------------------------------------------------------------------------------------------
+  // o: { a, id, farbe:'gruen'|'gelb'|'navy'|'cyan'|'rot'|'violett', text, zeile (html), icon, grund (=> gedimmt, antippbar, zeigt Grund),
+  //      gross, breit, klein, puls, klasse }
+  function knopf(o) {
+    const aus = !!o.grund;
+    const kl = 'fs-btn ' + (aus ? 'fs-navy fs-aus' : 'fs-' + (o.farbe || 'navy')) + (o.gross ? ' fs-gross' : '') + (o.breit ? ' fs-breit' : '') +
+      (o.klein ? ' f-klein-btn' : '') + (o.zeile !== undefined ? ' fs-spalte' : '') + (o.puls && !aus && !FS.effekteWenig() ? ' fs-pulsieren' : '') + (o.klasse ? ' ' + o.klasse : '');
+    let h = '<button class="' + kl + '" data-a="' + o.a + '"' + (o.id !== undefined && o.id !== null ? ' data-id="' + esc(o.id) + '"' : '') + (aus ? ' data-grund="' + esc(o.grund) + '"' : '') + '>';
+    const ic = o.icon ? I(o.icon) : '';
+    if (o.zeile !== undefined) h += '<span class="f-btn-titel">' + ic + esc(o.text) + '</span><span class="fs-btn-zeile">' + (aus ? esc(o.grund) : o.zeile) + '</span>';
+    else h += ic + esc(o.text);
+    return h + '</button>';
+  }
+  const zi = (icon, text, kl) => '<span class="f-zi' + (kl ? ' ' + kl : '') + '">' + I(icon) + '<b>' + text + '</b></span>';
+  const muenzZeile = n => '<span class="f-preis">' + I('muenze') + fmt(n) + '</span>';
+  const muenzPlus = n => '<span class="f-preis">' + I('muenze') + '+' + fmt(n) + '</span>';
+  const fehltGeld = n => 'Dir fehlen ' + fmt(n) + ' Münzen';
+  const menge = kg => kg >= 1000 ? tonnen(kg) : fmt(kg) + ' kg';
+  // Reiter: [{ id, icon, lang, kurz, badge }]. Brechen nicht um: auf dem Handy waagerecht wischbar + kurze Namen.
+  function reiter(liste, aktiv, a) {
+    return '<div class="f-reiter">' + liste.map(t => '<button class="fs-btn ' + (t.id === aktiv ? 'fs-cyan f-an' : 'fs-navy') + '" data-a="' + a + '" data-id="' + t.id + '">' + I(t.icon) +
+      (t.kurz ? '<span class="fs-lang">' + t.lang + '</span><span class="fs-kurz">' + t.kurz + '</span>' : '<span>' + t.lang + '</span>') +
+      (t.badge ? '<span class="fs-badge fs-gruen">' + t.badge + '</span>' : '') + '</button>').join('') + '</div>';
+  }
+  // Preis-Trend als Pfeil (gruen hoch = gut verkaufen, rot runter = lieber warten)
+  function trendArt(rel) { return rel > 1.12 ? 'hoch' : rel < 0.9 ? 'runter' : 'gleich'; }
+  function trendPfeil(rel, px) {
+    const art = trendArt(rel);
+    const f = art === 'hoch' ? '#3FD447' : art === 'runter' ? '#F2424A' : '#8792D6';
+    const pfad = art === 'hoch' ? 'M16 3 L29 17 H21 V29 H11 V17 H3 Z' : art === 'runter' ? 'M16 29 L29 15 H21 V3 H11 V15 H3 Z' : 'M3 11 H18 V4 L30 16 L18 28 V21 H3 Z';
+    return '<svg class="fi f-trend" viewBox="0 0 32 32" width="' + (px || 34) + '" height="' + (px || 34) + '" aria-hidden="true"><path d="' + pfad + '" fill="' + f + '" stroke="#0A0D26" stroke-width="2.6" stroke-linejoin="round"/>' +
+      '<path d="M' + (art === 'gleich' ? '6 14 H14' : '14 9 L12 11') + '" stroke="#fff" stroke-opacity=".6" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  }
+  function stern(an, px) {
+    return '<svg class="fi" viewBox="0 0 48 48" width="' + px + '" height="' + px + '" aria-hidden="true"><path d="M24 4 L29.6 17.2 L44 18.4 L33 27.9 L36.4 42 L24 34.4 L11.6 42 L15 27.9 L4 18.4 L18.4 17.2 Z" fill="' +
+      (an ? '#FFC531' : '#1F2766') + '" stroke="#0A0D26" stroke-width="3" stroke-linejoin="round"/>' + (an ? '<path d="M16 20 L21 19.4" stroke="#FFF3A6" stroke-width="3" stroke-linecap="round"/>' : '') + '</svg>';
+  }
+  // Werte-Balken wie Fahrzeug-Werte: Icon · Name · Balken · Zahl
+  function wertZeile(icon, name, anteil, zahl, farbe) {
+    return '<div class="f-wert">' + I(icon) + '<span>' + name + '</span>' + FS.balken(0.1 + 0.9 * Math.max(0, Math.min(1, anteil)), farbe || 'cyan') + '<b>' + zahl + '</b></div>';
+  }
+  function infoBox(text) { return '<div class="fs-mulde f-warum-box">' + text + '</div>'; }
+  function fuchsZeile(pose, text, px) { return '<div class="f-fuchs-zeile">' + FS.fuchs(pose, px || 64) + '<div>' + text + '</div></div>'; }
+  function offen(key) { return !!(dlg && dlg.offen && dlg.offen[key]); }
+  function mehrKnopf(key, text) {
+    const auf = offen(key);
+    return '<button class="fs-btn fs-navy f-klein-btn f-mehr-btn" data-a="auf" data-id="' + esc(key) + '">' + I(auf ? 'minus' : 'plus') + (auf ? 'Weniger' : (text || 'Mehr')) + '</button>';
+  }
+  function dInfoKnopf(key) { return '<button class="fs-btn fs-cyan fs-rund f-info-rund" data-a="auf" data-id="' + esc(key) + '" aria-label="Info">' + I('info') + '</button>'; }
+  // Wo bekomme ich ein Gut her? -> { art:'feld'|'tier'|'betrieb', id }
+  function quelleVon(gut) {
+    if (D.frucht(gut)) return { art: 'feld', id: gut };
+    const t = D.TIERE.find(x => x.gut === gut);
+    if (t) return { art: 'tier', id: t.id };
+    const b = D.PRODUKTION.find(x => x.rezepte.some(r => r.aus === gut));
+    if (b) return { art: 'betrieb', id: b.id };
+    return null;
+  }
+  // Feld, auf dem die Frucht waechst (fuer "waechst auf ...")
+  function waechstAuf(frucht) {
+    const S = stand(), now = jetzt();
+    const id = Object.keys(S.felder).map(Number).find(i => { const f = S.felder[i]; return f.frucht === frucht && (f.phase === 'waechst' || f.phase === 'reif'); });
+    if (!id) return null;
+    const f = S.felder[id];
+    return { id, reif: f.phase === 'reif', ms: f.phase === 'waechst' ? M.restWachsen(id, now) : 0 };
+  }
+  // "Anbauen": passendes Feld oeffnen (gegrubbert -> Saatwahl, Stoppel -> Grubbern, sonst wo es schon waechst)
+  function anbauen(frucht) {
+    const S = stand(), fr = D.frucht(frucht);
+    if (!fr) return;
+    if (S.level < fr.lvl) { toast(fr.name + ' gibt es ab Level ' + fr.lvl, 'warn', 'erg', 'schloss'); return; }
+    const ids = Object.keys(S.felder).map(Number).filter(i => !M.jobAufFeld(i));
+    const bereit = ids.find(i => S.felder[i].phase === 'bearbeitet' || S.felder[i].phase === 'gepfluegt');
+    const stoppel = ids.find(i => S.felder[i].phase === 'stoppel');
+    const w = waechstAuf(frucht);
+    let ziel = null, sub;
+    if (bereit) { ziel = bereit; sub = { schritt: 'saeen' }; }
+    else if (stoppel) ziel = stoppel;
+    else if (w) { ziel = w.id; toast(fr.name + ' wächst schon auf ' + D.feld(w.id).name, 'gut', 'erg', frucht); }
+    if (!ziel) { toast('Alle Felder sind gerade belegt', 'warn', 'erg', 'felder'); return dialogFelder(); }
+    dlg = null;
+    dialogFeld(ziel, sub);
+    fliegeZuFeld(ziel, Math.max(0.8, cam.z));
+  }
+  function wegZuGut(gut) {
+    const q = quelleVon(gut);
+    if (!q) return dialogLager();
+    if (q.art === 'feld') return anbauen(gut);
+    if (q.art === 'tier') return dialogTiere(q.id);
+    return dialogBetriebe(q.id);
+  }
+  // Silo-Fuellstand (Lager + Haendler)
+  function siloHtml(gross) {
+    const S = stand(), kap = M.siloKap(), mg = M.lagerMenge(), voll = mg / kap;
+    const n = D.SILO_STUFEN[S.siloStufe + 1];
+    const ausbau = n ? knopf({ a: 'siloKauf', farbe: 'navy', text: 'Silo ausbauen', icon: 'silo', zeile: 'auf ' + tonnen(n.kg) + ' · ' + muenzZeile(n.preis), grund: S.geld < n.preis ? fehltGeld(n.preis - S.geld) : '' })
+      : '<span class="fs-marke fs-gelb">' + I('haken') + 'Voll ausgebaut</span>';
+    return '<div class="f-k f-silo' + (gross ? ' f-silo-gross' : '') + '"><div class="f-silo-zeile">' + I('silo', 0, 'f-silo-bild') + '<div class="f-k-tx"><div class="f-silo-zahl fs-kontur">' + tonnen(mg) + ' <span>von ' + tonnen(kap) + '</span></div>' +
+      FS.balken(voll, voll > 0.9 ? 'rot' : voll > 0.7 ? 'gelb' : 'gruen', 'fs-dick') + '</div></div>' +
+      (voll > 0.85 ? fuchsZeile('gruebelt', 'Fast voll! Verkaufe etwas oder baue aus.', 56) : '') + '<div class="f-k-fuss">' + ausbau + '</div></div>';
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Haendler (Traktoren / Geraete / Erntemaschinen / Fahrer / Silo / Meine Maschinen)
+  // ----------------------------------------------------------------------------------------------
+  // tab 'geraet:saeen' / 'ernter:rodemaschine' -> markiert den gesuchten Typ ("Brauchst du!")
+  function dialogShop(tab) {
+    const rueck = rueckFeld; rueckFeld = null;
+    const p = String(tab || 'traktor').split(':');
+    dlg = { typ: 'shop', tab: p[0] || 'traktor', bedarf: p[1] || null, rueck, offen: {} };
+    zeichneShop();
+  }
+  const SHOP_TABS = [
+    { id: 'traktor', icon: 'traktor', lang: 'Traktoren', kurz: 'Traktoren' }, { id: 'geraet', icon: 'grubbern', lang: 'Geräte', kurz: 'Geräte' },
+    { id: 'ernter', icon: 'maehdrescher', lang: 'Erntemaschinen', kurz: 'Ernter' }, { id: 'fahrer', icon: 'fahrer', lang: 'Fahrer', kurz: 'Fahrer' },
+    { id: 'silo', icon: 'silo', lang: 'Silo', kurz: 'Silo' }, { id: 'fuhrpark', icon: 'fuhrpark', lang: 'Meine Maschinen', kurz: 'Meine' }
+  ];
+  function markeHtml(d) {
+    const m = D.MARKEN[d.marke];
+    return '<span class="fs-marke f-marke" style="background:' + m.c1 + '">' + esc(m.name) + '</span>';
+  }
+  function maxWert(liste, f) { return liste.reduce((a, x) => Math.max(a, f(x)), 1); }
+  function maschinenWerte(d) {
+    if (d.art === 'traktor') return wertZeile('ps', 'Kraft', d.ps / maxWert(D.TRAKTOREN, x => x.ps), d.ps + ' PS') + wertZeile('tempo', 'Tempo', d.kmh / maxWert(D.TRAKTOREN, x => x.kmh), d.kmh + ' km/h');
+    if (d.art === 'geraet') {
+      const gleich = D.GERAETE.filter(x => x.typ === d.typ);
+      return wertZeile(GERAET_ICON[d.typ], 'Breite', d.w / maxWert(gleich, x => x.w), meter(d.w)) + wertZeile('ps', 'Braucht', d.ps / maxWert(D.TRAKTOREN, x => x.ps), d.ps + ' PS', 'gelb');
+    }
+    const gleich = D.ERNTER.filter(x => x.typ === d.typ);
+    return wertZeile(d.typ === 'rodemaschine' ? 'roder' : 'maehdrescher', 'Breite', d.w / maxWert(gleich, x => x.w), meter(d.w)) + wertZeile('silo', 'Tank', d.tank / maxWert(D.ERNTER, x => x.tank), tonnen(d.tank)) +
+      wertZeile('tempo', 'Tempo', d.kmh / maxWert(D.ERNTER, x => x.kmh), d.kmh + ' km/h');
+  }
+  function shopUnter(d) {
+    if (d.art === 'traktor') return 'Traktor';
+    if (d.art === 'geraet') return GERAET_NAME[d.typ];
+    return d.typ === 'rodemaschine' ? 'Roder' : 'Mähdrescher';
+  }
+  function shopKarte(d, bedarfId) {
+    const S = stand();
+    const hab = S.flotte.filter(f => f.id === d.id).length, gesperrt = S.level < d.lvl;
+    const grund = gesperrt ? 'Ab Level ' + d.lvl : S.geld < d.preis ? fehltGeld(d.preis - S.geld) : '';
+    const vor = M.maschinenVorteile(d.id).filter(x => !/^Zugreserve/.test(x));
+    const infoAuf = dlg.info === d.id;
+    let h = '<div class="f-k f-mk' + (gesperrt ? ' f-zu' : '') + (bedarfId === d.id ? ' f-fokus' : '') + '">' +
+      '<div class="f-foto">' + '<img src="' + vorschauBild(d) + '" alt="">' + (gesperrt ? I('schloss', 0, 'f-foto-schloss') : '') + markeHtml(d) +
+      (bedarfId === d.id ? '<span class="fs-marke fs-gelb f-foto-marke">' + I('weiter') + 'Brauchst du!</span>' : hab ? '<span class="fs-marke f-foto-marke">' + I('haken') + hab + '× im Hof</span>' : '') + '</div>' +
+      '<div class="f-k-kopf f-k-kopf-klein"><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.name) + '</div><div class="f-k-unter">' + shopUnter(d) + '</div></div>' +
+      '<button class="fs-btn ' + (infoAuf ? 'fs-cyan' : 'fs-navy') + ' fs-rund f-info-rund" data-a="mInfo" data-id="' + d.id + '" aria-label="Was macht sie?">' + I('info') + '</button></div>' +
+      '<div class="f-werte">' + maschinenWerte(d) + '</div>';
+    if (vor.length) h += '<div class="f-vorteile">' + vor.map(x => '<div class="f-vorteil">' + I('haken') + esc(x) + '</div>').join('') + '</div>';
+    if (infoAuf) {
+      const zr = M.maschinenVorteile(d.id).filter(x => /^Zugreserve/.test(x));
+      h += infoBox(esc(D.maschinenInfo(d)) + (zr.length ? '<br>' + esc(zr[0]) + '.' : ''));
+    }
+    h += '<div class="f-k-fuss">' + knopf({ a: 'kaufen', id: d.id, farbe: 'gruen', text: 'Kaufen', zeile: muenzZeile(d.preis), grund }) + '</div></div>';
+    return h;
+  }
+  function fahrerHtmlShop() {
+    const S = stand(), n = D.FAHRER[S.fahrer];
+    const imEinsatz = M.autoFelder().length;
+    let h = '<div class="f-raster f-r2">';
+    h += '<div class="f-k"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-gruen">' + I('fahrer') + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">Deine Fahrer</div><div class="f-k-unter">' +
+      S.fahrer + ' Fahrer · ' + imEinsatz + ' im Einsatz</div></div>' + dInfoKnopf('fahrerInfo') + '</div>' +
+      fuchsZeile('zeigt', 'Fahrer helfen auf einem Feld. Säen machst du!', 60) +
+      '<div class="f-werte-gross">' + zi('lohn', fmt(M.lohnProTag())) + '<span>Lohn pro Tag</span></div>' +
+      (S.lohnOffen > 0 ? '<div class="f-warn">' + I('warnung') + '<div>Lohn offen: <b>' + fmt(S.lohnOffen) + ' Münzen</b>. Die Fahrer streiken!</div></div>' : '') +
+      (offen('fahrerInfo') ? infoBox('Ein Fahrer übernimmt auf einem Feld alle Arbeiten außer Säen: kalken, grubbern, düngen, walzen, spritzen und ernten – mit freien Maschinen. Jeder Fahrer kostet jeden Tag Lohn (' +
+        fmt(Math.round(D.FAHRER_LOHN_ANTEIL * 100)) + ' % seines Preises). Fehlt das Geld, streiken alle, bis der Lohn bezahlt ist. Einsetzen kannst du ihn in der Feldkarte: „Hier einsetzen“.') : '') + '</div>';
+    if (n) {
+      h += '<div class="f-k' + (S.level < n.lvl ? ' f-zu' : '') + '"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-blau">' + I('fahrer') + (S.level < n.lvl ? I('schloss', 0, 'fs-ecke') : '') + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">Fahrer Nr. ' + (S.fahrer + 1) +
+        '</div><div class="f-k-unter">Hilft auf einem Feld</div></div></div><div class="f-werte-gross">' + zi('lohn', fmt(M.fahrerLohn(S.fahrer))) + '<span>Lohn pro Tag</span></div>' +
+        '<div class="f-k-fuss">' + knopf({ a: 'fahrerKauf', farbe: 'gruen', text: 'Einstellen', icon: 'fahrer', zeile: muenzZeile(n.preis), grund: S.level < n.lvl ? 'Ab Level ' + n.lvl : S.geld < n.preis ? fehltGeld(n.preis - S.geld) : '' }) + '</div></div>';
+    } else h += '<div class="f-k">' + fuchsZeile('jubelt', 'Alle Fahrer sind da. Super Hof!', 80) + '</div>';
+    return h + '</div>';
+  }
+  function fuhrparkKarte(m) {
+    const S = stand(), d = D.def(m.id), job = m.job ? S.jobs.find(j => j.id === m.job) : null;
+    const kaputt = m.zustand < 15, kosten = M.reparaturKosten(m);
+    const status = job ? '<span class="fs-marke fs-gelb f-foto-marke">' + I(job.schritt) + SCHRITT_KURZ[job.schritt] + '</span>' :
+      kaputt ? '<span class="fs-marke fs-rot f-foto-marke">' + I('warnung') + 'Kaputt</span>' : '<span class="fs-marke f-foto-marke">' + I('haken') + 'Bereit</span>';
+    const repGrund = job ? 'Sie arbeitet gerade' : m.zustand >= 99.5 ? 'Sie ist in Topform' : S.geld < kosten ? fehltGeld(kosten - S.geld) : '';
+    const verkGrund = job ? 'Sie arbeitet gerade' : '';
+    return '<div class="f-k f-mk' + (kaputt ? ' f-kaputt' : '') + '"><div class="f-foto"><img src="' + vorschauBild(d) + '" alt="">' + markeHtml(d) + status + '</div>' +
+      '<div class="f-k-kopf f-k-kopf-klein"><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.name) + '</div><div class="f-k-unter">' +
+      (job ? esc(D.feld(job.feld).name) : shopUnter(d) + (d.ps && d.art === 'traktor' ? ' · ' + d.ps + ' PS' : '')) + '</div></div></div>' +
+      '<div class="f-werte">' + wertZeile('zustand', 'Zustand', m.zustand / 100, Math.round(m.zustand) + ' %', m.zustand < 30 ? 'rot' : m.zustand < 60 ? 'gelb' : 'gruen') + '</div>' +
+      '<div class="f-k-fuss f-fuss-spalte">' + knopf({ a: 'reparieren', id: m.uid, farbe: m.zustand < 50 ? 'gruen' : 'navy', icon: 'reparieren', text: 'Reparieren', zeile: m.zustand >= 99.5 ? 'top' : muenzZeile(kosten), grund: repGrund }) +
+      knopf({ a: 'mverkauf', id: m.uid, farbe: 'navy', icon: 'verkaufen', text: 'Verkaufen · +' + fmt(M.verkaufswert(m)), grund: verkGrund, klasse: 'f-verk-btn' }) + '</div></div>';
+  }
   function zeichneShop() {
     const S = stand(), tab = dlg.tab;
-    const tabs = [['traktor', '🚜 Traktoren'], ['geraet', '🔧 Geräte'], ['ernter', '🌾 Erntemaschinen'], ['fahrer', '👨‍🌾 Fahrer'], ['silo', '🏗 Silo']];
     let inhalt = '';
-    const besitz = id => S.flotte.filter(f => f.id === id).length;
-    const karte = d => {
-      const m = D.MARKEN[d.marke];
-      let stats;
-      if (d.art === 'traktor') stats = d.ps + ' PS · bis ' + d.kmh + ' km/h';
-      else if (d.art === 'geraet') stats = GERAET_NAME[d.typ] + ' · ' + meter(d.w) + ' breit<br>braucht ab ' + d.ps + ' PS';
-      else stats = (d.typ === 'rodemaschine' ? 'Roder (Kartoffeln, Rüben)' : 'Mähdrescher (Getreide, Raps, Mais …)') + '<br>Schneidwerk ' + meter(d.w) + ' · Tank ' + tonnen(d.tank);
-      const vor = M.maschinenVorteile(d.id);
-      if (vor.length) stats += '<br><span style="color:#9ff0a8">' + vor.map(x => '✓ ' + x).join('<br>') + '</span>';
-      const hab = besitz(d.id), gesperrt = S.level < d.lvl, kann = S.geld >= d.preis;
-      return '<div class="f-karte' + (gesperrt ? ' gesperrt' : '') + '"><img src="' + vorschauBild(d) + '"><b>' + d.name + (hab ? '<span class="f-badge">' + hab + '× im Hof</span>' : '') + (gesperrt ? '<span class="f-badge rot">ab Level ' + d.lvl + '</span>' : '') + '</b>' +
-        '<div class="s" style="color:' + m.c1 + ';filter:brightness(1.6)">' + m.name + '</div><div class="s">' + stats + '</div><div class="s f-erkl">💡 ' + D.maschinenInfo(d) + '</div>' +
-        '<button class="f-kauf" data-a="kaufen" data-id="' + d.id + '"' + (gesperrt || !kann ? ' disabled' : '') + '>' + fmt(d.preis) + ' € kaufen</button></div>';
-    };
-    if (tab === 'traktor') inhalt = '<div class="f-gitter">' + D.TRAKTOREN.map(karte).join('') + '</div>';
-    else if (tab === 'geraet') inhalt = '<div class="f-gitter">' + D.GERAETE.map(karte).join('') + '</div>';
-    else if (tab === 'ernter') inhalt = '<div class="f-gitter">' + D.ERNTER.map(karte).join('') + '</div>';
-    else if (tab === 'fahrer') {
-      const n = D.FAHRER[S.fahrer];
-      inhalt = '<div class="f-info">Ein <b>Fahrer</b> übernimmt auf einem Feld <b>alle Arbeiten außer Säen</b>: Er kalkt, grubbert, düngt, walzt, spritzt und erntet mit freien Maschinen. <b>Nur das Säen machst du selbst.</b> Jeder Fahrer kostet <b>jeden Tag Lohn</b> (' + fmt(Math.round(D.FAHRER_LOHN_ANTEIL * 100)) + ' % seines Einstellpreises); fehlt das Geld, streiken alle Fahrer, bis der Lohn bezahlt ist. Du hast <b>' + S.fahrer + '</b> Fahrer (' + M.autoFelder().length + ' im Einsatz), sie kosten zusammen <b>' + fmt(M.lohnProTag()) + ' € am Tag</b>' + (S.lohnOffen > 0 ? ' – <b style="color:#ff9a7a">' + fmt(S.lohnOffen) + ' € Lohn sind noch offen!</b>' : '') + '.</div>' +
-        (n ? '<div class="f-zeile"><div class="ico">👨‍🌾</div><div class="n">Fahrer Nr. ' + (S.fahrer + 1) + '<small>' + (S.level < n.lvl ? 'Gibt es ab Level ' + n.lvl : 'Einstellen und auf einem Feld einsetzen · Lohn ' + fmt(M.fahrerLohn(S.fahrer)) + ' € am Tag') + '</small></div><button class="f-kauf" data-a="fahrerKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>' : '<div class="f-info">Mehr Fahrer gibt es nicht – dein Hof läuft wie am Schnürchen!</div>');
-    } else {
-      const n = D.SILO_STUFEN[S.siloStufe + 1];
-      inhalt = '<div class="f-info">Dein Silo fasst <b>' + tonnen(M.siloKap()) + '</b> (' + tonnen(M.lagerMenge()) + ' belegt). Ist es voll, wird die Ernte zu 80 % des Preises sofort verkauft.</div>' +
-        (n ? '<div class="f-zeile"><div class="ico">🏗</div><div class="n">Silo ausbauen auf ' + tonnen(n.kg) + '</div><button class="f-kauf" data-a="siloKauf"' + (S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>' : '<div class="f-info">Das Silo ist voll ausgebaut.</div>');
-    }
-    dialogAuf(kopf('Traktor-Händler', geldPille()) + '<div class="f-tabs">' + tabs.map(t => '<button class="f-tab' + (t[0] === tab ? ' an' : '') + '" data-a="shoptab" data-id="' + t[0] + '">' + t[1] + '</button>').join('') + '</div><div class="f-inhalt">' + inhalt + '</div>');
-  }
-
-  // ----------------------------------------------------------------------------------------------
-  // Dialog: Lager und Markt
-  // ----------------------------------------------------------------------------------------------
-  function dialogLager() { dlg = { typ: 'lager' }; zeichneLager(); }
-  function zeichneLager() {
-    const S = stand();
-    const kap = M.siloKap(), menge = M.lagerMenge(), voll = menge / kap, rest1 = M.zukaufRestKg(jetzt());
-    const zeilen = D.alleGueter().map(id => {
-      const x = D.gut(id), p = M.preis(id), rel = S.preise[id], lager = S.silo[id] || 0;
-      const trend = rel > 1.12 ? '<span class="up">▲ gut</span>' : rel < 0.9 ? '<span class="down">▼ niedrig</span>' : '<span>● normal</span>';
-      const gesperrt = D.frucht(id) ? S.level < D.frucht(id).lvl : false;
-      if (!lager && (gesperrt || (D.WAREN[id] && !S.album.waren[id]))) return '';
-      return '<div class="f-zeile"><div class="ico">' + x.icon + '</div><div class="n">' + x.name + '<small>' + fmt(p) + ' €/t · ' + trend + '</small></div>' +
-        '<div style="min-width:80px;text-align:right"><b>' + tonnen(lager) + '</b></div>' +
-        (lager > 0 ? '<button class="f-kauf" data-a="verkauf" data-id="' + id + ':all">Alles · ' + fmt(lager / 1000 * p) + ' €</button><button class="f-kauf sek" data-a="verkauf" data-id="' + id + ':half">Hälfte</button>' : '<span style="min-width:190px"></span>') +
-        (D.frucht(id) && !gesperrt ? '<button class="f-kauf sek" data-a="zukauf" data-id="' + id + ':1000"' + (rest1 < 1000 || S.geld < M.zukaufPreisProT(id) || kap - menge < 1000 ? ' disabled' : '') + '>🛒 +1 t · ' + fmt(Math.round(M.zukaufPreisProT(id))) + ' €</button>' : '') + '</div>';
-    }).join('');
-    dialogAuf(kopf('Lager & Markt', '<span class="f-pill">' + tonnen(menge) + ' / ' + tonnen(kap) + '</span>' + geldPille()) +
-      '<div class="f-inhalt"><div class="f-bal ' + (voll > 0.9 ? 'rot' : voll > 0.7 ? 'gelb' : '') + '"><div style="width:' + Math.round(voll * 100) + '%"></div></div>' +
-      '<div class="f-info" style="margin-top:10px">Die Ernte kommt ins Silo. Die Preise schwanken: Wenn „▲ gut“ steht, lohnt sich das Verkaufen. Mit Betrieben (🏭) wird aus Rohstoffen mehr Geld – und Aufträge (📋) zahlen extra.<br><b>Zur Not zukaufen:</b> Feldfrüchte kannst du mit 🛒 zum fast doppelten Preis nachkaufen (höchstens ' + (D.ZUKAUF_MAX_TAG_KG / 1000) + ' t am Tag, heute noch ' + tonnen(rest1) + ').</div>' + zeilen + '</div>');
-  }
-
-  // ----------------------------------------------------------------------------------------------
-  // Dialog: Auftraege
-  // ----------------------------------------------------------------------------------------------
-  function dialogAuftraege() { dlg = { typ: 'auftraege' }; zeichneAuftraege(); }
-  function zeichneAuftraege() {
-    const S = stand(), now = jetzt();
-    let html = '<div class="f-info">Nachbarn und Händler bestellen Waren. Liefere aus deinem Lager und kassiere <b>mehr als den Marktpreis</b> plus Erfahrung. Neue Aufträge kommen mit der Zeit.</div>';
-    if (!S.auftraege.length) html += '<div class="f-info">Gerade gibt es keinen Auftrag – schau später wieder rein.</div>';
-    S.auftraege.forEach(a => {
-      const hab = S.silo[a.gut] || 0, ok = hab >= a.kg;
-      html += '<div class="f-zeile"><div class="ico">' + D.gut(a.gut).icon + '</div><div class="n">' + tonnen(a.kg) + ' ' + D.gut(a.gut).name +
-        '<small>Lohn <b style="color:#ffe27a">' + fmt(a.lohn) + ' €</b> · +' + a.xp + ' XP · noch ' + A.zeitText(a.bis - now) + '</small>' +
-        '<div class="f-bal ' + (ok ? '' : 'gelb') + '"><div style="width:' + Math.min(100, Math.round(hab / a.kg * 100)) + '%"></div></div><small>Im Lager: ' + tonnen(hab) + '</small></div>' +
-        '<button class="f-kauf ' + (ok ? 'gruen' : '') + '" data-a="liefern" data-id="' + a.id + '"' + (ok ? '' : ' disabled') + '>Liefern</button></div>';
-    });
-    dialogAuf(kopf('Aufträge', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
-  }
-
-  // ----------------------------------------------------------------------------------------------
-  // Dialog: Betriebe (Verarbeitung)
-  // ----------------------------------------------------------------------------------------------
-  function dialogBetriebe(fokus) { dlg = { typ: 'betriebe', fokus: fokus || null }; zeichneBetriebe(); }
-  function zeichneBetriebe() {
-    const S = stand(), now = jetzt();
-    let html = '<div class="f-info">In Betrieben wird aus Rohstoffen aus deinem Lager mehr Geld: Weizen → Mehl → Brot, Raps/Sonnenblumen → Öl, Kartoffeln → Chips, Rüben → Zucker. Die Ware landet im Lager.</div>';
-    D.PRODUKTION.forEach(b => {
-      const p = S.produktion[b.id];
-      if (!p) {
-        const gesperrt = S.level < b.lvl;
-        html += '<div class="f-zeile"><div class="ico">' + b.icon + '</div><div class="n">' + b.name + (gesperrt ? '<span class="f-badge rot">ab Level ' + b.lvl + '</span>' : '') +
-          '<small>' + b.rezepte.map(r => einText(r) + ' → ' + r.ausKg / 1000 + ' t ' + D.gut(r.aus).name + ' (' + sekText(r.sek) + ')').join('<br>') + '</small></div>' +
-          '<button class="f-kauf" data-a="bauen" data-id="' + b.id + '"' + (gesperrt || S.geld < b.preis ? ' disabled' : '') + '>Bauen · ' + fmt(b.preis) + ' €</button></div>';
-        return;
+    if (tab === 'traktor' || tab === 'geraet' || tab === 'ernter') {
+      let liste = tab === 'traktor' ? D.TRAKTOREN.slice() : tab === 'geraet' ? D.GERAETE.slice() : D.ERNTER.slice();
+      let bedarfId = null;
+      if (dlg.bedarf) {
+        // gesuchter Typ nach vorne; die guenstigste kaufbare Maschine davon bekommt "Brauchst du!"
+        liste = liste.filter(d => d.typ === dlg.bedarf).concat(liste.filter(d => d.typ !== dlg.bedarf));
+        const b = liste.find(d => d.typ === dlg.bedarf && S.level >= d.lvl);
+        if (b) bedarfId = b.id;
       }
-      const q0 = p.queue[0];
-      let h = '<div class="f-zeile" style="align-items:flex-start"><div class="ico">' + b.icon + '</div><div class="n">' + b.name + ' <span class="f-badge">Stufe ' + (p.stufe + 1) + '</span>';
-      if (q0 && q0.start != null) {
-        const r = b.rezepte.find(x => x.id === q0.rez);
-        h += '<small>Produziert: ' + gutName(r.aus) + ' – noch ' + A.zeitText(q0.start + q0.dauer - now) + (p.queue.length > 1 ? ' (+' + (p.queue.length - 1) + ' in der Schlange)' : '') + '</small><div class="f-bal"><div style="width:' + Math.round(Math.min(1, (now - q0.start) / q0.dauer) * 100) + '%"></div></div>';
-      } else h += '<small>Bereit für neue Aufträge.</small>';
-      h += '<div class="f-btnreihe">';
-      b.rezepte.forEach(r => {
-        const moeglich = Math.min.apply(null, r.ein.map(z => Math.floor((S.silo[z.gut] || 0) / z.kg)));
-        h += '<button class="f-kauf sek" data-a="prod" data-id="' + b.id + ':' + r.id + ':1"' + (moeglich < 1 || p.queue.length >= 6 ? ' disabled' : '') + '>' + gutName(r.aus) + ' ×1<br><span style="font-weight:500;font-size:12px">' + einText(r) + ' (' + moeglich + '× möglich)</span></button>';
-        h += '<button class="f-kauf sek" data-a="prod" data-id="' + b.id + ':' + r.id + ':9"' + (moeglich < 2 || p.queue.length >= 6 ? ' disabled' : '') + '>so viele wie möglich</button>';
-      });
-      h += '</div></div>';
-      const n = D.PROD_STUFEN[p.stufe + 1];
-      h += (n ? '<button class="f-kauf" data-a="prodAus" data-id="' + b.id + '"' + (S.geld < Math.round(b.preis * n.preis) ? ' disabled' : '') + '>Ausbauen<br><span style="font-weight:500;font-size:12px">' + fmt(b.preis * n.preis) + ' € · ×' + n.faktor + ' schneller</span></button>' : '') + '</div>';
-      html += h;
-    });
-    dialogAuf(kopf('Betriebe', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+      inhalt = '<div class="f-raster f-mk-raster">' + liste.map(d => shopKarte(d, bedarfId)).join('') + '</div>';
+    } else if (tab === 'fahrer') inhalt = fahrerHtmlShop();
+    else if (tab === 'silo') inhalt = '<div class="f-raster f-r2">' + siloHtml(true) + '<div class="f-k">' + fuchsZeile('zeigt', 'Mehr Platz für deine Ernte!', 70) +
+      infoBox('Die Ernte kommt ins Silo. Ist es voll, wird der Rest sofort verkauft – aber nur zu 80 % des Preises.') + '</div></div>';
+    else {
+      const reihenfolge = { traktor: 0, geraet: 1, ernter: 2 };
+      const liste = S.flotte.slice().sort((a, b) => (a.zustand < 15 ? -1 : 0) - (b.zustand < 15 ? -1 : 0) || reihenfolge[D.def(a.id).art] - reihenfolge[D.def(b.id).art] || D.def(a.id).preis - D.def(b.id).preis);
+      const abgenutzt = liste.filter(m => m.zustand < 50 && !m.job).length;
+      inhalt = (abgenutzt ? fuchsZeile('gruebelt', abgenutzt === 1 ? 'Eine Maschine ist abgenutzt. Reparieren!' : abgenutzt + ' Maschinen sind abgenutzt. Reparieren!', 64) : '') +
+        '<div class="f-raster f-mk-raster">' + liste.map(fuhrparkKarte).join('') + '</div>';
+    }
+    const zurueck = dlg.rueck ? '<button class="fs-btn ' + (dlg.gekauft ? 'fs-gelb' : 'fs-navy') + ' f-klein-btn f-zum-feld" data-a="zumFeld" aria-label="Zurück zum Feld">' + I('zurueck') + '<span class="fs-lang">Zurück zum Feld</span><span class="fs-kurz">Zum Feld</span></button>' : '';
+    rahmen({ art: 'mitte', ansicht: 'shop' + tab, kopf: kopfHtml({ icon: 'haendler', stufe: 'gold', titel: 'Händler', unter: 'Maschinen, Fahrer und Silo', extra: geldPille() }),
+      vor: (zurueck ? '<div class="f-vor-zeile">' + zurueck + '</div>' : '') + reiter(SHOP_TABS.map(t => Object.assign({}, t, { badge: t.id === 'fuhrpark' ? S.flotte.filter(m => !m.job && m.zustand < 15).length || '' : '' })), tab, 'shoptab'),
+      inhalt });
+  }
+  function dialogFuhrpark() { dialogShop('fuhrpark'); }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Lager und Markt (Silo gross, je Gut: Icon + Menge + Preis-Trend + EIN Verkaufen-Knopf; Haelfte/Zukaufen unter "Mehr")
+  // ----------------------------------------------------------------------------------------------
+  function dialogLager() { const rueck = rueckFeld; rueckFeld = null; dlg = { typ: 'lager', rueck, offen: {} }; zeichneLager(); }
+  function zukaufKnopf(id, kg, text) {
+    const S = stand(), fr = D.frucht(id), now = jetzt();
+    const kosten = Math.round(kg / 1000 * M.zukaufPreisProT(id)), rest = M.zukaufRestKg(now), frei = M.siloKap() - M.lagerMenge();
+    const grund = S.level < fr.lvl ? 'Ab Level ' + fr.lvl : rest < kg ? (rest < 100 ? 'Heute nichts mehr zu kaufen' : 'Heute nur noch ' + tonnen(rest)) : frei < kg ? 'Im Silo ist kein Platz' : S.geld < kosten ? fehltGeld(kosten - S.geld) : '';
+    return knopf({ a: 'zukauf', id: id + ':' + kg, farbe: 'navy', icon: 'zukaufen', text: text || ('+' + menge(kg) + ' kaufen'), zeile: muenzZeile(kosten), grund });
+  }
+  function lagerZeile(id) {
+    const S = stand(), x = D.gut(id), p = M.preis(id), rel = S.preise[id] || 1, lager = S.silo[id] || 0;
+    const art = trendArt(rel);
+    const auf = offen('g:' + id);
+    let h = '<div class="f-lz' + (auf ? ' f-lz-auf' : '') + '" data-key="lz' + id + '">' + I(id, 0, 'f-lz-bild') + '<div class="f-lz-name"><b class="fs-kontur">' + esc(x.name) + '</b><span>' + menge(lager) + '</span></div>' +
+      '<div class="f-lz-preis">' + trendPfeil(rel) + '<div><b>' + I('muenze') + fmt(p) + '</b><span>je t · ' + (art === 'hoch' ? 'gut!' : art === 'runter' ? 'niedrig' : 'normal') + '</span></div></div>' +
+      knopf({ a: 'verkauf', id: id + ':all', farbe: 'gruen', text: 'Verkaufen', zeile: '+' + fmt(lager / 1000 * p), klasse: 'f-lz-knopf' }) +
+      '<button class="fs-btn fs-navy fs-rund f-lz-mehr" data-a="auf" data-id="g:' + id + '" aria-label="Mehr">' + I(auf ? 'minus' : 'plus') + '</button>';
+    if (auf) {
+      h += '<div class="f-lz-extra">' + knopf({ a: 'verkauf', id: id + ':half', farbe: 'navy', icon: 'verkaufen', text: 'Hälfte verkaufen', zeile: '+' + fmt(lager / 2000 * p) });
+      if (D.frucht(id)) h += zukaufKnopf(id, 1000);
+      h += '</div>';
+    }
+    return h + '</div>';
+  }
+  function zeichneLager() {
+    const S = stand(), now = jetzt();
+    const ids = D.alleGueter().filter(id => (S.silo[id] || 0) >= 1).sort((a, b) => (S.silo[b] || 0) / 1000 * M.preis(b) - (S.silo[a] || 0) / 1000 * M.preis(a));
+    let html = siloHtml(false);
+    html += '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Deine Waren</span>' + dInfoKnopf('lagerInfo') + '</div>';
+    if (offen('lagerInfo')) html += infoBox('Die Preise schwanken. Grüner Pfeil: jetzt verkaufen lohnt sich! Roter Pfeil: lieber warten. In Betrieben wird aus Rohstoffen mehr Geld, und Aufträge zahlen extra. Zur Not kannst du Früchte zukaufen – fast doppelt so teuer, höchstens ' + (D.ZUKAUF_MAX_TAG_KG / 1000) + ' t am Tag.');
+    html += ids.length ? '<div class="f-lager-liste">' + ids.map(lagerZeile).join('') + '</div>' : fuchsZeile('neutral', 'Dein Lager ist leer. Ernte etwas!', 72);
+    // Zukaufen (versteckt unter "Mehr")
+    html += '<div class="f-zeile2">' + mehrKnopf('zukaufListe', 'Früchte zukaufen') + '</div>';
+    if (offen('zukaufListe')) {
+      const fr = D.FRUECHTE.filter(f => S.level >= f.lvl);
+      html += '<div class="fs-mulde f-warum-box">Teuer! Heute noch ' + tonnen(M.zukaufRestKg(now)) + ' möglich.</div><div class="f-raster f-zk-raster">' +
+        fr.map(f => '<div class="f-k f-zk">' + '<div class="f-k-kopf f-k-kopf-klein">' + I(f.id, 56) + '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(f.name) + '</div><div class="f-k-unter">im Lager: ' + menge(S.silo[f.id] || 0) + '</div></div></div>' +
+          zukaufKnopf(f.id, 1000, '+1 t') + '</div>').join('') + '</div>';
+    }
+    rahmen({ art: 'mitte', ansicht: 'lager', kopf: kopfHtml({ icon: 'silo', stufe: 'blau', titel: 'Lager & Markt', unter: tonnen(M.lagerMenge()) + ' von ' + tonnen(M.siloKap()) + ' belegt', extra: geldPille() }),
+      vor: dlg.rueck ? '<div class="f-vor-zeile"><button class="fs-btn fs-navy f-klein-btn" data-a="zumFeld">' + I('zurueck') + 'Zurück zum Feld</button></div>' : '', inhalt: html });
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Tiere
+  // Dialog: Auftragsbrett (Zettel-Karten, ohne Zeitdruck; nur der erste lieferbare "Liefern" pulsiert)
   // ----------------------------------------------------------------------------------------------
-  function dialogTiere(fokus) { dlg = { typ: 'tiere', fokus: fokus || null }; zeichneTiere(); }
+  function dialogAuftraege() { const rueck = rueckFeld; rueckFeld = null; dlg = { typ: 'auftraege', rueck, offen: {} }; zeichneAuftraege(); }
+  // Kunde nur zur Anzeige (das Modell kennt keine Kunden): aus Gut + Auftrags-Nr. abgeleitet
+  function kundeFuer(a) {
+    const g = a.gut, fr = D.frucht(g), n = a.id % 2;
+    if (fr) {
+      if (fr.familie === 'getreide') return n ? ['Mühle Lindner', 'muehle', 'mahlt Mehl'] : ['Futterhof Wiesner', 'tierhof', 'füttert Tiere'];
+      if (fr.familie === 'oel') return ['Ölmühle Gelbblüte', 'oelmuehle', 'presst Öl'];
+      if (g === 'ruebe') return ['Zuckerfabrik Süß', 'zuckerfabrik', 'macht Zucker'];
+      if (g === 'kartoffel') return ['Chips-Fabrik Knusper', 'chipsfabrik', 'macht Chips'];
+      return n ? ['Gemüsehof Frisch', 'haendler', 'für den Markt'] : ['Futterhof Wiesner', 'tierhof', 'füttert Tiere'];
+    }
+    if (['brot', 'kuchen', 'roggenbrot', 'honigkuchen', 'mehl', 'roggenmehl'].indexOf(g) >= 0) return ['Bäckerei Krume', 'baeckerei', 'backt Brot'];
+    if (['eier', 'enteneier', 'milch', 'ziegenmilch', 'kaese', 'ziegenkaese', 'butter', 'joghurt', 'honig'].indexOf(g) >= 0) return ['Hofladen Lindner', 'lager', 'für den Markt'];
+    if (['wolle', 'alpakawolle', 'wollstoff', 'alpakastoff'].indexOf(g) >= 0) return ['Strickstube Flausch', 'weberei', 'strickt Pullis'];
+    return ['Dorfmarkt', 'haendler', 'für den Markt'];
+  }
+  function auftragZettel(a, ersterOk) {
+    const S = stand(), now = jetzt(), x = D.gut(a.gut), hab = S.silo[a.gut] || 0, ok = hab >= a.kg, fehl = Math.max(0, a.kg - hab);
+    const k = kundeFuer(a);
+    let h = '<div class="fs-zettel f-zettel' + (ok ? ' fs-ok' : '') + '" data-key="az' + a.id + '">' + (ok ? I('haken', 0, 'f-zettel-haken') : '') +
+      '<div class="f-kunde"><div class="f-kunde-bild">' + I(k[1]) + '</div><div><b>' + k[0] + '</b><span>' + k[2] + '</span></div></div>' +
+      '<div class="f-ware">' + I(a.gut) + '<div><b>' + menge(a.kg) + '</b><span>' + esc(x.name) + '</span></div></div>' +
+      '<div class="f-im-lager"><span>' + I('silo') + 'Im Lager</span><b>' + menge(hab) + '</b></div>' + FS.balken(Math.min(1, hab / a.kg), ok ? 'gruen' : 'gelb') +
+      (ok ? '<div class="f-az-status f-ok">' + I('haken') + 'Alles da!</div>' : '<div class="f-az-status f-fehlt">Es fehlen ' + menge(fehl) + '</div>') +
+      '<div class="f-lohn">' + I('muenze') + '<b>' + fmt(a.lohn) + '</b>' + I('xp') + '<b>' + a.xp + '</b></div>';
+    // dezente Restzeit (das Modell laesst Auftraege ablaufen) - ohne Sekunden-Countdown
+    // Restzeit nur kurz vor dem Ablauf und ohne Countdown-Druck (Uli: freie Hand, 28.10.2026) - sonst verschwaende ein Zettel ohne Vorwarnung.
+    if (a.bis && a.bis - now < 2 * 3600e3) h += '<div class="f-az-zeit">' + I('uhr') + 'Bald weg · ' + grob(Math.max(0, a.bis - now)) + '</div>';
+    h += '<div class="f-az-fuss">';
+    if (ok) h += knopf({ a: 'liefern', id: a.id, farbe: 'gruen', icon: 'lkw', text: 'Liefern', puls: ersterOk, klasse: 'f-az-knopf' });
+    else {
+      const q = quelleVon(a.gut);
+      if (q && q.art === 'feld') {
+        const w = waechstAuf(a.gut);
+        if (w) h += '<div class="f-az-hinweis">' + I('spross') + esc(D.feld(w.id).name) + ': ' + (w.reif ? 'reif!' : grob(w.ms)) + '</div>';
+        const fr = D.frucht(a.gut);
+        h += '<div class="f-az-knoepfe">' + knopf({ a: 'anbauen', id: a.gut, farbe: 'navy', icon: 'saeen', text: 'Anbauen', grund: S.level < fr.lvl ? 'Ab Level ' + fr.lvl : '' });
+        if (fehl <= D.ZUKAUF_MAX_TAG_KG) h += zukaufKnopf(a.gut, Math.max(100, Math.ceil(fehl / 100) * 100), 'Kaufen');
+        h += '</div>';
+      } else if (q && q.art === 'tier') h += knopf({ a: 'zumTier', id: q.id, farbe: 'navy', icon: q.id, text: 'Zum Tierhof', klasse: 'f-az-knopf' });
+      else if (q) h += knopf({ a: 'herstellen', id: q.id, farbe: 'navy', icon: q.id, text: 'Herstellen', klasse: 'f-az-knopf' });
+    }
+    return h + '</div></div>';
+  }
+  function zeichneAuftraege() {
+    const S = stand();
+    const lieferbar = S.auftraege.filter(a => (S.silo[a.gut] || 0) >= a.kg);
+    const liste = lieferbar.concat(S.auftraege.filter(a => lieferbar.indexOf(a) < 0));
+    let html;
+    if (!liste.length) html = fuchsZeile('neutral', 'Gerade keine Aufträge. Bald kommen neue!', 90);
+    else html = '<div class="f-brett">' + liste.map((a, i) => auftragZettel(a, i === 0 && lieferbar.length > 0)).join('') + '</div>' +
+      '<div class="f-brett-fuss">' + I('lkw') + 'Nach jeder Lieferung kommt bald ein neuer Auftrag.</div>';
+    const pille = lieferbar.length ? '<span class="fs-chip fs-gruen f-pille-info">' + I('lkw') + '<span class="fs-lang">' + lieferbar.length + ' kannst du liefern!</span><span class="fs-kurz">' + lieferbar.length + ' bereit</span></span>' : '';
+    const vor = (dlg.rueck ? '<button class="fs-btn fs-navy f-klein-btn" data-a="zumFeld">' + I('zurueck') + 'Zurück zum Feld</button>' : '') +
+      (lieferbar.length >= 2 ? knopf({ a: 'alleLiefern', farbe: 'gelb', icon: 'lkw', text: 'Alle ' + lieferbar.length + ' liefern', klasse: 'f-klein-btn' }) : '');
+    rahmen({ art: 'mitte', ansicht: 'auftraege', kopf: kopfHtml({ icon: 'auftrag', stufe: 'gruen', titel: 'Aufträge', unter: 'Liefern bringt extra Münzen', extra: pille + geldPille() }),
+      vor: vor ? '<div class="f-vor-zeile">' + vor + '</div>' : '', inhalt: html });
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Tierhof (je Stall eine Karte: Fuellstaende als Balken, EINE Hauptaktion je Zustand, Rest unter "Mehr")
+  // ----------------------------------------------------------------------------------------------
+  function dialogTiere(fokus) { const rueck = rueckFeld; rueckFeld = null; dlg = { typ: 'tiere', fokus: fokus || null, rueck, offen: {} }; zeichneTiere(); }
   function stundenText(h) { return h >= 48 ? Math.floor(h / 24) + ' Tage' : h >= 1 ? Math.round(h) + ' Std' : Math.max(0, Math.round(h * 60)) + ' Min'; }
+  function stallKarte(d) {
+    const S = stand(), now = jetzt(), st = S.tiere[d.id];
+    const fokus = dlg.fokus === d.id ? ' f-fokus' : '';
+    if (!st) {
+      const gesperrt = S.level < d.lvl;
+      return '<div class="f-k' + (gesperrt ? ' f-zu' : '') + fokus + '" data-key="st' + d.id + '"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-' + FS.stufe(d) + '">' + I(d.id) + (gesperrt ? I('schloss', 0, 'fs-ecke') : '') + '</div>' +
+        '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.stall) + '</div><div class="f-k-unter">' + esc(d.name) + ' geben ' + esc(D.gut(d.gut).name) + '</div></div></div>' +
+        '<div class="f-gl">' + zi(d.id, '') + '<span class="f-gl-pfeil">' + I('weiter') + '</span>' + zi(d.gut, esc(D.gut(d.gut).name)) + '</div>' +
+        (d.futterKgH ? '<div class="f-futter-wahl">' + I('futter') + 'frisst ' + d.futter.map(g => '<span class="f-futter-gut">' + I(g, 30) + esc(D.gut(g).name) + '</span>').join(' oder ') + '</div>' : '<div class="f-futter-wahl">' + I('haken') + 'Braucht kein Futter</div>') +
+        '<div class="f-k-fuss">' + knopf({ a: 'stallBau', id: d.id, farbe: 'gruen', icon: 'tierhof', text: 'Bauen', zeile: muenzZeile(d.bau), grund: gesperrt ? 'Ab Level ' + d.lvl : S.geld < d.bau ? fehltGeld(d.bau - S.geld) : '' }) + '</div></div>';
+    }
+    const ss = M.stallStand(d.id, now);
+    const frei = ss.kap - st.anzahl;
+    const futterA = ss.futterKap > 0 ? st.futter / ss.futterKap : 1;
+    const lagerA = ss.lagerKap > 0 ? st.lager / ss.lagerKap : 0;
+    const hunger = d.futterKgH && st.anzahl > 0 && !ss.laeuft;
+    const kaufN = Math.max(1, Math.min(10, frei));
+    const tierGrund = frei < 1 ? 'Der Stall ist voll – ausbauen!' : S.geld < d.tierPreis ? fehltGeld(d.tierPreis - S.geld) : '';
+    const futterPreis = Math.round(M.futterPreisProT(d));
+    // EINE Hauptaktion je Zustand
+    let haupt = '';
+    if (!st.anzahl) haupt = knopf({ a: 'tierKauf', id: d.id + ':' + kaufN, farbe: 'gruen', gross: true, breit: true, icon: d.id, text: kaufN + ' ' + (kaufN === 1 ? d.tier : d.name) + ' kaufen', zeile: muenzZeile(d.tierPreis * kaufN), grund: tierGrund });
+    else if (lagerA >= 0.8 && st.lager >= 1) haupt = knopf({ a: 'einsammeln', id: d.id, farbe: 'gruen', gross: true, breit: true, icon: 'einsammeln', text: 'Einsammeln', zeile: '+' + menge(st.lager) + ' ' + esc(D.gut(d.gut).name) });
+    else if (hunger) haupt = ss.futterSilo > 0 ? knopf({ a: 'fuettern', id: d.id, farbe: 'gruen', gross: true, breit: true, icon: 'futter', text: 'Füttern', zeile: 'aus dem Silo' })
+      : knopf({ a: 'futterKauf', id: d.id, farbe: 'gruen', gross: true, breit: true, icon: 'zukaufen', text: 'Futter kaufen', zeile: muenzZeile(futterPreis) + ' je t', grund: S.geld < futterPreis / 1000 ? fehltGeld(Math.ceil(futterPreis / 1000 - S.geld)) : '' });
+    else if (st.lager >= 1) haupt = knopf({ a: 'einsammeln', id: d.id, farbe: 'gruen', gross: true, breit: true, icon: 'einsammeln', text: 'Einsammeln', zeile: '+' + menge(st.lager) + ' ' + esc(D.gut(d.gut).name) });
+    else if (d.futterKgH && futterA < 0.98 && ss.futterSilo > 0) haupt = knopf({ a: 'fuettern', id: d.id, farbe: 'gruen', gross: true, breit: true, icon: 'futter', text: 'Füttern', zeile: 'aus dem Silo' });
+    const hauptArt = haupt.indexOf('data-a="fuettern"') >= 0 ? 'fuettern' : haupt.indexOf('data-a="futterKauf"') >= 0 ? 'futterKauf' : '';
+    let h = '<div class="f-k f-stall' + fokus + (hunger ? ' f-hunger' : '') + '" data-key="st' + d.id + '"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-' + FS.stufe(d) + '">' + I(d.id) + '</div>' +
+      '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.stall) + '</div><div class="f-k-unter">' + st.anzahl + ' von ' + ss.kap + ' ' + esc(d.name) + ' · Stufe ' + (st.stufe + 1) + '</div></div>' +
+      (st.auto ? '<span class="fs-marke f-auto">' + I('futter') + 'Automat</span>' : '') + '</div>';
+    if (d.futterKgH) {
+      h += '<div class="f-fuell">' + I('futter') + '<div class="f-fuell-tx"><span>Futter</span><b' + (hunger ? ' class="f-rot"' : '') + '>' + (hunger ? 'leer!' : 'reicht ' + stundenText(ss.futterStunden)) + '</b></div>' +
+        FS.balken(futterA, futterA < 0.2 ? 'rot' : futterA < 0.5 ? 'gelb' : 'gruen', 'fs-dick') + '</div>';
+      if (hunger && !ss.futterSilo) h += '<div class="f-futter-wahl">' + I('warnung') + 'Im Silo fehlt ' + d.futter.map(g => '<span class="f-futter-gut">' + I(g, 30) + esc(D.gut(g).name) + '</span>').join(' oder ') + '</div>';
+    } else h += '<div class="f-futter-wahl">' + I('haken') + 'Braucht kein Futter</div>';
+    h += '<div class="f-fuell">' + I(d.gut) + '<div class="f-fuell-tx"><span>' + esc(D.gut(d.gut).name) + '</span><b>' + menge(st.lager) + ' von ' + menge(ss.lagerKap) + '</b></div>' +
+      FS.balken(lagerA, lagerA > 0.9 ? 'rot' : lagerA > 0.6 ? 'gelb' : 'cyan', 'fs-dick') + '</div>';
+    h += haupt ? '<div class="f-k-fuss">' + haupt + '</div>' : fuchsZeile('jubelt', st.anzahl ? 'Alles bestens hier!' : 'Kauf ein paar Tiere!', 56);
+    // Mehr: alles andere
+    h += '<div class="f-zeile2">' + mehrKnopf('t:' + d.id) + '</div>';
+    if (offen('t:' + d.id)) {
+      h += '<div class="f-mehr-knoepfe">';
+      if (d.futterKgH && hauptArt !== 'fuettern') h += knopf({ a: 'fuettern', id: d.id, farbe: 'navy', icon: 'futter', text: 'Füttern', zeile: 'aus dem Silo', grund: futterA >= 0.98 ? 'Der Trog ist voll' : !ss.futterSilo ? 'Kein Futter im Silo' : !st.anzahl ? 'Noch keine Tiere' : '' });
+      if (d.futterKgH && hauptArt !== 'futterKauf') h += knopf({ a: 'futterKauf', id: d.id, farbe: 'navy', icon: 'zukaufen', text: 'Futter kaufen', zeile: muenzZeile(futterPreis) + ' je t', grund: futterA >= 0.98 ? 'Der Trog ist voll' : !st.anzahl ? 'Noch keine Tiere' : '' });
+      if (st.anzahl) h += knopf({ a: 'tierKauf', id: d.id + ':1', farbe: 'navy', icon: 'plus', text: '1 ' + d.tier, zeile: muenzZeile(d.tierPreis), grund: tierGrund }) +
+        knopf({ a: 'tierKauf', id: d.id + ':10', farbe: 'navy', icon: 'plus', text: '10 ' + d.name, zeile: muenzZeile(d.tierPreis * Math.min(10, Math.max(1, frei))), grund: tierGrund });
+      if (d.automat && !st.auto) h += knopf({ a: 'automat', id: d.id, farbe: 'navy', icon: 'futter', text: 'Futterautomat', zeile: muenzZeile(d.automat), grund: S.geld < d.automat ? fehltGeld(d.automat - S.geld) : '' });
+      const ausK = d.ausbau[st.stufe + 1];
+      if (ausK !== undefined) h += knopf({ a: 'stallAus', id: d.id, farbe: 'navy', icon: 'tierhof', text: 'Ausbau: ' + d.kap[st.stufe + 1] + ' Plätze', zeile: muenzZeile(ausK), grund: S.geld < ausK ? fehltGeld(ausK - S.geld) : '' });
+      h += '</div><div class="f-k-unter f-rate">' + I('uhr', 26) + (ss.rateH >= 1 ? fmt1(ss.rateH) + ' kg' : fmt(ss.rateH * 1000) + ' g') + ' ' + esc(D.gut(d.gut).name) + ' pro Stunde' + (d.text ? '<br>' + esc(d.text) : '') + '</div>';
+    }
+    return h + '</div>';
+  }
   function zeichneTiere() {
     const S = stand(), now = jetzt();
     const w = D.WETTER[M.wetterTyp(now)];
-    let html = '<div class="f-info">Tiere brauchen <b>Futter</b> aus deinem Silo und liefern Rohstoffe. Alles <b>einsammeln</b>, bevor der Stall voll ist (24 Stunden Vorrat). Ein <b>Futterautomat</b> füllt automatisch nach. Aktuell: ' + w.icon + ' ' + w.name + (w.tiere !== 1 ? ' (Tiere ' + (w.tiere < 1 ? '' : '+') + Math.round((w.tiere - 1) * 100) + ' %)' : '') + '</div>';
-    D.TIERE.forEach(d => {
-      const st = S.tiere[d.id];
-      if (!st) {
-        const gesperrt = S.level < d.lvl;
-        html += '<div class="f-zeile"><div class="ico">' + d.icon + '</div><div class="n">' + d.stall + (gesperrt ? '<span class="f-badge rot">ab Level ' + d.lvl + '</span>' : '') +
-          '<small>' + d.name + ' liefern ' + D.gut(d.gut).name + (d.futter.length ? ' · Futter: ' + d.futter.map(g => D.gut(g).name).join(' / ') : ' · kein Futter nötig') + '</small>' + (d.text ? '<small>' + d.text + '</small>' : '') + '</div>' +
-          '<button class="f-kauf" data-a="stallBau" data-id="' + d.id + '"' + (gesperrt || S.geld < d.bau ? ' disabled' : '') + '>Bauen · ' + fmt(d.bau) + ' €</button></div>';
-        return;
-      }
-      const ss = M.stallStand(d.id, now);
-      const frei = ss.kap - st.anzahl;
-      const futterProz = ss.futterKap > 0 ? Math.round(st.futter / ss.futterKap * 100) : 100;
-      const lagerProz = ss.lagerKap > 0 ? Math.round(st.lager / ss.lagerKap * 100) : 0;
-      html += '<div class="f-zeile" style="align-items:flex-start' + (dlg.fokus === d.id ? ';background:rgba(255,226,122,.08);border-radius:12px' : '') + '"><div class="ico">' + d.icon + '</div><div class="n">' + d.stall + ' <span class="f-badge">Stufe ' + (st.stufe + 1) + '</span>' + (st.auto ? ' <span class="f-badge">🤖 Futterautomat</span>' : '') +
-        '<small>' + st.anzahl + ' von ' + ss.kap + ' Plätzen · ' + (ss.rateH >= 1 ? fmt1(ss.rateH) + ' kg' : fmt1(ss.rateH * 1000) + ' g') + ' ' + D.gut(d.gut).name + ' pro Stunde' + (st.anzahl && d.futterKgH && !ss.laeuft ? ' · <span class="down">kein Futter!</span>' : '') + '</small>' +
-        (d.futterKgH ? '<small style="margin-top:6px">Futter (' + d.futter.map(g => D.gut(g).name).join('/') + '): ' + Math.round(st.futter) + ' kg · reicht ' + stundenText(ss.futterStunden) + ' · Silo: ' + tonnen(ss.futterSilo) + '</small><div class="f-bal ' + (futterProz < 20 ? 'rot' : futterProz < 50 ? 'gelb' : '') + '"><div style="width:' + futterProz + '%"></div></div>' + (!ss.futterSilo && futterProz < 98 ? '<div class="f-info warn" style="margin-top:8px">⚠ Im Silo ist kein Futter. ' + d.name + ' fressen ' + d.futter.map(g => D.gut(g).name).join(' oder ') + ' – ernte welches (im Lager siehst du, was im Silo liegt) oder kaufe Futter.</div>' : '') : '') +
-        '<small style="margin-top:6px">' + D.gut(d.gut).icon + ' Bereit: <b>' + (st.lager >= 1000 ? fmt1(st.lager / 1000) + ' t' : Math.round(st.lager) + ' kg') + '</b> (von ' + (ss.lagerKap >= 1000 ? fmt1(ss.lagerKap / 1000) + ' t' : Math.round(ss.lagerKap) + ' kg') + ')</small><div class="f-bal ' + (lagerProz > 90 ? 'rot' : lagerProz > 60 ? 'gelb' : '') + '"><div style="width:' + lagerProz + '%"></div></div>' +
-        '<div class="f-btnreihe">' +
-        '<button class="f-kauf gruen" data-a="einsammeln" data-id="' + d.id + '"' + (st.lager < 1 ? ' disabled' : '') + '>✋ Einsammeln</button>' +
-        (d.futterKgH ? '<button class="f-kauf sek" data-a="fuettern" data-id="' + d.id + '"' + (futterProz >= 98 ? ' disabled' : '') + '>🥣 Aus dem Silo füttern</button>' : '') +
-        (d.futterKgH && futterProz < 98 && !ss.futterSilo ? '<button class="f-kauf" data-a="futterKauf" data-id="' + d.id + '"' + (S.geld < M.futterPreisProT(d) / 1000 ? ' disabled' : '') + '>🛒 Futter kaufen · ' + fmt(Math.round(M.futterPreisProT(d))) + ' €/t</button>' : '') +
-        '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':1"' + (frei < 1 || S.geld < d.tierPreis ? ' disabled' : '') + '>+1 ' + d.tier + ' · ' + fmt(d.tierPreis) + ' €</button>' +
-        '<button class="f-kauf sek" data-a="tierKauf" data-id="' + d.id + ':10"' + (frei < 2 || S.geld < d.tierPreis * 2 ? ' disabled' : '') + '>+10 · ' + fmt(d.tierPreis * 10) + ' €</button>' +
-        (d.automat && !st.auto ? '<button class="f-kauf sek" data-a="automat" data-id="' + d.id + '"' + (S.geld < d.automat ? ' disabled' : '') + '>🤖 Futterautomat · ' + fmt(d.automat) + ' €</button>' : '') +
-        (d.ausbau[st.stufe + 1] !== undefined ? '<button class="f-kauf sek" data-a="stallAus" data-id="' + d.id + '"' + (S.geld < d.ausbau[st.stufe + 1] ? ' disabled' : '') + '>🏗 Ausbau auf ' + d.kap[st.stufe + 1] + ' · ' + fmt(d.ausbau[st.stufe + 1]) + ' €</button>' : '') +
-        '</div></div></div>';
-    });
-    dialogAuf(kopf('Tierhof', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+    const gebaut = D.TIERE.filter(d => S.tiere[d.id]), frei = D.TIERE.filter(d => !S.tiere[d.id] && S.level >= d.lvl), zu = D.TIERE.filter(d => !S.tiere[d.id] && S.level < d.lvl);
+    let html = '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Deine Ställe</span>' + (w.tiere !== 1 ? '<span class="fs-chip f-chip-klein">' + I(w.id) + esc(w.name) + ': Tiere ' + (w.tiere < 1 ? 'langsamer' : 'schneller') + '</span>' : '') + dInfoKnopf('tierInfo') + '</div>';
+    if (offen('tierInfo')) html += infoBox('Tiere brauchen Futter aus deinem Silo und liefern Eier, Milch, Wolle oder Honig. Sammle alles ein, bevor der Stall voll ist (24 Stunden Vorrat). Ein Futterautomat füllt den Trog von allein nach.');
+    html += gebaut.length ? '<div class="f-raster f-r3">' + gebaut.map(stallKarte).join('') + '</div>' : fuchsZeile('zeigt', 'Bau deinen ersten Stall!', 72);
+    if (frei.length || zu.length) html += '<div class="fs-abschnitt">Neue Ställe</div><div class="f-raster f-r3">' + frei.concat(zu.slice(0, 2)).map(stallKarte).join('') + '</div>';
+    rahmen({ art: 'mitte', ansicht: 'tiere', kopf: kopfHtml({ icon: 'tierhof', stufe: 'gruen', titel: 'Tierhof', unter: 'Füttern und einsammeln', extra: geldPille() }),
+      vor: dlg.rueck ? '<div class="f-vor-zeile"><button class="fs-btn fs-navy f-klein-btn" data-a="zumFeld">' + I('zurueck') + 'Zurück zum Feld</button></div>' : '', inhalt: html });
+    if (dlg.fokus && !dlg.fokusGescrollt) { dlg.fokusGescrollt = true; fokusZeigen(); }
+  }
+  function fokusZeigen() {
+    setTimeout(() => { const el = wurzel && wurzel.querySelector('#f-dlg .f-fokus'); if (el && el.scrollIntoView) { try { el.scrollIntoView({ block: 'center' }); } catch (e) { el.scrollIntoView(); } } }, 60);
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Wetter
+  // Dialog: Betriebe (Rezept als Gleichung, Produktion als Ring, Starten x1 / so viele wie moeglich, Grund + Weg)
   // ----------------------------------------------------------------------------------------------
-  function dialogWetter() { dlg = { typ: 'wetter' }; zeichneWetter(); }
+  function dialogBetriebe(fokus) { const rueck = rueckFeld; rueckFeld = null; dlg = { typ: 'betriebe', fokus: fokus || null, rueck, offen: {} }; zeichneBetriebe(); }
+  function gleichung(r, S) {
+    const pfeil = '<span class="f-gl-pfeil">' + I('weiter') + '</span>';
+    return '<div class="f-gl">' + r.ein.map(z => zi(z.gut, menge(z.kg), S && (S.silo[z.gut] || 0) < z.kg ? 'f-fehlt' : '')).join('<span class="f-gl-plus">+</span>') + pfeil + zi(r.aus, menge(r.ausKg), 'f-aus-ware') + '</div>';
+  }
+  function rezeptZeile(b, p, r) {
+    const S = stand();
+    const moeglich = Math.min.apply(null, r.ein.map(z => Math.floor((S.silo[z.gut] || 0) / z.kg)));
+    const platz = 6 - p.queue.length;
+    const fehlt = r.ein.find(z => (S.silo[z.gut] || 0) < z.kg);
+    const ms = r.sek * 1000 / D.PROD_STUFEN[p.stufe].faktor / M.tempoFaktor();
+    const grund = platz < 1 ? 'Die Schlange ist voll' : fehlt ? 'Dir fehlt ' + menge(fehlt.kg - (S.silo[fehlt.gut] || 0)) + ' ' + D.gut(fehlt.gut).name : '';
+    const n = Math.min(moeglich, platz);
+    let h = '<div class="f-rezept" data-key="rz' + r.id + '">' + gleichung(r, S) + '<div class="f-rezept-zeile"><span class="f-rezept-zeit">' + I('uhr') + grob(ms) + '</span>' +
+      '<div class="f-rezept-knoepfe">' + knopf({ a: 'prod', id: b.id + ':' + r.id + ':1', farbe: 'gruen', icon: r.aus, text: 'Starten', grund });
+    if (!grund && n >= 2) h += knopf({ a: 'prod', id: b.id + ':' + r.id + ':' + n, farbe: 'navy', text: n + '×', klasse: 'f-alle-btn' });
+    if (fehlt && platz >= 1) h += knopf({ a: 'holen', id: fehlt.gut, farbe: 'navy', icon: fehlt.gut, text: 'Holen', klasse: 'f-holen-btn' });
+    return h + '</div></div></div>';
+  }
+  function betriebKarte(b) {
+    const S = stand(), now = jetzt(), p = S.produktion[b.id];
+    const fokus = dlg.fokus === b.id ? ' f-fokus' : '';
+    if (!p) {
+      const gesperrt = S.level < b.lvl;
+      return '<div class="f-k' + (gesperrt ? ' f-zu' : '') + fokus + '" data-key="b' + b.id + '"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-' + FS.stufe(b) + '">' + I(b.id) + (gesperrt ? I('schloss', 0, 'fs-ecke') : '') + '</div>' +
+        '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(b.name) + '</div><div class="f-k-unter">' + (gesperrt ? 'Ab Level ' + b.lvl : 'Noch nicht gebaut') + '</div></div></div>' +
+        b.rezepte.map(r => gleichung(r, null)).join('') +
+        '<div class="f-k-fuss">' + knopf({ a: 'bauen', id: b.id, farbe: 'gruen', icon: 'betriebe', text: 'Bauen', zeile: muenzZeile(b.preis), grund: gesperrt ? 'Ab Level ' + b.lvl : S.geld < b.preis ? fehltGeld(b.preis - S.geld) : '' }) + '</div></div>';
+    }
+    const q0 = p.queue[0], laeuft = q0 && q0.start != null;
+    let status;
+    if (laeuft) {
+      const r = b.rezepte.find(x => x.id === q0.rez), anteil = Math.min(1, Math.max(0, (now - q0.start) / q0.dauer));
+      status = '<div class="f-prod">' + FS.ring(anteil, istHandy() ? 84 : 96, { icon: r.aus, farbe: 'violett' }) + '<div class="f-k-tx"><div class="f-prod-titel">' + esc(D.gut(r.aus).name) + '</div><div class="f-prod-zeit">' + I('uhr') + 'noch ' + grob(q0.start + q0.dauer - now) + '</div>' +
+        '<div class="f-schlange">' + [0, 1, 2, 3, 4, 5].map(i => '<i class="' + (i < p.queue.length ? 'f-voll' : '') + '"></i>').join('') + '<span>' + p.queue.length + ' von 6</span></div></div></div>';
+    } else status = fuchsZeile('gruebelt', 'Hat nichts zu tun. Starte etwas!', 60);
+    const n = D.PROD_STUFEN[p.stufe + 1];
+    let h = '<div class="f-k f-betrieb' + fokus + '" data-key="b' + b.id + '"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-' + FS.stufe(b) + '">' + I(b.id) + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(b.name) + '</div>' +
+      '<div class="f-k-unter">Stufe ' + (p.stufe + 1) + (D.PROD_STUFEN[p.stufe].faktor > 1 ? ' · ×' + fmt1(D.PROD_STUFEN[p.stufe].faktor) + ' schneller' : '') + '</div></div></div>' + status +
+      b.rezepte.map(r => rezeptZeile(b, p, r)).join('');
+    h += '<div class="f-zeile2">' + mehrKnopf('b:' + b.id) + '</div>';
+    if (offen('b:' + b.id)) {
+      h += '<div class="f-mehr-knoepfe">' + (n ? knopf({ a: 'prodAus', id: b.id, farbe: 'navy', icon: 'betriebe', text: 'Ausbauen: ×' + fmt1(n.faktor) + ' schneller', zeile: muenzZeile(Math.round(b.preis * n.preis)), grund: S.geld < Math.round(b.preis * n.preis) ? fehltGeld(Math.round(b.preis * n.preis) - S.geld) : '' })
+        : '<span class="fs-marke fs-gelb">' + I('haken') + 'Voll ausgebaut</span>') + '</div>';
+      const fakt = D.ALBUM.find(a => a.kat === 'betriebe');
+      const k = fakt ? fakt.karten().find(x => x.id === b.id) : null;
+      if (k && k.fakt) h += infoBox(esc(k.fakt));
+    }
+    return h + '</div>';
+  }
+  function zeichneBetriebe() {
+    const S = stand();
+    const gebaut = D.PRODUKTION.filter(b => S.produktion[b.id]);
+    const frei = D.PRODUKTION.filter(b => !S.produktion[b.id] && S.level >= b.lvl);
+    const zu = D.PRODUKTION.filter(b => !S.produktion[b.id] && S.level < b.lvl).sort((a, b) => a.lvl - b.lvl);
+    let html = '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Deine Betriebe</span>' + dInfoKnopf('betrInfo') + '</div>';
+    if (offen('betrInfo')) html += infoBox('In Betrieben wird aus Rohstoffen aus deinem Lager mehr Geld: Weizen wird Mehl, Mehl wird Brot, Raps wird Öl. Bis zu 6 Aufträge warten in der Schlange. Die fertige Ware landet im Lager.');
+    html += gebaut.length ? '<div class="f-raster f-r3">' + gebaut.map(betriebKarte).join('') + '</div>' : fuchsZeile('zeigt', 'Bau deinen ersten Betrieb!', 72);
+    if (frei.length || zu.length) html += '<div class="fs-abschnitt">Neue Betriebe</div><div class="f-raster f-r3">' + frei.concat(zu.slice(0, 2)).map(betriebKarte).join('') + '</div>';
+    rahmen({ art: 'mitte', ansicht: 'betriebe', kopf: kopfHtml({ icon: 'betriebe', stufe: 'lila', titel: 'Betriebe', unter: 'Aus Rohstoffen wird mehr Geld', extra: geldPille() }),
+      vor: dlg.rueck ? '<div class="f-vor-zeile"><button class="fs-btn fs-navy f-klein-btn" data-a="zumFeld">' + I('zurueck') + 'Zurück zum Feld</button></div>' : '', inhalt: html });
+    if (dlg.fokus && !dlg.fokusGescrollt) { dlg.fokusGescrollt = true; fokusZeigen(); }
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // Dialog: Wetter (aktuell + Vorhersage als Icons, Wetterstation, Beregnung-Tipp)
+  // ----------------------------------------------------------------------------------------------
+  function dialogWetter() { dlg = { typ: 'wetter', offen: {} }; zeichneWetter(); }
+  function wirkungZeile(icon, name, f, hochGut) {
+    // f > 1: mehr / laenger. hochGut: ist "mehr" gut? (Arbeitszeit: mehr = schlecht)
+    const art = Math.abs(f - 1) < 0.001 ? 'gleich' : (f > 1) === hochGut ? 'hoch' : 'runter';
+    const text = art === 'gleich' ? 'normal' : hochGut ? (f > 1 ? 'schneller' : 'langsamer') : (f > 1 ? 'langsamer' : 'schneller');
+    return '<div class="f-wirkung">' + I(icon) + '<span>' + name + '</span>' + trendPfeil(art === 'hoch' ? 1.2 : art === 'runter' ? 0.8 : 1, 30) + '<b>' + text + '</b></div>';
+  }
   function zeichneWetter() {
     const S = stand(), now = jetzt();
     const w = M.wetter(now);
     const saison = { fruehling: 'Frühling', sommer: 'Sommer', herbst: 'Herbst', winter: 'Winter' }[M.jahreszeit(now)];
-    const wirkung = x => (x === 1 ? 'normal' : (x > 1 ? '+' : '−') + Math.abs(Math.round((x - 1) * 100)) + ' %');
-    const slotMs = D.WETTER_SLOT_MS;
-    const bis = (Math.floor(now / slotMs) + 1) * slotMs;
-    let html = '<div class="f-zeile"><div class="ico" style="font-size:44px;width:60px">' + w.icon + '</div><div class="n" style="font-size:20px">' + w.name + '<small>' + saison + ' · wechselt in ' + A.zeitText(bis - now) + '</small><small>' + w.text + '</small></div></div>' +
-      '<div class="f-chips"><span class="f-chip">🌱 Wachstum <b>' + wirkung(w.wachs) + '</b></span><span class="f-chip">🚜 Arbeitszeit <b>' + (w.arbeit === 1 ? 'normal' : (w.arbeit > 1 ? '+' : '−') + Math.abs(Math.round((w.arbeit - 1) * 100)) + ' %') + '</b></span><span class="f-chip">🐔 Tiere <b>' + wirkung(w.tiere) + '</b></span></div>';
+    const slotMs = D.WETTER_SLOT_MS, bis = (Math.floor(now / slotMs) + 1) * slotMs;
+    let html = '<div class="f-k f-wetter-jetzt"><div class="f-k-kopf">' + I(w.id, 0, 'f-wetter-gross') + '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(w.name) + '</div><div class="f-k-unter">' + saison + ' · wechselt in ' + grob(bis - now) + '</div></div></div>' +
+      wirkungZeile('spross', 'Pflanzen', w.wachs, true) + wirkungZeile('traktor', 'Maschinen', w.arbeit, false) + wirkungZeile('huehner', 'Tiere', w.tiere, true) + '</div>';
     const vor = M.wetterVorschau(now);
-    html += '<div class="f-h3">Vorhersage</div>';
-    if (vor.length) {
-      html += '<div class="f-chips">' + vor.map(v => { const x = D.WETTER[v.typ]; return '<span class="f-chip">' + x.icon + ' ' + x.name + '<br><span style="opacity:.7;font-size:11px">in ' + A.zeitText(v.von - now) + '</span></span>'; }).join('') + '</div>';
-    } else html += '<div class="f-info">Ohne Wetterstation siehst du nur das aktuelle Wetter.</div>';
+    html += '<div class="fs-abschnitt">Vorhersage</div>';
+    if (vor.length) html += '<div class="f-vorhersage">' + vor.map(v => { const x = D.WETTER[v.typ]; return '<div class="f-vh">' + I(x.id) + '<b>' + esc(x.name) + '</b><span>in ' + grob(v.von - now) + '</span></div>'; }).join('') + '</div>';
+    else html += fuchsZeile('gruebelt', 'Ohne Wetterstation siehst du nicht voraus.', 56);
     const n = D.WETTERSTATION[S.wetterstation];
-    if (n) html += '<div class="f-zeile"><div class="ico">🌦</div><div class="n">' + n.name + '<small>Zeigt das Wetter der nächsten ' + n.slots + ' Stunden' + (S.level < n.lvl ? ' · ab Level ' + n.lvl : '') + '</small></div><button class="f-kauf" data-a="stationKauf"' + (S.level < n.lvl || S.geld < n.preis ? ' disabled' : '') + '>' + fmt(n.preis) + ' €</button></div>';
-    html += '<div class="f-h3">Tipps</div><div class="f-info">☀️ Bei Sonne geht die Arbeit am schnellsten · 🌧 Regen lässt die Pflanzen schneller wachsen · 🔥 Hitze bremst Pflanzen und Tiere – eine <b>Beregnungsanlage</b> (im Feld-Dialog) schützt das Feld · ❄️ Frost und Schnee: es wächst kaum etwas.</div>';
-    dialogAuf(kopf('Wetter', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+    if (n) html += '<div class="f-k"><div class="f-k-kopf"><div class="f-k-bild fs-stufe-blau">' + I('wetterstation') + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(n.name) + '</div><div class="f-k-unter">Zeigt ' + n.slots + ' Stunden voraus</div></div></div>' +
+      knopf({ a: 'stationKauf', farbe: 'gruen', icon: 'wetterstation', text: 'Bauen', zeile: muenzZeile(n.preis), breit: true, grund: S.level < n.lvl ? 'Ab Level ' + n.lvl : S.geld < n.preis ? fehltGeld(n.preis - S.geld) : '' }) + '</div>';
+    const hitzeKommt = w.id === 'hitze' || vor.some(v => v.typ === 'hitze');
+    html += '<div class="fs-abschnitt">Tipp</div>' + (hitzeKommt ? fuchsZeile('zeigt', 'Hitze! Beregnung schützt deine Felder.', 60) : fuchsZeile('neutral', 'Regen lässt Pflanzen schneller wachsen.', 60));
+    html += '<div class="f-zeile2">' + mehrKnopf('wetterAlle', 'Alle Wetter') + '</div>';
+    if (offen('wetterAlle')) html += '<div class="f-wetter-alle">' + Object.keys(D.WETTER).map(id => { const x = D.WETTER[id]; return '<div class="f-wa">' + I(id) + '<div><b>' + esc(x.name) + '</b><span>' + esc(x.text) + '</span></div></div>'; }).join('') +
+      infoBox('Beregnung baust du in der Feldkarte ein (ab Level ' + D.BEREGNUNG_LVL + '). Dann wächst das Feld auch bei Hitze normal weiter.') + '</div>';
+    rahmen({ art: 'rechts', ansicht: 'wetter', kopf: kopfHtml({ icon: w.id, stufe: 'blau', titel: 'Wetter', unter: esc(w.name) + ' · ' + saison }), inhalt: html });
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Sammlung (Erfolge + Album)
+  // Dialog: Sammlung (Pokal) - Heute / Erfolge / Album
   // ----------------------------------------------------------------------------------------------
+  const TAG_ICON = { ernte: 'ernten', jobs: 'traktor', saeen: 'saeen', gruen: 'duengen', verkauft: 'verkaufen', eingesammelt: 'einsammeln', gefuettert: 'futter', produziert: 'betriebe', auftraege: 'auftrag', lernen: 'lernen' };
+  const TAG_TEXT = { ernte: 'Ernte {ziel} t', jobs: 'Starte {ziel} Arbeiten', saeen: 'Säe {ziel}× aus', gruen: 'Düngen, spritzen oder walzen: {ziel}×', verkauft: 'Verkaufe für {ziel} Münzen',
+    eingesammelt: 'Sammle {ziel}× bei den Tieren ein', gefuettert: 'Füttere deine Tiere', produziert: 'Stelle {ziel}× etwas her', auftraege: 'Liefere einen Auftrag', lernen: 'Mach eine Lernrunde' };
+  const ERFOLG_ICON = { ernte: 'ernten', jobs: 'traktor', gruen: 'duengen', pflug: 'pfluegen', fruechte: 'mais', felder: 'felder', maschinen: 'fuhrpark', kraft: 'ps', repariert: 'reparieren', fahrer: 'fahrer',
+    verkauft: 'verkaufen', geld: 'muenze', auftraege: 'auftrag', prod: 'betriebe', betriebe: 'muehle', tiere: 'huehner', tierarten: 'tierhof', eingesammelt: 'einsammeln', wetter: 'wetterstation', level: 'level', lernen: 'lernen', tage: 'heute' };
+  const ALBUM_ICON = { traktoren: 'traktor', geraete: 'grubbern', ernter: 'maehdrescher', fruechte: 'weizen', tiere: 'tierhof', waren: 'mehl', betriebe: 'betriebe', wetter: 'sonnig' };
   function dialogSammlung(tab, seite) {
     const gleich = dlg && dlg.typ === 'sammlung';
-    dlg = { typ: 'sammlung', tab: tab || (gleich ? dlg.tab : 'heute'), seite: seite || (gleich ? dlg.seite : 'traktoren') };
+    dlg = { typ: 'sammlung', tab: tab || (gleich ? dlg.tab : 'heute'), seite: seite || (gleich ? dlg.seite : 'traktoren'), karte: gleich ? dlg.karte : null, offen: gleich ? dlg.offen : {} };
     zeichneSammlung();
   }
   function wertText(wert, einheit) {
     const t = wert >= 100 ? fmt(wert) : fmt1(wert);
-    return t + (einheit ? ' ' + einheit : '');
+    return t + (einheit && einheit !== '€' ? ' ' + einheit : '');
+  }
+  function sammlungZaehler() {
+    const S = stand();
+    return {
+      heute: S.tag ? S.tag.aufgaben.filter(q => q.fertig && !q.abgeholt).length + (S.tag.alle && !S.tag.bonusAbgeholt ? 1 : 0) : 0,
+      erfolge: D.ERFOLGE.filter(e => { const r = S.erfolge[e.id]; return r && r.erreicht > r.abgeholt; }).length,
+      album: D.ALBUM.filter(a => !S.albumBonus[a.id] && M.albumSeite(a.id).fertig).length
+    };
+  }
+  function heuteHtml() {
+    const S = stand(), now = jetzt(), t = S.tag;
+    if (!t) return fuchsZeile('neutral', 'Gleich gibt es neue Aufgaben!', 80);
+    const serie = M.serieAktuell(now);
+    let erste = true;
+    let h = '<div class="f-heute-kopf"><div class="f-k f-serie">' + I('serie', 0, 'f-serie-bild') + '<div class="f-k-tx"><div class="f-serie-zahl fs-kontur">' + serie + ' Tag' + (serie === 1 ? '' : 'e') + ' Serie</div>' +
+      '<div class="f-k-unter">Pause? Kein Problem – deine Serie bleibt.</div></div></div>' +
+      '<div class="f-k f-neu-in">' + I('uhr') + '<div><b>' + grob(M.naechsterTag(now) - now) + '</b><span>bis neue Aufgaben</span></div></div></div>';
+    h += '<div class="f-raster f-aufgaben">' + t.aufgaben.map((q, i) => {
+      const a = M.tagArt(q.art), w = Math.min(M.tagWert(q), q.ziel), anteil = w / q.ziel;
+      const text = (TAG_TEXT[q.art] || a.text).replace('{ziel}', fmt(q.ziel));
+      let fuss;
+      if (q.abgeholt) fuss = '<span class="fs-marke f-abgeholt">' + I('haken') + 'Abgeholt</span>';
+      else if (q.fertig) { fuss = knopf({ a: 'tagAbholen', id: i, farbe: 'gruen', icon: 'geschenk', text: 'Abholen', puls: erste, breit: true }); erste = false; }
+      else fuss = '<span class="f-fortschritt">' + (a.einheit === '€' ? I('muenze') : '') + wertText(w, '') + ' / ' + wertText(q.ziel, a.einheit) + '</span>';
+      return '<div class="f-k f-aufgabe' + (q.fertig && !q.abgeholt ? ' f-fertig' : '') + '" data-key="tg' + i + '">' + FS.ring(q.fertig ? 1 : anteil, 96, { icon: TAG_ICON[q.art] || 'heute', farbe: q.fertig ? 'gelb' : 'gruen' }) +
+        '<div class="f-aufgabe-text">' + esc(text) + '</div><div class="f-lohn f-lohn-klein">' + I('muenze') + '<b>' + fmt(q.geld) + '</b>' + I('xp') + '<b>' + q.xp + '</b></div>' + fuss + '</div>';
+    }).join('') + '</div>';
+    const b = M.tagBonus(now), fertigN = t.aufgaben.filter(q => q.fertig).length;
+    h += '<div class="f-k f-truhe' + (t.alle && !t.bonusAbgeholt ? ' f-fertig' : '') + '">' + I('geschenk', 0, 'f-truhe-bild') + '<div class="f-k-tx"><div class="f-k-titel fs-kontur">Tagesbonus</div>' +
+      '<div class="f-k-unter">Alle 3 geschafft = Truhe!' + (serie > 1 ? ' Serie gibt extra.' : '') + '</div><div class="f-lohn f-lohn-klein">' + I('muenze') + '<b>' + fmt(b.geld) + '</b>' + I('xp') + '<b>' + b.xp + '</b></div></div>' +
+      (t.bonusAbgeholt ? '<span class="fs-marke f-abgeholt">' + I('haken') + 'Abgeholt</span>' :
+        knopf({ a: 'tagBonus', farbe: 'gelb', icon: 'geschenk', text: 'Truhe öffnen', gross: true, grund: t.alle ? '' : 'Noch ' + (t.aufgaben.length - fertigN) + ' Aufgabe' + (t.aufgaben.length - fertigN === 1 ? '' : 'n') })) + '</div>';
+    // Schulaufgaben (nur Tablet: FarmLernen/FarmMeldung gibt es auf dem Papa-Handy nicht)
+    const plan = (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) ? FarmLernen.tagesplan() : [];
+    if (plan.length) {
+      const belohnt = M.schulHeute(now), anteile = M.schulAnteileHeute(now), okN = plan.filter(x => x.fertig).length;
+      const summe = Object.keys(belohnt).reduce((a, k) => a + belohnt[k], 0);
+      h += '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Schulaufgaben ' + okN + '/' + plan.length + '</span>' + dInfoKnopf('schulInfo') + '</div>';
+      if (offen('schulInfo')) h += infoBox('Jede geschaffte Schulaufgabe macht auf dem Hof alles schneller: Arbeiten, Felder und Betriebe. Je mehr beim ersten Versuch richtig ist, desto mehr. Alles richtig: alles sofort fertig! Jede Aufgabe zählt einmal am Tag.');
+      h += (okN ? fuchsZeile('jubelt', 'Heute schon ' + summe + ' Minuten gespart!', 56) : fuchsZeile('zeigt', 'Mach eine Schulaufgabe – der Hof wird schneller!', 56)) +
+        '<div class="f-schul">' + plan.map(x => {
+          const gespart = belohnt[x.id];
+          const st = x.fertig ? (gespart ? (anteile[x.id] >= 0.999 ? 'Alles sofort fertig!' : gespart + ' Min schneller') : 'wird gutgeschrieben …') : x.n + ' / ' + x.z;
+          return '<div class="f-schul-z">' + I(x.fertig ? 'haken' : 'schule') + '<b>' + esc(x.titel) + '</b><span>' + st + '</span></div>';
+        }).join('') + '</div>';
+    }
+    return h;
+  }
+  function erfolgeHtml() {
+    const S = stand();
+    let abh = 0, geldAbh = 0, gesamt = 0, erreicht = 0;
+    D.ERFOLGE.forEach(e => {
+      const r = S.erfolge[e.id] || { erreicht: 0, abgeholt: 0 };
+      gesamt += e.stufen.length; erreicht += r.erreicht;
+      if (r.erreicht > r.abgeholt) { abh++; for (let i = r.abgeholt; i < r.erreicht; i++) geldAbh += e.stufen[i].geld; }
+    });
+    let h = '<div class="f-erf-kopf">' + stern(true, 56) + '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + erreicht + ' von ' + gesamt + ' Sternen</div><div class="f-k-unter">' +
+      (abh ? abh + ' Belohnung' + (abh > 1 ? 'en' : '') + ' warten!' : 'Weiter so!') + '</div></div>' +
+      (abh ? knopf({ a: 'erfAlle', farbe: 'gelb', icon: 'geschenk', text: 'Alle abholen', zeile: muenzPlus(geldAbh) }) : '') + '</div>';
+    let kat = '', offenRaster = false;
+    D.ERFOLGE.forEach(e => {
+      if (e.kat !== kat) { if (offenRaster) h += '</div>'; kat = e.kat; h += '<div class="fs-abschnitt">' + esc(kat) + '</div><div class="f-raster f-erf-raster">'; offenRaster = true; }
+      const r = S.erfolge[e.id] || { erreicht: 0, abgeholt: 0 };
+      const w = M.erfolgWert(e.wert), next = e.stufen[r.erreicht];
+      const letzte = r.erreicht ? e.stufen[r.erreicht - 1].ziel : 0;
+      const anteil = next ? Math.max(0, Math.min(1, (w - letzte) / (next.ziel - letzte))) : 1;
+      let belohn = 0; for (let i = r.abgeholt; i < r.erreicht; i++) belohn += e.stufen[i].geld;
+      const claim = r.erreicht > r.abgeholt;
+      h += '<div class="f-k f-erfolg' + (claim ? ' f-fertig' : '') + '" data-key="e' + e.id + '"><div class="f-k-kopf f-k-kopf-klein"><div class="f-k-bild fs-stufe-' + (r.erreicht >= e.stufen.length ? 'gold' : 'blau') + '">' + I(ERFOLG_ICON[e.id] || 'pokal') + '</div>' +
+        '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(e.name) + '</div><div class="f-k-unter">' + esc(e.text) + '</div></div></div>' +
+        '<div class="f-sterne">' + e.stufen.map((x, i) => stern(i < r.erreicht, 38)).join('') + '</div>' +
+        (next ? '<div class="f-erf-fort">' + FS.balken(anteil, 'gelb') + '<b>' + (e.einheit === '€' ? I('muenze') : '') + wertText(Math.min(w, next.ziel), '') + ' / ' + wertText(next.ziel, e.einheit) + '</b></div>' : '<div class="f-erf-fort"><b class="f-gold">Alles geschafft!</b></div>') +
+        (claim ? knopf({ a: 'erfAbholen', id: e.id, farbe: 'gruen', icon: 'geschenk', text: 'Abholen', zeile: muenzPlus(belohn), breit: true }) :
+          next ? '<div class="f-naechste">Nächster Stern: ' + muenzZeile(next.geld) + '</div>' : '') + '</div>';
+    });
+    if (offenRaster) h += '</div>';
+    return h;
+  }
+  function albumHtml() {
+    const S = stand();
+    const seiten = D.ALBUM.map(a => ({ a, st: M.albumSeite(a.id) }));
+    let h = reiter(seiten.map(x => ({ id: x.a.id, icon: ALBUM_ICON[x.a.id] || 'album', lang: esc(x.a.name) + ' ' + x.st.gesammelt + '/' + x.st.karten.length, kurz: x.st.gesammelt + '/' + x.st.karten.length,
+      badge: x.st.fertig && !x.st.bonusAbgeholt ? '!' : '' })), dlg.seite, 'albumSeite');
+    const cur = seiten.find(x => x.a.id === dlg.seite) || seiten[0];
+    const a = cur.a, st = cur.st;
+    h += '<div class="f-k f-seite-kopf"><div class="f-k-bild fs-stufe-gold">' + I(ALBUM_ICON[a.id] || 'album') + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(a.name) + '</div>' +
+      '<div class="f-erf-fort">' + FS.balken(st.gesammelt / st.karten.length, 'gelb') + '<b>' + st.gesammelt + ' von ' + st.karten.length + '</b></div></div>' +
+      (st.fertig ? (st.bonusAbgeholt ? '<span class="fs-marke f-abgeholt">' + I('haken') + 'Bonus abgeholt</span>' : knopf({ a: 'albumBonus', id: a.id, farbe: 'gelb', icon: 'geschenk', text: 'Bonus abholen', zeile: muenzPlus(a.bonus.geld) }))
+        : '<div class="f-bonus-zu">' + I('geschenk') + '<div><span>Seitenbonus</span><b>' + muenzZeile(a.bonus.geld) + '</b></div></div>') + '</div>';
+    const gewaehlt = dlg.karte ? st.karten.find(k => k.id === dlg.karte && k.frei) : null;
+    if (gewaehlt) {
+      let text;
+      if (a.kat === 'maschinen') { const d = D.def(gewaehlt.def); text = D.MARKEN[d.marke].name + ' · ' + shopUnter(d) + '. ' + D.maschinenInfo(d); }
+      else text = gewaehlt.fakt || '';
+      h += '<div class="fs-mulde f-fakt">' + (a.kat === 'maschinen' ? '<img src="' + vorschauBild(D.def(gewaehlt.def)) + '" alt="">' : I(gewaehlt.id)) + '<div><b>' + esc(gewaehlt.name) + '</b><span>' + esc(text) + '</span></div>' +
+        '<button class="fs-btn fs-navy fs-rund" data-a="albumKarte" data-id="" aria-label="Schließen">' + I('schliessen') + '</button></div>';
+    } else h += '<div class="f-album-tipp">' + I('info', 30) + 'Tipp auf eine Karte: Wissen!</div>';
+    h += '<div class="f-raster f-album-raster">' + st.karten.map(k => {
+      const stufeX = a.kat === 'maschinen' ? FS.stufe(D.def(k.def)) : a.kat === 'tiere' ? FS.stufe(D.tier(k.id)) : a.kat === 'betriebe' ? FS.stufe(D.betrieb(k.id)) : a.kat === 'wetter' ? 'blau' : FS.stufe(k.id);
+      const bild = a.kat === 'maschinen' ? '<img src="' + vorschauBild(D.def(k.def)) + '" alt="">' : I(k.id);
+      if (!k.frei) return '<button class="fs-karte fs-gesperrt f-ak f-ak-zu" data-a="albumZu" data-grund="' + esc(a.hinweis) + '"><div class="fs-karte-bild">' + bild + I('fragezeichen', 0, 'fs-schloss') + '</div><div class="fs-karte-name">???</div><div class="f-ak-text">' + esc(a.hinweis) + '</div></button>';
+      return '<button class="fs-karte fs-stufe-' + stufeX + ' f-ak' + (dlg.karte === k.id ? ' f-ak-an' : '') + '" data-a="albumKarte" data-id="' + esc(k.id) + '"><div class="fs-karte-bild">' + bild + '</div><div class="fs-karte-name">' + esc(k.name) + '</div></button>';
+    }).join('') + '</div>';
+    return h;
   }
   function zeichneSammlung() {
-    const S = stand();
-    const now = jetzt();
-    const tagClaim = S.tag ? S.tag.aufgaben.filter(q => q.fertig && !q.abgeholt).length + (S.tag.alle && !S.tag.bonusAbgeholt ? 1 : 0) : 0;
-    const erfClaim = D.ERFOLGE.filter(e => { const r = S.erfolge[e.id]; return r && r.erreicht > r.abgeholt; }).length;
-    const albClaim = D.ALBUM.filter(a => !S.albumBonus[a.id] && M.albumSeite(a.id).fertig).length;
-    const tabs = [['heute', '📅 Heute' + (tagClaim ? ' 🎁' : '')], ['erfolge', '🏆 Erfolge' + (erfClaim ? ' 🎁' : '')], ['album', '📖 Album' + (albClaim ? ' 🎁' : '')]];
-    let inhalt = '';
-    if (dlg.tab === 'heute') {
-      const t = S.tag, serie = M.serieAktuell(now);
-      const fertigN = t.aufgaben.filter(q => q.fertig).length;
-      inhalt = '<div class="f-chips"><span class="f-chip">⏰ Neue Aufgaben in <b>' + A.zeitText(M.naechsterTag(now) - now) + '</b></span><span class="f-chip">🔥 Serie: <b>' + serie + ' Tag' + (serie === 1 ? '' : 'e') + '</b></span><span class="f-chip">✅ <b>' + fertigN + ' von ' + t.aufgaben.length + '</b> geschafft</span></div>';
-      t.aufgaben.forEach((q, i) => {
-        const a = M.tagArt(q.art), w = Math.min(M.tagWert(q), q.ziel);
-        const proz = Math.round(w / q.ziel * 100);
-        inhalt += '<div class="f-zeile"><div class="ico">' + a.icon + '</div><div class="n">' + a.text.replace('{ziel}', fmt(q.ziel)) +
-          '<small>' + (q.fertig ? '✓ Geschafft!' : wertText(w, '') + ' / ' + wertText(q.ziel, a.einheit)) + ' · Belohnung: <b style="color:#ffe27a">' + fmt(q.geld) + ' €</b> + ' + q.xp + ' XP</small>' +
-          '<div class="f-bal"><div style="width:' + proz + '%"></div></div></div>' +
-          (q.abgeholt ? '<span class="f-badge">abgeholt ✓</span>' : q.fertig ? '<button class="f-kauf gruen" data-a="tagAbholen" data-id="' + i + '">Abholen<br>+' + fmt(q.geld) + ' €</button>' : '') + '</div>';
-      });
-      const b = M.tagBonus(now);
-      inhalt += '<div class="f-h3">Tagesbonus</div><div class="f-zeile"><div class="ico">🎁</div><div class="n">Alle drei geschafft!<small>Bonus <b style="color:#ffe27a">' + fmt(b.geld) + ' €</b> + ' + b.xp + ' XP · jeder weitere Tag in Folge gibt +5 % (bis +50 %). Wer einen Tag auslässt, fängt die Serie neu an – kein Drama!</small></div>' +
-        (t.bonusAbgeholt ? '<span class="f-badge">abgeholt ✓</span>' : '<button class="f-kauf ' + (t.alle ? 'gruen' : '') + '" data-a="tagBonus"' + (t.alle ? '' : ' disabled') + '>' + (t.alle ? 'Abholen' : 'noch nicht') + '</button>') + '</div>';
-      const plan = (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) ? FarmLernen.tagesplan() : [];
-      if (plan.length) {
-        const belohnt = M.schulHeute(now), anteile = M.schulAnteileHeute(now), okN = plan.filter(x => x.fertig).length;
-        const summe = Object.keys(belohnt).reduce((a, k) => a + belohnt[k], 0);
-        inhalt += '<div class="f-h3">📚 Schulaufgaben von heute</div><div class="f-info">Jede geschaffte Schulaufgabe verkürzt auf dem Hof alle laufenden Arbeiten, wachsenden Felder und Betriebe. Je mehr du <b>beim ersten Versuch richtig</b> hast, desto mehr – <b>bei allem richtig wird alles sofort fertig!</b> Jede Aufgabe zählt einmal am Tag. ' +
-          (okN ? 'Heute schon <b>' + summe + ' Minuten</b> gespart.' : 'Mach eine Aufgabe in der Lern-App und komm zurück!') + '</div>';
-        plan.forEach(x => {
-          const gespart = belohnt[x.id];
-          inhalt += '<div class="f-zeile"><div class="ico">' + (x.fertig ? '✅' : '📝') + '</div><div class="n">' + x.titel + '<small>' + (x.fertig ? (gespart ? '⏩ ' + (anteile[x.id] >= 0.999 ? 'alles sofort fertig' : 'mind. ' + gespart + ' Min + ' + Math.round((anteile[x.id] || 0) * 100) + ' % der Restzeit') + ' · ' + x.richtig + ' von ' + x.n + ' richtig' : 'Zeit wird gutgeschrieben …') : x.n + ' / ' + x.z + ' erledigt') + '</small></div></div>';
-        });
-      }
-    } else if (dlg.tab === 'erfolge') {
-      let abh = 0, geldAbh = 0;
-      D.ERFOLGE.forEach(e => { const r = S.erfolge[e.id]; if (r && r.erreicht > r.abgeholt) { abh++; for (let i = r.abgeholt; i < r.erreicht; i++) geldAbh += e.stufen[i].geld; } });
-      let gesamt = 0, erreicht = 0;
-      D.ERFOLGE.forEach(e => { gesamt += e.stufen.length; erreicht += (S.erfolge[e.id] || { erreicht: 0 }).erreicht; });
-      inhalt = '<div class="f-info">🏆 <b>' + erreicht + ' von ' + gesamt + '</b> Stufen geschafft' + (abh ? ' · ' + abh + ' Belohnung' + (abh > 1 ? 'en' : '') + ' zum Abholen' : '') + '</div>';
-      if (abh) inhalt += '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="erfAlle">🎁 Alle abholen · +' + fmt(geldAbh) + ' €</button></div>';
-      let kat = '';
-      D.ERFOLGE.forEach(e => {
-        if (e.kat !== kat) { kat = e.kat; inhalt += '<div class="f-h3">' + kat + '</div>'; }
-        const r = S.erfolge[e.id] || { erreicht: 0, abgeholt: 0 };
-        const w = M.erfolgWert(e.wert);
-        const next = e.stufen[r.erreicht];
-        const letzte = r.erreicht ? e.stufen[r.erreicht - 1].ziel : 0;
-        const proz = next ? Math.max(0, Math.min(100, Math.round((w - letzte) / (next.ziel - letzte) * 100))) : 100;
-        const pips = e.stufen.map((x, i) => i < r.erreicht ? '★' : '<span style="opacity:.25">★</span>').join('');
-        const claim = r.erreicht > r.abgeholt;
-        let belohn = 0; for (let i = r.abgeholt; i < r.erreicht; i++) belohn += e.stufen[i].geld;
-        inhalt += '<div class="f-zeile"><div class="ico">' + e.icon + '</div><div class="n">' + e.name + '<span class="f-pips">' + pips + '</span>' +
-          '<small>' + e.text + ' · ' + (next ? wertText(Math.min(w, next.ziel), '') + ' / ' + wertText(next.ziel, e.einheit) : '<b>Alles geschafft!</b> ' + wertText(w, e.einheit)) + '</small>' +
-          '<div class="f-bal ' + (next ? '' : '') + '"><div style="width:' + proz + '%"></div></div>' +
-          (next ? '<small>Nächste Stufe: +' + fmt(next.geld) + ' €</small>' : '') + '</div>' +
-          (claim ? '<button class="f-kauf gruen" data-a="erfAbholen" data-id="' + e.id + '">Abholen<br>+' + fmt(belohn) + ' €</button>' : '') + '</div>';
-      });
-    } else {
-      const seiten = D.ALBUM.map(a => ({ a, st: M.albumSeite(a.id) }));
-      const gesamtK = seiten.reduce((x, y) => x + y.st.karten.length, 0), gesamtG = seiten.reduce((x, y) => x + y.st.gesammelt, 0);
-      inhalt = '<div class="f-info">📖 Du hast <b>' + gesamtG + ' von ' + gesamtK + '</b> Karten gesammelt. Vervollständige eine Seite für einen Bonus!</div>' +
-        '<div class="f-tabs" style="padding:0 0 8px">' + seiten.map(x => '<button class="f-tab' + (x.a.id === dlg.seite ? ' an' : '') + '" data-a="albumSeite" data-id="' + x.a.id + '">' + x.a.icon + ' ' + x.a.name + ' ' + x.st.gesammelt + '/' + x.st.karten.length + (x.st.fertig && !x.st.bonusAbgeholt ? ' 🎁' : '') + '</button>').join('') + '</div>';
-      const cur = seiten.find(x => x.a.id === dlg.seite) || seiten[0];
-      const a = cur.a, st = cur.st;
-      inhalt += '<div class="f-zeile"><div class="n">' + a.icon + ' ' + a.name + '<small>' + st.gesammelt + ' von ' + st.karten.length + ' Karten</small><div class="f-bal"><div style="width:' + Math.round(st.gesammelt / st.karten.length * 100) + '%"></div></div></div>' +
-        (st.fertig ? (st.bonusAbgeholt ? '<span class="f-badge">Bonus abgeholt ✓</span>' : '<button class="f-kauf gruen" data-a="albumBonus" data-id="' + a.id + '">🎁 Bonus · +' + fmt(a.bonus.geld) + ' €</button>') : '<span class="f-chip">Seitenbonus: <b>' + fmt(a.bonus.geld) + ' €</b></span>') + '</div>';
-      inhalt += '<div class="f-album" style="margin-top:10px">';
-      st.karten.forEach(k => {
-        let bild, text;
-        if (a.kat === 'maschinen') {
-          const d = D.def(k.def);
-          bild = k.frei ? '<img src="' + vorschauBild(d) + '">' : '<div class="gr">❔</div>';
-          text = k.frei ? D.MARKEN[d.marke].name + '<br>' + (d.ps ? d.ps + ' PS · bis ' + d.kmh + ' km/h' : d.art === 'ernter' ? 'Schneidwerk ' + meter(d.w) + ' · Tank ' + tonnen(d.tank) : meter(d.w) + ' breit · ab ' + d.ps + ' PS') : a.hinweis;
-        } else {
-          bild = '<div class="gr">' + (k.frei ? k.icon : '❔') + '</div>';
-          text = k.frei ? k.fakt : a.hinweis;
-        }
-        inhalt += '<div class="f-card ' + (k.frei ? 'frei' : 'zu') + '">' + bild + '<b>' + (k.frei ? k.name : '???') + '</b><div class="s">' + text + '</div></div>';
-      });
-      inhalt += '</div>';
-    }
-    dialogAuf(kopf('Erfolge & Album', geldPille()) + '<div class="f-tabs">' + tabs.map(t => '<button class="f-tab' + (t[0] === dlg.tab ? ' an' : '') + '" data-a="sammlungTab" data-id="' + t[0] + '">' + t[1] + '</button>').join('') + '</div><div class="f-inhalt">' + inhalt + '</div>');
+    const z = sammlungZaehler();
+    const tabs = [{ id: 'heute', icon: 'heute', lang: 'Heute', badge: z.heute || '' }, { id: 'erfolge', icon: 'pokal', lang: 'Erfolge', badge: z.erfolge || '' }, { id: 'album', icon: 'album', lang: 'Album', badge: z.album || '' }];
+    const inhalt = dlg.tab === 'heute' ? heuteHtml() : dlg.tab === 'erfolge' ? erfolgeHtml() : albumHtml();
+    rahmen({ art: 'mitte', ansicht: 'sammlung' + dlg.tab + (dlg.tab === 'album' ? dlg.seite : ''), kopf: kopfHtml({ icon: 'pokal', stufe: 'gold', titel: 'Erfolge & Album', unter: 'Belohnungen abholen', extra: geldPille() }),
+      vor: reiter(tabs, dlg.tab, 'sammlungTab'), inhalt });
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Fuhrpark
+  // Dialog: Meine Felder (Liste mit Ring/Status, Kaufen)
   // ----------------------------------------------------------------------------------------------
-  function dialogFuhrpark() { dlg = { typ: 'fuhrpark' }; zeichneFuhrpark(); }
-  function zeichneFuhrpark() {
-    const S = stand();
-    const reihenfolge = { traktor: 0, geraet: 1, ernter: 2 };
-    const liste = S.flotte.slice().sort((a, b) => reihenfolge[D.def(a.id).art] - reihenfolge[D.def(b.id).art] || D.def(a.id).preis - D.def(b.id).preis);
-    let html = '<div class="f-info">Deine Maschinen: Sie nutzen sich bei der Arbeit ab (langsamer, ab 15 % kaputt). In der Werkstatt wird repariert. Neue Maschinen gibt es im 🏪 Händler.</div>';
-    liste.forEach(m => {
-      const d = D.def(m.id), job = m.job ? S.jobs.find(j => j.id === m.job) : null;
-      const status = job ? '<span class="f-badge gelb">arbeitet: ' + D.SCHRITTE[job.schritt].name + ' · Feld ' + job.feld + '</span>' : m.zustand < 15 ? '<span class="f-badge rot">kaputt</span>' : '<span class="f-badge">frei</span>';
-      const kosten = M.reparaturKosten(m);
-      html += '<div class="f-zeile"><img src="' + vorschauBild(d) + '" style="width:120px;height:64px;object-fit:contain;background:#3b6a30;border-radius:8px"><div class="n">' + d.name + ' ' + status +
-        '<small>' + D.MARKEN[d.marke].name + (d.ps ? ' · ' + d.ps + ' PS' : '') + ' · Zustand ' + Math.round(m.zustand) + ' %</small><small class="f-warum">💡 ' + D.maschinenInfo(d) + '</small><div class="f-bal ' + (m.zustand < 30 ? 'rot' : m.zustand < 60 ? 'gelb' : '') + '"><div style="width:' + Math.round(m.zustand) + '%"></div></div></div>' +
-        '<button class="f-kauf sek" data-a="reparieren" data-id="' + m.uid + '"' + (m.job || m.zustand >= 99.5 || S.geld < kosten ? ' disabled' : '') + '>🔧 ' + (m.zustand >= 99.5 ? 'top' : fmt(kosten) + ' €') + '</button>' +
-        '<button class="f-kauf sek" data-a="mverkauf" data-id="' + m.uid + '"' + (m.job ? ' disabled' : '') + '>Verkaufen ' + fmt(M.verkaufswert(m)) + ' €</button></div>';
-    });
-    dialogAuf(kopf('Fuhrpark', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
-  }
-
-  // ----------------------------------------------------------------------------------------------
-  // Dialog: Felderuebersicht
-  // ----------------------------------------------------------------------------------------------
-  function dialogFelder() { dlg = { typ: 'felder' }; zeichneFelder(); }
+  function dialogFelder() { dlg = { typ: 'felder', offen: {} }; zeichneFelder(); }
   function zeichneFelder() {
     const S = stand(), now = jetzt();
-    let html = '<div class="f-info">Alle deine Felder auf einen Blick. Tippe auf „Öffnen“, um zu arbeiten.</div>';
+    let html = '<div class="f-raster f-felder">';
     D.FELDER.forEach(d => {
       const f = S.felder[d.id];
       if (!f) return;
       const job = M.jobAufFeld(d.id);
-      let text;
-      if (job) { const st = M.jobStand(job, now); text = D.SCHRITTE[job.schritt].icon + ' ' + D.SCHRITTE[job.schritt].name + ' · ' + (st.teil === 'arbeit' ? Math.round(st.p * 100) + ' % · noch ' + A.zeitText(st.restMs) : st.teil === 'hin' ? 'fährt hin' : 'fertig'); }
-      else if (f.phase === 'waechst') text = '🌱 ' + phasenText(f, now) + ' · noch ' + A.zeitText(M.restWachsen(d.id, now));
-      else if (f.phase === 'reif') text = '🌾 ' + phasenText(f, now);
-      else text = phasenText(f, now) + ' – wartet auf dich';
-      html += '<div class="f-zeile"><div class="n">' + d.name + ' · ' + fmt1(d.ha) + ' ha' + (f.auto ? ' <span class="f-badge">👨‍🌾 Fahrer</span>' : '') + (f.phase === 'reif' && !job ? ' <span class="f-badge gelb">ernten!</span>' : '') + '<small>' + text + '</small></div>' +
-        '<button class="f-kauf sek" data-a="zeigen" data-id="' + d.id + '">📍</button><button class="f-kauf gruen" data-a="feldoeffnen" data-id="' + d.id + '">Öffnen</button></div>';
+      let anteil = 0, text, ringIcon = feldIcon(f), farbe = 'gruen', marke = '';
+      if (job) { const st = M.jobStand(job, now); anteil = st.teil === 'arbeit' ? st.p : st.teil === 'rueck' ? 1 : 0; farbe = 'cyan'; ringIcon = job.schritt; text = SCHRITT_KURZ[job.schritt] + (st.teil === 'arbeit' ? ' · noch ' + grob(st.restMs) : st.teil === 'hin' ? ' · fährt hin' : ' · fertig'); }
+      else if (f.phase === 'waechst') { anteil = M.fortschrittWachstum(f, now); text = phasenText(f) + ' · ' + grob(M.restWachsen(d.id, now)); }
+      else if (f.phase === 'reif') { anteil = 1; farbe = 'gelb'; text = phasenText(f); marke = '<span class="fs-marke fs-gelb">' + I('ernten') + 'Ernten!</span>'; }
+      else { text = phasenText(f) + ' · wartet auf dich'; marke = '<span class="fs-marke">' + I('ausrufe') + 'Arbeit</span>'; }
+      html += '<div class="f-k f-feldz" data-key="fz' + d.id + '">' + FS.ring(anteil, 76, { icon: ringIcon, farbe, klasse: 'f-feld-ring' }) +
+        '<div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.name) + '</div><div class="f-k-unter">' + fmt1(d.ha) + ' ha · ' + esc(text) + '</div>' +
+        '<div class="f-feldz-marken">' + marke + (f.auto ? '<span class="fs-marke">' + I('fahrer') + 'Fahrer</span>' : '') + '</div></div>' +
+        '<div class="f-feldz-knoepfe"><button class="fs-btn fs-navy fs-rund" data-a="zeigen" data-id="' + d.id + '" aria-label="Auf der Karte zeigen">' + I('karte_zeigen') + '</button>' +
+        knopf({ a: 'feldoeffnen', id: d.id, farbe: 'gruen', text: 'Öffnen' }) + '</div></div>';
     });
-    const frei = D.FELDER.filter(d => !S.felder[d.id]);
-    if (frei.length) html += '<div class="f-h3">Zu kaufen</div>' + frei.slice(0, 6).map(d => '<div class="f-zeile"><div class="n">' + d.name + ' · ' + fmt1(d.ha) + ' ha<small>' + fmt(d.preis) + ' € · ab Level ' + d.lvl + '</small></div><button class="f-kauf sek" data-a="zeigen" data-id="' + d.id + '">📍</button><button class="f-kauf" data-a="feldoeffnen" data-id="' + d.id + '">Ansehen</button></div>').join('');
-    dialogAuf(kopf('Meine Felder', geldPille()) + '<div class="f-inhalt">' + html + '</div>');
+    html += '</div>';
+    const frei = D.FELDER.filter(d => !S.felder[d.id]).sort((a, b) => a.lvl - b.lvl || a.preis - b.preis);
+    if (frei.length) {
+      html += '<div class="fs-abschnitt">Zu kaufen</div><div class="f-raster f-felder">' + frei.slice(0, 6).map(d => {
+        const zu = S.level < d.lvl;
+        return '<div class="f-k f-feldz' + (zu ? ' f-zu' : '') + '"><div class="f-k-bild fs-stufe-gold">' + I(zu ? 'schloss' : 'felder') + '</div><div class="f-k-tx"><div class="f-k-titel fs-kontur">' + esc(d.name) + '</div>' +
+          '<div class="f-k-unter">' + fmt1(d.ha) + ' ha · ' + (zu ? 'ab Level ' + d.lvl : muenzZeile(d.preis)) + '</div></div>' +
+          '<div class="f-feldz-knoepfe"><button class="fs-btn fs-navy fs-rund" data-a="zeigen" data-id="' + d.id + '" aria-label="Auf der Karte zeigen">' + I('karte_zeigen') + '</button>' +
+          knopf({ a: 'feldoeffnen', id: d.id, farbe: 'navy', text: 'Ansehen' }) + '</div></div>';
+      }).join('') + '</div>';
+    }
+    rahmen({ art: 'mitte', ansicht: 'felder', kopf: kopfHtml({ icon: 'felder', stufe: 'gruen', titel: 'Meine Felder', unter: Object.keys(S.felder).length + ' Felder', extra: geldPille() }), inhalt: html });
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Dialog: Menue / Hilfe / Level
+  // Dialog: Menue / Chronik (Fern) / Hilfe
   // ----------------------------------------------------------------------------------------------
-  function dialogMenue() {
-    dlg = { typ: 'menue' };
-    const S = stand();
-    dialogAuf('<div class="f-kopf"><h2 data-a="tempoKlick">Menü</h2><button class="f-x" data-a="zu">✕</button></div><div class="f-inhalt"><div class="f-btnreihe" style="flex-direction:column">' +
-      '<button class="f-kauf gruen" data-a="zu">▶ Weiterspielen</button>' +
-      '<button class="f-kauf sek" data-a="hilfe">❓ So funktioniert\'s</button>' +
-      '<button class="f-kauf sek" data-a="ton">' + (S.ton ? '🔊 Signaltöne: an' : '🔇 Signaltöne: aus') + '</button>' +
-      (fern ? '' : '<button class="f-kauf sek" data-a="neu">🗑 Neu anfangen</button>') +
-      '<button class="f-kauf sek" data-a="beenden">⬅ Hof verlassen</button></div>' +
-      '<div class="f-info" style="margin-top:14px">Level ' + S.level + ' · ' + fmt(S.statistik.geerntet / 1000) + ' t geerntet · ' + fmt(S.statistik.verkauft) + ' € verkauft · ' + S.statistik.jobs + ' Arbeitsaufträge</div>' +
-      (fern && fern.log.length ? '<div class="f-h3">Was zuletzt passiert ist</div><div class="f-info f-chronik">' + fern.log.slice().reverse().map(e => '<b>' + MITSPIELER[e.von] + '</b> ' + e.text).join('<br>') + '</div>' : '') +
-      (tempoKlicks >= 5 && (!fern || fern.von === 'papa') ? '<div class="f-h3">Für Papa: Zeitraffer</div><div class="f-btnreihe">' + [1, 5, 20, 100].map(x => '<button class="f-kauf ' + (S.tempo === x ? 'gruen' : 'sek') + '" data-a="tempo" data-id="' + x + '">×' + x + '</button>').join('') + '</div><div class="f-info">Gilt für neu gestartete Arbeiten und Wachstum.</div>' : '') +
-      '</div>', true);
+  function dialogMenue() { dlg = { typ: 'menue' }; zeichneMenue(); }
+  function zeichneMenue() {
+    if (!dlg || dlg.typ !== 'menue') dlg = { typ: 'menue' };
+    const S = stand(), wenig = FS.effekteWenig();
+    let h = '<div class="f-menue">' +
+      '<button class="fs-btn fs-gelb fs-breit" data-a="zu">' + I('weiter') + 'Weiterspielen</button>' +
+      '<button class="fs-btn fs-navy fs-breit" data-a="felder">' + I('felder') + 'Meine Felder</button>' +
+      '<button class="fs-btn fs-navy fs-breit" data-a="fuhrpark">' + I('fuhrpark') + 'Meine Maschinen</button>' +
+      '<button class="fs-btn fs-navy fs-breit" data-a="wetter">' + I(M.wetter(jetzt()).id) + 'Wetter</button>' +
+      '<button class="fs-btn fs-navy fs-breit" data-a="hilfe">' + I('fragezeichen') + 'So geht\'s</button>' +
+      (fern && fern.log.length ? '<button class="fs-btn fs-navy fs-breit" data-a="chronik">' + I('chronik') + 'Was zuletzt passiert ist</button>' : '') +
+      '<button class="fs-btn fs-navy fs-breit" data-a="ton">' + I(S.ton ? 'ton_an' : 'ton_aus') + 'Töne: ' + (S.ton ? 'an' : 'aus') + '</button>' +
+      '<button class="fs-btn fs-navy fs-breit" data-a="effekte">' + I('effekte') + 'Effekte: ' + (wenig ? 'wenig' : 'voll') + '</button>' +
+      '<button class="fs-btn fs-rot fs-breit" data-a="beenden">' + I('zurueck') + 'Hof verlassen</button></div>' +
+      '<div class="f-stat-zeile">' + zi('level', 'Level ' + S.level) + zi('ernten', fmt(S.statistik.geerntet / 1000) + ' t') + zi('traktor', fmt(S.statistik.jobs)) + '</div>';
+    // Papa-Geste: 5x auf "Menü" tippen
+    if (tempoKlicks >= 5 && (!fern || fern.von === 'papa')) {
+      h += '<div class="fs-abschnitt">Für Papa: Zeitraffer</div><div class="f-tempo">' + [1, 5, 20, 100].map(x => '<button class="fs-btn ' + (S.tempo === x ? 'fs-gruen' : 'fs-navy') + '" data-a="tempo" data-id="' + x + '">×' + x + '</button>').join('') + '</div>' +
+        '<div class="fs-mulde f-statzeile">Gilt für neu gestartete Arbeiten und Wachstum.</div>';
+      if (!fern) h += '<div class="f-zeile2"><button class="fs-btn fs-rot f-klein-btn" data-a="neu">' + I('warnung') + 'Neu anfangen</button></div>';
+    }
+    rahmen({ art: 'rechts', ansicht: 'menue', kopf: '<div class="fs-kopf-bild">' + I('menue') + '</div><div class="fs-kopf-text"><span class="fs-kopf-titel" data-a="tempoKlick">Menü</span><span class="fs-kopf-unter">Hof-Farm</span></div><button class="fs-btn fs-rot fs-rund" data-a="zu" aria-label="Schließen">' + I('schliessen') + '</button>', inhalt: h });
   }
-  function dialogHilfe() {
-    dlg = { typ: 'hilfe' };
-    dialogAuf(kopf('So bewirtschaftest du deinen Hof') + '<div class="f-inhalt f-gross"><ol class="f-liste">' +
-      '<li><b>Tippe auf ein Feld</b> und wähle einen Arbeitsschritt: erst <b>Grubbern</b> (oder Pflügen), dann <b>Säen</b>.</li>' +
-      '<li>Die Maschinen fahren <b>von allein</b> los und bearbeiten das Feld Bahn für Bahn. Das dauert – auch wenn du das Spiel schließt!</li>' +
-      '<li><b>Düngen, Spritzen und Walzen</b> geben mehr Ertrag. Kalken verbessert den Boden.</li>' +
-      '<li>Die Pflanzen <b>wachsen von allein</b> (nichts verdorrt). Wenn sie reif sind: <b>Ernten</b> mit Mähdrescher oder Roder.</li>' +
-      '<li>Die Ernte liegt im <b>Silo</b> (📦 Lager). Verkaufe, wenn der Preis gut ist – oder liefere <b>Aufträge</b> (📋) für extra Lohn.</li>' +
-      '<li>Mit <b>Betrieben</b> (🏭) machst du aus Weizen Mehl und Brot, aus Raps Öl …</li>' +
-      '<li>Im <b>Händler</b> (🏪) kaufst du größere, schnellere Maschinen – und später <b>Fahrer</b>, die auf einem Feld alles außer Säen übernehmen – gegen Tageslohn.</li>' +
-      '<li>Im <b>Tierhof</b> (🐔) leben Hühner, Bienen, Kühe und Schafe: Füttern, Eier/Milch/Wolle/Honig <b>einsammeln</b> – und in Käserei und Bäckerei veredeln.</li>' +
-      '<li>Das <b>Wetter</b> ändert sich ständig: Regen lässt Pflanzen schneller wachsen, Hitze bremst sie. Mit der Wetterstation siehst du es voraus.</li>' +
-      '<li>Jeden Tag gibt es <b>3 Tagesaufgaben</b> (📅): Schaffe alle für einen Bonus – und halte die Serie am Leben! Neue Aufgaben kommen um Mitternacht.</li>' +
-      '<li>Auf einem Feld mit wachsender Saat gibt es die <b>Lernrunde</b> (📚): 5 Karten aus deinen schwächsten Bereichen – jede gewusste Karte lässt die Saat schneller reifen.</li>' +
-      '<li>Unter 🏆 findest du <b>Erfolge</b> mit Belohnungen und dein <b>Album</b>: Sammle Karten von Maschinen, Früchten, Tieren, Waren, Betrieben und Wetter – mit Wissenswertem dazu.</li>' +
-      '<li>Mit Erfahrung steigst du auf und schaltest neue Felder, Früchte und Maschinen frei.</li></ol>' +
-      '<div class="f-info">⏩ Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.</div>' +
-      '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Los geht\'s!</button></div></div>');
+  // Chronik (gemeinsamer Hof): was Max und Papa zuletzt gemacht haben. testLog nur fuer Tests (ohne Fern-Verbindung).
+  function dialogChronik(testLog) { dlg = { typ: 'chronik', testLog: testLog || null }; zeichneChronik(); }
+  function zeichneChronik() {
+    const liste = (fern && fern.log) ? fern.log : (dlg.testLog || []);
+    const html = liste.length ? '<div class="f-chronik-liste">' + liste.slice().reverse().map(e => '<div class="f-chronik-z">' + I(e.von === 'papa' ? 'papa' : 'fahrer') + '<div><b>' + (MITSPIELER[e.von] || esc(e.von)) + '</b><span>' + esc(e.text) + '</span></div></div>').join('') + '</div>'
+      : fuchsZeile('neutral', 'Noch ist nichts passiert.', 72);
+    rahmen({ art: 'rechts', ansicht: 'chronik', kopf: kopfHtml({ zurueck: ['menue'], icon: 'chronik', stufe: 'blau', titel: 'Chronik', unter: 'Was zuletzt passiert ist' }), inhalt: html });
   }
-  function dialogLevel(level, bonus) {
-    const neu = [];
-    D.TRAKTOREN.concat(D.GERAETE, D.ERNTER).forEach(x => { if (x.lvl === level) neu.push((x.art === 'traktor' ? '🚜 ' : x.art === 'ernter' ? '🌾 ' : '🔧 ') + x.name); });
-    D.FRUECHTE.forEach(x => { if (x.lvl === level) neu.push('🌱 ' + x.name); });
-    D.FELDER.forEach(x => { if (x.lvl === level) neu.push('🏞 ' + x.name + ' (zu kaufen)'); });
-    D.PRODUKTION.forEach(x => { if (x.lvl === level) neu.push(x.icon + ' ' + x.name); });
-    D.FAHRER.forEach((x, i) => { if (x.lvl === level) neu.push('👨‍🌾 Fahrer Nr. ' + (i + 1)); });
-    D.TIERE.forEach(x => { if (x.lvl === level) neu.push(x.icon + ' ' + x.stall); });
-    D.WETTERSTATION.forEach(x => { if (x.lvl === level) neu.push('🌦 ' + x.name); });
-    if (level === D.BEREGNUNG_LVL) neu.push('💦 Beregnungsanlagen für Felder');
-    dlg = { typ: 'level' };
-    dialogAuf('<div class="f-kopf"><h2>🎉 Level ' + level + '!</h2><button class="f-x" data-a="zu">✕</button></div><div class="f-inhalt"><div class="f-info">Bonus: <b>+' + fmt(bonus) + ' €</b></div>' +
-      (neu.length ? '<div class="f-h3">Neu freigeschaltet</div><div class="f-info">' + neu.join('<br>') + '</div>' : '') + '<div class="f-btnreihe"><button class="f-kauf gruen" data-a="zu">Weiter</button></div></div>', true);
-    konfetti();
+  const HILFE = [
+    ['felder', 'Tipp aufs Feld. Gelb ist der nächste Schritt.'],
+    ['traktor', 'Maschinen fahren allein – auch wenn du weg bist.'],
+    ['ernten', 'Reif? Tipp auf die Sichel-Blase!'],
+    ['silo', 'Die Ernte kommt ins Lager. Verkaufen oder liefern!'],
+    ['lernen', 'Lernrunde: Wissen macht die Saat schneller.'],
+    ['pokal', 'Beim Pokal holst du Belohnungen ab.']
+  ];
+  const HILFE_MEHR = [
+    ['duengen', 'Düngen, Spritzen, Walzen: mehr Ernte.'],
+    ['betriebe', 'Betriebe machen aus Weizen Mehl und Brot.'],
+    ['tierhof', 'Tiere füttern, dann Eier und Milch einsammeln.'],
+    ['haendler', 'Beim Händler gibt es größere Maschinen und Fahrer.'],
+    ['sonnig', 'Regen lässt wachsen, Hitze bremst.'],
+    ['heute', 'Jeden Tag 3 Aufgaben. Pause? Serie bleibt.'],
+    ['level', 'Neues Level: neue Felder, Früchte, Maschinen.'],
+    ['auftrag', 'Aufträge zahlen mehr als der Markt.']
+  ];
+  function dialogHilfe() { dlg = { typ: 'hilfe', offen: {} }; zeichneHilfe(); }
+  function zeichneHilfe() {
+    const karte = x => '<div class="f-k f-hilfe-k">' + I(x[0], 0, 'f-hilfe-bild') + '<div>' + esc(x[1]) + '</div></div>';
+    let html = fuchsZeile('jubelt', 'Ich bin Fritz! Oben steht dein nächstes Ziel.', 84) + '<div class="f-raster f-hilfe">' + HILFE.map(karte).join('') + '</div>' +
+      '<div class="f-zeile2">' + mehrKnopf('hilfeMehr', 'Mehr Tipps') + '</div>';
+    if (offen('hilfeMehr')) html += '<div class="f-raster f-hilfe">' + HILFE_MEHR.map(karte).join('') + '</div>' +
+      infoBox('Am Anfang laufen die Arbeiten extra schnell – bis du deine erste Ernte verkauft hast.');
+    html += '<div class="f-hilfe-los">' + knopf({ a: 'zu', farbe: 'gelb', gross: true, text: 'Los geht\'s!' }) + '</div>';
+    rahmen({ art: 'mitte', ansicht: 'hilfe', kopf: kopfHtml({ icon: 'fragezeichen', stufe: 'blau', titel: 'So geht\'s', unter: 'Dein Hof in 6 Bildern' }), inhalt: html });
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Aktionen (Klicks)
+  // Aktionen (Klicks). Gedimmte Knoepfe (.fs-aus) sind antippbar und zeigen ihren Grund. 300 ms Doppeltipp-Sperre je Knopf.
   // ----------------------------------------------------------------------------------------------
   function klick(e) {
     const el = e.target.closest('[data-a]');
-    if (!el || el.disabled) return;
-    aktion(el.getAttribute('data-a'), el.getAttribute('data-id'));
+    if (!el || !wurzel || !wurzel.contains(el) || el.disabled) return;
+    const a = el.getAttribute('data-a'), id = el.getAttribute('data-id');
+    if (a !== 'tempoKlick' && a !== 'zoom+' && a !== 'zoom-' && gesperrt('k|' + a + '|' + (id || ''), 300)) return;
+    if (el.classList.contains('fs-aus') && el.hasAttribute('data-grund')) { toast(el.getAttribute('data-grund'), 'warn', 'grund', 'schloss'); piep('fehler'); return; }
+    aktion(a, id, el);
   }
-  function ergebnis(r, okText, typ) {
-    if (r && r.ok) { if (okText) toast(okText, typ || 'gut', 'erg'); piep('geld'); return true; }
+  function ergebnis(r, okText, typ, icon) {
+    if (r && r.ok) { if (okText) toast(okText, typ || 'gut', 'erg', icon); piep(typ === 'geld' ? 'geld' : 'fertig'); return true; }
     toast((r && r.grund) || 'Das geht gerade nicht.', 'warn', 'erg'); piep('fehler');
     return false;
   }
-  function aktion(a, id) {
+  function aktion(a, id, el) {
     const S = stand();
     switch (a) {
       case 'zu': return dialogZu();
-      case 'zoom+': cam.z *= 1.25; cam.ziel = null; return klemmen();
-      case 'zoom-': cam.z /= 1.25; cam.ziel = null; return klemmen();
+      case 'zoom+': { const fm = freieMitte(); schwung = null; cam.ziel = null; return zoomUm(1.25, fm.x, fm.y); }
+      case 'zoom-': { const fm = freieMitte(); schwung = null; cam.ziel = null; return zoomUm(1 / 1.25, fm.x, fm.y); }
       case 'felder': return dialogFelder();
       case 'auftraege': return dialogAuftraege();
       case 'lager': return dialogLager();
       case 'betriebe': return dialogBetriebe();
       case 'tiere': return dialogTiere();
-      case 'sammlung': return dialogSammlung();
+      case 'sammlung': return dialogSammlung(id || undefined);
       case 'tagTab': return dialogSammlung('heute');
-      case 'tagAbholen': { const r = M.tagAbholen(+id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' € Tagesaufgabe!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
-      case 'tagBonus': { const r = M.tagBonusAbholen(jetzt()); if (ergebnis(r, r.ok ? '🎁 Tagesbonus: +' + fmt(r.geld) + ' €' + (r.serie > 1 ? ' (Serie ' + r.serie + ' Tage 🔥)' : '') : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
-      case 'sammlungTab': dlg.tab = id; return zeichneSammlung();
-      case 'albumSeite': dlg.seite = id; return zeichneSammlung();
-      case 'erfAbholen': { const r = M.erfolgAbholen(id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' € abgeholt!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
-      case 'erfAlle': { let sum = 0; D.ERFOLGE.forEach(e => { const r = M.erfolgAbholen(e.id); if (r.ok) sum += r.geld; }); if (sum) { ergebnis({ ok: true }, '+' + fmt(sum) + ' € abgeholt!', 'geld'); zeichneSammlung(); speichern(); } return; }
-      case 'albumBonus': { const r = M.albumBonusAbholen(id); if (ergebnis(r, r.ok ? 'Seitenbonus: +' + fmt(r.geld) + ' €!' : '', 'geld')) { zeichneSammlung(); speichern(); } return; }
+      case 'tagAbholen': { const r = M.tagAbholen(+id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' Münzen!' : '', 'geld', 'heute')) { zeichneSammlung(); speichern(); } return; }
+      case 'tagBonus': { const r = M.tagBonusAbholen(jetzt()); if (ergebnis(r, r.ok ? 'Truhe: +' + fmt(r.geld) + ' Münzen!' : '', 'geld', 'geschenk')) { FS.konfetti(12); zeichneSammlung(); speichern(); } return; }
+      case 'sammlungTab': dlg.tab = id; dlg.karte = null; return zeichneSammlung();
+      case 'albumSeite': dlg.seite = id; dlg.karte = null; return zeichneSammlung();
+      case 'albumKarte': dlg.karte = id && dlg.karte !== id ? id : null; return zeichneSammlung();
+      case 'albumZu': toast((el && el.getAttribute('data-grund')) || 'Noch nicht gesammelt', '', 'grund', 'fragezeichen'); return;
+      case 'erfAbholen': { const r = M.erfolgAbholen(id); if (ergebnis(r, r.ok ? '+' + fmt(r.geld) + ' Münzen abgeholt!' : '', 'geld', 'pokal')) { zeichneSammlung(); speichern(); } return; }
+      case 'erfAlle': { let sum = 0; D.ERFOLGE.forEach(e => { const r = M.erfolgAbholen(e.id); if (r.ok) sum += r.geld; }); if (sum) { ergebnis({ ok: true }, '+' + fmt(sum) + ' Münzen abgeholt!', 'geld', 'pokal'); FS.konfetti(10); zeichneSammlung(); speichern(); } return; }
+      case 'albumBonus': { const r = M.albumBonusAbholen(id); if (ergebnis(r, r.ok ? 'Seitenbonus: +' + fmt(r.geld) + ' Münzen!' : '', 'geld', 'album')) { FS.konfetti(10); zeichneSammlung(); speichern(); } return; }
       case 'wetter': return dialogWetter();
-      case 'fuhrpark': return dialogFuhrpark();
+      case 'fuhrpark': merkeFeld(); return dialogShop('fuhrpark');
       case 'shop': return dialogShop(id || 'traktor');
       case 'menue': return dialogMenue();
       case 'hilfe': return dialogHilfe();
-      case 'hinweisZeigen': { const h = hinweisBerechnen(); if (h && h.feld) { const m = feldMitte(h.feld); fliegeZu(m.x, m.y, 0.85); } else if (h && h.tier) { const d = D.tier(h.tier); fliegeZu(d.haus.x + d.haus.w / 2, d.haus.y + 90, 0.8); } return; }
-      case 'tempoKlick': tempoKlicks++; if (tempoKlicks === 5) dialogMenue(); return;
-      case 'tempo': M.tempoSetzen(+id); toast('Zeitraffer ×' + id, 'gut', 'tempo'); return dialogMenue();
-      case 'ton': S.ton = !S.ton; if (S.ton) tonStart(); return dialogMenue();
-      case 'neu': bestaetigen('Wirklich alles löschen und neu anfangen?', () => { M.neu(jetzt()); M.simuliere(jetzt()); speichern(); dialogZu(); toast('Neuer Hof!', 'gut', 'neu'); }, 'Alles löschen'); return;
+      case 'chronik': return dialogChronik();
+      case 'auf': if (!dlg) return; dlg.offen = dlg.offen || {}; dlg.offen[id] = !dlg.offen[id]; return dialogAktualisieren(false);
+      case 'ziel': case 'hinweisZeigen': return zielAusfuehren();
+      case 'tempoKlick': tempoKlicks++; if (tempoKlicks === 5) zeichneMenue(); return;
+      case 'tempo': M.tempoSetzen(+id); toast('Zeitraffer ×' + id, 'gut', 'tempo', 'tempo'); return zeichneMenue();
+      case 'ton': S.ton = !S.ton; if (S.ton) tonStart(); return zeichneMenue();
+      case 'effekte': FS.effekteSetzen(!FS.effekteWenig()); FS.anwenden(wurzel); return zeichneMenue();
+      case 'neu': bestaetigen('Dann ist der ganze Hof weg. Wirklich alles löschen?', () => { M.neu(jetzt()); M.simuliere(jetzt()); speichern(); dialogZu(); geldLetzt = null; toast('Neuer Hof!', 'gut', 'neu'); }, 'Alles löschen', { titel: 'Neu anfangen?' }); return;
+      case 'levelZu': return levelZu();
+      case 'rundWeiter': return rundgangZeigen(rundgangSchritt + 1);
+      // ---- Feldkarte ----
+      case 'starte': if (dlg && dlg.typ === 'feld') starteSchritt(dlg.id, id); return;
+      case 'gefahr': {
+        if (!dlg || dlg.typ !== 'feld') return;
+        const f = S.felder[dlg.id], fid = dlg.id;
+        bestaetigen('Der Pflug macht alle Pflanzen auf dem Feld kaputt.', () => { if (dlg && dlg.typ === 'feld' && dlg.id === fid) starteSchritt(fid, 'pfluegen'); }, 'Ja, pflügen',
+          { titel: 'Achtung!', vorher: [f.frucht || 'spross', f.phase === 'reif' ? 'reif' : 'wächst'], nachher: ['boden', 'alles weg'], neinText: 'Nein, stopp!' });
+        return;
+      }
+      case 'kachel': if (!dlg || dlg.typ !== 'feld') return; dlg.fokus = id; dlg.info = false; return zeichneFeldDialog();
+      case 'erledigt': toast((el && el.getAttribute('data-grund')) || 'Schon erledigt!', 'gut', 'grund', 'haken'); return;
+      case 'fokusWeg': dlg.fokus = null; dlg.info = false; return zeichneFeldDialog();
+      case 'feldInfo': dlg.info = !dlg.info; return zeichneFeldDialog();
+      case 'mehr': dlg.mehr = !dlg.mehr; return zeichneFeldDialog();
+      case 'maschineAendern': { const h = dlg.haupt || {}; dlg.sub = h.art === 'saat' ? { schritt: 'saeen', wahl: true, von: 'karte', fokusVorher: dlg.fokus } : { schritt: h.schritt, fokusVorher: dlg.fokus }; dlg.info = false; return zeichneFeldDialog(); }
+      case 'saatMaschine': dlg.sub = { schritt: 'saeen', wahl: true, von: 'saat' }; dlg.info = false; return zeichneFeldDialog();
+      case 'nimm': {
+        const p = id.split(':'), s = dlg.sub;
+        dlg.manuell[s.schritt] = { geraet: +p[0] || null, traktor: +p[1] };
+        dlg.info = false;
+        if (s.von === 'saat') dlg.sub = { schritt: 'saeen' };
+        else { dlg.sub = null; dlg.fokus = s.fokusVorher !== undefined ? s.fokusVorher : null; }
+        toast('Maschine gewählt!', 'gut', 'erg', 'haken');
+        return zeichneFeldDialog();
+      }
+      case 'traktorWechsel': {
+        const o = M.optionen(dlg.id, dlg.sub.schritt, dlg.sub.frucht).find(x => String(x.geraet || x.traktor) === String(id));
+        const liste = o ? (o.traktoren || [o.traktor]) : [];
+        if (!liste.length) return;
+        let cur = dlg.wahl[id];
+        if (cur === undefined) { const w = besteWahl(dlg.id, dlg.sub.schritt, dlg.sub.frucht); cur = w && (w.geraet || 0) === (o.geraet || 0) ? Math.max(0, liste.indexOf(w.traktor)) : 0; }
+        dlg.wahl[id] = (cur + 1) % liste.length;
+        return zeichneFeldDialog();
+      }
+      case 'feldzurueck': {
+        const s = dlg.sub; dlg.info = false;
+        if (s && s.wahl && s.von === 'saat') dlg.sub = { schritt: 'saeen' };
+        else { dlg.sub = null; if (s && s.fokusVorher !== undefined) dlg.fokus = s.fokusVorher; }
+        return zeichneFeldDialog();
+      }
+      case 'saatwahl': dlg.sub = { schritt: 'saeen' }; dlg.info = false; return zeichneFeldDialog();
+      case 'saat': return saatGewaehlt(id);
+      case 'saatMehr': dlg.alleFr = !dlg.alleFr; return zeichneFeldDialog();
+      case 'zumHaendler': return zumHaendler(id);
+      case 'zumFeld': {
+        const r = dlg && dlg.rueck;
+        if (!r) return dialogZu();
+        dlg = null;
+        dialogFeld(r.id);
+        if (dlg && dlg.typ === 'feld') { dlg.sub = r.sub || null; dlg.manuell = r.manuell || {}; zeichneFeldDialog(); }
+        return;
+      }
       case 'lernStart': {
-        if (typeof FarmLernen === 'undefined' || !FarmLernen.verfuegbar()) { toast('Die Lernkarten gibt es nur am Tablet.', 'warn', 'lern'); return; }
+        if (typeof FarmLernen === 'undefined' || !FarmLernen.verfuegbar()) { toast('Lernkarten gibt es nur am Tablet.', 'warn', 'lern', 'lernen'); return; }
         const karten = FarmLernen.waehle(D.LERN_KARTEN);
-        if (!karten.length) { toast('Gerade sind keine Lernkarten da.', 'warn', 'lern'); return; }
+        if (!karten.length) { toast('Gerade sind keine Lernkarten da.', 'warn', 'lern', 'lernen'); return; }
+        dlg.info = false;
         dlg.lern = { karten, i: 0, auf: false, richtig: 0, gewusst: [], ergebnis: null }; return zeichneFeldDialog();
       }
-      case 'lernUm': dlg.lern.auf = true; return zeichneFeldDialog();
+      case 'lernUm': if (dlg.lern) dlg.lern.auf = true; return zeichneFeldDialog();
       case 'lernWeiss': case 'lernNicht': {
         const L = dlg.lern, ok = a === 'lernWeiss';
+        if (!L || L.ergebnis || !L.auf) return;
         FarmLernen.melde(L.karten[L.i], ok);
         L.gewusst[L.i] = ok; if (ok) L.richtig++;
         L.i++; L.auf = false;
-        if (L.i >= L.karten.length) { L.ergebnis = M.lernBeschleunigen(dlg.id, L.richtig, jetzt()); if (L.ergebnis && L.ergebnis.ok) { piep(L.richtig ? 'level' : 'fehler'); speichern(); } }
+        if (L.i >= L.karten.length) {
+          L.ergebnis = M.lernBeschleunigen(dlg.id, L.richtig, jetzt());
+          if (L.ergebnis && L.ergebnis.ok) { piep(L.richtig ? 'level' : 'fehler'); speichern(); if (L.richtig >= 4) FS.konfetti(10); }
+        }
         return zeichneFeldDialog();
       }
-      case 'lernAbbruch': dlg.lern = null; return zeichneFeldDialog();
-      case 'lernEnde': dlg.lern = null; return zeichneFeldDialog();
+      case 'lernAbbruch': case 'lernEnde': dlg.lern = null; zeichneFeldDialog(); levelNaechstes(); return;
       case 'confJa': { const fn = bestaetigenFn; bestaetigenFn = null; confZu(); if (fn) fn(); return; }
       case 'confNein': bestaetigenFn = null; confZu(); return;
       case 'fernNochmal': return fernStartVersuch();
       case 'beenden': return schliessen();
-      case 'feldzurueck': dlg.sub = (dlg.sub && dlg.sub.frucht && dlg.sub.schritt === 'saeen') ? { schritt: 'saeen' } : null; return zeichneFeldDialog();
-      case 'schritt': dlg.sub = { schritt: id }; return zeichneFeldDialog();
-      case 'saatwahl': dlg.sub = { schritt: 'saeen', frucht: id }; return zeichneFeldDialog();
-      case 'traktorWechsel': {
-        dlg.wahl[id] = (dlg.wahl[id] || 0) + 1;
-        const o = M.optionen(dlg.id, dlg.sub.schritt, dlg.sub.frucht).find(x => String(x.geraet || x.traktor) === String(id));
-        if (o && o.traktoren && dlg.wahl[id] >= o.traktoren.length) dlg.wahl[id] = 0;
-        return zeichneFeldDialog();
-      }
-      case 'start': {
-        const p = id.split(':');
-        const r = M.arbeitStarten(dlg.id, dlg.sub.schritt, { geraet: +p[0] || null, traktor: +p[1], frucht: dlg.sub.frucht }, jetzt());
-        if (ergebnis(r, 'Die Maschine fährt los!', 'gut')) { dlg.sub = null; zeichneFeldDialog(); speichern(); }
+      case 'jobAbbruch': {
+        const fid = dlg && dlg.id;
+        bestaetigen('Dann sind die Kosten weg. Das Feld bleibt, wie es ist.', () => { M.arbeitAbbrechen(+id); speichern(); if (dlg && dlg.typ === 'feld' && dlg.id === fid) { dlg.sub = null; zeichneFeldDialog(); } }, 'Abbrechen', { titel: 'Arbeit abbrechen?', neinText: 'Weiterarbeiten' });
         return;
       }
-      case 'jobAbbruch': bestaetigen('Arbeit wirklich abbrechen? Die Kosten sind weg.', () => { M.arbeitAbbrechen(+id); dlg.sub = null; zeichneFeldDialog(); }, 'Abbrechen'); return;
-      case 'autoAn': if (ergebnis(M.autoSetzen(dlg.id, id), 'Der Fahrer kümmert sich um die Routine auf dem Feld.')) zeichneFeldDialog(); return;
-      case 'autoAus': M.autoSetzen(dlg.id, null); return zeichneFeldDialog();
-      case 'zeigen': { const m = feldMitte(+id); dialogZu(); fliegeZu(m.x, m.y, 0.8); return; }
+      case 'autoAn': if (ergebnis(M.autoSetzen(dlg.id, id), 'Der Fahrer hilft jetzt hier!', 'gut', 'fahrer')) { zeichneFeldDialog(); speichern(); } return;
+      case 'autoAus': M.autoSetzen(dlg.id, null); zeichneFeldDialog(); speichern(); return;
+      case 'zeigen': {
+        const fid = +id;
+        if (istHochHandy() || !dlg || dlg.typ !== 'feld') { dialogZu(); const m = feldMitte(fid); fliegeZu(m.x, m.y, Math.max(cam.z, 0.8)); }
+        else fliegeZuFeld(fid, Math.max(cam.z, 0.8));
+        return;
+      }
       case 'feldoeffnen': return dialogFeld(+id);
-      case 'feldkauf': { const r = M.feldKaufen(+id); if (ergebnis(r, D.feld(+id).name + ' gehört jetzt dir!')) { dialogFeld(+id); speichern(); } return; }
-      case 'shoptab': dlg.tab = id; return zeichneShop();
-      case 'kaufen': { const r = M.maschineKaufen(id); if (ergebnis(r, D.def(id).name + ' gekauft – steht auf dem Hof.')) { zeichneShop(); speichern(); } return; }
-      case 'fahrerKauf': if (ergebnis(M.fahrerKaufen(), 'Fahrer eingestellt!')) { zeichneShop(); speichern(); } return;
-      case 'siloKauf': if (ergebnis(M.lagerAusbauen(), 'Das Silo ist größer!')) { zeichneShop(); speichern(); } return;
+      case 'feldkauf': { const r = M.feldKaufen(+id); if (ergebnis(r, D.feld(+id).name + ' gehört jetzt dir!', 'gut', 'felder')) { FS.konfetti(8); dialogFeld(+id); speichern(); } return; }
+      case 'beregnung': if (ergebnis(M.beregnungKaufen(dlg.id), 'Beregnung eingebaut!', 'gut', 'beregnung')) { dlg.fokus = null; zeichneFeldDialog(); speichern(); } return;
+      case 'shoptab': dlg.tab = id; dlg.info = null; return zeichneShop();
+      case 'mInfo': dlg.info = dlg.info === id ? null : id; return zeichneShop();
+      case 'kaufen': { const r = M.maschineKaufen(id); if (ergebnis(r, D.def(id).name + ' gekauft!', 'gut', maschinenIcon(D.def(id)))) { if (dlg && dlg.typ === 'shop' && dlg.rueck) dlg.gekauft = true; FS.konfetti(8); zeichneShop(); speichern(); } return; }
+      case 'fahrerKauf': if (ergebnis(M.fahrerKaufen(), 'Fahrer eingestellt!', 'gut', 'fahrer')) { zeichneShop(); speichern(); } return;
+      case 'siloKauf': if (ergebnis(M.lagerAusbauen(), 'Das Silo ist größer!', 'gut', 'silo')) { dialogAktualisieren(false); speichern(); } return;
       case 'verkauf': {
         const p = id.split(':'), had = S.silo[p[0]] || 0, kg = p[1] === 'half' ? had / 2 : had;
         const r = M.verkaufen(p[0], kg);
-        if (ergebnis(r, r.ok ? '+' + fmt(r.erloes) + ' € verkauft' : '', 'geld')) { zeichneLager(); speichern(); }
+        if (ergebnis(r, r.ok ? '+' + fmt(r.erloes) + ' Münzen verkauft' : '', 'geld')) { zeichneLager(); speichern(); }
         return;
       }
-      case 'liefern': { const r = M.auftragLiefern(+id); if (ergebnis(r, r.ok ? 'Auftrag erledigt: +' + fmt(r.lohn) + ' €' : '', 'geld')) { zeichneAuftraege(); speichern(); } return; }
-      case 'bauen': if (ergebnis(M.produktionBauen(id), 'Betrieb gebaut!')) { zeichneBetriebe(); speichern(); } return;
-      case 'prodAus': if (ergebnis(M.produktionAusbauen(id), 'Betrieb ausgebaut!')) { zeichneBetriebe(); speichern(); } return;
-      case 'prod': { const p = id.split(':'); const r = M.produktionStarten(p[0], p[1], +p[2], jetzt()); if (ergebnis(r, r.ok ? r.anzahl + '× in Produktion' : '', 'gut')) { zeichneBetriebe(); speichern(); } return; }
-      case 'beregnung': if (ergebnis(M.beregnungKaufen(dlg.id), 'Beregnungsanlage eingebaut!')) { zeichneFeldDialog(); speichern(); } return;
-      case 'stationKauf': if (ergebnis(M.wetterstationKaufen(), 'Wetterstation gebaut!')) { zeichneWetter(); speichern(); } return;
-      case 'stallBau': if (ergebnis(M.stallBauen(id), D.tier(id).stall + ' gebaut!')) { zeichneTiere(); speichern(); } return;
-      case 'tierKauf': { const p = id.split(':'); const r = M.tierKaufen(p[0], +p[1]); if (ergebnis(r, r.ok ? r.anzahl + '× ' + D.tier(p[0]).tier + ' gekauft' : '')) { zeichneTiere(); speichern(); } return; }
-      case 'stallAus': if (ergebnis(M.stallAusbauen(id), 'Stall ausgebaut!')) { zeichneTiere(); speichern(); } return;
-      case 'automat': if (ergebnis(M.automatKaufen(id), 'Futterautomat eingebaut!')) { zeichneTiere(); speichern(); } return;
-      case 'zukauf': { const p = id.split(':'); const r = M.zukaufen(p[0], +p[1], jetzt()); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(p[0]).name + ' gekauft (−' + fmt(r.kosten) + ' €)' : '', 'geld')) { zeichneLager(); speichern(); } return; }
-      case 'futterKauf': { const r = M.futterKaufen(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter gekauft (−' + fmt(r.kosten) + ' €)' : '', 'geld')) { zeichneTiere(); speichern(); } return; }
-      case 'fuettern': { const r = M.fuettern(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' Futter eingefüllt' : '', 'gut')) { zeichneTiere(); speichern(); } return; }
-      case 'einsammeln': { const r = M.einsammeln(id); if (ergebnis(r, r.ok ? tonnen(r.kg) + ' ' + D.gut(r.gut).name + ' im Lager' + (r.ueber > 1 ? ' (Silo voll: Rest verkauft)' : '') : '', 'geld')) { zeichneTiere(); speichern(); } return; }
-      case 'reparieren': if (ergebnis(M.maschineReparieren(+id), 'Repariert!')) zeichneFuhrpark(); return;
-      case 'mverkauf': bestaetigen('Maschine wirklich verkaufen?', () => { if (ergebnis(M.maschineVerkaufen(+id), 'Verkauft.', 'geld')) zeichneFuhrpark(); }, 'Verkaufen'); return;
+      case 'liefern': { const r = M.auftragLiefern(+id); if (ergebnis(r, r.ok ? 'Geliefert! +' + fmt(r.lohn) + ' Münzen' : '', 'geld', 'lkw')) { zeichneAuftraege(); speichern(); } return; }
+      case 'alleLiefern': {
+        const ids = S.auftraege.filter(x => (S.silo[x.gut] || 0) >= x.kg).map(x => x.id);
+        let sum = 0, n = 0;
+        ids.forEach(i => { const r = M.auftragLiefern(i); if (r && r.ok) { sum += r.lohn; n++; } });
+        if (n) { ergebnis({ ok: true }, n + ' geliefert! +' + fmt(sum) + ' Münzen', 'geld', 'lkw'); FS.konfetti(8); }
+        else ergebnis({ ok: false, grund: 'Im Lager fehlt noch etwas.' });
+        zeichneAuftraege(); speichern();
+        return;
+      }
+      case 'anbauen': return anbauen(id);
+      case 'holen': return wegZuGut(id);
+      case 'zumTier': return dialogTiere(id);
+      case 'herstellen': return dialogBetriebe(id);
+      case 'bauen': if (ergebnis(M.produktionBauen(id), D.betrieb(id).name + ' gebaut!', 'gut', id)) { FS.konfetti(8); zeichneBetriebe(); speichern(); } return;
+      case 'prodAus': if (ergebnis(M.produktionAusbauen(id), 'Betrieb ausgebaut!', 'gut', id)) { zeichneBetriebe(); speichern(); } return;
+      case 'prod': { const p = id.split(':'); const r = M.produktionStarten(p[0], p[1], +p[2], jetzt()); if (ergebnis(r, r.ok ? r.anzahl + '× ' + D.gut(p[1]).name + ' in Arbeit' : '', 'gut', p[1])) { zeichneBetriebe(); speichern(); } return; }
+      case 'stationKauf': if (ergebnis(M.wetterstationKaufen(), 'Wetterstation gebaut!', 'gut', 'wetterstation')) { zeichneWetter(); speichern(); } return;
+      case 'stallBau': if (ergebnis(M.stallBauen(id), D.tier(id).stall + ' gebaut!', 'gut', id)) { FS.konfetti(8); zeichneTiere(); speichern(); } return;
+      case 'tierKauf': { const p = id.split(':'); const r = M.tierKaufen(p[0], +p[1]); if (ergebnis(r, r.ok ? r.anzahl + ' ' + (r.anzahl === 1 ? D.tier(p[0]).tier : D.tier(p[0]).name) + ' gekauft!' : '', 'gut', p[0])) { zeichneTiere(); speichern(); } return; }
+      case 'stallAus': if (ergebnis(M.stallAusbauen(id), 'Stall ausgebaut!', 'gut', id)) { zeichneTiere(); speichern(); } return;
+      case 'automat': if (ergebnis(M.automatKaufen(id), 'Futterautomat eingebaut!', 'gut', 'futter')) { zeichneTiere(); speichern(); } return;
+      case 'zukauf': { const p = id.split(':'); const r = M.zukaufen(p[0], +p[1], jetzt()); if (ergebnis(r, r.ok ? menge(r.kg) + ' ' + D.gut(p[0]).name + ' gekauft' : '', 'gut', p[0])) { dialogAktualisieren(false); speichern(); } return; }
+      case 'futterKauf': { const r = M.futterKaufen(id); if (ergebnis(r, r.ok ? menge(r.kg) + ' Futter gekauft' : '', 'gut', 'futter')) { zeichneTiere(); speichern(); } return; }
+      case 'fuettern': return fuetternMitEffekt(id, letzterTipp ? { x: letzterTipp.x, y: letzterTipp.y } : null);
+      case 'einsammeln': return einsammelnMitEffekt(id, letzterTipp ? { x: letzterTipp.x, y: letzterTipp.y } : null);
+      case 'reparieren': if (ergebnis(M.maschineReparieren(+id), 'Repariert – wie neu!', 'gut', 'reparieren')) { zeichneShop(); speichern(); } return;
+      case 'mverkauf': {
+        const m = M.maschine(+id);
+        if (!m) return;
+        const d = D.def(m.id);
+        bestaetigen('Dann ist ' + d.name + ' weg.', () => { if (ergebnis(M.maschineVerkaufen(+id), d.name + ' verkauft.', 'geld')) { dialogAktualisieren(false); speichern(); } }, 'Verkaufen',
+          { titel: 'Verkaufen?', vorher: [maschinenIcon(d), d.name], nachher: ['muenze', '+' + fmt(M.verkaufswert(m))], neinText: 'Behalten' });
+        return;
+      }
+
       default: return;
     }
   }
   function taste(e) {
     if (!wurzel) return;
-    const k = e.key.toLowerCase();
-    if (k === 'escape') { if (dlg) dialogZu(); else dialogMenue(); }
+    const k = (e.key || '').toLowerCase();
+    if (k === 'escape') { if (wurzel.querySelector('#f-conf')) aktion('confNein'); else if (levelOffen) levelZu(); else if (dlg) dialogZu(); else dialogMenue(); }
     else if (k === '+' || k === '=') aktion('zoom+');
     else if (k === '-') aktion('zoom-');
     else if (!dlg && (k === 'arrowleft' || k === 'a')) { cam.x -= 60 / cam.z; klemmen(); }
@@ -1061,112 +2595,198 @@ const Farm = (function () {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Hinweise (naechster sinnvoller Schritt)
+  // Ziel-Logik (naechster sinnvoller Schritt, Fuchs-Banner). Reihenfolge laut SPEC:
+  // reif > Belohnung > Auftrag lieferbar > Feld braucht Arbeit/Saat > Tiere > Betrieb leer > Maschine kaputt > Lohn offen >
+  // Lager fast voll > Feld kaufbar > sonst Lernrunde / laufende Arbeit / Lob
   // ----------------------------------------------------------------------------------------------
   function hinweisBerechnen() {
     const S = stand(), now = jetzt();
+    if (!S) return null;
     const felder = Object.keys(S.felder).map(Number);
-    for (const id of felder) { const f = S.felder[id]; if (!M.jobAufFeld(id) && f.phase === 'reif') return { t: D.feld(id).name + ' ist erntereif – tippe darauf zum Ernten!', feld: id }; }
+    const fn = id => D.feld(id).name;
+    for (const id of felder) { if (!M.jobAufFeld(id) && S.felder[id].phase === 'reif') return { t: fn(id) + ' ist reif – ernten!', pose: 'zeigt', feld: id, art: 'reif' }; }
+    const abh = M.abholbar();
+    if (abh) return { t: abh === 1 ? 'Belohnung abholen!' : 'Belohnungen abholen!', pose: 'jubelt', dialog: 'sammlung', art: 'belohnung' };
+    const lf = S.auftraege.filter(x => (S.silo[x.gut] || 0) >= x.kg).length;
+    if (lf) return { t: lf === 1 ? 'Auftrag liefern!' : lf + ' Aufträge liefern!', pose: 'zeigt', dialog: 'auftraege', art: 'auftrag' };
     for (const id of felder) {
       const f = S.felder[id];
       if (M.jobAufFeld(id)) continue;
-      if (f.phase === 'stoppel' && !f.auto) return { t: S.statistik.jobs === 0 ? 'Tippe auf dein Feld und starte das Grubbern.' : D.feld(id).name + ' wartet auf Bearbeitung – tippe darauf.', feld: id };
-      if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') return { t: D.feld(id).name + ' ist bereit zum Säen – tippe darauf.', feld: id };
+      if (f.phase === 'stoppel' && !f.auto) return { t: S.statistik.jobs === 0 ? 'Tipp aufs Feld und grubbere es!' : fn(id) + ' grubbern!', pose: 'zeigt', feld: id, art: 'arbeit' };
+      if (f.phase === 'bearbeitet' || f.phase === 'gepfluegt') return { t: fn(id) + ': jetzt säen!', pose: 'zeigt', feld: id, art: 'saat' };
     }
     for (const d of D.TIERE) {
       const st = S.tiere[d.id];
       if (!st || !st.anzahl) continue;
       const ss = M.stallStand(d.id, now);
-      if (d.futterKgH && !ss.laeuft) return { t: d.icon + ' ' + d.name + ' haben kein Futter mehr – ' + (ss.futterSilo ? 'füttere sie im 🐔 Tierhof.' : 'im Silo fehlt ' + d.futter.map(g => D.gut(g).name).join(' oder ') + ': ernte welches oder kaufe Futter im 🐔 Tierhof.'), feld: null, tier: d.id };
-      if (ss.lagerKap > 0 && st.lager >= ss.lagerKap * 0.8) return { t: d.icon + ' ' + D.gut(d.gut).name + ' sind bereit – im 🐔 Tierhof einsammeln!', feld: null, tier: d.id };
+      if (d.futterKgH && !ss.laeuft) return { t: d.name + ' haben Hunger – füttern!', pose: 'gruebelt', tier: d.id, art: 'futter' };
+      if (ss.lagerKap > 0 && st.lager >= ss.lagerKap * 0.8) return { t: D.gut(d.gut).name + ' einsammeln!', pose: 'zeigt', tier: d.id, art: 'einsammeln' };
     }
-    if (M.lagerMenge() > M.siloKap() * 0.85) return { t: 'Das Lager ist fast voll – verkaufe etwas im 📦 Lager.', feld: null };
-    if (S.jobs.length) {
-      const j = S.jobs[0], st = M.jobStand(j, now);
-      return { t: D.SCHRITTE[j.schritt].name + ' auf ' + D.feld(j.feld).name + ' – noch ' + A.zeitText(st.restMs) + '.', feld: j.feld };
-    }
-    const w = felder.filter(id => S.felder[id].phase === 'waechst');
-    if (w.length) {
-      const id = w.sort((a, b) => M.restWachsen(a, now) - M.restWachsen(b, now))[0];
-      return { t: D.feld(id).name + ' wächst – noch ' + A.zeitText(M.restWachsen(id, now)) + '. Düngen bringt mehr Ertrag!', feld: id };
-    }
+    for (const b of D.PRODUKTION) { const p = S.produktion[b.id]; if (p && !p.queue.length) return { t: b.name + ' hat nichts zu tun.', pose: 'gruebelt', betrieb: b.id, art: 'betrieb' }; }
+    const kaputt = S.flotte.find(m => !m.job && m.zustand < 15);
+    if (kaputt) return { t: D.def(kaputt.id).name + ' ist kaputt – reparieren!', pose: 'gruebelt', dialog: 'fuhrpark', art: 'kaputt' };
+    if (S.lohnOffen > 0) return { t: 'Fahrer warten auf Lohn.', pose: 'gruebelt', dialog: 'shop', tab: 'fahrer', art: 'lohn' };
+    if (M.lagerMenge() > M.siloKap() * 0.85) return { t: 'Lager fast voll – verkaufen!', pose: 'zeigt', dialog: 'lager', art: 'lager' };
     const nf = D.FELDER.find(d => !S.felder[d.id] && S.level >= d.lvl);
-    if (nf && S.geld >= nf.preis) return { t: 'Du kannst ' + nf.name + ' kaufen – tippe auf das Feld!', feld: nf.id };
-    return null;
+    if (nf && S.geld >= nf.preis) return { t: nf.name + ' kaufen?', pose: 'zeigt', feld: nf.id, art: 'kauf' };
+    const w = felder.filter(id => S.felder[id].phase === 'waechst' && !M.jobAufFeld(id));
+    const lernFeld = w.find(id => lernMoeglich(S.felder[id], now).ok);
+    if (lernFeld) return { t: 'Lernen macht ' + fn(lernFeld) + ' schneller!', pose: 'zeigt', feld: lernFeld, art: 'lern' };
+    if (S.jobs.length) { const j = S.jobs[0], st = M.jobStand(j, now); return { t: SCHRITT_KURZ[j.schritt] + ' läuft – ' + (st.teil === 'rueck' ? 'gleich fertig' : 'noch ' + grob(st.restMs)), pose: 'neutral', feld: j.feld, art: 'warten' }; }
+    if (w.length) { const id = w.sort((a, b) => M.restWachsen(a, now) - M.restWachsen(b, now))[0]; return { t: fn(id) + ' wächst – noch ' + grob(M.restWachsen(id, now)), pose: 'neutral', feld: id, art: 'warten' }; }
+    return { t: 'Alles läuft! Schau dir das Album an.', pose: 'jubelt', dialog: 'sammlung', tab: 'album', art: 'lob' };
+  }
+  // Tipp aufs Ziel: Kamera fliegt hin UND der passende Dialog oeffnet sich (die Feldkarte zeigt die Hauptaktion gelb)
+  function zielAusfuehren() {
+    const h = hinweisBerechnen();
+    if (!h) return;
+    if (h.feld) { dialogFeld(h.feld); if (h.art === 'lern' && dlg && dlg.typ === 'feld') { dlg.fokus = null; zeichneFeldDialog(); } fliegeZuFeld(h.feld, Math.max(0.8, cam.z)); return; }
+    if (h.tier) { const d = D.tier(h.tier); fliegeZuPunkt(d.haus.x + d.haus.w / 2, d.haus.y + 90, 0.8); return dialogTiere(h.tier); }
+    if (h.betrieb) { const b = D.betrieb(h.betrieb); fliegeZuPunkt(b.x + b.w / 2, b.y + b.h / 2, 0.8); return dialogBetriebe(h.betrieb); }
+    if (h.dialog === 'sammlung') {
+      const S = stand();
+      let tab = h.tab || 'heute';
+      if (!h.tab) {
+        const tagC = S.tag && (S.tag.aufgaben.some(q => q.fertig && !q.abgeholt) || (S.tag.alle && !S.tag.bonusAbgeholt));
+        const erfC = D.ERFOLGE.some(e => { const r = S.erfolge[e.id]; return r && r.erreicht > r.abgeholt; });
+        tab = tagC ? 'heute' : erfC ? 'erfolge' : 'album';
+      }
+      return dialogSammlung(tab);
+    }
+    if (h.dialog === 'auftraege') return dialogAuftraege();
+    if (h.dialog === 'fuhrpark') return dialogFuhrpark();
+    if (h.dialog === 'lager') return dialogLager();
+    if (h.dialog === 'shop') return dialogShop(h.tab || 'traktor');
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Ereignisse aus der Logik
+  // Ereignisse aus der Logik (Toasts: Icon + max. 8 Woerter)
   // ----------------------------------------------------------------------------------------------
+  const WETTER_KURZ = { sonnig: 'Bestes Arbeitswetter', bewoelkt: 'Ganz normales Wetter', regen: 'Pflanzen wachsen schneller', gewitter: 'Arbeit geht zäh voran', hitze: 'Pflanzen wachsen langsamer', nebel: 'Arbeit dauert etwas länger', schnee: 'Es wächst kaum etwas' };
   function ereignisBehandeln(art, d) {
     if (!wurzel) return;
     if (typeof FarmMeldung !== 'undefined' && FarmMeldung.ereignis(art, d, stand().ton)) return;
-    if (art === 'jobFertig') { toast(D.feld(d.job.feld).name + ': ' + D.SCHRITTE[d.job.schritt].name + ' fertig', 'gut', 'jf' + d.job.id); piep('fertig'); }
-    else if (art === 'reif') { toast(D.feld(d.feld).name + ' ist erntereif! 🌾', 'gut', 'reif' + d.feld); piep('fertig'); }
-    else if (art === 'ernte') toast(D.feld(d.feld).name + ': ' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + ' geerntet' + (d.ueber > 1 ? ' (Silo voll: ' + tonnen(d.ueber) + ' verkauft)' : ''), 'geld', 'ernte' + d.feld);
-    else if (art === 'level') { piep('level'); if (dlg && dlg.typ !== 'level') levelWarte.push({ level: d.level, bonus: d.bonus }); else dialogLevel(d.level, d.bonus); }
-    else if (art === 'prodFertig') { toast(D.betrieb(d.betrieb).name + ': ' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + ' fertig', 'gut', 'pf' + d.betrieb); piep('fertig'); }
-    else if (art === 'auftragNeu') toast('Neuer Auftrag: ' + tonnen(d.auftrag.kg) + ' ' + D.gut(d.auftrag.gut).name, '', 'an');
-    else if (art === 'anfangEnde') toast('Anfangsbonus vorbei – ab jetzt dauern Arbeiten so lange wie auf einem echten Hof!', '', 'ae');
-    else if (art === 'wetter') { const x = D.WETTER[d.typ]; toast(x.icon + ' ' + x.name + ' – ' + x.text, '', 'wetter'); }
-    else if (art === 'stallVoll') toast(D.tier(d.id).icon + ' ' + D.tier(d.id).stall + ' ist voll – einsammeln!', 'geld', 'sv' + d.id);
+    if (art === 'jobFertig') { toast(D.feld(d.job.feld).name + ': ' + SCHRITT_KURZ[d.job.schritt] + ' fertig!', 'gut', 'jf' + d.job.id, d.job.schritt); piep('fertig'); }
+    else if (art === 'reif') { const f = stand().felder[d.feld]; toast(D.feld(d.feld).name + ' ist reif!', 'geld', 'reif' + d.feld, f && f.frucht ? f.frucht : 'reif'); piep('fertig'); }
+    else if (art === 'ernte') {
+      toast('+' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + (d.ueber > 1 ? ' – Silo voll, Rest verkauft' : ' im Silo'), 'geld', 'ernte' + d.feld, d.gut);
+      const m = feldMitte(d.feld), s = weltZuBildschirm(m.x, m.y);
+      if (s.x > 0 && s.x < W && s.y > 0 && s.y < H) { const r = wurzel.getBoundingClientRect(); iconFlug(d.gut, { x: s.x + r.left, y: s.y + r.top }, R.dockLager, 6); }
+    }
+    else if (art === 'level') levelZeigen(d.level, d.bonus);
+    else if (art === 'prodFertig') { toast(D.betrieb(d.betrieb).name + ': ' + tonnen(d.kg) + ' ' + D.gut(d.gut).name + ' fertig', 'gut', 'pf' + d.betrieb, d.gut); piep('fertig'); }
+    else if (art === 'auftragNeu') toast('Neuer Auftrag: ' + tonnen(d.auftrag.kg) + ' ' + D.gut(d.auftrag.gut).name, '', 'an', 'auftrag');
+    else if (art === 'anfangEnde') toast('Ab jetzt dauert alles wie echt!', '', 'ae', 'uhr');
+    else if (art === 'wetter') { const x = D.WETTER[d.typ]; toast(x.name + ': ' + (WETTER_KURZ[d.typ] || x.text), '', 'wetter', d.typ); }
+    else if (art === 'stallVoll') toast(D.tier(d.id).stall + ' ist voll – einsammeln!', 'geld', 'sv' + d.id, d.id);
     else if (art === 'erfolg') {
       const n = d.neu;
-      if (n.length === 1) toast('🏆 Erfolg: ' + n[0].name + ' (Stufe ' + n[0].stufe + ' von ' + n[0].von + ') – Belohnung unter 🏆 abholen!', 'geld', 'erfolg');
-      else toast('🏆 ' + n.length + ' neue Erfolge – Belohnungen unter 🏆 abholen!', 'geld', 'erfolg');
+      if (n.length === 1) toast('Neuer Erfolg: ' + n[0].name + '!', 'geld', 'erfolg', 'pokal');
+      else toast(n.length + ' neue Erfolge – beim Pokal abholen!', 'geld', 'erfolg', 'pokal');
       piep('level');
     }
-    else if (art === 'tagNeu') toast('📅 Neue Tagesaufgaben warten auf dich!', '', 'tagneu');
-    else if (art === 'tagFertig') { toast('📅 Tagesaufgabe geschafft – unter 📅 abholen!', 'geld', 'tagf'); piep('fertig'); }
-    else if (art === 'tagAlle') { toast('🎉 Alle Tagesaufgaben geschafft – hol dir den Tagesbonus!' + (d.serie > 1 ? ' Serie: ' + d.serie + ' Tage 🔥' : ''), 'geld', 'taga'); piep('level'); }
+    else if (art === 'tagNeu') toast('Neue Tagesaufgaben warten!', '', 'tagneu', 'heute');
+    else if (art === 'tagFertig') { toast('Tagesaufgabe geschafft – abholen!', 'geld', 'tagf', 'heute'); piep('fertig'); }
+    else if (art === 'tagAlle') { toast('Alle geschafft – Tagesbonus abholen!', 'geld', 'taga', 'geschenk'); piep('level'); }
     else if (art === 'karte') {
       const seite = D.ALBUM.find(a => a.kat === d.kat);
       const k = seite && seite.karten().find(x => x.id === d.id);
-      if (k) { toast('📖 Neue Albumkarte: ' + k.name, 'gut', 'karte' + d.kat); piep('fertig'); }
+      if (k) { toast('Neue Albumkarte: ' + k.name, 'gut', 'karte' + d.kat, 'album'); piep('fertig'); }
     }
-    else if (art === 'lohn') toast('👨‍🌾 Lohn ' + (d.nachgezahlt ? 'nachgezahlt' : 'für ' + d.fahrer + ' Fahrer') + ': −' + fmt(d.betrag) + ' €', 'geld', 'lohn');
-    else if (art === 'lohnFehlt') toast('👨‍🌾 Kein Geld für den Lohn (' + fmt(d.betrag) + ' €) – die Fahrer streiken, bis er bezahlt ist!', 'warn', 'lohnfehlt');
-    else if (art === 'umgebrochen') toast(D.feld(d.feld).name + ': Der Pflug hat die Pflanzen umgebrochen.', 'warn', 'ub');
+    else if (art === 'lohn') toast('Lohn ' + (d.nachgezahlt ? 'nachgezahlt' : 'bezahlt') + ': −' + fmt(d.betrag), 'geld', 'lohn', 'lohn');
+    else if (art === 'lohnFehlt') toast('Kein Geld für Lohn – Fahrer streiken!', 'warn', 'lohnfehlt', 'lohn');
+    else if (art === 'umgebrochen') toast(D.feld(d.feld).name + ': Pflanzen umgepflügt.', 'warn', 'ub', 'gefahr');
+  }
+
+  // ----------------------------------------------------------------------------------------------
+  // HUD (feste Elemente; nur Text/Ring/Badges werden aktualisiert)
+  // ----------------------------------------------------------------------------------------------
+  let hudCache = {};
+  let geldAufgeschoben = 0;
+  function setzeText(el, key, txt) { if (el && hudCache[key] !== txt) { hudCache[key] = txt; el.textContent = txt; } }
+  function setzeHtml(el, key, html) { if (el && hudCache[key] !== html) { hudCache[key] = html; el.innerHTML = html; } }
+  function zeige(el, an) { if (el) { const v = an ? '' : 'none'; if (el.style.display !== v) el.style.display = v; } }
+  function badge(el, n, text) { if (!el) return; zeige(el, !!n); if (n) setzeText(el, el.id, text !== undefined ? text : String(n)); }
+  // Geld, das (z. B. waehrend des Level-Ups) zurueckgehalten wurde, jetzt einfliegen lassen
+  function geldNachholen(von) {
+    if (geldAufgeschoben <= 0) return;
+    const x = geldAufgeschoben; geldAufgeschoben = 0;
+    geldEffekt(x, von);
+  }
+  function hudAktualisieren(dt) {
+    const S = stand();
+    if (geldLetzt === null) { geldLetzt = S.geld; geldAnzeige = S.geld; geldUnterwegs = 0; geldAufgeschoben = 0; }
+    const dg = S.geld - geldLetzt;
+    geldLetzt = S.geld;
+    if (dg >= 100) { if (geldHalten) geldAufgeschoben += dg; else geldEffekt(dg); }
+    const ziel = S.geld - geldUnterwegs - geldAufgeschoben;
+    geldAnzeige += (ziel - geldAnzeige) * Math.min(1, dt * 9);
+    if (Math.abs(ziel - geldAnzeige) < 1) geldAnzeige = ziel;
+    setzeText(R.geldZahl, 'geld', fmt(geldAnzeige));
+    timer.hud -= dt;
+    if (timer.hud > 0) return;
+    timer.hud = 0.3;
+    const now = jetzt();
+    // Level-Abzeichen (Stern + XP-Ring + Zahl)
+    const handy = istHandy();
+    const xpA = S.xp / D.xpFuerLevel(S.level);
+    const lk = S.level + '|' + handy;
+    if (hudCache.lvl !== lk) { hudCache.lvl = lk; R.lvl.innerHTML = FS.levelAbzeichen(S.level, xpA, handy ? 60 : 96); }
+    else FS.ringSetzen(R.lvl.firstChild, xpA);
+    // Wetter
+    const wt = M.wetter(now);
+    setzeHtml(R.wetter, 'wetter', I(wt.id) + esc(wt.name));
+    M.wetterGesehen(wt.id);
+    // Heute n/3 (+ Serie)
+    const tg = S.tag;
+    if (tg) {
+      const fertig = tg.aufgaben.filter(q => q.fertig).length, cl = tg.aufgaben.some(q => q.fertig && !q.abgeholt) || (tg.alle && !tg.bonusAbgeholt);
+      const serie = M.serieAktuell(now);
+      setzeHtml(R.tag, 'tag', I(cl ? 'geschenk' : 'heute') + 'Heute <b>' + fertig + '/' + tg.aufgaben.length + '</b>' + (serie > 1 ? '<b>' + I('serie') + serie + '</b>' : ''));
+      if (R.tag.classList.contains('fs-gruen') !== !!cl) R.tag.classList.toggle('fs-gruen', !!cl);
+    }
+    // Schule n/N (nur wenn Lern-App-Meldungen da sind; Papa-Handy laedt FarmLernen/FarmMeldung nicht)
+    let plan = [];
+    if (typeof FarmMeldung !== 'undefined' && typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) { try { plan = FarmLernen.tagesplan() || []; } catch (e) { plan = []; } }
+    zeige(R.schule, plan.length > 0);
+    if (plan.length) { const ok = plan.filter(x => x.fertig).length; setzeHtml(R.schule, 'schule', I('schule') + 'Schule <b>' + ok + '/' + plan.length + '</b>'); }
+    // Gemeinsamer Hof: offline-Hinweis + "Papa/Max ist da"
+    if (fern) {
+      zeige(R.offline, !fern.ok);
+      const anderer = fern.von === 'papa' ? 'max' : 'papa';
+      const da = fern.ok && fern.online[anderer];
+      zeige(R.mit, !!da);
+      if (da) setzeHtml(R.mit, 'mit', I('papa') + (anderer === 'papa' ? 'Papa' : 'Max') + ' ist da <i class="fs-punkt"></i>');
+    } else { zeige(R.offline, false); zeige(R.mit, false); }
+    // Badges: Pokal (abholbar), Auftraege (lieferbar), Tierhof (braucht etwas), Betriebe (leer), Lager (fast voll)
+    badge(R.pktErf, M.abholbar());
+    badge(R.pktAuf, S.auftraege.filter(a => (S.silo[a.gut] || 0) >= a.kg).length);
+    let tiereN = 0;
+    D.TIERE.forEach(d => { const st = S.tiere[d.id]; if (!st || !st.anzahl) return; const ss = M.stallStand(d.id, now); if ((d.futterKgH && !ss.laeuft) || (ss.lagerKap > 0 && st.lager >= ss.lagerKap * 0.8)) tiereN++; });
+    badge(R.pktTiere, tiereN, '!');
+    badge(R.pktBetr, D.PRODUKTION.filter(b => S.produktion[b.id] && !S.produktion[b.id].queue.length).length);
+    badge(R.pktLager, M.lagerMenge() > M.siloKap() * 0.85 ? 1 : 0, '!');
+    // Ziel-Banner mit Fuchs
+    zielSetzen(hinweisBerechnen());
+  }
+  function zielSetzen(h) {
+    const hat = h ? '1' : '0';
+    if (R.zielPlatz.getAttribute('data-hat') !== hat) { R.zielPlatz.setAttribute('data-hat', hat); zoneAktualisieren(); }
+    if (!h) return;
+    setzeText(R.zielSatz, 'zielT', h.t);
+    const art = (h.art || '') + '|' + (h.feld || h.tier || h.betrieb || h.dialog || '');
+    if (hudCache.zielArt !== art) {
+      const erstes = hudCache.zielArt === undefined;
+      hudCache.zielArt = art;
+      if (!erstes && !FS.effekteWenig()) { R.ziel.classList.remove('f-ziel-neu'); void R.ziel.offsetWidth; R.ziel.classList.add('f-ziel-neu'); }
+    }
+    const pk = h.pose + '|' + istHandy();
+    if (hudCache.zielPose !== pk) { hudCache.zielPose = pk; R.zielFuchs.innerHTML = FS.fuchs(h.pose, istHandy() ? 94 : 110, true); }
   }
 
   // ----------------------------------------------------------------------------------------------
   // Hauptschleife
   // ----------------------------------------------------------------------------------------------
-  function hudAktualisieren(dt) {
-    const S = stand();
-    if (geldLetzt != null && S.geld - geldLetzt >= 100) geldEffekt(S.geld - geldLetzt);
-    geldLetzt = S.geld;
-    geldAnzeige += (S.geld - geldAnzeige) * Math.min(1, dt * 8);
-    if (Math.abs(S.geld - geldAnzeige) < 1) geldAnzeige = S.geld;
-    R.geld.textContent = fmt(geldAnzeige) + ' €';
-    timer.hud -= dt;
-    if (timer.hud > 0) return;
-    timer.hud = 0.3;
-    R.lvl.textContent = 'Level ' + S.level;
-    const wt = M.wetter(jetzt());
-    R.wetter.textContent = wt.icon + ' ' + wt.name;
-    M.wetterGesehen(wt.id);
-    if (fern) {
-      R.offline.style.display = fern.ok ? 'none' : 'block';
-      const anderer = fern.von === 'papa' ? 'max' : 'papa';
-      const da = fern.ok && fern.online[anderer];
-      R.mit.style.display = da ? '' : 'none';
-      if (da) R.mit.textContent = (anderer === 'papa' ? '👨 Papa' : '👦 Max') + ' spielt mit';
-    }
-    const tg = stand().tag;
-    if (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan && R.schule) {
-      const pl = FarmLernen.tagesplan();
-      if (pl.length) { const ok = pl.filter(x => x.fertig).length; R.schule.style.display = ''; R.schule.textContent = '📚 Schule ' + ok + '/' + pl.length; R.schule.style.color = ok === pl.length ? '#9ff0a8' : ''; }
-    }
-    if (tg) { const fn = tg.aufgaben.filter(q => q.fertig).length, cl = tg.aufgaben.some(q => q.fertig && !q.abgeholt) || (tg.alle && !tg.bonusAbgeholt); R.tag.textContent = '📅 ' + fn + '/' + tg.aufgaben.length + (cl ? ' 🎁' : ''); R.tag.style.color = cl ? '#ffe27a' : ''; }
-    const abh = M.abholbar();
-    R.pktErf.style.display = abh ? 'flex' : 'none'; R.pktErf.textContent = abh;
-    R.xp.style.width = Math.round(S.xp / D.xpFuerLevel(S.level) * 100) + '%';
-    const h = hinweisBerechnen();
-    if (h && !dlg) { R.hinweis.classList.remove('leer'); R.hinweisT.textContent = h.t; } else R.hinweis.classList.add('leer');
-    const n = S.auftraege.filter(a => (S.silo[a.gut] || 0) >= a.kg).length;
-    R.pktAuf.style.display = n ? 'flex' : 'none'; R.pktAuf.textContent = n;
-  }
   function frame(ts) {
     if (!laeuft) return;
     raf = requestAnimationFrame(frame);
@@ -1186,6 +2806,7 @@ const Farm = (function () {
       const mitspieler = fern.online[fern.von === 'papa' ? 'max' : 'papa'];
       if (timer.poll >= (mitspieler ? 1.5 : 4)) { timer.poll = 0; fernPoll(); }
     }
+    nachlauf(dt);
     if (cam.ziel) {
       const k = Math.min(1, dt * 4);
       cam.x += (cam.ziel.x - cam.x) * k; cam.y += (cam.ziel.y - cam.y) * k; cam.z += (cam.ziel.z - cam.z) * k;
@@ -1202,11 +2823,11 @@ const Farm = (function () {
     A.zeichneBeschriftungen(g, cam, W, H, now, tSpiel);
     hudAktualisieren(dt);
     timer.dlg += dt;
-    if (dlg && timer.dlg >= 1 && !dlgAnfasst && Date.now() - dlgAnfassEnde > 500) { timer.dlg = 0; dialogAktualisieren(true); }
+    if (timer.dlg >= 1 && !dlgAnfasst && Date.now() - dlgAnfassEnde > 500) { timer.dlg = 0; dialogAktualisieren(true); zoneAktualisieren(); }
   }
-  // Offenen Dialog neu zeichnen (live=true: nur die Dialoge mit laufenden Werten)
+  // Offenen Dialog angleichen (live=true: nur Dialoge mit laufenden Werten). Kein Neuaufbau: rahmen() gleicht nur Geaendertes an.
   function dialogAktualisieren(live) {
-    if (!dlg || !stand()) return;
+    if (!dlg || !stand() || !wurzel) return;
     const t = dlg.typ;
     if (t === 'feld') zeichneFeldDialog();
     else if (t === 'auftraege') zeichneAuftraege();
@@ -1214,11 +2835,13 @@ const Farm = (function () {
     else if (t === 'felder') zeichneFelder();
     else if (t === 'tiere') zeichneTiere();
     else if (t === 'wetter') zeichneWetter();
+    else if (t === 'shop') zeichneShop();
+    else if (t === 'lager') zeichneLager();
+    else if (t === 'sammlung') zeichneSammlung();
+    else if (t === 'chronik') zeichneChronik();
     else if (!live) {
-      if (t === 'shop') zeichneShop();
-      else if (t === 'lager') zeichneLager();
-      else if (t === 'fuhrpark') zeichneFuhrpark();
-      else if (t === 'sammlung') zeichneSammlung();
+      if (t === 'menue') zeichneMenue();
+      else if (t === 'hilfe') zeichneHilfe();
     }
   }
 
@@ -1259,14 +2882,16 @@ const Farm = (function () {
     spielStarten(erstes);
   }
   function spielStarten(erstes) {
-    geldAnzeige = stand().geld; geldLetzt = null;
-    cam.x = 1720; cam.y = 1500; cam.z = Math.min(1, Math.max(0.45, Math.min(W / 1500, H / 1000))); cam.ziel = null;
-    tempoKlicks = 0; dlg = null;
+    geldAnzeige = stand().geld; geldLetzt = null; geldUnterwegs = 0; geldAufgeschoben = 0; geldHalten = false;
+    cam.x = 1720; cam.y = 1500; cam.z = Math.min(1, Math.max(0.45, Math.min(W / 1500, H / 1000))); cam.ziel = null; schwung = null;
+    tempoKlicks = 0; dlg = null; levelOffen = null; levelWarte.length = 0;
     timer = { sim: 0, speicher: 0, hud: 0, dlg: 0, poll: 0 };
     laeuft = true; tLast = 0; tSpiel = 0;
     raf = requestAnimationFrame(frame);
     tonStart();
+    zoneAktualisieren();
     if (erstes) dialogHilfe();
+    if (rundgangNoetig()) rundgangZeigen(0);
   }
   function schliessen() {
     laeuft = false; cancelAnimationFrame(raf);
@@ -1276,6 +2901,7 @@ const Farm = (function () {
     if (ton) { try { ton.ac.close(); } catch (e) { /* egal */ } ton = null; }
     abbauen();
     fern = null;
+    dlg = null; levelOffen = null;
     if (ausgang) ausgang();
     else if (typeof App !== 'undefined' && App.renderSpieleMenu) App.renderSpieleMenu();
   }
@@ -1305,8 +2931,9 @@ const Farm = (function () {
     const alt = wurzel && wurzel.querySelector('#f-lade'); if (alt) alt.parentNode.removeChild(alt);
     if (!wurzel) return;
     const d = document.createElement('div');
-    d.className = 'f-lade'; d.id = 'f-lade';
-    d.innerHTML = '<h2>' + titel + '</h2><p>' + text + '</p>' + (knopf ? '<button class="f-kauf gruen" data-a="fernNochmal" style="min-width:200px">' + knopf + '</button><button class="f-kauf sek" data-a="beenden" style="min-width:200px">Zurück</button>' : '<div class="f-bal" style="width:200px"><div style="width:60%"></div></div>');
+    d.className = 'f-ueber f-lade'; d.id = 'f-lade';
+    d.innerHTML = '<div class="fs-panel f-kasten"><div style="display:flex;justify-content:center">' + FS.fuchs(knopf ? 'gruebelt' : 'neutral', 120) + '</div><div class="f-kasten-titel fs-kontur" style="margin:8px 0 6px">' + titel + '</div><p class="f-kasten-text">' + text + '</p>' +
+      (knopf ? '<div class="f-kasten-knoepfe"><button class="fs-btn fs-navy" data-a="beenden">Zurück</button><button class="fs-btn fs-gelb" data-a="fernNochmal">' + knopf + '</button></div>' : FS.balken(0.6, 'cyan')) + '</div>';
     wurzel.appendChild(d);
   }
   function ladeWeg() { const l = wurzel && wurzel.querySelector('#f-lade'); if (l) l.parentNode.removeChild(l); }
@@ -1365,12 +2992,12 @@ const Farm = (function () {
       return null;
     } finally { if (fern) fern.inFlight = false; }
   }
-  const MITSPIELER = { max: '👦 Max', papa: '👨 Papa' };
+  const MITSPIELER = { max: 'Max', papa: 'Papa' };
   function fernLog(liste) {
     fern.log = liste;
     const hoechste = liste.reduce((a, e) => Math.max(a, e.id), 0);
     if (fern.logLetzte < 0) { fern.logLetzte = hoechste; return; }
-    liste.forEach(e => { if (e.id > fern.logLetzte && e.von !== fern.von) toast(MITSPIELER[e.von] + ' ' + e.text, 'gut', 'mit' + e.id); });
+    liste.forEach(e => { if (e.id > fern.logLetzte && e.von !== fern.von) toast(MITSPIELER[e.von] + ' ' + e.text, 'gut', 'mit' + e.id, 'papa'); });
     fern.logLetzte = Math.max(fern.logLetzte, hoechste);
   }
   // Befehle abfangen: lokal sofort ausfuehren (damit die Anzeige direkt reagiert) UND zum Server schicken, der Server-Stand gewinnt
@@ -1400,11 +3027,11 @@ const Farm = (function () {
       fern.ok = true;
       fern.offset = r.zeit - Date.now();
       if (r.state && r.rev >= fern.rev) fernAnwenden(r.state, r.rev);
-      if (r.ok === false && r.grund) { toast(r.grund, 'warn', 'ferngrund'); piep('fehler'); }
+      if (r.ok === false && r.grund) { toast(r.grund, 'warn', 'ferngrund', 'warnung'); piep('fehler'); }
       dialogAktualisieren(false);
       if (r.log) fernLog(r.log);
     } catch (e) {
-      if (fern) { fern.ok = false; toast('Verbindung weg – die letzte Aktion wurde nicht gespeichert.', 'warn', 'ferngrund'); }
+      if (fern) { fern.ok = false; toast('Verbindung weg – nicht gespeichert!', 'warn', 'ferngrund', 'warnung'); }
     }
   }
 
@@ -1418,6 +3045,14 @@ const Farm = (function () {
 
   return {
     oeffnen, schliessen, fortschrittText, konfig,
-    _t: { M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, dialogSammlung, get fern() { return fern; }, fernPoll: () => fern && fernPoll(), hinweisBerechnen, cam, toast, speichern }
+    _t: {
+      M, A, aktion, dlg: () => dlg, dialogFeld, dialogShop, dialogLager, dialogAuftraege, dialogBetriebe, dialogFuhrpark, dialogFelder, dialogMenue, dialogHilfe, dialogTiere, dialogWetter, dialogSammlung,
+      get fern() { return fern; }, fernPoll: () => fern && fernPoll(), hinweisBerechnen, cam, toast, speichern,
+      // Hof-Farm 2.0
+      zielAusfuehren, antippen, blaseAusfuehren, ernteSofort, schrittStatus, besteWahl, dauerSek, saatListe, bestaetigen, levelZeigen, levelZu,
+      rundgangZeigen, rundgangNoetig, zoneAktualisieren, freieMitte, dialogAktualisieren, zoomUm, weltZuBildschirm, FERN_BEFEHLE, get levelOffen() { return levelOffen; },
+      // Teil 2
+      dialogChronik, anbauen, wegZuGut, quelleVon, kundeFuer, sammlungZaehler, hudTakt: () => hudAktualisieren(0.016)
+    }
   };
 })();

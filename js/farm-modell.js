@@ -941,7 +941,6 @@ const FarmModell = (function () {
   // Tagesaufgaben
   // ----------------------------------------------------------------------------------------------
   function tagKey(t) { const d = new Date(t); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
-  function gesternKey(t) { const d = new Date(t); d.setDate(d.getDate() - 1); return tagKey(d.getTime()); }
   function naechsterTag(t) { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); }
   function tagGeeignet(a) {
     const hatTiere = Object.keys(S.tiere).some(k => S.tiere[k].anzahl > 0);
@@ -972,9 +971,9 @@ const FarmModell = (function () {
   }
   const tagArt = id => D.TAGESAUFGABEN.find(a => a.id === id);
   function tagWert(q) { return Math.max(0, erfolgWert(tagArt(q.art).stat) - q.basis); }
-  function serieAktuell(t) {
-    return S.serie.letzter === tagKey(t) || S.serie.letzter === gesternKey(t) ? S.serie.tage : 0;
-  }
+  // Serie = Anzahl Tage mit allen drei Aufgaben. Eine Pause setzt sie NICHT zurueck (25.10.2026, Uli:
+  // "Serie bleibt stehen" - keine Strafe fuers Wegbleiben); sie waechst beim naechsten geschafften Tag weiter.
+  function serieAktuell(t) { return S.serie.tage; }
   function tagPruefen(t) {
     const key = tagKey(t);
     if (!S.tag || S.tag.datum !== key) { S.tag = tagErzeugen(t); ereignis('tagNeu', {}); }
@@ -983,7 +982,7 @@ const FarmModell = (function () {
     });
     if (!S.tag.alle && S.tag.aufgaben.length && S.tag.aufgaben.every(q => q.fertig)) {
       S.tag.alle = true;
-      if (S.serie.letzter !== key) { S.serie.tage = S.serie.letzter === gesternKey(t) ? S.serie.tage + 1 : 1; S.serie.letzter = key; }
+      if (S.serie.letzter !== key) { S.serie.tage += 1; S.serie.letzter = key; }
       ereignis('tagAlle', { serie: S.serie.tage });
     }
   }

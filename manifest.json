@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-24-1420",
+  "version": "2026-10-28-1006",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -159,9 +159,11 @@
     "js/farm-ansicht.js",
     "js/farm-daten.js",
     "js/farm-gfx.js",
+    "js/farm-icons.js",
     "js/farm-lernen.js",
     "js/farm-meldung.js",
     "js/farm-modell.js",
+    "js/farm-stil.js",
     "js/farm.js",
     "js/ferientraining.js",
     "js/fernsync.js",
