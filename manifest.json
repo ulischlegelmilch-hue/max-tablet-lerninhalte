@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-29-1236",
+  "version": "2026-10-29-1309",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -207,6 +207,7 @@
     "sounds/laden.wav",
     "sounds/lautstaerke.txt",
     "sounds/nachricht.wav",
-    "sounds/spiel.wav"
+    "sounds/spiel.wav",
+    "sounds/update.wav"
   ]
 }
