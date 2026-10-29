@@ -244,17 +244,20 @@ const Heimatkunde = (function () {
     { front: 'Eine Straßenbahn hält an einer Haltestelle an. Was musst du als Radfahrer tun?', back: 'Du musst als Radfahrer auch <strong>stehen bleiben</strong>.' }
   ];
 
-  // Direktes Linksabbiegen (29.10.2026, Uli-Wunsch, Buchseite 31 "Vorfahrtsregeln und Abbiegen"): die 8 Schritte in
-  // Buch-Reihenfolge + die Regeln der Seite. Jede Karte steht fuer sich (keine Teil-n-Splits).
+  // Direktes Linksabbiegen (29.10.2026, Uli-Wunsch, Buchseite 31 "Vorfahrtsregeln und Abbiegen"): EIN Schritt pro Karte,
+  // immer in Buch-Reihenfolge (geordnet:true). Die Regeln der Seite stehen im zweiten Thema (gemischt).
   const LERNKARTEN_RAD_LINKSABBIEGEN = [
-    { front: 'Direktes Linksabbiegen: Nenne alle 8 Schritte in der richtigen Reihenfolge.', back: '1. <strong>Umschauen</strong><br>2. <strong>Handzeichen</strong> geben<br>3. <strong>Zur Mitte einordnen</strong><br>4. <strong>Vorfahrtsregeln</strong> beachten<br>5. <strong>Gegenverkehr</strong> durchfahren lassen<br>6. <strong>Nochmals umschauen</strong><br>7. Mit <strong>beiden Händen am Lenker</strong> losfahren und in einem <strong>großen Bogen</strong> abbiegen<br>8. Auf <strong>Fußgänger</strong> achten' },
-    { front: 'Was machst du beim Linksabbiegen als Allererstes?', back: '<strong>Umschauen</strong> - bevor du Handzeichen gibst und dich zur Fahrbahnmitte einordnest.' },
-    { front: 'Du hast dich umgeschaut und es kommt niemand von hinten. Was kommt beim Linksabbiegen als Nächstes?', back: 'Du gibst ein <strong>Handzeichen</strong>.' },
-    { front: 'Wohin ordnest du dich beim direkten Linksabbiegen ein, und was kommt danach?', back: 'Du ordnest dich <strong>zur Mitte</strong> (zur Fahrbahnmitte) ein. Danach <strong>beachtest du die Vorfahrtsregeln</strong>.' },
-    { front: 'Du stehst in der Fahrbahnmitte und willst links abbiegen. Es kommt dir ein Auto entgegen. Wer hat Vorrang?', back: 'Der <strong>Gegenverkehr</strong>: Entgegenkommende Verkehrsteilnehmer haben <strong>immer Vorrang</strong>. Du lässt sie <strong>durchfahren</strong>.' },
-    { front: 'Der Gegenverkehr ist durch. Was machst du, bevor du losfährst?', back: 'Du schaust <strong>nochmals um</strong>.' },
-    { front: 'Wie fährst du beim direkten Linksabbiegen los und ab?', back: 'Mit <strong>beiden Händen am Lenker</strong> und in einem <strong>großen Bogen</strong>.' },
-    { front: 'Worauf musst du beim Abbiegen ganz zum Schluss achten?', back: 'Auf <strong>Fußgänger</strong> - sie haben auch <strong>Vorrang</strong>.' },
+    { front: 'Direktes Linksabbiegen, Schritt 1 von 8: Was tust du?', back: '<strong>Umschauen</strong> - bevor du Handzeichen gibst und dich zur Fahrbahnmitte einordnest.' },
+    { front: 'Direktes Linksabbiegen, Schritt 2 von 8: Was tust du?', back: '<strong>Handzeichen</strong> geben.' },
+    { front: 'Direktes Linksabbiegen, Schritt 3 von 8: Was tust du?', back: '<strong>Zur Mitte einordnen</strong> (zur Fahrbahnmitte).' },
+    { front: 'Direktes Linksabbiegen, Schritt 4 von 8: Was tust du?', back: '<strong>Vorfahrtsregeln</strong> beachten.' },
+    { front: 'Direktes Linksabbiegen, Schritt 5 von 8: Was tust du?', back: '<strong>Gegenverkehr</strong> durchfahren lassen - er hat immer Vorrang.' },
+    { front: 'Direktes Linksabbiegen, Schritt 6 von 8: Was tust du?', back: '<strong>Nochmals umschauen</strong>.' },
+    { front: 'Direktes Linksabbiegen, Schritt 7 von 8: Was tust du?', back: 'Mit <strong>beiden Händen am Lenker</strong> losfahren und in einem <strong>großen Bogen</strong> abbiegen.' },
+    { front: 'Direktes Linksabbiegen, Schritt 8 von 8: Was tust du?', back: 'Auf <strong>Fußgänger</strong> achten - sie haben auch Vorrang.' }
+  ];
+
+  const LERNKARTEN_RAD_LINKSABBIEGEN_REGELN = [
     { front: 'Wo kannst du direkt links abbiegen?', back: 'In <strong>ruhigen Straßen in Wohngebieten</strong> oder in <strong>Tempo-30-Zonen</strong>. Gut möglich ist es nur an <strong>Kreuzungen mit wenig Verkehr</strong>.' },
     { front: 'Eine Kreuzung hat viel Verkehr. Wie biegst du links ab?', back: 'Du biegst lieber <strong>indirekt</strong> ab (Buch S. 30).' },
     { front: 'Warum kann direktes Linksabbiegen kompliziert und gefährlich sein?', back: 'Du musst mit insgesamt <strong>acht Punkten</strong> viele Dinge <strong>gleichzeitig</strong> beachten.' },
@@ -286,7 +289,8 @@ const Heimatkunde = (function () {
     rad_rechts: { gruppe: 'rad', titel: 'Rechts fahren & Abstand', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_RECHTS, bewertung: true },
     rad_hindernis: { gruppe: 'rad', titel: 'Hindernis umfahren', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_HINDERNIS, bewertung: true },
     rad_vorfahrt: { gruppe: 'rad', titel: 'Vorfahrt & Warten', icon: 'verkehrszeichen', karten: () => LERNKARTEN_RAD_VORFAHRT, bewertung: true },
-    rad_linksabbiegen: { gruppe: 'rad', titel: 'Links abbiegen', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_LINKSABBIEGEN, bewertung: true },
+    rad_linksabbiegen: { gruppe: 'rad', titel: 'Links abbiegen: die 8 Schritte', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_LINKSABBIEGEN, bewertung: true, geordnet: true },
+    rad_linksabbiegen_regeln: { gruppe: 'rad', titel: 'Links abbiegen: Regeln', icon: 'fahrrad', karten: () => LERNKARTEN_RAD_LINKSABBIEGEN_REGELN, bewertung: true },
     // 27.09.2026, Uli-Wunsch: eigenes Thema, das die aktuell falsch
     // markierten Karten AUS ALLEN anderen rad_*-Themen sammelt und haeufiger
     // abfragt - siehe sammleFalscheRadKarten/baueFalscheKartenDeck weiter
