@@ -224,6 +224,8 @@ const App = (function () {
 
           ${chatHinweisHtml()}
 
+          ${typeof Familie !== 'undefined' ? Familie.homeKarteHtml() : ''}
+
           ${typeof Fuchs !== 'undefined' ? Fuchs.homeKarteHtml() : ''}
 
           ${FernSync.zusatzaufgabenHtml()}
@@ -541,6 +543,8 @@ const App = (function () {
         </div>
         ${belohnungsVerlaufHtml()}
       </div>
+
+      ${typeof Familie !== 'undefined' ? Familie.einstellungenHtml() : ''}
 
       <div class="welcome" style="margin-top:32px;">Fortschritt zurücksetzen</div>
       <div class="lese-text">Setzt Punkte, gelöste Aufgaben, Karteikarten-Fortschritt sowie gelesene Geschichten/Bücher komplett zurück (z. B. für einen echten Neustart). Tagesplan-Regeln und Malfolgen-Reihen bleiben erhalten. Das kann nicht rückgängig gemacht werden.</div>

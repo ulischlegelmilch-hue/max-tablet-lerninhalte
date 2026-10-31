@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-29-1309",
+  "version": "2026-10-31-1133",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -156,6 +156,7 @@
     "js/belohnungen.js",
     "js/chat.js",
     "js/deutsch.js",
+    "js/familie.js",
     "js/farm-ansicht.js",
     "js/farm-daten.js",
     "js/farm-gfx.js",
