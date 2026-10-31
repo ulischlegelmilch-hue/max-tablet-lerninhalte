@@ -102,7 +102,7 @@ const Familie = (function () {
     const liste = [
       { emoji: '🦊', titel: 'Neu: Familie!', text: `Max, ich habe etwas Neues für dich! Auf deiner Startseite steht jetzt die Karte <b>Familie</b>. Da siehst du, was bei euch zu Hause los ist.` },
     ];
-    if (e.dienste) liste.push({ emoji: '👷', titel: 'Wer arbeitet wann?', text: `Du siehst, ob <b>${esc(a)}</b> und <b>${esc(b)}</b> heute arbeiten – und wann sie wieder heimkommen. Auch für die nächsten Tage!` });
+    if (e.dienste) liste.push({ emoji: '👷', titel: 'Wer arbeitet wann?', text: `Du siehst, wann <b>${esc(a)}</b> und <b>${esc(b)}</b> wieder arbeiten müssen – und wenn sie gerade auf Arbeit sind, wann sie heimkommen. Tippst du auf die Karte, siehst du die ganze Woche!` });
     if (e.termine || e.geburtstage) liste.push({ emoji: '🎂', titel: 'Termine und Geburtstage', text: `Ich zeige dir, welche Termine anstehen${e.geburtstage ? ' und wer bald <b>Geburtstag</b> hat. So vergisst du keinen!' : '.'}` });
     if (e.einkauf && e.einkaufSchreiben) liste.push({ emoji: '🛒', titel: 'Fehlt etwas?', text: `Schreib es auf die <b>Einkaufsliste</b>! ${esc(a)} und ${esc(b)} sehen es sofort auf ihrem Handy.` });
     liste.push({ emoji: '👉', titel: 'Probier es aus!', text: `Tipp auf die Karte <b>Familie</b> – dann siehst du alles auf einen Blick.` });
@@ -166,6 +166,21 @@ const Familie = (function () {
     return v && v.shifts && v.shifts[m] ? v.shifts[m].find(s => s.d === tag) || null : null;
   }
   function ueberNacht(s) { return s.s && s.e && s.e <= s.s; }
+  function arbeit(s) { return !!s && (s.k === 'DIENST' || s.k === 'BEREITSCHAFT'); }
+
+  /**
+   * Papa blau, Mama rosa – wie Otium auf Ulis Handy. Otium vergibt A/B nicht nach Person (bei uns ist A = Carola),
+   * deshalb nach den Namen aus dem Eltern-Bereich; ohne Papa/Mama-Namen A blau, B rosa.
+   */
+  const PAPA = /papa|papi|vati|vater/i, MAMA = /mama|mami|mutti|mutter/i;
+  function farbe(m) {
+    const n = name(m), o = name(m === 'A' ? 'B' : 'A');
+    if (PAPA.test(n) || MAMA.test(o)) return 'blau';
+    if (MAMA.test(n) || PAPA.test(o)) return 'rosa';
+    return m === 'A' ? 'blau' : 'rosa';
+  }
+  /** Blau zuerst, wie im Widget ("ich" oben). */
+  function eltern() { return farbe('A') === 'blau' ? ['A', 'B'] : ['B', 'A']; }
   function name(m) {
     const e = einst(), v = (cache() || {}).view;
     return (e.namen[m] || '').trim() || (v && v.names && v.names[m]) || (m === 'A' ? 'Elternteil 1' : 'Elternteil 2');
@@ -175,7 +190,7 @@ const Familie = (function () {
   function pille(m, tag) {
     const s = schicht(m, tag);
     const art = !s || s.k === 'FREI' ? 'frei' : s.k === 'DIENST' ? 'dienst' : 'getoent';
-    return `<span class="fam-pille fam-pille-${art} fam-pille-${m}">${esc(art === 'frei' ? '–' : s.c || '•')}</span>`;
+    return `<span class="fam-pille fam-pille-${art} fam-pille-${farbe(m)}">${esc(art === 'frei' ? '–' : s.c || '•')}</span>`;
   }
 
   /** "Wer arbeitet wann?" wie das Otium-Widget: Tage ab gestern als Spalten, je Elternteil eine Pille, heute markiert. */
@@ -184,11 +199,11 @@ const Familie = (function () {
     const anzahl = Math.ceil(Math.min(Math.max(e.tageDienste, 7), MAX_TAGE) / 7) * 7;
     const tage = Array.from({ length: anzahl }, (_, i) => iso(plusTage(ab, i)));
     const namen = `<div class="fam-spalte fam-spalte-namen"><div class="fam-wt">&nbsp;<small>&nbsp;</small></div>
-      ${['A', 'B'].map(m => `<span class="fam-reihe-name fam-name-${m}">${esc(name(m))}</span>`).join('')}</div>`;
+      ${eltern().map(m => `<span class="fam-reihe-name fam-name-${farbe(m)}">${esc(name(m))}</span>`).join('')}</div>`;
     const spalte = t => {
       const d = ausIso(t);
       return `<div class="fam-spalte${t === heute ? ' fam-spalte-heute' : ''}">
-        <div class="fam-wt">${WTAG[d.getDay()]}<small>${d.getDate()}.${d.getMonth() + 1}.</small></div>${pille('A', t)}${pille('B', t)}</div>`;
+        <div class="fam-wt">${WTAG[d.getDay()]}<small>${d.getDate()}.${d.getMonth() + 1}.</small></div>${eltern().map(m => pille(m, t)).join('')}</div>`;
     };
     const wochen = [];
     for (let i = 0; i < tage.length; i += 7) wochen.push(`<div class="fam-woche">${namen}${tage.slice(i, i + 7).map(spalte).join('')}</div>`);
@@ -200,22 +215,26 @@ const Familie = (function () {
       <div class="fam-legende">${legende}</div></div>`;
   }
 
-  /** Was ein Elternteil gerade macht (Startseite). */
-  function jetztText(m) {
-    const n = jetzt(), heute = iso(n), jetztHm = hm(n);
+  /**
+   * Wann ein Elternteil als Nächstes arbeitet (Startseite): "arbeitet morgen", "arbeitet in 3 Tagen" – nur wer gerade
+   * im Dienst ist, bekommt stattdessen, wann er/sie heimkommt.
+   */
+  function naechsterText(m) {
+    const n = jetzt(), jetztHm = hm(n);
     const g = schicht(m, iso(plusTage(n, -1)));
-    if (g && g.k === 'DIENST' && ueberNacht(g) && jetztHm < g.e) return { art: 'dienst', text: `ist auf Arbeit, kommt um ${uhr(g.e)} Uhr heim` };
-    const s = schicht(m, heute);
-    if (!s || s.k === 'FREI') return { art: 'frei', text: 'hat heute frei' };
-    if (s.k === 'ABWESEND') return { art: 'weg', text: s.l ? `hat ${s.l}` : 'ist heute nicht da' };
-    if (s.k === 'BEREITSCHAFT') return { art: 'bereit', text: `hat heute ${s.l || 'Bereitschaft'}` };
-    if (!s.s || !s.e) return { art: 'dienst', text: 'arbeitet heute' };
-    if (jetztHm < s.s) {
-      return { art: 'dienst', text: ueberNacht(s) ? `arbeitet heute ab ${uhr(s.s)} Uhr bis morgen ${uhr(s.e)} Uhr` : `arbeitet heute von ${uhr(s.s)} bis ${uhr(s.e)} Uhr` };
+    if (arbeit(g) && ueberNacht(g) && jetztHm < g.e) return { art: 'dienst', text: `ist auf Arbeit, kommt um ${uhr(g.e)} Uhr heim` };
+    const s = schicht(m, iso(n));
+    if (arbeit(s) && s.s && s.e && jetztHm >= s.s && (ueberNacht(s) || jetztHm < s.e)) {
+      return { art: 'dienst', text: ueberNacht(s) ? `ist auf Arbeit, kommt morgen um ${uhr(s.e)} Uhr heim` : `ist auf Arbeit, kommt um ${uhr(s.e)} Uhr heim` };
     }
-    if (ueberNacht(s)) return { art: 'dienst', text: `ist auf Arbeit bis morgen ${uhr(s.e)} Uhr` };
-    if (jetztHm < s.e) return { art: 'dienst', text: `ist auf Arbeit bis ${uhr(s.e)} Uhr` };
-    return { art: 'frei', text: 'hat Feierabend' };
+    for (let i = 0; i <= MAX_TAGE; i++) {
+      const x = schicht(m, iso(plusTage(n, i)));
+      // heute nur, wenn es noch nicht vorbei ist
+      if (!arbeit(x) || (i === 0 && x.s && x.e && !ueberNacht(x) && jetztHm >= x.e)) continue;
+      const w = i === 0 ? (x.s ? `heute ab ${uhr(x.s)} Uhr` : 'heute') : wann(i);
+      return { art: i === 0 ? 'dienst' : 'frei', text: x.k === 'BEREITSCHAFT' ? `hat ${w} Bereitschaft` : `arbeitet ${w}` };
+    }
+    return { art: 'frei', text: 'hat erst mal frei' };
   }
 
   // ---------------- Termine ----------------
@@ -256,16 +275,16 @@ const Familie = (function () {
           : status === 'offline' ? 'Gerade keine Verbindung.' : 'Wird geladen …';
         return `<div class="fam-karte" id="familie-karte">${kopf}<div class="fam-leer">${text}</div></div>`;
       }
-      const eltern = e.dienste ? ['A', 'B'].map(m => {
-        const j = jetztText(m);
-        return `<div class="fam-person"><span class="fam-avatar fam-avatar-${m}">${esc(name(m).charAt(0).toUpperCase())}</span>
+      const leute = e.dienste ? eltern().map(m => {
+        const j = naechsterText(m);
+        return `<div class="fam-person"><span class="fam-avatar fam-avatar-${farbe(m)}">${esc(name(m).charAt(0).toUpperCase())}</span>
           <span class="fam-person-text"><b>${esc(name(m))}</b><small class="fam-${j.art}">${esc(j.text)}</small></span></div>`;
       }).join('') : '';
       const naechste = termine(Math.min(e.tageTermine, 7)).slice(0, 3).map(t =>
         `<div class="fam-termin"><span>${t.bday ? '🎂' : '📅'}</span><span><b>${esc(terminZeit(t))}</b> · ${esc(terminText(t))}</span></div>`).join('');
       if (!ohneLaden) setTimeout(pruefeFuehrung, 600);
       return `<div class="fam-karte" id="familie-karte" onclick="Familie.oeffnen()">${kopf}
-        ${eltern ? `<div class="fam-eltern">${eltern}</div>` : ''}
+        ${leute ? `<div class="fam-eltern">${leute}</div>` : ''}
         ${naechste ? `<div class="fam-termine">${naechste}</div>` : ''}</div>`;
     } catch (err) { return ''; }
   }
@@ -353,8 +372,8 @@ const Familie = (function () {
         ${zahl('otium-tage-dienste', e.tageDienste, 'Dienste: Tage')}
         ${zahl('otium-tage-termine', e.tageTermine, 'Termine &amp; Geburtstage: Tage')}
         <div class="fortschritt-unterueberschrift">So nennt Max euch</div>
-        <label class="fam-zahl">${esc(original('A'))} heißt <input type="text" id="otium-name-a" class="regel-input" maxlength="20" placeholder="z. B. Papa" value="${esc(e.namen.A)}"></label>
-        <label class="fam-zahl">${esc(original('B'))} heißt <input type="text" id="otium-name-b" class="regel-input" maxlength="20" placeholder="z. B. Mama" value="${esc(e.namen.B)}"></label>
+        <label class="fam-zahl">${esc(original('A'))} heißt <input type="text" id="otium-name-a" class="regel-input" maxlength="20" placeholder="z. B. Mama oder Papa" value="${esc(e.namen.A)}"></label>
+        <label class="fam-zahl">${esc(original('B'))} heißt <input type="text" id="otium-name-b" class="regel-input" maxlength="20" placeholder="z. B. Mama oder Papa" value="${esc(e.namen.B)}"></label>
         <div id="otium-hinweis" class="reihen-hinweis"></div>
         <div class="btn-primary" onclick="Familie.speichereEinstellungen()">Speichern und testen</div>
       </div>`;
