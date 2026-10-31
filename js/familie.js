@@ -171,14 +171,33 @@ const Familie = (function () {
     return (e.namen[m] || '').trim() || (v && v.names && v.names[m]) || (m === 'A' ? 'Elternteil 1' : 'Elternteil 2');
   }
 
-  /** Was ein Elternteil an [tag] macht (Wochenliste). art: dienst | bereit | weg | frei */
-  function tagText(m, tag) {
+  /** Kürzel als Pille wie im Otium-Widget: Dienst in der Farbe des Elternteils, Bereitschaft/Abwesend getönt, frei "–". */
+  function pille(m, tag) {
     const s = schicht(m, tag);
-    if (!s || s.k === 'FREI') return { art: 'frei', text: 'frei' };
-    if (s.k === 'ABWESEND') return { art: 'weg', text: s.l || 'nicht da' };
-    const zeit = s.s && s.e ? (ueberNacht(s) ? ` ab ${uhr(s.s)} Uhr, zurück am ${WTAG[plusTage(ausIso(tag), 1).getDay()]} um ${uhr(s.e)} Uhr` : ` von ${uhr(s.s)} bis ${uhr(s.e)} Uhr`) : '';
-    if (s.k === 'BEREITSCHAFT') return { art: 'bereit', text: (s.l || 'Bereitschaft') + zeit };
-    return { art: 'dienst', text: 'arbeitet' + zeit };
+    const art = !s || s.k === 'FREI' ? 'frei' : s.k === 'DIENST' ? 'dienst' : 'getoent';
+    return `<span class="fam-pille fam-pille-${art} fam-pille-${m}">${esc(art === 'frei' ? '–' : s.c || '•')}</span>`;
+  }
+
+  /** "Wer arbeitet wann?" wie das Otium-Widget: Tage ab gestern als Spalten, je Elternteil eine Pille, heute markiert. */
+  function diensteHtml(e) {
+    const heute = iso(jetzt()), ab = plusTage(jetzt(), -1);
+    const anzahl = Math.ceil(Math.min(Math.max(e.tageDienste, 7), MAX_TAGE) / 7) * 7;
+    const tage = Array.from({ length: anzahl }, (_, i) => iso(plusTage(ab, i)));
+    const namen = `<div class="fam-spalte fam-spalte-namen"><div class="fam-wt">&nbsp;<small>&nbsp;</small></div>
+      ${['A', 'B'].map(m => `<span class="fam-reihe-name fam-name-${m}">${esc(name(m))}</span>`).join('')}</div>`;
+    const spalte = t => {
+      const d = ausIso(t);
+      return `<div class="fam-spalte${t === heute ? ' fam-spalte-heute' : ''}">
+        <div class="fam-wt">${WTAG[d.getDay()]}<small>${d.getDate()}.${d.getMonth() + 1}.</small></div>${pille('A', t)}${pille('B', t)}</div>`;
+    };
+    const wochen = [];
+    for (let i = 0; i < tage.length; i += 7) wochen.push(`<div class="fam-woche">${namen}${tage.slice(i, i + 7).map(spalte).join('')}</div>`);
+    // Kürzel erklären, die in diesen Tagen vorkommen ("D 24h-Dienst RTW")
+    const kuerzel = new Map();
+    for (const m of ['A', 'B']) for (const t of tage) { const s = schicht(m, t); if (s && s.k !== 'FREI' && s.c) kuerzel.set(s.c, s.l || s.c); }
+    const legende = [...kuerzel].map(([c, l]) => `<span><b>${esc(c)}</b> ${esc(l)}</span>`).concat('<span><b>–</b> frei</span>').join('');
+    return `<div class="fam-block"><div class="fam-block-titel">Wer arbeitet wann?</div>${wochen.join('')}
+      <div class="fam-legende">${legende}</div></div>`;
   }
 
   /** Was ein Elternteil gerade macht (Startseite). */
@@ -211,10 +230,18 @@ const Familie = (function () {
     if (t.bday) return t.age ? `${t.title} wird ${t.age}` : `${t.title} hat Geburtstag`;
     return t.title;
   }
+  /** Tage von heute bis [s] (ISO-Datum); Runden gleicht die Zeitumstellung aus. */
+  function tageBis(s) { return Math.round((ausIso(s) - ausIso(iso(jetzt()))) / 86400000); }
+  function wann(n) { return n <= 0 ? 'heute' : n === 1 ? 'morgen' : `in ${n} Tagen`; }
+  /** "morgen", "in 5 Tagen, 9:30 Uhr", laufende mehrtägige "noch 3 Tage" – statt Datum, das kann Max besser einschätzen. */
   function terminZeit(t) {
-    const heute = iso(jetzt());
-    if (t.to) return t.d < heute ? `bis ${tagName(t.to)}` : `${tagName(t.d)} bis ${kurzDatum(t.to)}`;
-    return tagName(t.d) + (t.t ? `, ${uhr(t.t)}${t.te ? '–' + uhr(t.te) : ''} Uhr` : '');
+    if (t.to && tageBis(t.d) <= 0) {
+      const rest = tageBis(t.to);
+      return rest <= 0 ? 'heute noch' : rest === 1 ? 'noch bis morgen' : `noch ${rest + 1} Tage`;
+    }
+    const zeit = t.t ? `, ${uhr(t.t)}${t.te ? '–' + uhr(t.te) : ''} Uhr` : '';
+    const lang = t.to ? `, ${tageBis(t.to) - tageBis(t.d) + 1} Tage lang` : '';
+    return wann(tageBis(t.d)) + zeit + lang;
   }
 
   // ---------------- Startseite ----------------
@@ -258,13 +285,7 @@ const Familie = (function () {
     if (!c || !c.view) {
       teile.push(`<div class="fam-block"><div class="fam-leer">${status === 'offline' ? 'Gerade keine Verbindung – versuch es gleich nochmal.' : 'Wird geladen …'}</div></div>`);
     } else {
-      if (e.dienste) {
-        const tage = Array.from({ length: Math.min(e.tageDienste, MAX_TAGE) }, (_, i) => iso(plusTage(jetzt(), i)));
-        teile.push(`<div class="fam-block"><div class="fam-block-titel">Wer arbeitet wann?</div>
-          ${tage.map(t => `<div class="fam-tag${t === iso(jetzt()) ? ' fam-heute' : ''}"><div class="fam-tag-name">${esc(tagName(t))}</div>
-            ${['A', 'B'].map(m => { const x = tagText(m, t); return `<div class="fam-tag-person"><b>${esc(name(m))}</b> <span class="fam-${x.art}">${esc(x.text)}</span></div>`; }).join('')}
-          </div>`).join('')}</div>`);
-      }
+      if (e.dienste) teile.push(diensteHtml(e));
       if (e.termine || e.geburtstage) {
         const liste = termine(e.tageTermine);
         teile.push(`<div class="fam-block"><div class="fam-block-titel">${e.termine && e.geburtstage ? 'Termine &amp; Geburtstage' : e.termine ? 'Termine' : 'Geburtstage'}</div>
