@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-31-2250",
+  "version": "2026-11-02-1414",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -171,6 +171,7 @@
     "js/fernsync.js",
     "js/figuren.js",
     "js/fuchs.js",
+    "js/geometrie.js",
     "js/geschichten.js",
     "js/grundbegriffe.js",
     "js/heimatkunde.js",

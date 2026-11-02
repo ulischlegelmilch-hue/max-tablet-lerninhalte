@@ -1373,6 +1373,14 @@ const Deutsch = (function () {
   // starteRechtschreibung/starteWortarten/starteSchularbeitUeben (siehe
   // renderMenu oben) - ist jetzt auch die taegliche Pflicht-Kachel auf dem
   // Home-Screen (siehe TAGESPLAN_FACH_META.deutsch in app.js).
+  // Freiwillige Auswahl auf der Startseite (02.11.2026): gemischte Deutsch-Aufgaben, 10 Stueck, zaehlt fuer den Punkt.
+  function starteDeutschAuswahl() {
+    const starter = () => App.starteFerienQuiz('deutsch', n => genDeutschUebenAufgabe(n), {
+      titel: 'Deutsch: Gemischte Aufgaben', wiederholeFalsche: true, pensumFach: 'deutsch', ferienItem: 'deutsch_gemischt'
+    });
+    App.setLastStarter(starter); starter();
+  }
+
   function starteDeutschUeben() {
     const AKTIVITAET = 'deutsch-ueben';
     const starter = () => {
@@ -1424,5 +1432,5 @@ const Deutsch = (function () {
     return out;
   }
 
-  return { renderMenu, starteDeutschUeben, starteLesen, starteFerienDeutsch, zeigeFaelleLernen, faelleStufen, starteDoppelTraining, starteFaelleTraining };
+  return { renderMenu, starteDeutschUeben, starteDeutschAuswahl, starteLesen, starteFerienDeutsch, zeigeFaelleLernen, faelleStufen, starteDoppelTraining, starteFaelleTraining };
 })();

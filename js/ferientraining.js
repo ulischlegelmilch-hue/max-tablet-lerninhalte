@@ -15,16 +15,16 @@ const Ferientraining = (function () {
   // ACHTUNG 29.10.2026 (Deutsch-Arbeit): nach der Arbeit die beiden Deutsch-Punkte ersetzen/entfernen.
   // Frueher hier (bei Bedarf wieder eintragen): gb_mathe/gb_deutsch (Grundbegriffe-Karten), mathe_rechenarten,
   // deutsch_tag (Faelle-Mischung), schreiben_tag (Schreiben.render), heimat_lernkarten (Radfahren) - siehe git-Historie.
+  // 02.11.2026 (Uli: "Die Arbeit hat er bereits geschrieben. Er soll ab jetzt kein Ferienprogramm mehr haben, sondern
+  // absolviert einen Punkt jetzt freiwillig"): Deutsch-Punkte der Arbeit raus (deutsch_doppel/deutsch_faelle, siehe
+  // git-Historie). Die Liste ist jetzt ein Angebot - EIN Punkt am Tag reicht (FREIWILLIG_ZIEL), alles weitere ist Extra.
+  const FREIWILLIG_ZIEL = 1;
   const PLAN = [
     {
-      id: 'deutsch_doppel', fach: 'deutsch', icon: 'rechtschreibung', titel: 'Deutsch: Doppelte Mitlaute',
-      text: 'Mit und ohne Doppelbuchstaben – auch am Wortende', einheit: 'Aufgaben', ziel: () => 10,
-      start: () => Deutsch.starteDoppelTraining()
-    },
-    {
-      id: 'deutsch_faelle', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Die vier Fälle',
-      text: 'Wörter in die vier Fälle setzen', einheit: 'Aufgaben', ziel: () => 10,
-      start: () => Deutsch.starteFaelleTraining()
+      // 02.11.2026: Deutsch als Wahl (Uli: ja), gemischte Aufgaben aus dem gemeinsamen Deutsch-Pool
+      id: 'deutsch_gemischt', fach: 'deutsch', icon: 'deutsch', titel: 'Deutsch: Gemischte Aufgaben',
+      text: 'Rechtschreibung, Wortarten und mehr', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Deutsch.starteDeutschAuswahl()
     },
     {
       id: 'mathe_tag', fach: 'mathe', icon: 'tagesaufgabe', titel: 'Mathe: Aufgaben',
@@ -36,6 +36,12 @@ const Ferientraining = (function () {
       id: 'mathe_malfolgen', fach: 'mathe', icon: 'malfolgen', titel: 'Mathe: Malfolgen',
       text: () => Mathe.malfolgenText(), einheit: 'Karten', ziel: () => Math.min(40, Mathe.malfolgenAnzahl()),
       start: () => Mathe.starteMalfolgenKarten()
+    },
+    {
+      // 02.11.2026 (Uli: Geometrie aus Max' Ordner, 10 Aufgaben am Tag, zum Antippen und zum Zeichnen im Heft)
+      id: 'geometrie', fach: 'mathe', icon: 'geometrie', titel: 'Mathe: Geometrie',
+      text: '5 zum Antippen, 5 im Heft zeichnen', einheit: 'Aufgaben', ziel: () => 10,
+      start: () => Geometrie.starteTagesTraining()
     }
   ];
 
@@ -48,6 +54,8 @@ const Ferientraining = (function () {
   }
 
   function anzahlErledigt() { return PLAN.filter(i => stand(i).fertig).length; }
+  const heuteGeschafft = () => anzahlErledigt() >= FREIWILLIG_ZIEL;
+  const GESCHAFFT_TEXT = 'Super, für heute geschafft! 🎉 Mehr ist freiwillig.';
 
   /** Zaehlt eine erledigte Einheit fuer einen Plan-Punkt (ignoriert unbekannte ids). */
   function melde(id, korrekt) {
@@ -105,7 +113,7 @@ const Ferientraining = (function () {
 
   function renderListe() {
     const erledigt = anzahlErledigt();
-    const alle = erledigt === PLAN.length;
+    const alle = heuteGeschafft();
     const zeilen = PLAN.map(item => {
       const s = stand(item);
       const prozent = Math.min(100, Math.round(s.n / s.z * 100));
@@ -122,8 +130,8 @@ const Ferientraining = (function () {
     }).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="App.gotoHome()">${Icons.svg('zurueck')} Zurück</span></div>
-      <div class="welcome">Deine Aufgaben heute</div>
-      <div class="lese-text">${alle ? 'Alles geschafft für heute! 🎉 Super gemacht!' : `Heute: ${erledigt} von ${PLAN.length} erledigt. Tippe auf eine Aufgabe, um loszulegen.`}</div>
+      <div class="welcome">Such dir heute etwas aus</div>
+      <div class="lese-text">${alle ? GESCHAFFT_TEXT : 'Ein Punkt am Tag reicht – such dir aus, worauf du Lust hast.'}</div>
       <div class="ft-liste">${zeilen}</div>
     `);
   }
@@ -132,8 +140,8 @@ const Ferientraining = (function () {
    *  extraZeileHtml (optional): z.B. die naechste Geschichte als "Extra" unter der Liste. */
   function homeKarteHtml(extraZeileHtml) {
     const erledigt = anzahlErledigt();
-    const alle = erledigt === PLAN.length;
-    const prozent = Math.round(erledigt / PLAN.length * 100);
+    const alle = heuteGeschafft();
+    const prozent = Math.min(100, Math.round(erledigt / FREIWILLIG_ZIEL * 100));
     const zeilen = PLAN.map(item => {
       const s = stand(item);
       return `
@@ -146,11 +154,11 @@ const Ferientraining = (function () {
     return `
       <div class="fth-karte">
         <div class="fth-kopf" onclick="Ferientraining.renderListe()">
-          <span class="fth-kopf-titel">Deine Aufgaben heute</span>
-          <span class="fth-kopf-zahl">${erledigt}<small> von ${PLAN.length}</small></span>
+          <span class="fth-kopf-titel">Such dir heute etwas aus</span>
+          <span class="fth-kopf-zahl">${erledigt}<small> geschafft</small></span>
         </div>
         <div class="fth-balken"><div style="width:${prozent}%"></div></div>
-        ${alle ? '<div class="fth-alles">Alles geschafft für heute! 🎉</div>' : ''}
+        ${alle ? `<div class="fth-alles">${GESCHAFFT_TEXT}</div>` : ''}
         ${zeilen}
         ${extraZeileHtml || ''}
       </div>`;
@@ -158,7 +166,7 @@ const Ferientraining = (function () {
 
   /** Zusatz-Button "Zurück zum Ferientraining" fuer die Ergebnis-Bildschirme. */
   function rueckkehrButtonHtml() {
-    return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zu deinen Aufgaben (${anzahlErledigt()} von ${PLAN.length})</div>`;
+    return `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Ferientraining.renderListe()">Zurück zur Auswahl</div>`;
   }
 
   /** Heutige Punkte fuer die Hof-Farm: [{ id, titel, fertig, n, z, richtig }] */

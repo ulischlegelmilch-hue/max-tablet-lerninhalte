@@ -87,6 +87,8 @@ const Icons = (function () {
   PATHS.fahrrad = '<circle cx="5.5" cy="16" r="3.5"/><circle cx="18.5" cy="16" r="3.5"/><path d="M5.5 16L9 8h5l4.5 8M9 8L12 16M14 8l-1-3h-2"/>';
   // Klammern (Mathe: Punkt vor Strich & Klammern)
   PATHS.klammern = '<path d="M8 4C4.5 8.5 4.5 15.5 8 20"/><path d="M16 4c3.5 4.5 3.5 11.5 0 16"/><line x1="11" y1="12" x2="13" y2="12"/>';
+  // Geometrie (Mathe): Dreieck mit rechtem Winkel
+  PATHS.geometrie = '<path d="M4 20V5l15 15z"/><path d="M4 15.5h4.5V20"/>';
   PATHS.grundmatt = PATHS.matt;
 
   function svg(name) {

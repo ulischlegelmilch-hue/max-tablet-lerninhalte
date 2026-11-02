@@ -799,6 +799,8 @@ const App = (function () {
       renderKeypad(f);
     } else if (f.typ === 'text') {
       renderTextEingabe(f);
+    } else if (f.typ === 'heft') {
+      renderHeft(f);
     } else {
       renderOptionen(f);
     }
@@ -861,6 +863,24 @@ const App = (function () {
       btn.onclick = () => beantworteMC(i, f);
       wrap.appendChild(btn);
     });
+  }
+
+  // Heft-Aufgabe (Geometrie, 02.11.2026): Max zeichnet ins Heft, nicht aufs Tablet. Nach "Fertig" zeigt die App,
+  // wie es aussehen kann - zum Vergleichen, ohne Bewertung (zaehlt als erledigt).
+  function renderHeft(f) {
+    const wrap = document.getElementById('optionen');
+    wrap.innerHTML = '';
+    const btn = document.createElement('div');
+    btn.className = 'option-btn';
+    btn.textContent = '✏️ Fertig gezeichnet';
+    btn.onclick = () => {
+      btn.onclick = null;
+      btn.classList.add('richtig');
+      abschlussFrage(true, undefined, 1);
+      const fb = document.getElementById('feedback');
+      fb.innerHTML = fb.textContent.replace('Richtig!', 'Prima!') + '<br>So kann es aussehen – vergleiche mit deinem Heft:' + (f.beispiel || '');
+    };
+    wrap.appendChild(btn);
   }
 
   function beantworteMC(i, f) {
