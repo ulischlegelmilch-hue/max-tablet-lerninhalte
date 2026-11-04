@@ -6,7 +6,10 @@
 // 04.11.2026 (Uli-Wunsch "freie Hand"): Die komplette home-built "Radfahr-
 // ausbildung" (Gruppe 'rad': ~80 Lernkarten in 13 Themen, Tageskarten,
 // "Falsche Karten wiederholen") wurde entfernt - Max uebt das jetzt ueber das
-// offizielle Portal die-radfahrausbildung.de (QR/Code im Heft). Mitentfernt:
+// offizielle Portal die-radfahrausbildung.de (QR/Code im Heft); unter HSK gibt
+// es dafuer die Kachel "Radfahrausbildung" (zeigeRadfahrPortal): Adresse + QR
+// zum Abscannen mit dem Elternhandy, KEIN klickbarer Link (Kiosk/lock-task,
+// file://, ein Link wuerde Max aus der App werfen). Mitentfernt:
 // die Radfahr-Karten als Quelle fuers Hof-Farm-Abfragelernen (farm-lernen.js),
 // der HSK-Aufbau-Verlauf in der Papa-App (fernsync.js) und der Abhoer-Stapel
 // "Radfahrausbildung (HSK)" (tools/export_lernkarten.js -> lernkarten.json).
@@ -59,7 +62,8 @@ const Heimatkunde = (function () {
 
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
-      { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' }
+      { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
+      { icon: 'fahrrad', titel: 'Radfahrausbildung', onclick: 'Heimatkunde.zeigeRadfahrPortal()' }
     ]));
   }
 
@@ -401,6 +405,24 @@ const Heimatkunde = (function () {
     starter();
   }
 
+  // "Radfahrausbildung" verweist aufs offizielle Portal der Deutschen
+  // Verkehrswacht. Das Tablet laeuft als gepinnter Kiosk (lock-task) und laedt
+  // seinen Inhalt aus einer lokalen Datei - ein echter Link wuerde die WebView
+  // aus der App werfen, ohne Weg zurueck. Darum KEIN klickbarer Link, sondern
+  // Adresse + QR-Code zum Abscannen mit dem Elternhandy (04.11.2026, Uli-Wunsch).
+  function zeigeRadfahrPortal() {
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Heimatkunde.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">Radfahrausbildung – üben im Internet</div>
+      <div class="lese-text">Für die Radfahrausbildung gibt es Übungen, Lernwege und Testbögen im Internet – auf <strong>die-radfahrausbildung.de</strong>.</div>
+      <div style="background:#fff;border-radius:16px;padding:18px 18px 14px;max-width:300px;margin:14px auto;text-align:center;">
+        <img src="images/qr-radfahrausbildung.svg" alt="QR-Code zu die-radfahrausbildung.de" style="width:220px;height:220px;display:block;margin:0 auto;">
+        <div style="margin-top:10px;font-weight:700;color:#1b2733;letter-spacing:.2px;">die-radfahrausbildung.de</div>
+      </div>
+      <div class="lese-text">👉 Scann den QR-Code mit dem Handy von <strong>Mama oder Papa</strong>. Deinen <strong>Zugangs-Code</strong> findest du vorne in deinem Heft.</div>
+    `);
+  }
+
   /** Lernthemen einer Gruppe mit ihren Karten - fuer den Export in die Eltern-App
    *  (tools/export_lernkarten.js). Aktuell nur noch 'sport'. */
   function lernthemenFuerExport(gruppe) {
@@ -408,5 +430,5 @@ const Heimatkunde = (function () {
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, geordnet: !!LERNTHEMEN[k].geordnet, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 
-  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht };
+  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, zeigeRadfahrPortal, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht };
 })();

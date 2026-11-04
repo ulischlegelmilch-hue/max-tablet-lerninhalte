@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-04-1730",
+  "version": "2026-11-04-1750",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -62,6 +62,7 @@
     "images/figuren/wP.svg",
     "images/figuren/wQ.svg",
     "images/figuren/wR.svg",
+    "images/qr-radfahrausbildung.svg",
     "images/verkehrszeichen/101_gefahrstelle.svg",
     "images/verkehrszeichen/102_kreuzung_rechts.svg",
     "images/verkehrszeichen/136_kinder.svg",
