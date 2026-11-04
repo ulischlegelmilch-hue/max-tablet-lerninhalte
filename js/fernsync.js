@@ -468,12 +468,12 @@ const FernSync = (function () {
       malfolgenStats: Storage.getMalfolgenStats(),
       matheKategorienStats: Storage.getMatheKategorienStats()
     };
-    // Stand des automatischen Kartenaufbaus (Malfolgen-Reihen, Radfahr-Stapel) - das Backend
+    // Stand des automatischen Kartenaufbaus (Malfolgen-Reihen) - das Backend
     // vergleicht mit dem letzten Stand und fuehrt daraus den Aufbau-Verlauf in Papas Auswertung.
+    // (04.11.2026: HSK/Radfahr-Stapel-Aufbau entfallen, Radfahrausbildung gestrichen.)
     try {
       body.aufbau = {
-        malfolgen: typeof Mathe !== 'undefined' && Mathe.aufbauInfo ? Mathe.aufbauInfo() : undefined,
-        hsk: typeof Heimatkunde !== 'undefined' && Heimatkunde.aufbauInfo ? Heimatkunde.aufbauInfo() : undefined
+        malfolgen: typeof Mathe !== 'undefined' && Mathe.aufbauInfo ? Mathe.aufbauInfo() : undefined
       };
       if (typeof Deutsch !== 'undefined' && Deutsch.faelleStufen) body.faelleStufen = Deutsch.faelleStufen();
     } catch (e) { /* Aufbau-Info ist optional */ }

@@ -1,10 +1,11 @@
 // Hof-Farm: Lernrunde fuer schnelleres Wachstum. Waehlt 5 Karteikarten aus den Bereichen, in denen Max am meisten Uebung braucht
-// (Malfolgen-Fakten, Radfahr-Lernkarten, Grundbegriffe) - nach den vorhandenen Statistiken: oft falsch / selten in Folge richtig
-// = hohes Gewicht. Nur am Tablet vorhanden (Storage, Heimatkunde, Grundbegriffe). Das Ergebnis meldet Max selbst ("gewusst" / "noch nicht"),
+// (Malfolgen-Fakten, Grundbegriffe) - nach den vorhandenen Statistiken: oft falsch / selten in Folge richtig
+// = hohes Gewicht. Nur am Tablet vorhanden (Storage, Grundbegriffe). Das Ergebnis meldet Max selbst ("gewusst" / "noch nicht"),
 // wie bei allen seinen Karteikarten; die Statistiken werden dabei genauso fortgeschrieben wie sonst.
+// 04.11.2026: Die Radfahr-Lernkarten als Quelle sind entfallen (Radfahrausbildung aus HSK gestrichen, siehe heimatkunde.js).
 const FarmLernen = (function () {
   function verfuegbar() {
-    return typeof Storage !== 'undefined' && typeof Heimatkunde !== 'undefined' && typeof Grundbegriffe !== 'undefined';
+    return typeof Storage !== 'undefined' && typeof Grundbegriffe !== 'undefined';
   }
 
   // Gewicht je Karte: unbekannt = mittel, oft falsch und noch nicht gefestigt = hoch, gefestigt (>= 3 richtig in Folge) = kaum
@@ -28,13 +29,6 @@ const FarmLernen = (function () {
         }
       });
     } catch (e) { /* ohne Malfolgen */ }
-    // Radfahr-Lernkarten
-    try {
-      Heimatkunde.lernthemenFuerExport().forEach(t => {
-        const stats = Storage.getLernkartenStats(t.id);
-        t.karten.forEach((c, i) => liste.push({ quelle: 'lern', thema: t.id, idx: i, front: c.front, back: c.back, w: gewicht(stats[i]), titel: 'Radfahren' }));
-      });
-    } catch (e) { /* ohne Radfahr-Karten */ }
     // Grundbegriffe (Rechenarten, Faelle)
     try {
       Object.keys(Grundbegriffe.DECKS).forEach(fach => {

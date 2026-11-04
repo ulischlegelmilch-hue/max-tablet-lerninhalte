@@ -51,16 +51,15 @@ const Geometrie = (function () {
 
   // Die fuenf Grundbegriffe aus dem Heft
   const FIGUREN = {
-    Gerade: () => gedreht(rnd(-25, 25), strich(-200, 120, 600, 120) + schrift(330, 100, 'g')),
-    Strecke: () => gedreht(rnd(-25, 25), strich(110, 120, 290, 120) + kreuz(110, 120, 'A') + kreuz(290, 120, 'B')),
-    Halbgerade: () => gedreht(rnd(-25, 25), strich(120, 120, 600, 120) + kreuz(120, 120, 'M')),
+    Gerade: (grad = rnd(-25, 25)) => gedreht(grad, strich(-200, 120, 600, 120) + schrift(330, 100, 'g')),
+    Strecke: (grad = rnd(-25, 25)) => gedreht(grad, strich(110, 120, 290, 120) + kreuz(110, 120, 'A') + kreuz(290, 120, 'B')),
+    Halbgerade: (grad = rnd(-25, 25)) => gedreht(grad, strich(120, 120, 600, 120) + kreuz(120, 120, 'M')),
     'krumme Linie': () => `<path d="M40 150 C 100 60, 150 200, 210 110 S 320 60, 360 140" fill="none" stroke="${FARBE}" stroke-width="3" stroke-linecap="round"/>`,
-    Punkt: () => kreuz(rnd(150, 250), rnd(100, 150), 'P')
+    Punkt: (x = rnd(150, 250), y = rnd(100, 150)) => kreuz(x, y, 'P')
   };
 
   /** Zwei Geraden g und h: senkrecht, parallel oder schraeg. */
-  function zweiGeraden(art, mitWinkel = false) {
-    const grad = rnd(-30, 30);
+  function zweiGeraden(art, mitWinkel = false, grad = rnd(-30, 30)) {
     let inhalt;
     if (art === 'senkrecht') {
       inhalt = strich(-200, 130, 600, 130) + strich(200, -300, 200, 600) + schrift(345, 112, 'g') + schrift(218, 30, 'h') +
@@ -230,6 +229,50 @@ const Geometrie = (function () {
     };
   }
 
+  // ---------------------------------------------------------------- Lernkarten fuer die Eltern-App
+
+  /** Dieselben Inhalte als Abhoer-Karten fuer Papa (tools/export_lernkarten.js): Vorderseite Frage, Rueckseite
+   *  Antwort mit Bild. Bilder ohne Zufall, damit jeder Export gleich bleibt; Farben passend zum hellen Eltern-App-Design. */
+  function lernkartenFuerExport() {
+    clipNr = 0;
+    const hell = (inhalt) => bild(inhalt, 300).replace(/#E9ECF5/g, 'currentColor').replace(/rgba\(233,236,245,0\.10\)/g, 'rgba(128,128,128,0.22)');
+    const k = (front, back) => ({ front, back });
+    const ueber = (t) => `<span style="text-decoration:overline">${t}</span>`;
+    return [
+      { id: 'geo_linien', titel: 'Punkt, Linie, Gerade, Strecke, Halbgerade', karten: [
+        k('Was ist ein Punkt? Wie zeichnet man ihn?', 'Man zeichnet ihn als <strong>Kreuz</strong> und nennt ihn mit einem <strong>Großbuchstaben</strong>, z. B. P.' + hell(FIGUREN.Punkt(200, 130))),
+        k('Was ist eine Gerade?', 'Eine gerade Linie <strong>ohne Anfang und ohne Ende</strong>. Man nennt sie mit einem kleinen Buchstaben, z. B. g.' + hell(FIGUREN.Gerade(-10))),
+        k('Was ist eine Strecke?', 'Die gerade Verbindung zwischen <strong>zwei Punkten</strong>. Sie hat zwei Endpunkte und eine Länge.' + hell(FIGUREN.Strecke(0))),
+        k('Was ist eine Halbgerade?', 'Sie hat <strong>einen Anfangspunkt</strong> und geht in eine Richtung immer weiter.' + hell(FIGUREN.Halbgerade(-10))),
+        k('Was ist der Unterschied zwischen einer Linie und einer Geraden?', 'Eine <strong>Linie</strong> kann auch krumm sein. Eine <strong>Gerade</strong> ist immer gerade.' + hell(FIGUREN['krumme Linie']())),
+        k('Was ist das?' + hell(FIGUREN.Halbgerade(15)), 'Eine <strong>Halbgerade</strong>: Anfangspunkt M, dann geht sie immer weiter.'),
+        k('Was ist das?' + hell(FIGUREN.Strecke(-15)), 'Eine <strong>Strecke</strong>: zwei Endpunkte A und B.')
+      ] },
+      { id: 'geo_senkrecht', titel: 'Senkrecht und parallel', karten: [
+        k('Was bedeutet „senkrecht“?', 'Zwei Geraden schneiden sich im <strong>rechten Winkel</strong>.' + hell(zweiGeraden('senkrecht', true, 0))),
+        k('Wie zeichnet man einen rechten Winkel ein?', 'Mit einem <strong>Viertelkreis</strong> und einem <strong>Punkt</strong> darin.' + hell(zweiGeraden('senkrecht', true, 20))),
+        k('Was bedeutet „parallel“?', 'Die Geraden haben <strong>überall den gleichen Abstand</strong> und schneiden sich nie.' + hell(zweiGeraden('parallel', false, -10))),
+        k('Schneiden sich zwei parallele Geraden?', '<strong>Nein, nie.</strong>'),
+        k('Wie liegen g und h?' + hell(zweiGeraden('senkrecht', false, -20)), '<strong>Senkrecht</strong> zueinander, sie schneiden sich im rechten Winkel.')
+      ] },
+      { id: 'geo_vierecke', titel: 'Vierecke', karten: [
+        k('Was ist ein Viereck?', 'Eine Figur mit <strong>4 Ecken</strong> und <strong>4 Seiten</strong>. Die Ecken heißen A, B, C, D.'),
+        k('Was ist ein Quadrat?', '<strong>4 gleich lange Seiten</strong> und <strong>4 rechte Winkel</strong>.' + hell(viereck('Quadrat', true))),
+        k('Was ist ein Rechteck?', '<strong>4 rechte Winkel</strong>. Gegenüberliegende Seiten sind gleich lang und parallel.' + hell(viereck('Rechteck', true))),
+        k('Was ist ein Parallelogramm?', '<strong>2 Paare parallele Seiten</strong>, es ist „schief“.' + hell(viereck('Parallelogramm'))),
+        k('Was ist ein Trapez?', 'Nur <strong>1 Paar parallele Seiten</strong>.' + hell(viereck('Trapez'))),
+        k('Was ist beim Quadrat anders als beim Rechteck?', 'Beim Quadrat sind <strong>alle 4 Seiten gleich lang</strong>.')
+      ] },
+      { id: 'geo_messen', titel: 'Strecken messen', karten: [
+        k('Wie schreibt man die Länge der Strecke von C nach D?', `${ueber('CD')} = 5,2 cm (mit Strich über CD)`),
+        k('Wie viele Millimeter sind 1 Zentimeter?', '<strong>10 mm</strong>'),
+        k('Wie liest man am Lineal ab, wie lang die Strecke ist?' + hell(linealMitStrecke(5.2)),
+          'Die Strecke beginnt bei <strong>0</strong>. 5 ganze Zentimeter und 2 kleine Striche: <strong>5,2 cm</strong>.'),
+        k('Worauf muss man beim Messen achten?', 'Das Lineal genau bei der <strong>0</strong> anlegen, nicht am Rand des Lineals.')
+      ] }
+    ];
+  }
+
   // ---------------------------------------------------------------- Runden
 
   /** n Aufgaben, abwechselnd zum Antippen und fuers Heft; keine Heft-Aufgabe doppelt, nie zweimal dieselbe Art hintereinander. */
@@ -263,5 +306,5 @@ const Geometrie = (function () {
     starter();
   }
 
-  return { starteTagesTraining, starteTraining, genRunde, _HEFT: HEFT, _ANTIPPEN: ANTIPPEN };
+  return { starteTagesTraining, starteTraining, genRunde, lernkartenFuerExport, _HEFT: HEFT, _ANTIPPEN: ANTIPPEN };
 })();
