@@ -492,15 +492,24 @@ const Heimatkunde = (function () {
   const GRUPPEN_INFO = {
     rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' },
     sport: { titel: 'Sport: Erwärmung', text: 'Lerne die Erwärmung für den Sportunterricht - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'App.gotoHome()' },
-    luther: { titel: 'Martin Luther', text: 'Für deine Arbeit über Martin Luther. Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' }
+    // ACHTUNG vorrang:true nach Max' Luther-Arbeit (Woche ab 09.11.2026) wieder entfernen - bis dahin empfiehlt der
+    // Lernstand Luther-Stapel zuerst (siehe empfehlung()).
+    luther: { titel: 'Martin Luther', text: 'Für deine Arbeit über Martin Luther. Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()', vorrang: true }
   };
 
   function starteThemenwahl(gruppe) {
     if (gruppe) themenGruppe = gruppe;
     const gi = GRUPPEN_INFO[themenGruppe];
+    // Je Stapel der Stand (✓ sitzt / x von y sicher / neu) und ein Stern am empfohlenen Stapel (08.11.2026)
+    let staende = {}, stern = null;
+    try {
+      const liste = alleStapel();
+      liste.forEach(s => { staende[s.id] = s; });
+      stern = empfohlenInGruppe(themenGruppe, liste);
+    } catch (e) { staende = {}; }
     const karten = Object.keys(LERNTHEMEN).filter(key => LERNTHEMEN[key].gruppe === themenGruppe).map(key => {
       const t = LERNTHEMEN[key];
-      return `<div class="sub-card" onclick="Heimatkunde.starteLernkarten('${key}')"><span class="sub-icon">${Icons.svg(t.icon)}</span><span class="sub-label">${t.titel}</span></div>`;
+      return `<div class="sub-card${key === stern ? ' sub-empfohlen' : ''}" onclick="Heimatkunde.starteLernkarten('${key}')"><span class="sub-icon">${Icons.svg(t.icon)}</span><span class="sub-label">${t.titel}${standZeile(staende[key], key === stern)}</span></div>`;
     }).join('');
     App.render(`
       <div class="back-row"><span class="back-btn" onclick="${gi.zurueck}">${Icons.svg('zurueck')} Zurück</span></div>
@@ -918,6 +927,81 @@ const Heimatkunde = (function () {
     starter();
   }
 
+  // ===========================================================================
+  // Lernstand je Stapel + Empfehlung (08.11.2026, Uli: "sehen, welchen Stapel Max auf seinem Tablet gut kann und
+  // Empfehlungen, welchen er als naechstes machen soll bzw. noch ueben muss" - in Papas Eltern-App UND fuer Max als
+  // ✓/★ in der Themenwahl). Eine Karte "sitzt" ab 2x in Folge gewusst (lernkartenStatus 'sicher'), "wackelt" =
+  // schon geuebt, aber noch nicht sicher. Ein Stapel "sitzt", wenn alle Karten sitzen.
+  // Empfehlung: (1) noch ueben = angefangene Stapel, die meisten wackeligen Karten zuerst; (2) als Naechstes = je
+  // Gruppe der erste noch nicht angefangene Stapel (Reihenfolge wie im Heft); (3) mal wieder wiederholen = sitzt,
+  // aber laenger als WIEDERHOLEN_NACH_TAGEN nicht geuebt. Gruppen mit vorrang:true (GRUPPEN_INFO) jeweils zuerst.
+  // Die Rechnung laeuft NUR hier auf dem Tablet; FernSync schickt das Ergebnis (lernstandBericht) an den Pi.
+  // ===========================================================================
+  const WIEDERHOLEN_NACH_TAGEN = 14;
+  const STAPEL_GRUPPEN = ['luther', 'rad', 'sport'];
+
+  function stapelStand(id, titel, gruppe, anzahl, stats, zuletzt) {
+    let sicher = 0, wackelig = 0, neu = 0;
+    for (let i = 0; i < anzahl; i++) {
+      const s = lernkartenStatus(stats[i]);
+      if (s === 'sicher') sicher++; else if (s === 'uebung') wackelig++; else neu++;
+    }
+    const status = neu === anzahl ? 'neu' : (sicher === anzahl ? 'sitzt' : 'uebt');
+    return { id, titel, gruppe, gesamt: anzahl, sicher, wackelig, neu, status, zuletzt: zuletzt || null };
+  }
+
+  /** Alle Lernkarten-Stapel am Tablet mit Stand: Martin Luther, Radfahren, Sport, Grundbegriffe. */
+  function alleStapel() {
+    const liste = [];
+    STAPEL_GRUPPEN.forEach(g => Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === g && k !== 'rad_falsch').forEach(k => {
+      liste.push(stapelStand(k, LERNTHEMEN[k].titel, g, LERNTHEMEN[k].karten().length, Storage.getLernkartenStats(k), Storage.getLernkartenZuletzt(k)));
+    }));
+    if (typeof Grundbegriffe !== 'undefined' && Grundbegriffe.DECKS) {
+      Object.keys(Grundbegriffe.DECKS).forEach(f => {
+        const d = Grundbegriffe.DECKS[f];
+        liste.push(stapelStand(d.stat, d.titel, 'grundbegriffe', d.karten.length, Storage.getLernkartenStats(d.stat), Storage.getLernkartenZuletzt(d.stat)));
+      });
+    }
+    return liste;
+  }
+
+  function tageSeit(datum) {
+    const d = new Date(datum + 'T12:00:00'), h = new Date(Storage.getHeutigesDatum() + 'T12:00:00');
+    return Math.round((h - d) / 86400000);
+  }
+
+  function empfehlung(liste) {
+    const vorrang = s => (GRUPPEN_INFO[s.gruppe] && GRUPPEN_INFO[s.gruppe].vorrang ? 0 : 1);
+    const gruppenRang = s => { const i = STAPEL_GRUPPEN.indexOf(s.gruppe); return i < 0 ? STAPEL_GRUPPEN.length : i; };
+    const ueben = liste.filter(s => s.status === 'uebt')
+      .sort((a, b) => vorrang(a) - vorrang(b) || b.wackelig - a.wackelig || (a.sicher / a.gesamt) - (b.sicher / b.gesamt));
+    const naechste = [], gesehen = new Set();
+    liste.slice().sort((a, b) => vorrang(a) - vorrang(b) || gruppenRang(a) - gruppenRang(b)).forEach(s => {
+      if (s.status === 'neu' && !gesehen.has(s.gruppe)) { gesehen.add(s.gruppe); naechste.push(s); }
+    });
+    const wiederholen = liste.filter(s => s.status === 'sitzt' && s.zuletzt && tageSeit(s.zuletzt) >= WIEDERHOLEN_NACH_TAGEN)
+      .sort((a, b) => (a.zuletzt < b.zuletzt ? -1 : 1));
+    return { ueben: ueben.slice(0, 3).map(s => s.id), naechste: naechste.slice(0, 2).map(s => s.id), wiederholen: wiederholen.slice(0, 2).map(s => s.id) };
+  }
+
+  /** Der EINE Stapel einer Gruppe, der in Max' Themenwahl den Stern bekommt: erst ueben, dann neu, dann wiederholen. */
+  function empfohlenInGruppe(gruppe, liste) {
+    const e = empfehlung(liste.filter(s => s.gruppe === gruppe));
+    return [...e.ueben, ...e.naechste, ...e.wiederholen][0] || null;
+  }
+
+  function standZeile(s, empfohlen) {
+    if (!s) return '';
+    const text = s.status === 'sitzt' ? '✓ sitzt' : s.status === 'neu' ? 'neu' : `${s.sicher} von ${s.gesamt} sicher`;
+    return `<span class="sub-stand sub-stand-${s.status}">${text}${empfohlen ? ' <b class="sub-stern">★ als Nächstes</b>' : ''}</span>`;
+  }
+
+  /** Fuer Papas Eltern-App (FernSync.meldeLernsetErledigt -> /api/lernset-erledigt): Stand je Stapel + Empfehlung. */
+  function lernstandBericht() {
+    const liste = alleStapel();
+    return { datum: Storage.getHeutigesDatum(), stapel: liste, empfehlung: empfehlung(liste) };
+  }
+
   /** Alle Radfahr-Lernthemen mit ihren Karten (ohne das Sammelthema rad_falsch) - fuer den Export in die
    *  Eltern-App (tools/export_lernkarten.js). */
   function lernthemenFuerExport(gruppe) {
@@ -925,5 +1009,5 @@ const Heimatkunde = (function () {
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, geordnet: !!LERNTHEMEN[k].geordnet, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 
-  return { lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
+  return { lernstandBericht, lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
 })();

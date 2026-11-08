@@ -89,6 +89,11 @@ body.spielbuehne .sub-icon {
 body.spielbuehne .sub-icon::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 52%; pointer-events: none; background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,0)); }
 body.spielbuehne .sub-icon svg { width: 78%; height: 78%; position: relative; z-index: 1; }
 body.spielbuehne .sub-label { color: #F3F1EA; font-size: 17px; font-weight: 700; }
+/* Lernstand je Stapel in der Themenwahl (08.11.2026): ✓ sitzt / x von y sicher / neu, Stern am empfohlenen Stapel */
+body.spielbuehne .sub-stand { display: block; margin-top: 3px; font-size: 13px; font-weight: 600; color: rgba(243,241,234,.62); }
+body.spielbuehne .sub-stand-sitzt { color: #6CE0A4; }
+body.spielbuehne .sub-stern { color: #FFC93C; font-weight: 800; }
+body.spielbuehne .sub-card.sub-empfohlen { border-color: rgba(255,201,60,.75); box-shadow: 0 0 0 1px rgba(255,201,60,.45), 0 4px 14px rgba(255,201,60,.18); }
 body.spielbuehne .sub-grid.sub-akzent-mathe { --sub-akzent: #5B9BFF; --sub-akzent-bg: rgba(91,155,255,.18);  --sub-g1: #7DB4FF; --sub-g2: #2C66D2; --sub-gd: #1F4FA8;}
 body.spielbuehne .sub-grid.sub-akzent-deutsch { --sub-akzent: #FF9157; --sub-akzent-bg: rgba(255,145,87,.18);  --sub-g1: #FFAA77; --sub-g2: #E0612A; --sub-gd: #A8421A;}
 body.spielbuehne .sub-grid.sub-akzent-heimat { --sub-akzent: #46CC87; --sub-akzent-bg: rgba(70,204,135,.18);  --sub-g1: #6CE0A4; --sub-g2: #1F9E63; --sub-gd: #137548;}

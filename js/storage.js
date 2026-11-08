@@ -650,7 +650,15 @@ const Storage = (function () {
       stat.serie = 0;
     }
     stats[kartenIndex] = stat;
+    // Wann zuletzt geuebt (08.11.2026, fuer den Lernstand je Stapel in Papas Eltern-App: "mal wieder wiederholen")
+    if (!state.lernkartenZuletzt) state.lernkartenZuletzt = {};
+    state.lernkartenZuletzt[thema] = heutigesDatum();
     save(state);
+  }
+
+  /** Tag (JJJJ-MM-TT), an dem zuletzt eine Karte dieses Stapels bewertet wurde; null = noch nie (bzw. vor dem 08.11.2026). */
+  function getLernkartenZuletzt(thema) {
+    return (state.lernkartenZuletzt && state.lernkartenZuletzt[thema]) || null;
   }
 
   function leererTaktikEintrag() {
@@ -1134,7 +1142,7 @@ const Storage = (function () {
     getGuthaben, getBelohnungen, fuegeBelohnungHinzu, aendereBelohnung, loescheBelohnung,
     getBelohnungsVerlauf, loeseBelohnungEin,
     getMalfolgenDeck, setMalfolgenDeck, rotationOrdnen, rotationMelde, rotationWert, rotationSetzeWert,
-    getLernkartenStats, meldeLernkartenErgebnis,
+    getLernkartenStats, meldeLernkartenErgebnis, getLernkartenZuletzt,
     getOffeneSession, setOffeneSession, loescheOffeneSession,
     getOffeneLernsetMeldungen, pushOffeneLernsetMeldung, entferneErsteOffeneLernsetMeldung
   };
