@@ -271,7 +271,8 @@ const Heimatkunde = (function () {
   // Martin Luther (08.11.2026, Uli: "Max schreibt nächste Woche eine Arbeit über Martin Luther"). Quelle: Arbeitsheft
   // Klett, Kapitel 3 "Martin Luther und die Reformation", S. 46 (Lesetext + Lückentext "Luthers wichtigste Ideen") und
   // S. 47 (Bildergeschichte, 8 Sätze). Inhalte 1:1 aus dem Heft, eigene Gruppe 'luther', ein Thema je Sachgebiet.
-  // Einzige Ergänzung, die NICHT im Heft steht: die Karte "Was bedeutet Reformation?" (Kapitel-Überschrift).
+  // Ergänzungen, die NICHT im Heft stehen: die Karte "Was bedeutet Reformation?" (Kapitel-Überschrift) und seit 11.11.2026
+  // drei Karten auf Ulis Wunsch (Katharina von Bora, Ablasshandel, Warum Bibelübersetzung) – am Ende ihrer Stapel angehängt.
   // ===========================================================================
   const LERNKARTEN_LUTHER_MITTELALTER = [
     { front: 'Wann lebte Martin Luther?', back: 'Vor ungefähr <strong>500 Jahren</strong>, im <strong>Mittelalter</strong>.' },
@@ -289,7 +290,10 @@ const Heimatkunde = (function () {
     { front: 'Martin Luther glaubte fest an Gott. Wie sagt man dazu?', back: 'Er war <strong>sehr gläubig</strong>.' },
     { front: 'Welchen Beruf hatte Martin Luther? Wo?', back: 'Er wurde <strong>Pfarrer</strong> in <strong>Wittenberg</strong>.' },
     { front: 'Wo versteckte sich Martin Luther?', back: 'Auf der <strong>Wartburg</strong> bei <strong>Eisenach</strong>.' },
-    { front: 'Was tat Martin Luther auf der Wartburg?', back: 'Er übersetzte einen Teil der <strong>Bibel</strong> ins <strong>Deutsche</strong>.' }
+    { front: 'Was tat Martin Luther auf der Wartburg?', back: 'Er übersetzte einen Teil der <strong>Bibel</strong> ins <strong>Deutsche</strong>.' },
+    // 11.11.2026, Uli-Wunsch – stehen NICHT im Heft (eigene Formulierung):
+    { front: 'Warum übersetzte Martin Luther die Bibel?', back: 'Die Bibel gab es damals fast nur auf <strong>Latein</strong>. Das verstanden die meisten Menschen nicht.<br>Luther wollte, dass <strong>alle</strong> die Bibel <strong>selbst lesen und verstehen</strong> können.' },
+    { front: 'Wer war Katharina von Bora?', back: 'Die <strong>Ehefrau</strong> von Martin Luther.<br>Sie war vorher <strong>Nonne</strong> und floh aus dem <strong>Kloster</strong>. <strong>1525</strong> heirateten die beiden. Sie bekamen <strong>sechs Kinder</strong>.' }
   ];
 
   const LERNKARTEN_LUTHER_ABLASS = [
@@ -298,7 +302,9 @@ const Heimatkunde = (function () {
     { front: 'Wer kam nach Wittenberg und verkaufte dort Ablassbriefe?', back: '<strong>Kirchenmänner</strong>.' },
     { front: 'Ergänze den Spruch auf dem Ablassbrief:<br>„Wenn das Geld im Kasten klingt, …“', back: '„… die <strong>Seele</strong> in den <strong>Himmel</strong> springt.“' },
     { front: 'Was hielt Martin Luther von den Ablassbriefen?', back: 'Er <strong>ärgerte sich sehr</strong> darüber.' },
-    { front: 'Was soll man nach Luthers Meinung tun, wenn man einen Fehler gemacht hat?', back: 'Den Fehler <strong>wirklich bereuen</strong> und <strong>wiedergutmachen</strong> – nicht einen Ablassbrief kaufen.' }
+    { front: 'Was soll man nach Luthers Meinung tun, wenn man einen Fehler gemacht hat?', back: 'Den Fehler <strong>wirklich bereuen</strong> und <strong>wiedergutmachen</strong> – nicht einen Ablassbrief kaufen.' },
+    // 11.11.2026, Uli-Wunsch – steht so NICHT im Heft (eigene Formulierung, passend zu den Karten oben):
+    { front: 'Was ist der Ablasshandel?', back: 'Der <strong>Verkauf von Ablassbriefen</strong> durch die Kirche.<br>Die Menschen <strong>bezahlten Geld</strong>, damit ihnen die <strong>Strafen für ihre Sünden erlassen</strong> werden.' }
   ];
 
   const LERNKARTEN_LUTHER_THESEN = [
