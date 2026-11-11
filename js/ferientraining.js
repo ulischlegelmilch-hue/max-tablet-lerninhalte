@@ -39,9 +39,11 @@ const Ferientraining = (function () {
     },
     {
       // 02.11.2026 (Uli: Geometrie aus Max' Ordner, 10 Aufgaben am Tag, zum Antippen und zum Zeichnen im Heft)
-      id: 'geometrie', fach: 'mathe', icon: 'geometrie', titel: 'Mathe: Geometrie',
-      text: '5 zum Antippen, 5 im Heft zeichnen', einheit: 'Aufgaben', ziel: () => 10,
-      start: () => Geometrie.starteTagesTraining()
+      // 11.11.2026 (Uli: Vorbereitung ändern – Lernkarten statt der gemischten Aufgaben): ein Stapel Geometrie-Lernkarten zählt als Tagespunkt.
+      // Die bisherigen Aufgaben (5 antippen + 5 im Heft) bleiben im Mathe-Menü unter „Geometrie-Aufgaben“ (Geometrie.starteTagesTraining ungenutzt).
+      id: 'geometrie_karten', fach: 'mathe', icon: 'geometrie', titel: 'Mathe: Geometrie-Lernkarten',
+      text: 'Ein Stapel: erkennen, prüfen oder zeichnen', einheit: 'Karten', ziel: () => 6,
+      start: () => Heimatkunde.starteThemenwahl('geo')
     }
   ];
 

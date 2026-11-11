@@ -79,7 +79,8 @@ const Heimatkunde = (function () {
   // ===========================================================================
   // Fuer Fortschritts-Uebersicht/Papa-Verlauf: Schild-Bilder aus dem Kartentext
   // durch ein Platzhalterwort ersetzen (dort wird nur Text angezeigt).
-  function textOhneBild(html) { return html.replace(/<img[^>]*>(<br>)?/g, '(Schild) '); }
+  // Zeichnungen (Geometrie-Karten, 11.11.2026) werden für Verlauf und Eltern-App ganz weggelassen – die Vorderseiten sind über ihren Wortlaut eindeutig.
+  function textOhneBild(html) { return html.replace(/<svg[\s\S]*?<\/svg>/g, ' ').replace(/<img[^>]*>(<br>)?/g, '(Schild) ').replace(/\s+/g, ' ').trim(); }
 
   function radImg(datei) {
     return `<img class="sign-img" style="width:84px;height:84px;" src="images/verkehrszeichen/${datei}" alt="Verkehrszeichen"><br>`;
@@ -494,8 +495,15 @@ const Heimatkunde = (function () {
   // Aktuell gibt es nur noch 'rad' (die LK-Vorbereitung mit Gruppe 'lk' wurde
   // 27.09.2026 entfernt) - GRUPPEN_INFO bleibt trotzdem ein Objekt statt
   // fixer Werte, falls spaeter eine weitere Themengruppe dazukommt.
+  // Geometrie-Lernkarten (11.11.2026): Inhalt und Bilder kommen aus geometrie.js (Geometrie.lernkartenTablet), hier nur die Stapel-Liste.
+  const GEO_STAPEL = { geo_erkennen: 'Linien erkennen', geo_lage: 'Senkrecht oder parallel?', geo_vierecke: 'Vierecke erkennen', geo_merkmale: 'Merkmale', geo_schreiben: 'Aufschreiben und messen', geo_zeichnen: 'Im Heft zeichnen' };
+  Object.keys(GEO_STAPEL).forEach(id => { LERNTHEMEN[id] = { gruppe: 'geo', titel: GEO_STAPEL[id], icon: 'geometrie', karten: () => (typeof Geometrie !== 'undefined' ? Geometrie.lernkartenTablet(id) : []), bewertung: true }; });
+  /** Tagespunkt, zu dem ein Stapel zählt (Auswahl auf der Startseite), sonst null. */
+  const tagesPunktFuer = (thema) => (thema === TAGESKARTEN_THEMA ? 'heimat_lernkarten' : LERNTHEMEN[thema] && LERNTHEMEN[thema].gruppe === 'geo' ? 'geometrie_karten' : null);
+
   let themenGruppe = 'rad';
   const GRUPPEN_INFO = {
+    geo: { titel: 'Geometrie-Lernkarten', text: 'Wähl einen Stapel aus. Schau dir das Bild genau an, überleg dir die Antwort und dreh dann um. Danach markierst du selbst, ob du es gewusst hast.', zurueck: 'Mathe.renderMenu()' },
     rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' },
     sport: { titel: 'Sport: Erwärmung', text: 'Lerne die Erwärmung für den Sportunterricht - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'App.gotoHome()' },
     // ACHTUNG vorrang:true nach Max' Luther-Arbeit (Woche ab 09.11.2026) wieder entfernen - bis dahin empfiehlt der
@@ -793,7 +801,7 @@ const Heimatkunde = (function () {
     const zielThema = karte._quellThema || lkSession.thema;
     const zielIdx = karte._quellThema ? karte._quellIdx : karte._idx;
     Storage.meldeLernkartenErgebnis(zielThema, zielIdx, korrekt);
-    if (lkSession.thema === TAGESKARTEN_THEMA && !karte._wiederholung) Ferientraining.melde('heimat_lernkarten', korrekt);
+    if (tagesPunktFuer(lkSession.thema) && !karte._wiederholung) Ferientraining.melde(tagesPunktFuer(lkSession.thema), korrekt);
     const gained = Storage.addAntwort('heimat', korrekt, 1);
     if (korrekt) { lkSession.richtig++; lkSession.sterne += gained; }
     lkSession.verlauf.push({ frage: textOhneBild(karte.front), ergebnis: korrekt ? 'richtig' : 'falsch' });
@@ -818,7 +826,7 @@ const Heimatkunde = (function () {
   }
 
   function renderLernkartenErgebnis() {
-    if (lkSession.thema === TAGESKARTEN_THEMA) Ferientraining.abschluss('heimat_lernkarten');
+    if (tagesPunktFuer(lkSession.thema)) Ferientraining.abschluss(tagesPunktFuer(lkSession.thema));
     if (!lkSession.bewertung) {
       App.render(`
         <div class="back-row"><span class="back-btn" onclick="Heimatkunde.starteThemenwahl()">${Icons.svg('zurueck')} Zurück</span></div>
@@ -839,7 +847,7 @@ const Heimatkunde = (function () {
         <div class="result-emoji">${emoji}</div>
         <div class="result-title">${lkSession.richtig} von ${total} gewusst!</div>
         <div class="result-sterne">Du hast ${lkSession.sterne} ⭐ verdient</div>
-        ${lkSession.thema === TAGESKARTEN_THEMA ? Ferientraining.rueckkehrButtonHtml() : ''}
+        ${tagesPunktFuer(lkSession.thema) ? Ferientraining.rueckkehrButtonHtml() : ''}
         <div class="btn-primary" onclick="Heimatkunde.starteLernkarten('${lkSession.thema}')">Nochmal üben</div>
         ${lkSession.thema === TAGESKARTEN_THEMA ? '' : `<div class="btn-primary" style="background:var(--accent-soft);color:var(--accent-dark);" onclick="Heimatkunde.renderLernkartenUebersicht('${lkSession.thema}')">Fortschritt ansehen</div>`}
         <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="Heimatkunde.starteThemenwahl()">Anderes Thema</div>
@@ -944,7 +952,7 @@ const Heimatkunde = (function () {
   // Die Rechnung laeuft NUR hier auf dem Tablet; FernSync schickt das Ergebnis (lernstandBericht) an den Pi.
   // ===========================================================================
   const WIEDERHOLEN_NACH_TAGEN = 14;
-  const STAPEL_GRUPPEN = ['luther', 'rad', 'sport'];
+  const STAPEL_GRUPPEN = ['luther', 'rad', 'sport', 'geo'];
 
   function stapelStand(id, titel, gruppe, anzahl, stats, zuletzt) {
     let sicher = 0, wackelig = 0, neu = 0;

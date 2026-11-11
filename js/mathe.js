@@ -39,7 +39,8 @@ const Mathe = (function () {
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'tagesaufgabe', titel: 'Tages-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
-      { icon: 'geometrie', titel: 'Geometrie', onclick: 'Geometrie.starteTraining()' },
+      { icon: 'geometrie', titel: 'Geometrie-Lernkarten', onclick: "Heimatkunde.starteThemenwahl('geo')" },
+      { icon: 'geometrie', titel: 'Geometrie-Aufgaben', onclick: 'Geometrie.starteTraining()' },
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }

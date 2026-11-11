@@ -59,13 +59,14 @@ const Geometrie = (function () {
   };
 
   /** Zwei Geraden g und h: senkrecht, parallel oder schraeg. */
-  function zweiGeraden(art, mitWinkel = false, grad = rnd(-30, 30)) {
+  function zweiGeraden(art, mitWinkel = false, grad = rnd(-30, 30), namen = ['g', 'h']) {
+    const [n1, n2] = namen;
     let inhalt;
     if (art === 'senkrecht') {
-      inhalt = strich(-200, 130, 600, 130) + strich(200, -300, 200, 600) + schrift(345, 112, 'g') + schrift(218, 30, 'h') +
+      inhalt = strich(-200, 130, 600, 130) + strich(200, -300, 200, 600) + schrift(345, 112, n1) + schrift(218, 30, n2) +
         (mitWinkel ? winkel(200, 130, [1, 0], [0, -1]) : '');
     } else if (art === 'parallel') {
-      inhalt = strich(-200, 85, 600, 85) + strich(-200, 165, 600, 165) + schrift(345, 67, 'g') + schrift(345, 147, 'h');
+      inhalt = strich(-200, 85, 600, 85) + strich(-200, 165, 600, 165) + schrift(345, 67, n1) + schrift(345, 147, n2);
     } else {
       const schraeg = waehle([35, 50, 130, 145]) * Math.PI / 180;
       const dx = Math.cos(schraeg) * 400, dy = -Math.sin(schraeg) * 400;
@@ -229,48 +230,160 @@ const Geometrie = (function () {
     };
   }
 
-  // ---------------------------------------------------------------- Lernkarten fuer die Eltern-App
+  // ---------------------------------------------------------------- Lernkarten (Tablet + Eltern-App)
 
-  /** Dieselben Inhalte als Abhoer-Karten fuer Papa (tools/export_lernkarten.js): Vorderseite Frage, Rueckseite
-   *  Antwort mit Bild. Bilder ohne Zufall, damit jeder Export gleich bleibt; Farben passend zum hellen Eltern-App-Design. */
+  // 11.11.2026 (Uli: "Vorbereitung für Geometrie ändern – Lernkarten wie in meiner Eltern-App, aber gute"):
+  // Die alten 22 Abhör-Karten fragten fast nur Definitionen ab ("Was ist ...?", Bild erst auf der Rückseite).
+  // Neu nach Lehrplan Thüringen Klasse 4 (zeigen, benennen, beschreiben, unterscheiden, mit dem Geodreieck
+  // zeichnen und prüfen) und Fachdidaktik (Kinder erkennen Figuren am typischen Aussehen):
+  //  - Erkennen: Bild vorn, Name hinten, Figuren auch gedreht/hochkant/kopfüber
+  //  - Ja oder nein: knapp daneben liegende Figuren, die Rückseite nennt das eine fehlende Merkmal
+  //  - ein Merkmal je Karte statt ganzer Definitionen
+  //  - Prüfen (Geodreieck, Abstand messen) und Tun (im Heft zeichnen, Rückseite "So kann es aussehen")
+  // Alle Bilder ohne Zufall, damit Statistik (Karte = Stapel + Nummer) und Export stabil bleiben.
+  // WICHTIG: jede Vorderseite hat einen eigenen Wortlaut – die Eltern-App findet Karten über den Text wieder.
+  const GEO = '#5BC0EB';
+  const flaeche = (e) => `<polygon points="${e.map(p => p.join(',')).join(' ')}" fill="rgba(255,107,107,0.08)" stroke="${FARBE}" stroke-width="3" stroke-linejoin="round"/>`;
+  /** Zeichen für den rechten Winkel an Ecke i eines beliebig gedrehten Vierecks. */
+  function eckWinkel(e, i) {
+    const p = e[i], n = e[(i + 1) % e.length], v = e[(i + e.length - 1) % e.length];
+    const ein = (q) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); return [(q[0] - p[0]) / d, (q[1] - p[1]) / d]; };
+    return winkel(p[0], p[1], ein(n), ein(v));
+  }
+  const alleWinkel = (e) => e.map((_, i) => eckWinkel(e, i)).join('');
+  /** Gerade g waagerecht und h durch die Mitte im Winkel grad dazu. */
+  function gUndH(grad) {
+    const w = grad * Math.PI / 180, dx = Math.cos(w) * 400, dy = -Math.sin(w) * 400;
+    return strich(-200, 150, 600, 150) + strich(200 - dx, 150 - dy, 200 + dx, 150 + dy) + schrift(350, 132, 'g') +
+      schrift(200 + Math.cos(w) * 100 + 18, 150 - Math.sin(w) * 100, 'h');
+  }
+  /** Geodreieck: lange Kante unten auf Höhe y, Mittellinie senkrecht darüber bei x. */
+  function geodreieck(x, y, w = 130) {
+    let s = `<polygon points="${x - w},${y} ${x + w},${y} ${x},${y - w}" fill="rgba(91,192,235,0.16)" stroke="${GEO}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    for (let i = -6; i <= 6; i++) s += strich(x + i * 20, y, x + i * 20, y - (i % 2 === 0 ? 12 : 7), GEO, 1.2);
+    s += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - w}" stroke="${GEO}" stroke-width="2" stroke-dasharray="6 4"/>`;
+    return s;
+  }
+  const abstand = (x, y1, y2, t) => `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${AKZENT}" stroke-width="2" stroke-dasharray="5 4"/>` + schrift(x + 34, (y1 + y2) / 2, t, AKZENT, 16);
+  const heftAuftrag = (t) => `<span style="font-size:0.85em;opacity:0.8;">✏️ Zeichne ins Heft:</span><br>${t}`;
+  const soKannEs = (b, inhalt, pruefe) => `So kann es aussehen:${b(inhalt)}<strong>Prüfe:</strong> ${pruefe}`;
+
+  /** Alle Stapel; b(inhalt) macht aus der Zeichnung das fertige Bild (dunkel fürs Tablet, hell für die Eltern-App). */
+  function kartenstapel(b, zufall = false) {
+    const k = (front, back) => ({ front, back });
+    // Zeichen-Karten (11.11.2026, Uli: "jedes Mal andere Zeichenwerte"): am Tablet werden Längen, Abstände, Namen und Lage
+    // bei jedem Start neu gewürfelt; der Export für die Eltern-App nimmt immer den festen Beispielwert (zweites Argument).
+    const z = (liste, fest) => (zufall ? waehle(liste) : fest);
+    const cm = (x) => komma(x) + ' cm';
+    const zeichenKarten = () => {
+      const [e1, e2] = z([['A', 'B'], ['C', 'D'], ['E', 'F'], ['P', 'Q']], ['A', 'B']);
+      const lang = z([3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8], 5);
+      const xa = 200 - lang * CM / 2, xb = 200 + lang * CM / 2;
+      const pn = z(['A', 'B', 'P', 'Q'], 'A'), gn = z(['g', 'h', 'k', 'm'], 'g'), m = z([-0.3, -0.14, 0.14, 0.3], -0.14);
+      const hn = z(['M', 'A', 'S', 'P'], 'M'), nachRechts = z([true, false], true);
+      const sn = z([['g', 'h'], ['a', 'b'], ['k', 'l']], ['g', 'h']), sgrad = z([-20, -10, 0, 10, 20], 0);
+      const pa = z([['g', 'h'], ['a', 'b'], ['k', 'l']], ['g', 'h']), d = z([1, 1.5, 2, 2.5, 3, 3.5, 4], 2), y1 = 120 - d * CM / 2, y2 = 120 + d * CM / 2;
+      const qn = z(['P', 'A', 'Q'], 'P'), g2 = z(['g', 'h', 'k'], 'g'), oben = z([true, false], true), px = z([130, 190, 260], 190), gy = oben ? 180 : 70, py = oben ? 80 : 175;
+      const ra = z([4, 5, 6, 7], 5), rb = z([2, 2.5, 3, 3.5], 3), w = ra * CM / 2, h = rb * CM / 2;
+      const rEcken = [[200 - w, 120 + h], [200 + w, 120 + h], [200 + w, 120 - h], [200 - w, 120 - h]];
+      const qs = z([2, 2.5, 3, 3.5, 4, 4.5], 3);
+      return [
+        k(heftAuftrag(`eine Strecke mit den Endpunkten ${e1} und ${e2}. Sie soll ${cm(lang)} lang sein.`),
+          soKannEs(b, strich(xa, 120, xb, 120) + kreuz(xa, 120, e1) + kreuz(xb, 120, e2) + schrift(200, 160, `${e1}${e2} = ${cm(lang)}`, AKZENT, 18), `Miss nach. Sind es genau ${cm(lang)}?`)),
+        k(heftAuftrag(`einen Punkt ${pn} und eine Gerade ${gn} durch den Punkt ${pn}.`),
+          soKannEs(b, strich(-50, 125 - 250 * m, 450, 125 + 250 * m) + kreuz(200, 125, pn, -4, -24) + schrift(360, 125 + 160 * m - 22, gn), `Geht die Gerade auf <strong>beiden</strong> Seiten über ${pn} hinaus?`)),
+        k(heftAuftrag(`eine Halbgerade mit dem Anfangspunkt ${hn}.`),
+          soKannEs(b, nachRechts ? strich(90, 130, 600, 130) + kreuz(90, 130, hn) : strich(310, 130, -200, 130) + kreuz(310, 130, hn), `Fängt sie bei ${hn} an und geht nur in <strong>eine</strong> Richtung weiter?`)),
+        k(heftAuftrag(`zwei Geraden ${sn[0]} und ${sn[1]}, die senkrecht zueinander sind. Zeichne das Zeichen für den rechten Winkel ein.`),
+          soKannEs(b, zweiGeraden('senkrecht', true, sgrad, sn), 'Lege das Geodreieck an. Stimmt der rechte Winkel?')),
+        k(heftAuftrag(`zwei Geraden ${pa[0]} und ${pa[1]}, die parallel zueinander sind. Ihr Abstand soll ${cm(d)} sein.`),
+          soKannEs(b, strich(-50, y1, 450, y1) + strich(-50, y2, 450, y2) + schrift(350, y1 - 18, pa[0]) + schrift(350, y2 + 18, pa[1]) + abstand(120, y1, y2, cm(d)), `Miss den Abstand an zwei Stellen. Sind es beide Male ${cm(d)}?`)),
+        k(heftAuftrag(`eine Gerade ${g2} und einen Punkt ${qn}, der nicht auf ${g2} liegt. Zeichne durch ${qn} eine Senkrechte zu ${g2}.`),
+          soKannEs(b, strich(-50, gy, 450, gy) + schrift(370, gy - 18, g2) + strich(px, -50, px, 300) + kreuz(px, py, qn, 20, 0) + winkel(px, gy, [1, 0], [0, -1]), `Geht die neue Gerade durch ${qn}? Ist der Winkel ein rechter Winkel?`)),
+        k(heftAuftrag(`ein Rechteck ABCD. Es soll ${cm(ra)} lang und ${cm(rb)} breit sein. Zeichne die rechten Winkel ein.`),
+          soKannEs(b, viereck('Rechteck', true, rEcken) + schrift(200, 120, `${cm(ra)} lang, ${cm(rb)} breit`, AKZENT, 15), `Miss nach: ${cm(ra)} und ${cm(rb)}. Hat es 4 rechte Winkel?`)),
+        k(heftAuftrag(`ein Quadrat ABCD. Jede Seite soll ${cm(qs)} lang sein.`),
+          soKannEs(b, viereck('Quadrat', true, quadratEcken(qs)) + schrift(200, 120, cm(qs), AKZENT, 16), 'Miss alle 4 Seiten nach.'))
+      ];
+    };
+    const ueber = (t) => `<span style="text-decoration:overline">${t}</span>`;
+    const Q_SPITZE = [[200, 205], [285, 120], [200, 35], [115, 120]];
+    const R_HOCH = [[150, 215], [250, 215], [250, 25], [150, 25]];
+    const P_LINKS = [[140, 175], [320, 175], [260, 65], [80, 65]];
+    const T_KOPF = [[140, 175], [250, 175], [320, 65], [80, 65]];
+    const P_FAST = [[95, 170], [295, 170], [325, 70], [125, 70]];
+    const R_FAST = [[120, 180], [280, 180], [280, 60], [120, 60]];
+    const V_ALLG = [[90, 180], [300, 165], [270, 60], [150, 90]];
+    const rechteck = VIERECKE.Rechteck(), trapez = VIERECKE.Trapez(), parallelogramm = VIERECKE.Parallelogramm();
+    const paar = (e, i, j, farbe = AKZENT) => strich(e[i][0], e[i][1], e[(i + 1) % 4][0], e[(i + 1) % 4][1], farbe, 5) + strich(e[j][0], e[j][1], e[(j + 1) % 4][0], e[(j + 1) % 4][1], farbe, 5);
+    const streckeSchraeg = strich(90, 180, 300, 70) + kreuz(90, 180, 'A', -16, 14) + kreuz(300, 70, 'B', 16, -14);
+    const halbgerade = strich(300, 70, -100, 270) + kreuz(300, 70, 'M', 16, -14);
+    return [
+      { id: 'geo_erkennen', titel: 'Linien erkennen', karten: [
+        k('Was ist das?' + b(streckeSchraeg), 'Eine <strong>Strecke</strong>. Sie hat <strong>zwei Endpunkte</strong>: A und B.'),
+        k('Wie heißt diese Linie?' + b(strich(110, 320, 300, -80) + schrift(262, 50, 'g')), 'Eine <strong>Gerade</strong>. Sie hat <strong>keinen Anfang und kein Ende</strong>.'),
+        k('Was siehst du hier?' + b(halbgerade), 'Eine <strong>Halbgerade</strong>. Sie fängt bei <strong>M</strong> an und geht in eine Richtung immer weiter.'),
+        k('Ist das eine Gerade?' + b(FIGUREN['krumme Linie']()), '<strong>Nein.</strong> Sie ist krumm. Das ist nur eine <strong>Linie</strong>.'),
+        k('Wie nennt man das?' + b(kreuz(200, 120, 'P')), 'Einen <strong>Punkt</strong>. Er heißt P.'),
+        k('Welche Linie ist hier gezeichnet?' + b(strich(200, 55, 200, 185) + kreuz(200, 55, 'C', 20, 0) + kreuz(200, 185, 'D', 20, 0)), 'Eine <strong>Strecke</strong>. Auch wenn sie nach oben zeigt: <strong>zwei Endpunkte</strong>, C und D.')
+      ] },
+      { id: 'geo_lage', titel: 'Senkrecht oder parallel?', karten: [
+        k('Wie liegen g und h zueinander?' + b(zweiGeraden('senkrecht', false, 25)), '<strong>Senkrecht.</strong> Sie schneiden sich im <strong>rechten Winkel</strong>.' + b(zweiGeraden('senkrecht', true, 25))),
+        k('Wie liegen diese beiden Geraden zueinander?' + b(strich(-50, 200, 450, -100) + strich(-50, 290, 450, -10) + schrift(96, 84, 'g') + schrift(330, 96, 'h')), '<strong>Parallel.</strong> Sie haben überall den <strong>gleichen Abstand</strong> und treffen sich nie.'),
+        k('Sind g und h senkrecht zueinander?' + b(gUndH(72)), '<strong>Nein.</strong> Sie schneiden sich, aber <strong>nicht im rechten Winkel</strong>. Mit dem Geodreieck siehst du es genau.'),
+        k('Sind g und h parallel?' + b(strich(-50, 70, 450, 92) + strich(-50, 172, 450, 136) + schrift(345, 70, 'g') + schrift(345, 162, 'h')), '<strong>Nein.</strong> Der Abstand wird <strong>kleiner</strong>. Irgendwann treffen sie sich.'),
+        k('Sind die Strecken a und b parallel?' + b(strich(60, 80, 340, 80) + strich(150, 165, 250, 165) + schrift(330, 62, 'a') + schrift(262, 150, 'b')), '<strong>Ja.</strong> Sie haben überall den gleichen Abstand. Wie <strong>lang</strong> sie sind, ist egal.'),
+        k('Wie prüfst du mit dem Geodreieck, ob zwei Geraden senkrecht zueinander sind?', 'Lege die <strong>Mittellinie</strong> genau auf die eine Gerade. Die <strong>lange Kante</strong> muss dann genau auf der anderen liegen.' +
+          b(strich(-50, 190, 450, 190) + strich(200, -50, 200, 300) + geodreieck(200, 190) + schrift(352, 172, 'g') + schrift(218, 28, 'h'))),
+        k('Wie prüfst du, ob zwei Geraden parallel sind?', 'Miss den <strong>Abstand an zwei Stellen</strong>. Ist er beide Male gleich, sind sie parallel.' +
+          b(strich(-50, 80, 450, 80) + strich(-50, 160, 450, 160) + abstand(110, 80, 160, '2 cm') + abstand(270, 80, 160, '2 cm') + schrift(360, 62, 'g') + schrift(360, 142, 'h'))),
+        k('Wie sieht das Zeichen für den rechten Winkel aus?', 'Ein <strong>Viertelkreis</strong> mit einem <strong>Punkt</strong> darin.' + b(zweiGeraden('senkrecht', true, 0)))
+      ] },
+      { id: 'geo_vierecke', titel: 'Vierecke erkennen', karten: [
+        k('Welches Viereck ist das?' + b(flaeche(Q_SPITZE) + alleWinkel(Q_SPITZE)), 'Ein <strong>Quadrat</strong> – auch wenn es auf der Spitze steht. <strong>4 gleich lange Seiten</strong> und <strong>4 rechte Winkel</strong>.'),
+        k('Wie heißt dieses Viereck?' + b(flaeche(R_HOCH) + alleWinkel(R_HOCH)), 'Ein <strong>Rechteck</strong>. Es hat <strong>4 rechte Winkel</strong> – egal, ob es liegt oder steht.'),
+        k('Welchen Namen hat dieses Viereck?' + b(flaeche(P_LINKS)), 'Ein <strong>Parallelogramm</strong>. Es hat <strong>2 Paare</strong> parallele Seiten.' + b(flaeche(P_LINKS) + paar(P_LINKS, 0, 2) + paar(P_LINKS, 1, 3, GEO))),
+        k('Was für ein Viereck ist das?' + b(flaeche(T_KOPF)), 'Ein <strong>Trapez</strong>. Es hat <strong>1 Paar</strong> parallele Seiten.' + b(flaeche(T_KOPF) + paar(T_KOPF, 0, 2))),
+        k('Ist das ein Rechteck?' + b(flaeche(P_FAST)), '<strong>Nein.</strong> Die Ecken sind <strong>keine rechten Winkel</strong>. Es ist ein Parallelogramm.'),
+        k('Ist das ein Quadrat?' + b(flaeche(R_FAST) + alleWinkel(R_FAST)), '<strong>Nein.</strong> Die Seiten sind <strong>nicht alle gleich lang</strong>. Es ist ein Rechteck.'),
+        k('Ist das ein Trapez?' + b(flaeche(V_ALLG)), '<strong>Nein.</strong> Hier sind <strong>keine</strong> zwei Seiten parallel. Es ist einfach ein Viereck.')
+      ] },
+      { id: 'geo_merkmale', titel: 'Merkmale', karten: [
+        k('Wie viele Endpunkte hat eine Strecke?', '<strong>2</strong>' + b(FIGUREN.Strecke(0))),
+        k('Wie viele Endpunkte hat eine Gerade?', '<strong>Keinen.</strong> Sie geht auf beiden Seiten immer weiter.' + b(FIGUREN.Gerade(-10))),
+        k('Wie viele rechte Winkel hat ein Rechteck?', '<strong>4</strong>' + b(flaeche(rechteck) + alleWinkel(rechteck))),
+        k('Was ist beim Quadrat anders als beim Rechteck?', 'Beim Quadrat sind <strong>alle 4 Seiten gleich lang</strong>.'),
+        k('Wie viele Paare paralleler Seiten hat ein Trapez?', '<strong>1 Paar</strong>' + b(flaeche(trapez) + paar(trapez, 0, 2))),
+        k('Wie viele Paare paralleler Seiten hat ein Parallelogramm?', '<strong>2 Paare</strong>' + b(flaeche(parallelogramm) + paar(parallelogramm, 0, 2) + paar(parallelogramm, 1, 3, GEO))),
+        k('Wie schneiden sich senkrechte Geraden?', 'Im <strong>rechten Winkel</strong>.' + b(zweiGeraden('senkrecht', true, 0)))
+      ] },
+      { id: 'geo_schreiben', titel: 'Aufschreiben und messen', karten: [
+        k('Wie zeichnet und benennt man einen Punkt?', 'Als <strong>Kreuz</strong> mit einem <strong>Großbuchstaben</strong>, z. B. A.' + b(kreuz(200, 120, 'A'))),
+        k('Wie benennt man eine Gerade?', 'Mit einem <strong>kleinen Buchstaben</strong>, z. B. g.' + b(FIGUREN.Gerade(-10))),
+        k('Wie schreibt man auf, dass die Strecke von C nach D 5,2 cm lang ist?', `${ueber('CD')} = 5,2 cm<br>(mit einem <strong>Strich über CD</strong>)`),
+        k('Wie lang ist die Strecke CD?' + b(linealMitStrecke(5.2)), '<strong>5,2 cm</strong>: 5 ganze Zentimeter und 2 kleine Striche.'),
+        k('Lies die Länge der Strecke ab.' + b(linealMitStrecke(3.7)), '<strong>3,7 cm</strong>: 3 ganze Zentimeter und 7 kleine Striche.'),
+        k('Wo legst du das Lineal an, wenn du eine Strecke misst?', 'Genau bei der <strong>0</strong> – nicht am Rand des Lineals.')
+      ] },
+      { id: 'geo_zeichnen', titel: 'Im Heft zeichnen', karten: zeichenKarten() }
+    ];
+  }
+
+  /** Karten für die Eltern-App (tools/export_lernkarten.js): dieselben Stapel, Farben passend zum hellen Design. */
   function lernkartenFuerExport() {
     clipNr = 0;
-    const hell = (inhalt) => bild(inhalt, 300).replace(/#E9ECF5/g, 'currentColor').replace(/rgba\(233,236,245,0\.10\)/g, 'rgba(128,128,128,0.22)');
-    const k = (front, back) => ({ front, back });
-    const ueber = (t) => `<span style="text-decoration:overline">${t}</span>`;
-    return [
-      { id: 'geo_linien', titel: 'Punkt, Linie, Gerade, Strecke, Halbgerade', karten: [
-        k('Was ist ein Punkt? Wie zeichnet man ihn?', 'Man zeichnet ihn als <strong>Kreuz</strong> und nennt ihn mit einem <strong>Großbuchstaben</strong>, z. B. P.' + hell(FIGUREN.Punkt(200, 130))),
-        k('Was ist eine Gerade?', 'Eine gerade Linie <strong>ohne Anfang und ohne Ende</strong>. Man nennt sie mit einem kleinen Buchstaben, z. B. g.' + hell(FIGUREN.Gerade(-10))),
-        k('Was ist eine Strecke?', 'Die gerade Verbindung zwischen <strong>zwei Punkten</strong>. Sie hat zwei Endpunkte und eine Länge.' + hell(FIGUREN.Strecke(0))),
-        k('Was ist eine Halbgerade?', 'Sie hat <strong>einen Anfangspunkt</strong> und geht in eine Richtung immer weiter.' + hell(FIGUREN.Halbgerade(-10))),
-        k('Was ist der Unterschied zwischen einer Linie und einer Geraden?', 'Eine <strong>Linie</strong> kann auch krumm sein. Eine <strong>Gerade</strong> ist immer gerade.' + hell(FIGUREN['krumme Linie']())),
-        k('Was ist das?' + hell(FIGUREN.Halbgerade(15)), 'Eine <strong>Halbgerade</strong>: Anfangspunkt M, dann geht sie immer weiter.'),
-        k('Was ist das?' + hell(FIGUREN.Strecke(-15)), 'Eine <strong>Strecke</strong>: zwei Endpunkte A und B.')
-      ] },
-      { id: 'geo_senkrecht', titel: 'Senkrecht und parallel', karten: [
-        k('Was bedeutet „senkrecht“?', 'Zwei Geraden schneiden sich im <strong>rechten Winkel</strong>.' + hell(zweiGeraden('senkrecht', true, 0))),
-        k('Wie zeichnet man einen rechten Winkel ein?', 'Mit einem <strong>Viertelkreis</strong> und einem <strong>Punkt</strong> darin.' + hell(zweiGeraden('senkrecht', true, 20))),
-        k('Was bedeutet „parallel“?', 'Die Geraden haben <strong>überall den gleichen Abstand</strong> und schneiden sich nie.' + hell(zweiGeraden('parallel', false, -10))),
-        k('Schneiden sich zwei parallele Geraden?', '<strong>Nein, nie.</strong>'),
-        k('Wie liegen g und h?' + hell(zweiGeraden('senkrecht', false, -20)), '<strong>Senkrecht</strong> zueinander, sie schneiden sich im rechten Winkel.')
-      ] },
-      { id: 'geo_vierecke', titel: 'Vierecke', karten: [
-        k('Was ist ein Viereck?', 'Eine Figur mit <strong>4 Ecken</strong> und <strong>4 Seiten</strong>. Die Ecken heißen A, B, C, D.'),
-        k('Was ist ein Quadrat?', '<strong>4 gleich lange Seiten</strong> und <strong>4 rechte Winkel</strong>.' + hell(viereck('Quadrat', true))),
-        k('Was ist ein Rechteck?', '<strong>4 rechte Winkel</strong>. Gegenüberliegende Seiten sind gleich lang und parallel.' + hell(viereck('Rechteck', true))),
-        k('Was ist ein Parallelogramm?', '<strong>2 Paare parallele Seiten</strong>, es ist „schief“.' + hell(viereck('Parallelogramm'))),
-        k('Was ist ein Trapez?', 'Nur <strong>1 Paar parallele Seiten</strong>.' + hell(viereck('Trapez'))),
-        k('Was ist beim Quadrat anders als beim Rechteck?', 'Beim Quadrat sind <strong>alle 4 Seiten gleich lang</strong>.')
-      ] },
-      { id: 'geo_messen', titel: 'Strecken messen', karten: [
-        k('Wie schreibt man die Länge der Strecke von C nach D?', `${ueber('CD')} = 5,2 cm (mit Strich über CD)`),
-        k('Wie viele Millimeter sind 1 Zentimeter?', '<strong>10 mm</strong>'),
-        k('Wie liest man am Lineal ab, wie lang die Strecke ist?' + hell(linealMitStrecke(5.2)),
-          'Die Strecke beginnt bei <strong>0</strong>. 5 ganze Zentimeter und 2 kleine Striche: <strong>5,2 cm</strong>.'),
-        k('Worauf muss man beim Messen achten?', 'Das Lineal genau bei der <strong>0</strong> anlegen, nicht am Rand des Lineals.')
-      ] }
-    ];
+    return kartenstapel((inhalt) => bild(inhalt, 300).replace(/#E9ECF5/g, 'currentColor').replace(/rgba\(233,236,245,0\.10\)/g, 'rgba(128,128,128,0.22)'));
+  }
+
+  /** Karten eines Stapels fürs Tablet (Heimatkunde-Lernkarten, Gruppe 'geo'). */
+  let tabletStapel = null;
+  function lernkartenTablet(id) {
+    const dunkel = (inhalt) => bild(inhalt, 440);
+    // Zeichen-Karten bei jedem Start mit neuen Werten; eine unterbrochene Sitzung behält ihre Werte (liegt gespeichert vor)
+    if (id === 'geo_zeichnen') return kartenstapel(dunkel, true).find(x => x.id === id).karten;
+    if (!tabletStapel) tabletStapel = kartenstapel(dunkel);
+    const s = tabletStapel.find(x => x.id === id);
+    return s ? s.karten : [];
   }
 
   // ---------------------------------------------------------------- Runden
@@ -306,5 +419,5 @@ const Geometrie = (function () {
     starter();
   }
 
-  return { starteTagesTraining, starteTraining, genRunde, lernkartenFuerExport, _HEFT: HEFT, _ANTIPPEN: ANTIPPEN };
+  return { starteTagesTraining, starteTraining, genRunde, lernkartenFuerExport, lernkartenTablet, _HEFT: HEFT, _ANTIPPEN: ANTIPPEN };
 })();
