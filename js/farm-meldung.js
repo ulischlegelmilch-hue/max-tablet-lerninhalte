@@ -148,7 +148,7 @@ const FarmMeldung = (function () {
     timer = setInterval(() => { abfragen(); schulaufgaben(); }, SYNC_MS);
   }
   // ---------- Tagesaufgaben der Schule -> Zeitgutschrift auf dem Hof ----------
-  // Jede geschaffte Ferientraining-Aufgabe (einmal am Tag) verkuerzt auf dem Hof alle laufenden Arbeiten um D.SCHUL_BONUS_MIN.
+  // Jede fertige Lernrunde (je Lernart einmal am Tag, siehe ferientraining.js) verkuerzt auf dem Hof alle laufenden Arbeiten.
   const SCHUL_KEY = 'maxlernt_farm_schul';
   let schulLaeuft = false;
   function heute() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
@@ -178,7 +178,7 @@ const FarmMeldung = (function () {
       }
       if (n) {
         const wirkung = komplett ? 'Hof: alles sofort fertig!' : 'Hof: ' + min + ' Min schneller!';
-        zeige({ key: 'schule', icon: komplett ? 'level' : 'schule', titel: komplett ? 'Alles richtig!' : (n === 1 ? 'Aufgabe geschafft!' : n + ' Aufgaben geschafft!'), text: richtig + ' von ' + gesamt + ' richtig. ' + wirkung, ton: 'reif' }, !!offen);
+        zeige({ key: 'schule', icon: komplett ? 'level' : 'schule', titel: komplett ? 'Alles richtig!' : (n === 1 ? 'Lernrunde geschafft!' : n + ' Lernrunden geschafft!'), text: richtig + ' von ' + gesamt + ' richtig. ' + wirkung, ton: 'reif' }, !!offen);
         ton('reif');
       }
     } finally { schulLaeuft = false; }

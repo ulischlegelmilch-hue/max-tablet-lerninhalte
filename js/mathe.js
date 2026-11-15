@@ -37,7 +37,7 @@ const Mathe = (function () {
     App.render(App.subMenuHtml('Mathe', [
       ...(typeof Grundbegriffe !== 'undefined' ? [Grundbegriffe.menueEintrag('mathe')] : []),
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
-      { icon: 'tagesaufgabe', titel: 'Tages-Aufgaben', onclick: 'Mathe.starteFerienTraining()' },
+      { icon: 'tagesaufgabe', titel: 'Zahlen bis 10 000 & Rechenregeln', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'geometrie', titel: 'Geometrie-Lernkarten', onclick: "Heimatkunde.starteThemenwahl('geo')" },
       { icon: 'geometrie', titel: 'Geometrie-Aufgaben', onclick: 'Geometrie.starteTraining()' },
@@ -2994,7 +2994,7 @@ const Mathe = (function () {
   function starteFerienTraining() {
     // Nur den heute noch FEHLENDEN Rest abfragen (siehe Ferientraining.restAnzahl)
     const starter = () => App.starteFerienQuiz('mathe', n => genFerienUebung(n), {
-      titel: 'Mathe-Tagesaufgaben',
+      titel: 'Mathe: Zahlen bis 10 000',
       wiederholeFalsche: true,
       pensumFach: 'mathe',
       ferienItem: 'mathe_tag'

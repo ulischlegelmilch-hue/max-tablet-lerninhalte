@@ -414,7 +414,7 @@ const Geometrie = (function () {
 
   /** Freies Üben aus dem Mathe-Menü. */
   function starteTraining() {
-    const starter = () => App.startQuizSession('mathe', genRunde(10), { titel: 'Geometrie', wiederholeFalsche: true, pensumFach: 'mathe' });
+    const starter = () => App.startQuizSession('mathe', genRunde(10), { titel: 'Geometrie', wiederholeFalsche: true, pensumFach: 'mathe', ferienItem: 'geometrie' });
     App.setLastStarter(starter);
     starter();
   }

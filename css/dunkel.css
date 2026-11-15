@@ -71,6 +71,31 @@ body.spielbuehne .fth-fertig .fth-titel { color: #8E98B4; }
 body.spielbuehne .fth-stand { color: #FFCB6B; }
 body.spielbuehne .fth-fertig .fth-stand { color: #7CF0A8; }
 body.spielbuehne .fth-alles { color: #7CF0A8; }
+body.spielbuehne .lw-karte {
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,.32);
+}
+body.spielbuehne .lw-kopf { color: #fff; }
+body.spielbuehne .lw-kachel {
+  background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px; box-shadow: 0 4px 10px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.10);
+}
+body.spielbuehne .lw-fertig { border-color: rgba(47,191,113,.6); }
+body.spielbuehne .lw-label { color: #F3F1EA; }
+body.spielbuehne .lw-sub { color: #9AA4C0; }
+body.spielbuehne .lw-haken { background: #2FBF71; box-shadow: 0 0 10px rgba(47,191,113,.55); }
+body.spielbuehne .lw-hof { color: #FFCB6B; }
+body.spielbuehne .mz-auftrag, body.spielbuehne .mz-seite { color: #F3F1EA; }
+body.spielbuehne .mz-blatt, body.spielbuehne .mz-vorbild {
+  background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.14); border-radius: 18px;
+}
+body.spielbuehne .mz-klein { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); color: #F3F1EA; }
+body.spielbuehne .mz-tipp { color: #9AA4C0; }
+body.spielbuehne .mz-tipp-warn { color: #FF8B7D; }
+body.spielbuehne .mz-achten li::marker { color: #FFB43A; }
+body.spielbuehne .ts-bild { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03)); border: 1px solid rgba(255,255,255,.14); border-radius: 18px; color: #F3F1EA; }
+body.spielbuehne .ts-meldung { color: #F3F1EA; }
+body.spielbuehne .ts-ok { color: #7CF0A8; }
 
 /* ---------- Untermenues (Mathe, Deutsch, ...) ---------- */
 body.spielbuehne .sub-grid { max-width: 860px; gap: 14px; }
@@ -97,6 +122,7 @@ body.spielbuehne .sub-card.sub-empfohlen { border-color: rgba(255,201,60,.75); b
 body.spielbuehne .sub-grid.sub-akzent-mathe { --sub-akzent: #5B9BFF; --sub-akzent-bg: rgba(91,155,255,.18);  --sub-g1: #7DB4FF; --sub-g2: #2C66D2; --sub-gd: #1F4FA8;}
 body.spielbuehne .sub-grid.sub-akzent-deutsch { --sub-akzent: #FF9157; --sub-akzent-bg: rgba(255,145,87,.18);  --sub-g1: #FFAA77; --sub-g2: #E0612A; --sub-gd: #A8421A;}
 body.spielbuehne .sub-grid.sub-akzent-heimat { --sub-akzent: #46CC87; --sub-akzent-bg: rgba(70,204,135,.18);  --sub-g1: #6CE0A4; --sub-g2: #1F9E63; --sub-gd: #137548;}
+body.spielbuehne .sub-grid.sub-akzent-musik { --sub-akzent: #A8D63A; --sub-akzent-bg: rgba(168,214,58,.18);  --sub-g1: #C6E85A; --sub-g2: #7FA81C; --sub-gd: #5A7A0E;}
 body.spielbuehne .sub-grid.sub-akzent-sport { --sub-akzent: #FF6B57; --sub-akzent-bg: rgba(255,107,87,.18);  --sub-g1: #FF8F7D; --sub-g2: #D6402A; --sub-gd: #9E2B1A;}
 body.spielbuehne .sub-grid.sub-akzent-geschichten { --sub-akzent: #B38BFF; --sub-akzent-bg: rgba(179,139,255,.18);  --sub-g1: #C9A8FF; --sub-g2: #7A4FD8; --sub-gd: #5A32A8;}
 body.spielbuehne .sub-grid.sub-akzent-belohnung { --sub-akzent: #FFC93C; --sub-akzent-bg: rgba(255,201,60,.18);  --sub-g1: #FFD966; --sub-g2: #E39A0B; --sub-gd: #A86A00;}
@@ -104,7 +130,7 @@ body.spielbuehne .sub-grid.sub-akzent-spiele { --sub-akzent: #2ED3B7; --sub-akze
 body.spielbuehne .sub-titel { text-align: center; font-size: 30px; font-weight: 800; color: #fff; margin: 6px 0 4px; letter-spacing: .01em; }
 body.spielbuehne .sub-titel::after { content: ''; display: block; width: 64px; height: 4px; border-radius: 2px; margin: 8px auto 0; background: var(--sub-akzent, #FFB43A); box-shadow: 0 0 16px var(--sub-akzent, #FFB43A); }
 body.spielbuehne .sub-kopf-mathe { --sub-akzent: #5B9BFF; } body.spielbuehne .sub-kopf-deutsch { --sub-akzent: #FF9157; }
-body.spielbuehne .sub-kopf-sport { --sub-akzent: #FF6B57; } body.spielbuehne .sub-kopf-heimat { --sub-akzent: #46CC87; } body.spielbuehne .sub-kopf-geschichten { --sub-akzent: #B38BFF; }
+body.spielbuehne .sub-kopf-sport { --sub-akzent: #FF6B57; } body.spielbuehne .sub-kopf-musik { --sub-akzent: #A8D63A; } body.spielbuehne .sub-kopf-heimat { --sub-akzent: #46CC87; } body.spielbuehne .sub-kopf-geschichten { --sub-akzent: #B38BFF; }
 body.spielbuehne .sub-kopf-belohnung { --sub-akzent: #FFC93C; } body.spielbuehne .sub-kopf-spiele { --sub-akzent: #2ED3B7; }
 
 /* ---------- Spiele-Kacheln ---------- */
@@ -157,6 +183,7 @@ body.spielbuehne .icon-mathe { background: linear-gradient(150deg, #7DB4FF, #2C6
 body.spielbuehne .icon-deutsch { background: linear-gradient(150deg, #FFAA77, #E0612A); --kat-dunkel: #A8421A; }
 body.spielbuehne .icon-heimat { background: linear-gradient(150deg, #6CE0A4, #1F9E63); --kat-dunkel: #137548; }
 body.spielbuehne .icon-sport { background: linear-gradient(150deg, #FF8F7D, #D6402A); --kat-dunkel: #9E2B1A; }
+body.spielbuehne .icon-musik { background: linear-gradient(150deg, #C6E85A, #7FA81C); --kat-dunkel: #5A7A0E; }
 body.spielbuehne .icon-geschichten { background: linear-gradient(150deg, #C9A8FF, #7A4FD8); --kat-dunkel: #5A32A8; }
 body.spielbuehne .icon-spiele { background: linear-gradient(150deg, #55E6CE, #13A58C); --kat-dunkel: #0B7766; }
 body.spielbuehne .icon-chat { background: linear-gradient(150deg, #FF8DB0, #D93A72); --kat-dunkel: #A82855; }

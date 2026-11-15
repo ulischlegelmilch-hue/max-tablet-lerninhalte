@@ -1641,7 +1641,7 @@ const Farm = (function () {
           '<div class="f-gross-zahl fs-kontur">' + r.richtig + ' von ' + L.karten.length + ' gewusst!</div>' +
           (r.gespartMs > 0 ? '<p>Die Saat ist <b>' + grob(r.gespartMs) + '</b> schneller reif!</p>' : '<p>Nächstes Mal klappt es besser!</p>') +
           (r.reif ? '<p><b>Das Feld ist jetzt reif!</b></p>' : '') +
-          (falsch.length ? '<div class="fs-mulde f-lern-liste" style="padding:12px 16px">Das üben wir noch:<br>' + falsch.map(k => '• ' + k.front).join('<br>') + '</div>' : '') +
+          (falsch.length ? '<div class="fs-mulde f-lern-liste" style="padding:12px 16px">Das üben wir noch:<br>' + falsch.map(k => '• ' + String(k.front).replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<span hidden>/g, '<span>')).join('<br>') + '</div>' : '') +
           '<button class="fs-btn fs-gelb fs-gross" data-a="lernEnde" style="min-width:320px">Zurück zum Feld</button></div>';
       }
     } else {
@@ -2206,15 +2206,16 @@ const Farm = (function () {
       '<div class="f-k-unter">Alle 3 geschafft = Truhe!' + (serie > 1 ? ' Serie gibt extra.' : '') + '</div><div class="f-lohn f-lohn-klein">' + I('muenze') + '<b>' + fmt(b.geld) + '</b>' + I('xp') + '<b>' + b.xp + '</b></div></div>' +
       (t.bonusAbgeholt ? '<span class="fs-marke f-abgeholt">' + I('haken') + 'Abgeholt</span>' :
         knopf({ a: 'tagBonus', farbe: 'gelb', icon: 'geschenk', text: 'Truhe öffnen', gross: true, grund: t.alle ? '' : 'Noch ' + (t.aufgaben.length - fertigN) + ' Aufgabe' + (t.aufgaben.length - fertigN === 1 ? '' : 'n') })) + '</div>';
-    // Schulaufgaben (nur Tablet: FarmLernen/FarmMeldung gibt es auf dem Papa-Handy nicht)
+    // Lernrunden (nur Tablet: FarmLernen/FarmMeldung gibt es auf dem Papa-Handy nicht). Seit 15.11.2026 gibt es keine
+    // Tagesaufgaben mehr: jede fertige Lernrunde zählt (je Lernart einmal am Tag), angezeigt werden nur die fertigen.
     const plan = (typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) ? FarmLernen.tagesplan() : [];
     if (plan.length) {
-      const belohnt = M.schulHeute(now), anteile = M.schulAnteileHeute(now), okN = plan.filter(x => x.fertig).length;
+      const belohnt = M.schulHeute(now), anteile = M.schulAnteileHeute(now), fertige = plan.filter(x => x.fertig), okN = fertige.length;
       const summe = Object.keys(belohnt).reduce((a, k) => a + belohnt[k], 0);
-      h += '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Schulaufgaben ' + okN + '/' + plan.length + '</span>' + dInfoKnopf('schulInfo') + '</div>';
-      if (offen('schulInfo')) h += infoBox('Jede geschaffte Schulaufgabe macht auf dem Hof alles schneller: Arbeiten, Felder und Betriebe. Je mehr beim ersten Versuch richtig ist, desto mehr. Alles richtig: alles sofort fertig! Jede Aufgabe zählt einmal am Tag.');
-      h += (okN ? fuchsZeile('jubelt', 'Heute schon ' + summe + ' Minuten gespart!', 56) : fuchsZeile('zeigt', 'Mach eine Schulaufgabe – der Hof wird schneller!', 56)) +
-        '<div class="f-schul">' + plan.map(x => {
+      h += '<div class="f-abschnitt-zeile"><span class="fs-abschnitt">Lernrunden heute: ' + okN + '</span>' + dInfoKnopf('schulInfo') + '</div>';
+      if (offen('schulInfo')) h += infoBox('Jede fertige Lernrunde in der Lern-App macht auf dem Hof alles schneller: Arbeiten, Felder und Betriebe. Je mehr beim ersten Versuch richtig ist, desto mehr. Alles richtig: alles sofort fertig! Jede Lernart zählt einmal am Tag.');
+      h += (okN ? fuchsZeile('jubelt', 'Heute schon ' + summe + ' Minuten gespart!', 56) : fuchsZeile('zeigt', 'Mach eine Lernrunde – der Hof wird schneller!', 56)) +
+        '<div class="f-schul">' + fertige.map(x => {
           const gespart = belohnt[x.id];
           const st = x.fertig ? (gespart ? (anteile[x.id] >= 0.999 ? 'Alles sofort fertig!' : gespart + ' Min schneller') : 'wird gutgeschrieben …') : x.n + ' / ' + x.z;
           return '<div class="f-schul-z">' + I(x.fertig ? 'haken' : 'schule') + '<b>' + esc(x.titel) + '</b><span>' + st + '</span></div>';
@@ -2749,7 +2750,7 @@ const Farm = (function () {
     let plan = [];
     if (typeof FarmMeldung !== 'undefined' && typeof FarmLernen !== 'undefined' && FarmLernen.tagesplan) { try { plan = FarmLernen.tagesplan() || []; } catch (e) { plan = []; } }
     zeige(R.schule, plan.length > 0);
-    if (plan.length) { const ok = plan.filter(x => x.fertig).length; setzeHtml(R.schule, 'schule', I('schule') + 'Schule <b>' + ok + '/' + plan.length + '</b>'); }
+    if (plan.length) { const ok = plan.filter(x => x.fertig).length; setzeHtml(R.schule, 'schule', I('schule') + 'Lernen <b>' + ok + '</b>'); }
     // Gemeinsamer Hof: offline-Hinweis + "Papa/Max ist da"
     if (fern) {
       zeige(R.offline, !fern.ok);

@@ -1321,7 +1321,7 @@ const Deutsch = (function () {
         for (let i = 0; i < anzahl; i++) fragen.push(genFaelleAufgabe());
         return fragen;
       }, {
-        titel: 'Deutsch-Tagesaufgaben',
+        titel: 'Deutsch: Fälle & Regeln',
         wiederholeFalsche: true,
         pensumFach: 'deutsch',
         ferienItem: 'deutsch_tag'
@@ -1409,7 +1409,7 @@ const Deutsch = (function () {
     const ANZAHL = ANZAHL_TEXTE * 2;
     const starter = () => {
       const offen = Storage.getOffeneSession(AKTIVITAET);
-      const config = { titel: 'Lesen & Verstehen', aktivitaet: AKTIVITAET };
+      const config = { titel: 'Lesen & Verstehen', aktivitaet: AKTIVITAET, ferienItem: 'deutsch_lesen' };
       if (offen && offen.index > 0 && offen.index < ANZAHL) {
         const fehlend = ANZAHL - offen.index;
         config.anzeigeOffset = offen.index;

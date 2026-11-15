@@ -324,6 +324,7 @@ html, body {
 .icon-geschichten { background: var(--geschichten); color: #fff; }
 .icon-heimat { background: var(--heimat); color: #fff; }
 .icon-sport { background: var(--sport); color: #fff; }
+.icon-musik { background: #7FA81C; color: #fff; }
 .icon-schach { background: var(--schach); color: #fff; }
 .icon-chat { background: var(--chat); color: #fff; }
 .icon-belohnung { background: var(--belohnung); color: #fff; }
@@ -1977,6 +1978,46 @@ html, body {
 .fth-stand { flex-shrink: 0; font-size: 14px; font-weight: 700; color: var(--accent-dark); }
 .fth-fertig .fth-stand { color: #2E7D46; }
 .fth-extra { opacity: 0.9; }
+
+/* Startseite: Kategorie-Auswahl „Was möchtest du lernen?“ (15.11.2026, ersetzt die Tagesaufgaben-Karte) */
+.lw-karte { margin: 0 auto var(--space-5); background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); padding: var(--space-4) var(--space-5); }
+.lw-kopf { font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 12px; }
+.lw-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.lw-kachel { position: relative; display: flex; align-items: center; gap: 14px; padding: 18px 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--muted); cursor: pointer; min-width: 0; }
+.lw-kachel:active { transform: scale(.97); }
+.lw-kachel:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.lw-text { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.lw-label { font-size: 20px; font-weight: 800; color: var(--ink); }
+.lw-sub { font-size: 13px; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lw-haken { position: absolute; top: 8px; right: 10px; width: 26px; height: 26px; border-radius: 50%; background: #2E7D46; color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; }
+.lw-hof { margin-top: 12px; font-size: 14px; color: var(--ink-soft); text-align: center; }
+
+/* Musik: Noten und Pausen mit dem Finger zeichnen (15.11.2026) */
+.mz-auftrag { max-width: 1100px; margin: 4px auto 12px; font-size: 22px; font-weight: 700; color: var(--ink); text-align: center; line-height: 1.35; }
+.mz-reihe { display: flex; gap: 18px; max-width: 1100px; margin: 0 auto; align-items: flex-start; }
+.mz-blatt { flex: 3; min-width: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.mz-blatt canvas { display: block; touch-action: none; }
+.mz-seite { flex: 2; min-width: 0; display: flex; flex-direction: column; gap: 12px; color: var(--ink); }
+.mz-knoepfe { display: flex; gap: 10px; }
+.mz-klein { flex: 1; text-align: center; padding: 14px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--muted); font-weight: 700; cursor: pointer; }
+.mz-tipp { font-size: 14px; color: var(--ink-soft); line-height: 1.4; }
+.mz-tipp-warn { color: #DB6E63; font-weight: 700; font-size: 16px; }
+.mz-vorbild-titel, .mz-achten-titel { font-size: 15px; font-weight: 800; }
+.mz-vorbild { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 4px 10px; text-align: center; }
+.mz-achten { margin: 0; padding-left: 20px; font-size: 16px; line-height: 1.5; }
+.mz-frage { font-size: 17px; font-weight: 700; margin-top: 4px; }
+.mz-bewertung { display: flex; gap: 10px; }
+.mz-bewertung .btn-bewertung { padding: 18px 10px; font-size: 17px; }
+.ts-bild { max-width: 1100px; margin: 8px auto 14px; padding: 6px 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--ink); }
+.ts-unten { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.ts-knoepfe { display: flex; gap: 12px; align-items: stretch; }
+.ts-knoepfe > * { flex: 1; }
+.ts-pruefen { margin: 0; }
+.ts-meldung { font-size: 19px; font-weight: 700; line-height: 1.4; color: var(--ink); }
+.ts-ok { color: #2E7D46; }
 
 
 /* Startseite: Seitenmenue links, Dashboard rechts (11.10.2026) */

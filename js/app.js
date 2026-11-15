@@ -154,22 +154,6 @@ const App = (function () {
     return Storage.chatUngelesen();
   }
 
-  // Tagesplan der Startseite = Ferientraining-Checkliste (siehe ferientraining.js)
-  // plus die naechste Geschichte. Die frueheren regelbasierten Pflicht-/Extra-
-  // Chips (TAGESPLAN_FACH_META) sind ersetzt; die Fach-Menues bleiben fuer freies
-  // Ueben unveraendert.
-  function baueTagesplan() {
-    const offen = Geschichten.naechsteOffene();
-    return [
-      ...Ferientraining.chips(),
-      {
-        fach: 'geschichten', icon: 'geschichten', fachName: 'Geschichten',
-        titel: GESCHICHTEN_STATUS_PRAEFIX[offen.status] + offen.titel,
-        onclick: `Geschichten.leseBuch('${offen.id}')`
-      }
-    ];
-  }
-
   function gotoHome() {
     if (typeof SchachWeg !== 'undefined') SchachWeg.laufend = null;
     // Verlassen des Eltern-Bereichs verwirft einen unfertigen Tagesregeln-
@@ -183,12 +167,31 @@ const App = (function () {
       : 'Leg heute los!';
     const geschichtenFortschritt = Storage.getGeschichtenFortschritt();
 
-    // Naechste Geschichte als "Extra" unter der Ferientraining-Checkliste (zaehlt nicht mit)
+    // 15.11.2026 (Uli: „Streich die Tagesaufgaben. Ab jetzt muss Max erst mal aus den Kategorien wählen, was er macht.“):
+    // statt der Tagesaufgaben-Liste eine Kategorie-Auswahl. Haken = heute schon eine Runde fertig (zählt auf dem Hof,
+    // siehe ferientraining.js); runden = Lernarten-ids der Kategorie.
     const offen = Geschichten.naechsteOffene();
-    const extraHtml = `
-      <div class="fth-zeile fth-extra" onclick="Geschichten.leseBuch('${offen.id}')">
-        <span class="fth-haken fth-haken-extra">${Icons.svg('geschichten')}</span>
-        <span class="fth-text"><span class="fth-titel">${GESCHICHTEN_STATUS_PRAEFIX[offen.status]}${offen.titel}</span><span class="fth-sub">Extra zum Lesen</span></span>
+    const kategorien = [
+      { icon: 'mathe', label: 'Mathe', sub: 'Aufgaben, Malfolgen, Geometrie', onclick: 'Mathe.renderMenu()',
+        runden: ['mathe_tag', 'mathe_gemischt', 'mathe_malfolgen', 'geometrie_karten', 'geometrie', 'gb_mathe'] },
+      { icon: 'deutsch', label: 'Deutsch', sub: 'Rechtschreibung, Fälle, Lesen', onclick: 'Deutsch.renderMenu()', runden: ['deutsch_gemischt', 'gb_deutsch', 'deutsch_tag', 'deutsch_lesen'] },
+      { icon: 'musik', label: 'Musik', sub: 'Noten &amp; Pausen', onclick: 'Musik.renderMenu()', runden: ['musik_karten', 'musik_zeichnen', 'musik_taktstriche'] },
+      { icon: 'sport', label: 'Sport', sub: 'Erwärmung lernen', onclick: "Heimatkunde.starteThemenwahl('sport')", runden: ['sport_karten'] },
+      { icon: 'geschichten', label: 'Geschichten', sub: GESCHICHTEN_STATUS_PRAEFIX[offen.status] + offen.titel, onclick: `Geschichten.leseBuch('${offen.id}')`, runden: [] }
+    ];
+    const rundenHeute = Ferientraining.anzahlErledigt();
+    const lernwahlHtml = `
+      <div class="lw-karte">
+        <div class="lw-kopf">Was möchtest du lernen?</div>
+        <div class="lw-grid">${kategorien.map(k => {
+          const fertig = k.runden.length && Ferientraining.heuteFertig(k.runden);
+          return `<div class="lw-kachel${fertig ? ' lw-fertig' : ''}" onclick="${k.onclick}">
+            <span class="menu-icon icon-${k.icon}">${Icons.kat(k.icon)}</span>
+            <span class="lw-text"><span class="lw-label">${k.label}</span><span class="lw-sub">${k.sub}</span></span>
+            ${fertig ? '<span class="lw-haken">✓</span>' : ''}
+          </div>`;
+        }).join('')}</div>
+        <div class="lw-hof">${rundenHeute ? `Heute ${rundenHeute === 1 ? 'eine Lernrunde' : rundenHeute + ' Lernrunden'} geschafft – dein Hof wird schneller!` : 'Jede fertige Lernrunde macht deinen Hof schneller.'}</div>
       </div>`;
 
     const smItem = (accent, icon, label, sub, onclick, badge) => `
@@ -205,7 +208,7 @@ const App = (function () {
           <div class="home-gruppe-titel">Lernen</div>
           ${smItem('mathe', 'mathe', 'Mathe', `${Storage.getFachFortschritt('mathe').geloest} Aufgaben gelöst`, 'Mathe.renderMenu()')}
           ${smItem('deutsch', 'deutsch', 'Deutsch', `${Storage.getFachFortschritt('deutsch').geloest} Aufgaben gelöst`, 'Deutsch.renderMenu()')}
-          ${smItem('heimat', 'heimat', 'Heimat &amp; Sachkunde', `${Storage.getFachFortschritt('heimat').geloest} Aufgaben gelöst`, 'Heimatkunde.renderMenu()')}
+          ${smItem('musik', 'musik', 'Musik', 'Noten &amp; Pausen', 'Musik.renderMenu()')}
           ${smItem('sport', 'sport', 'Sport', 'Erwärmung lernen', "Heimatkunde.starteThemenwahl('sport')")}
           ${smItem('geschichten', 'geschichten', 'Geschichten', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen`, 'Geschichten.renderMenu()')}
           <div class="home-gruppe-titel">Spielen &amp; mehr</div>
@@ -224,15 +227,15 @@ const App = (function () {
 
           ${chatHinweisHtml()}
 
+          ${FernSync.zusatzaufgabenHtml()}
+
+          ${lernwahlHtml}
+
           ${typeof Familie !== 'undefined' ? Familie.homeKarteHtml() : ''}
 
           ${typeof Fuchs !== 'undefined' ? Fuchs.homeKarteHtml() : ''}
 
-          ${FernSync.zusatzaufgabenHtml()}
-
           ${typeof Grundbegriffe !== 'undefined' ? Grundbegriffe.homeKarteHtml() : ''}
-
-          ${Ferientraining.homeKarteHtml(extraHtml)}
         </main>
       </div>
     `);
@@ -652,7 +655,7 @@ const App = (function () {
   }
 
   // Akzentfarbe je Bereich (Titel -> Schluessel), fuer das dunkle Menue-Design (css/dunkel.css)
-  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Sport': 'sport', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele', 'Hof-Farm': 'spiele' };
+  const SUB_AKZENT = { 'Mathe': 'mathe', 'Deutsch': 'deutsch', 'Heimat & Sachkunde': 'heimat', 'Heimat &amp; Sachkunde': 'heimat', 'Geschichten': 'geschichten', 'Sport': 'sport', 'Musik': 'musik', 'Belohnungen': 'belohnung', 'Schach': 'spiele', 'Schiffe versenken': 'spiele', 'Mau-Mau': 'spiele', 'Quartett': 'spiele', 'Hof-Farm': 'spiele' };
 
   function subMenuHtml(titel, karten) {
     const schluessel = Object.keys(SUB_AKZENT).find((k) => titel === k || titel.indexOf(k) === 0);
@@ -672,6 +675,8 @@ const App = (function () {
   // fragen: Array von { typ: 'mc'|'numeric', lesetext?, frage, optionen?, richtigIndex?, antwort? }
   let session = null;
 
+  // Quizze ohne eigene Lernart-id (Gemischte Aufgaben, Fachbegriffe, Deutsch üben ...) zählen für den Hof über ihr Fach
+  const RUNDE_FUER_FACH = { mathe: 'mathe_gemischt', deutsch: 'deutsch_gemischt' };
   function startQuizSession(fach, fragen, config) {
     session = {
       fach, fragen, index: 0,
@@ -701,8 +706,9 @@ const App = (function () {
       // Pflicht-faehigen Tagesplan-Aktivitaeten (Mathe-Tagesaufgabe, Deutsch-
       // Rechtschreibung, Heimatkunde-Verkehrszeichen), nicht bei jeder Uebung.
       pensumFach: config && config.pensumFach,
-      // Ferientraining-Punkt (siehe ferientraining.js), den jede beantwortete Frage hochzaehlt
-      ferienItem: config && config.ferienItem,
+      // Lernart für den Hof-Bonus (siehe ferientraining.js), die jede beantwortete Frage hochzählt. Ohne eigene id
+      // zählt das Quiz über sein Fach (15.11.2026: jede fertige Lernrunde zählt, einmal am Tag je Art).
+      ferienItem: config && (config.ferienItem || RUNDE_FUER_FACH[config.pensumFach]),
       // Protokoll "welche Frage, welches Ergebnis" fuer Papas Auswertung (siehe
       // abschlussFrage/renderErgebnis) - macht eine abgeschlossene Aufgabenfolge
       // dort anklickbar, damit sichtbar wird, WELCHE Aufgaben Max richtig/falsch

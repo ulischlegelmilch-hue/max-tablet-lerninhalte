@@ -47,6 +47,8 @@ const Heimatkunde = (function () {
   // Storage.getTagesPensumAnzahl).
   function anzahlProQuiz() { return Math.min(Storage.getTagesPensumAnzahl('heimat'), zeichen.length); }
 
+  // 15.11.2026 (Uli: „die Fahrradausbildung kannst du streichen. auch Luther. und die Verkehrszeichen“): Heimat & Sachkunde
+  // ist nicht mehr auf der Startseite verlinkt. Inhalte und Statistiken bleiben im Code, falls ein Thema wiederkommt.
   function renderMenu() {
     App.render(App.subMenuHtml('Heimat & Sachkunde', [
       { icon: 'verkehrszeichen', titel: 'Verkehrszeichen', onclick: 'Heimatkunde.starteVerkehrszeichen()' },
@@ -498,17 +500,23 @@ const Heimatkunde = (function () {
   // Geometrie-Lernkarten (11.11.2026): Inhalt und Bilder kommen aus geometrie.js (Geometrie.lernkartenTablet), hier nur die Stapel-Liste.
   const GEO_STAPEL = { geo_erkennen: 'Linien erkennen', geo_lage: 'Senkrecht oder parallel?', geo_vierecke: 'Vierecke erkennen', geo_merkmale: 'Merkmale', geo_schreiben: 'Aufschreiben und messen', geo_zeichnen: 'Im Heft zeichnen' };
   Object.keys(GEO_STAPEL).forEach(id => { LERNTHEMEN[id] = { gruppe: 'geo', titel: GEO_STAPEL[id], icon: 'geometrie', karten: () => (typeof Geometrie !== 'undefined' ? Geometrie.lernkartenTablet(id) : []), bewertung: true }; });
-  /** Tagespunkt, zu dem ein Stapel zählt (Auswahl auf der Startseite), sonst null. */
-  const tagesPunktFuer = (thema) => (thema === TAGESKARTEN_THEMA ? 'heimat_lernkarten' : LERNTHEMEN[thema] && LERNTHEMEN[thema].gruppe === 'geo' ? 'geometrie_karten' : null);
+  // Musik-Lernkarten (15.11.2026): Inhalt und Notenbilder aus musik.js (Musik.lernkartenTablet), hier nur die Stapel-Liste.
+  // Titel müssen zu musik.js passen (prüft tests/pruefe_lernstand.js).
+  const MUSIK_STAPEL = { musik_metrum: 'Metrum, Takt & Rhythmus', musik_aufbau: 'Aufbau einer Note', musik_noten: 'Notenwerte', musik_pausen: 'Pausenwerte',
+    musik_aufpassen: 'Aufpassen: Verwechsler', musik_tante: 'Tante Ta und die Titis', musik_notenhaus: 'Das Notenhaus', musik_takte: 'Takte zählen' };
+  Object.keys(MUSIK_STAPEL).forEach(id => { LERNTHEMEN[id] = { gruppe: 'musik', titel: MUSIK_STAPEL[id], icon: 'musik', karten: () => (typeof Musik !== 'undefined' ? Musik.lernkartenTablet(id) : []), bewertung: true }; });
+  /** Lernart für den Hof-Bonus, zu der ein Stapel zählt (siehe ferientraining.js), sonst null. */
+  const RUNDE_FUER_GRUPPE = { geo: 'geometrie_karten', sport: 'sport_karten', musik: 'musik_karten' };
+  const tagesPunktFuer = (thema) => (LERNTHEMEN[thema] && RUNDE_FUER_GRUPPE[LERNTHEMEN[thema].gruppe]) || null;
 
-  let themenGruppe = 'rad';
+  let themenGruppe = 'geo';
   const GRUPPEN_INFO = {
+    musik: { titel: 'Musik: Noten &amp; Pausen', text: 'Wähl einen Stapel aus. Überleg dir die Antwort, dreh dann um und markier selbst, ob du es gewusst hast.', zurueck: 'Musik.renderMenu()' },
     geo: { titel: 'Geometrie-Lernkarten', text: 'Wähl einen Stapel aus. Schau dir das Bild genau an, überleg dir die Antwort und dreh dann um. Danach markierst du selbst, ob du es gewusst hast.', zurueck: 'Mathe.renderMenu()' },
     rad: { titel: 'Radfahrausbildung', text: 'Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' },
     sport: { titel: 'Sport: Erwärmung', text: 'Lerne die Erwärmung für den Sportunterricht - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'App.gotoHome()' },
-    // ACHTUNG vorrang:true nach Max' Luther-Arbeit (Woche ab 09.11.2026) wieder entfernen - bis dahin empfiehlt der
-    // Lernstand Luther-Stapel zuerst (siehe empfehlung()).
-    luther: { titel: 'Martin Luther', text: 'Für deine Arbeit über Martin Luther. Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()', vorrang: true }
+    // 15.11.2026: Luther gestrichen (Arbeit geschrieben), vorrang entfernt
+    luther: { titel: 'Martin Luther', text: 'Für deine Arbeit über Martin Luther. Wähl ein Thema aus - nach dem Umdrehen markierst du selbst, ob du es gewusst hast.', zurueck: 'Heimatkunde.renderMenu()' }
   };
 
   function starteThemenwahl(gruppe) {
@@ -952,7 +960,8 @@ const Heimatkunde = (function () {
   // Die Rechnung laeuft NUR hier auf dem Tablet; FernSync schickt das Ergebnis (lernstandBericht) an den Pi.
   // ===========================================================================
   const WIEDERHOLEN_NACH_TAGEN = 14;
-  const STAPEL_GRUPPEN = ['luther', 'rad', 'sport', 'geo'];
+  // 15.11.2026: Luther und Radfahren gestrichen - zählen nicht mehr im Lernstand und in der Empfehlung
+  const STAPEL_GRUPPEN = ['musik', 'sport', 'geo'];
 
   function stapelStand(id, titel, gruppe, anzahl, stats, zuletzt) {
     let sicher = 0, wackelig = 0, neu = 0;
@@ -964,7 +973,7 @@ const Heimatkunde = (function () {
     return { id, titel, gruppe, gesamt: anzahl, sicher, wackelig, neu, status, zuletzt: zuletzt || null };
   }
 
-  /** Alle Lernkarten-Stapel am Tablet mit Stand: Martin Luther, Radfahren, Sport, Grundbegriffe. */
+  /** Alle Lernkarten-Stapel am Tablet mit Stand: Musik, Sport, Geometrie, Grundbegriffe. */
   function alleStapel() {
     const liste = [];
     STAPEL_GRUPPEN.forEach(g => Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === g && k !== 'rad_falsch').forEach(k => {
@@ -1016,10 +1025,10 @@ const Heimatkunde = (function () {
     return { datum: Storage.getHeutigesDatum(), stapel: liste, empfehlung: empfehlung(liste) };
   }
 
-  /** Alle Radfahr-Lernthemen mit ihren Karten (ohne das Sammelthema rad_falsch) - fuer den Export in die
-   *  Eltern-App (tools/export_lernkarten.js). */
+  /** Alle Lernthemen einer Gruppe mit ihren Karten (ohne das Sammelthema rad_falsch) - fuer den Export in die
+   *  Eltern-App (tools/export_lernkarten.js) und die Lernrunde der Hof-Farm. */
   function lernthemenFuerExport(gruppe) {
-    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === (gruppe || 'rad') && k !== 'rad_falsch')
+    return Object.keys(LERNTHEMEN).filter(k => LERNTHEMEN[k].gruppe === gruppe && k !== 'rad_falsch')
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, geordnet: !!LERNTHEMEN[k].geordnet, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 

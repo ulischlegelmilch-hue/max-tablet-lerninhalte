@@ -1,5 +1,5 @@
 // Hof-Farm: Lernrunde fuer schnelleres Wachstum. Waehlt 5 Karteikarten aus den Bereichen, in denen Max am meisten Uebung braucht
-// (Malfolgen-Fakten, Radfahr-Lernkarten, Grundbegriffe) - nach den vorhandenen Statistiken: oft falsch / selten in Folge richtig
+// (Malfolgen-Fakten, Musik- und Sport-Lernkarten, Grundbegriffe; bis 15.11.2026 Radfahr-Karten) - nach den vorhandenen Statistiken: oft falsch / selten in Folge richtig
 // = hohes Gewicht. Nur am Tablet vorhanden (Storage, Heimatkunde, Grundbegriffe). Das Ergebnis meldet Max selbst ("gewusst" / "noch nicht"),
 // wie bei allen seinen Karteikarten; die Statistiken werden dabei genauso fortgeschrieben wie sonst.
 const FarmLernen = (function () {
@@ -28,13 +28,15 @@ const FarmLernen = (function () {
         }
       });
     } catch (e) { /* ohne Malfolgen */ }
-    // Radfahr-Lernkarten
-    try {
-      Heimatkunde.lernthemenFuerExport().forEach(t => {
-        const stats = Storage.getLernkartenStats(t.id);
-        t.karten.forEach((c, i) => liste.push({ quelle: 'lern', thema: t.id, idx: i, front: c.front, back: c.back, w: gewicht(stats[i]), titel: 'Radfahren' }));
-      });
-    } catch (e) { /* ohne Radfahr-Karten */ }
+    // Lernkarten-Stapel (15.11.2026: Musik + Sport statt Radfahren). Geometrie bleibt draußen: viele Karten heißen „im Heft zeichnen“.
+    [['musik', 'Musik'], ['sport', 'Sport']].forEach(([gruppe, titel]) => {
+      try {
+        Heimatkunde.lernthemenFuerExport(gruppe).forEach(t => {
+          const stats = Storage.getLernkartenStats(t.id);
+          t.karten.forEach((c, i) => liste.push({ quelle: 'lern', thema: t.id, idx: i, front: c.front, back: c.back, w: gewicht(stats[i]), titel }));
+        });
+      } catch (e) { /* ohne diese Karten */ }
+    });
     // Grundbegriffe (Rechenarten, Faelle)
     try {
       Object.keys(Grundbegriffe.DECKS).forEach(fach => {
@@ -72,7 +74,7 @@ const FarmLernen = (function () {
     } catch (e) { /* Statistik ist Zusatz */ }
   }
 
-  // Tagesaufgaben der Schule (Ferientraining) fuer die Anzeige im Spiel
+  // Lernarten mit Stand von heute (ferientraining.js) fuer die Anzeige im Spiel
   function tagesplan() {
     try { return typeof Ferientraining !== 'undefined' && Ferientraining.liste ? Ferientraining.liste() : []; } catch (e) { return []; }
   }

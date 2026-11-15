@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11-0846",
+  "version": "2026-11-15-1236",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -183,6 +183,7 @@
     "js/maumau-engine.js",
     "js/maumau-online.js",
     "js/maumau.js",
+    "js/musik.js",
     "js/quartett-daten.js",
     "js/quartett-engine.js",
     "js/quartett-online.js",

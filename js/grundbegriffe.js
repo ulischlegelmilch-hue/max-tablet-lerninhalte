@@ -100,7 +100,8 @@ const Grundbegriffe = (function () {
   /** nachher: optionaler Rueckruf, wenn Max danach zu seinen Aufgaben weitermoechte ({ text, aktion }). */
   function starte(fach, nachher) {
     setMerker(fach, 'gemacht');
-    session = { fach, karten: waehleKarten(fach, KARTEN_PRO_RUNDE), index: 0, richtig: 0, verlauf: [], nachher: nachher || null, sterne: 0 };
+    // 15.11.2026: zählt als Lernrunde für den Hof (gb_mathe / gb_deutsch, siehe ferientraining.js)
+    session = { fach, karten: waehleKarten(fach, KARTEN_PRO_RUNDE), index: 0, richtig: 0, verlauf: [], nachher: nachher || null, sterne: 0, ferienItem: 'gb_' + fach };
     App.setLastStarter(() => starte(fach, nachher));
     zeichneKarte();
   }
