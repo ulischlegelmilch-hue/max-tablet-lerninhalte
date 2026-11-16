@@ -22,7 +22,6 @@ const Glanz = (function () {
     zurueck: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     schliessen: '<path d="M6 6l12 12M18 6L6 18"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
-    minus: '<path d="M5 12h14"/>',
     pfeil: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     wechsel: '<path d="M4 8.5h15M15.5 5l3.5 3.5-3.5 3.5M20 15.5H5M8.5 12L5 15.5 8.5 19"/>',
     haken: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
@@ -334,7 +333,15 @@ const Glanz = (function () {
         setTimeout(() => { if (h.parentNode) h.parentNode.removeChild(h); if (opt.beimZu) opt.beimZu(); }, 320);
       }
     };
-    h.addEventListener('click', e => { if (e.target === h || (e.target.closest && e.target.closest('.gz-zu'))) ergebnis.zu(); });
+    // Daneben tippen schließt – aber nur, wenn der Finger auch daneben AUFGESETZT hat. Am Tablet schickt der Browser nach
+    // einem Tipp noch einen Klick hinterher; der traf sonst das eben geöffnete Blatt und schloss es sofort wieder (16.11.2026).
+    let daneben = false;
+    h.addEventListener('pointerdown', e => { daneben = e.target === h; });
+    h.addEventListener('click', e => {
+      if (e.target.closest && e.target.closest('.gz-zu')) ergebnis.zu();
+      else if (e.target === h && daneben) ergebnis.zu();
+      daneben = false;
+    });
     requestAnimationFrame(() => requestAnimationFrame(() => h.classList.add('gz-offen')));
     return ergebnis;
   }

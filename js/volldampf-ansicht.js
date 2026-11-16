@@ -173,9 +173,20 @@ const VolldampfAnsicht = (function () {
     gesten();
     groesse();
     window.addEventListener('resize', groesse);
+    document.addEventListener('click', geistKlick, true);
+  }
+  // Am Tablet folgt auf jeden Finger-Tipp noch ein Klick des Browsers an derselben Stelle. Der Tipp auf die Karte ist
+  // schon über pointerup erledigt – der Nachzügler darf nichts treffen, was dadurch gerade erst erschienen ist.
+  let geist = null;
+  function geistKlick(e) {
+    if (!geist) return;
+    const g = geist; geist = null;
+    if (performance.now() < g.bis && Math.hypot(e.clientX - g.x, e.clientY - g.y) < 30) { e.stopPropagation(); e.preventDefault(); }
   }
   function abbauen() {
     window.removeEventListener('resize', groesse);
+    document.removeEventListener('click', geistKlick, true);
+    geist = null;
     Object.keys(zugEl).forEach(k => delete zugEl[k]);
     markiert = {};
     if (karteEl && karteEl.parentNode) karteEl.parentNode.removeChild(karteEl);
@@ -303,7 +314,7 @@ const VolldampfAnsicht = (function () {
       delete zeiger[e.pointerId];
       const rest = Object.keys(zeiger).length;
       if (rest === 0) {
-        if (start && !start.bewegt && performance.now() - start.t < 600) tippen(e.clientX - start.r.left, e.clientY - start.r.top);
+        if (start && !start.bewegt && performance.now() - start.t < 600) { geist = { x: e.clientX, y: e.clientY, bis: performance.now() + 700 }; tippen(e.clientX - start.r.left, e.clientY - start.r.top); }
         else if (start && letzte.length >= 2 && !(geste && geste.d0)) {
           const a = letzte[0], b = letzte[letzte.length - 1], dt = Math.max(16, b.t - a.t);
           const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
