@@ -40,6 +40,12 @@ const ZenitFlug = (function () {
   const kreisTempo = h => Math.sqrt(MU / (R + h));
   const dichte = h => (h > 150000 ? 0 : RHO0 * Math.exp(-Math.max(h, 0) / HS));
   const anz = (k, id) => (k[id] === true ? 1 : k[id] || 0);
+  /** Selbst gebaute Rakete aus der Montagehalle anmelden (zenit-bau.js): Stufen b1…b4, Seitenblöcke bB, Verkleidung bH */
+  function setze(id, werte) {
+    TEILE[id] = werte;
+    const liste = { stufe: STUFEN, booster: BOOSTER, huelle: HUELLEN, nutz: NUTZ }[werte.art];
+    if (liste && !liste.includes(id)) liste.push(id);
+  }
   const mdot = T => T.tvac / (T.isp * G0);
 
   // ------------------------------------------------ Rakete in der Montagehalle (k: Teil → Anzahl)
@@ -248,7 +254,7 @@ const ZenitFlug = (function () {
     return { unten: false, bogen: P.bogen, pkt };
   }
 
-  return { MU, R, G0, TEILE, BAHN_MIN, BREMS_DAUER, KABEL_HOEHE, ZIEL, ZIEL_WOSTOK, ERD_W, ortBogen, kreisTempo, dichte, plan, startmasse, startschub, schubZuGewicht,
+  return { setze, MU, R, G0, TEILE, BAHN_MIN, BREMS_DAUER, KABEL_HOEHE, ZIEL, ZIEL_WOSTOK, ERD_W, ortBogen, kreisTempo, dichte, plan, startmasse, startschub, schubZuGewicht,
     tempoSchaetzung, neu, klon, masse, cda, hoehe, tempo, teile, tank, schub, schritt, dtFuer, weiter, seitenLeer, seitenAb, verkleidungAb,
     stufeLeer, obenNoch, stufeAb, abschalten, raumschiffAb, bremsen, kugelAb, bahn, umlaufbahn, zielNeigung, vorhersage, landung };
 })();

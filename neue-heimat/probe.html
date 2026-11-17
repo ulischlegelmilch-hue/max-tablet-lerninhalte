@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leistungsprobe Neue Heimat</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05070d; color: #e8edf7; font: 16px/1.4 system-ui, sans-serif; overflow: hidden; }
+  #spiel { position: fixed; inset: 0; }
+  #leiste { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); display: flex; gap: 8px; }
+  .chip { background: rgba(20, 28, 48, .72); border: 1px solid rgba(255, 255, 255, .14); border-radius: 999px; padding: 6px 14px; font-size: 18px; backdrop-filter: blur(6px); }
+  #info { position: fixed; left: 16px; bottom: 14px; background: rgba(5, 7, 13, .8); padding: 8px 14px; border-radius: 8px; }
+  #ergebnis { position: fixed; inset: 15% 10%; background: rgba(9, 13, 24, .94); border: 1px solid rgba(255, 255, 255, .2); border-radius: 12px; padding: 20px; white-space: pre-wrap; font: 15px/1.5 ui-monospace, monospace; overflow: auto; }
+</style>
+</head>
+<body>
+<div id="spiel"></div>
+<div id="leiste"></div>
+<div id="info">Leistungsprobe wird geladen …</div>
+<pre id="ergebnis" hidden></pre>
+<script src="phaser.min.js"></script>
+<script src="probe.js"></script>
+</body>
+</html>

@@ -567,9 +567,35 @@ const App = (function () {
         `}
       </div>
 
+      <div class="welcome" style="margin-top:32px;">Technik</div>
+      <div class="lese-text">Leistungsprobe für das neue Weltraum-Spiel „Neue Heimat“: Das Tablet zeigt etwa 30 Sekunden lang eine Spielszene und misst, wie flüssig sie läuft. Das Ergebnis geht an den Server (Diagnose), damit das Spiel passend für dieses Tablet gebaut wird.</div>
+      <div class="regel-karte"><div class="btn-primary" onclick="App.starteNeueHeimatProbe()">Leistungsprobe starten (30 s)</div></div>
+
       ${versionInfoHtml()}
     `);
   }
+
+  // Leistungsprobe „Neue Heimat“ (17.11.2026): laeuft als iframe ueber der App, meldet per postMessage
+  // ihre Messzeilen, die hier an den Pi gehen (FernSync.meldeZeilen -> /api/tablet-diagnose).
+  function starteNeueHeimatProbe() {
+    if (document.getElementById('nh-probe')) return;
+    const box = document.createElement('div');
+    box.id = 'nh-probe';
+    box.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#05070d';
+    box.innerHTML = '<iframe src="neue-heimat/probe.html" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>' +
+      '<div id="nh-probe-zu" style="position:absolute;right:16px;top:12px;z-index:2;padding:12px 20px;border-radius:10px;background:rgba(20,28,48,.9);color:#e8edf7;font:600 16px system-ui">Schließen</div>';
+    document.body.appendChild(box);
+    document.getElementById('nh-probe-zu').onclick = () => box.remove();
+  }
+  window.addEventListener('message', e => {
+    const d = e.data;
+    if (!d || d.art !== 'nh-probe' || !Array.isArray(d.zeilen)) return;
+    const zeilen = d.zeilen.filter(z => typeof z === 'string').map(z => z.slice(0, 300)).slice(0, 10);
+    const zu = document.getElementById('nh-probe-zu');
+    if (typeof FernSync !== 'undefined' && FernSync.meldeZeilen) {
+      FernSync.meldeZeilen(zeilen).then(ok => { if (zu) zu.textContent = ok ? 'Gemeldet ✓ · Schließen' : 'Nicht gemeldet (offline?) · Schließen'; });
+    }
+  });
 
   // Bisher gab es KEINE sichtbare Versionsanzeige irgendwo in der App (nur
   // Logcat/Toast waehrend eines Updates) - fuehrte wiederholt dazu, dass nach
@@ -1285,7 +1311,7 @@ const App = (function () {
     init, gotoHome, render, subMenuHtml, updateTopbar, renderSpieleMenu,
     startQuizSession, starteFerienQuiz, setLastStarter, restartLast, setOnLeaveScreen,
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeAusnahmeHinzu, loescheAusnahme,
-    speichereTagesregeln, fortschrittWirklichZuruecksetzen,
+    speichereTagesregeln, fortschrittWirklichZuruecksetzen, starteNeueHeimatProbe,
     fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,
     aktualisiereHomeFallsAktiv, istStartSichtbar
   };

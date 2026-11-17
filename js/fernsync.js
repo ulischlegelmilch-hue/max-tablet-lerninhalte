@@ -63,6 +63,16 @@ const FernSync = (function () {
     } catch (e) { /* naechster Poll */ }
   }
 
+  // Einzelne Diagnose-Zeilen melden (z. B. Leistungsprobe „Neue Heimat“). true = angekommen.
+  async function meldeZeilen(zeilen) {
+    try {
+      const r = await fetchMitTimeout(BACKEND_URL + '/api/tablet-diagnose', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ zeilen })
+      });
+      return r.ok;
+    } catch (e) { return false; }
+  }
+
   async function pollEinmal() {
     if (!BACKEND_URL) return true;
     try {
@@ -510,5 +520,5 @@ const FernSync = (function () {
     }
   }
 
-  return { init, poll, beiAufwachen, zusatzaufgabenHtml, meldeErledigt, meldeSchachPlan, meldeSchachTag, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
+  return { init, poll, beiAufwachen, zusatzaufgabenHtml, meldeZeilen, meldeErledigt, meldeSchachPlan, meldeSchachTag, meldeLernsetErledigt, speichereRegeln, holeRegelnFrisch };
 })();
