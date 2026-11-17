@@ -26,9 +26,9 @@ const Musik = (function () {
 
   // breite = Platz auf der Linie; schlaege = Länge im 4/4-Takt; name/silbe für Texte
   const ZEICHEN = {
-    ganz: { breite: 48, schlaege: 4, name: 'ganze Note', silbe: 'Taaaa',
+    ganz: { breite: 48, schlaege: 4, name: 'ganze Note', silbe: 'Taooo',
       svg: (x, y) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="7.2" fill="none" ${STRICH} stroke-width="3.4"/>` },
-    halb: { breite: 46, schlaege: 2, name: 'halbe Note', silbe: 'Taa', svg: (x, y) => kopf(x, y, true) + hals(x, y) },
+    halb: { breite: 46, schlaege: 2, name: 'halbe Note', silbe: 'Tao', svg: (x, y) => kopf(x, y, true) + hals(x, y) },
     viertel: { breite: 42, schlaege: 1, name: 'Viertelnote', silbe: 'Ta', svg: (x, y) => kopf(x, y) + hals(x, y) },
     achtel: { breite: 48, schlaege: 0.5, name: 'Achtelnote', silbe: 'Ti', svg: (x, y) => kopf(x, y) + hals(x, y) + faehnchen(x, y) },
     titi: { breite: 66, schlaege: 1, name: 'zwei Achtelnoten', silbe: 'Titi',
@@ -177,7 +177,7 @@ const Musik = (function () {
       { front: 'Welche Pause dauert genauso lang wie eine halbe Note?', back: 'Die <b>halbe Pause</b>: 2 Schläge.' + zeile(['halb', 'p_halb'], { max: 220 }) }
     ] },
     { id: 'musik_aufpassen', titel: 'Aufpassen: Verwechsler', karten: () => [
-      { front: 'Wie viele Schläge dauert eine <b>halbe Note</b>?', back: '<b>2 Schläge</b> (Taa).' + klein('Nicht 4! 4 Schläge dauert nur die ganze Note. Die halbe Note ist halb so lang.') },
+      { front: 'Wie viele Schläge dauert eine <b>halbe Note</b>?', back: '<b>2 Schläge</b> (Tao).' + klein('Nicht 4! 4 Schläge dauert nur die ganze Note. Die halbe Note ist halb so lang.') },
       { front: frage(einzeln('halb'), 'Halbe Note oder Achtelnote?', 'hohler Kopf mit Hals'), back: '<b>Halbe Note</b>: hohler Kopf, Hals, kein Fähnchen. 2 Schläge.' },
       { front: frage(einzeln('achtel'), 'Halbe Note oder Achtelnote?', 'ausgemalter Kopf mit Fähnchen'), back: '<b>Achtelnote</b>: ausgemalter Kopf, Hals und Fähnchen. ½ Schlag.' },
       { front: 'Ganze Note und halbe Note: Was ist der Unterschied?', back: zeile(['ganz', 'halb'], { max: 230 }) + 'Beide haben einen <b>hohlen Kopf</b>. Die halbe Note hat einen <b>Hals</b>.<br>Ganze Note 4 Schläge, halbe Note 2 Schläge.' },
@@ -189,8 +189,8 @@ const Musik = (function () {
       { front: 'Wie viele Sitzplätze hat ein Wagen im <b>4/4-Takt</b>?', back: '<b>4 Sitzplätze</b>: so viele wie Grundschläge.' + wagen([]) },
       { front: 'Wie viele Sitzplätze braucht <b>Ta</b> (Viertelnote)?', back: '<b>1 Sitzplatz</b>' + wagen([['Ta', 1], ['Ta', 1], ['Ta', 1], ['Ta', 1]]) },
       { front: 'Wie viele Sitzplätze brauchen die <b>Titis</b> (zwei Achtelnoten)?', back: 'Zusammen <b>1 Sitzplatz</b>' + wagen([['Titi', 1], ['Ta', 1], ['Titi', 1], ['Ta', 1]]) },
-      { front: 'Wie viele Sitzplätze braucht <b>Taa</b> (halbe Note)?', back: '<b>2 Sitzplätze</b>' + wagen([['Taa', 2], ['Ta', 1], ['Ta', 1]]) },
-      { front: 'Wie viele Sitzplätze braucht <b>Taaaa</b> (ganze Note)?', back: '<b>4 Sitzplätze</b>: der ganze Wagen' + wagen([['Taaaa', 4]]) },
+      { front: 'Wie viele Sitzplätze braucht <b>Tao</b> (halbe Note)?', back: '<b>2 Sitzplätze</b>' + wagen([['Tao', 2], ['Ta', 1], ['Ta', 1]]) },
+      { front: 'Wie viele Sitzplätze braucht <b>Taooo</b> (ganze Note)?', back: '<b>4 Sitzplätze</b>: der ganze Wagen' + wagen([['Taooo', 4]]) },
       { front: 'Wie viele Sitzplätze braucht die kleine Pause (<b>Viertelpause</b>)?', back: '<b>1 Sitzplatz</b>' + wagen([['Ta', 1], ['Pause', 1], ['Ta', 1], ['Ta', 1]]) },
       { front: 'Wie sprichst du eine <b>einzelne Achtelnote</b>?', back: '<b>Ti</b>: ½ Schlag. Zwei Achtelnoten zusammen sind Titi.' }
     ] },
@@ -212,20 +212,20 @@ const Musik = (function () {
           back: `${schlagText(folge)} = <b>${s} Schläge</b><br>${urteil}` };
       };
       return [
-        zaehl(['viertel', 'viertel', 'halb'], 'Ta Ta Taa'),
+        zaehl(['viertel', 'viertel', 'halb'], 'Ta Ta Tao'),
         zaehl(['titi', 'viertel', 'viertel', 'viertel'], 'Titi Ta Ta Ta'),
-        zaehl(['halb', 'halb'], 'Taa Taa'),
-        zaehl(['ganz'], 'Taaaa'),
+        zaehl(['halb', 'halb'], 'Tao Tao'),
+        zaehl(['ganz'], 'Taooo'),
         zaehl(['viertel', 'viertel', 'viertel'], 'Ta Ta Ta'),
-        zaehl(['halb', 'viertel', 'titi'], 'Taa Ta Titi'),
+        zaehl(['halb', 'viertel', 'titi'], 'Tao Ta Titi'),
         zaehl(['viertel', 'p_viertel', 'viertel', 'viertel'], 'Ta Pause Ta Ta'),
-        zaehl(['halb', 'halb', 'viertel'], 'Taa Taa Ta'),
-        zaehl(['p_halb', 'halb'], 'halbe Pause, Taa'),
-        zaehl(['achtel', 'achtel', 'halb', 'viertel'], 'Ti Ti Taa Ta'),
-        { front: frage(zeile(['halb', 'viertel', 'viertel', 'ganz'], { takt: '4/4', max: 320 }), 'Immer 4 Schläge gehören in einen Takt. Wo kommt der <b>Taktstrich</b> hin?', 'Taa Ta Ta Taaaa'),
-          back: zeile(['halb', 'viertel', 'viertel', 'strich', 'ganz', 'schluss'], { takt: '4/4', max: 360 }) + 'Nach <b>Taa Ta Ta</b> sind 4 Schläge voll (2 + 1 + 1).' },
-        { front: frage(zeile(['titi', 'titi', 'halb', 'viertel', 'viertel', 'halb'], { takt: '4/4', max: 360 }), 'Wo kommt der <b>Taktstrich</b> hin?', 'Titi Titi Taa Ta Ta Taa'),
-          back: zeile(['titi', 'titi', 'halb', 'strich', 'viertel', 'viertel', 'halb', 'schluss'], { takt: '4/4', max: 400 }) + 'Nach <b>Titi Titi Taa</b> sind 4 Schläge voll (1 + 1 + 2).' }
+        zaehl(['halb', 'halb', 'viertel'], 'Tao Tao Ta'),
+        zaehl(['p_halb', 'halb'], 'halbe Pause, Tao'),
+        zaehl(['achtel', 'achtel', 'halb', 'viertel'], 'Ti Ti Tao Ta'),
+        { front: frage(zeile(['halb', 'viertel', 'viertel', 'ganz'], { takt: '4/4', max: 320 }), 'Immer 4 Schläge gehören in einen Takt. Wo kommt der <b>Taktstrich</b> hin?', 'Tao Ta Ta Taooo'),
+          back: zeile(['halb', 'viertel', 'viertel', 'strich', 'ganz', 'schluss'], { takt: '4/4', max: 360 }) + 'Nach <b>Tao Ta Ta</b> sind 4 Schläge voll (2 + 1 + 1).' },
+        { front: frage(zeile(['titi', 'titi', 'halb', 'viertel', 'viertel', 'halb'], { takt: '4/4', max: 360 }), 'Wo kommt der <b>Taktstrich</b> hin?', 'Titi Titi Tao Ta Ta Tao'),
+          back: zeile(['titi', 'titi', 'halb', 'strich', 'viertel', 'viertel', 'halb', 'schluss'], { takt: '4/4', max: 400 }) + 'Nach <b>Titi Titi Tao</b> sind 4 Schläge voll (1 + 1 + 2).' }
       ];
     } }
   ];
@@ -263,11 +263,11 @@ const Musik = (function () {
     p_achtel: { text: 'eine <b>Achtelpause</b>', achten: ['oben ein Punkt mit einem kleinen Bogen', 'dann ein schräger Strich nach unten'] }
   };
   const TAKTE = [
-    { folge: ['halb', 'viertel', 'viertel'], silben: 'Taa Ta Ta' },
+    { folge: ['halb', 'viertel', 'viertel'], silben: 'Tao Ta Ta' },
     { folge: ['viertel', 'viertel', 'titi', 'viertel'], silben: 'Ta Ta Titi Ta' },
-    { folge: ['halb', 'halb'], silben: 'Taa Taa' },
+    { folge: ['halb', 'halb'], silben: 'Tao Tao' },
     { folge: ['viertel', 'p_viertel', 'viertel', 'viertel'], silben: 'Ta Pause Ta Ta' },
-    { folge: ['titi', 'halb', 'viertel'], silben: 'Titi Taa Ta' },
+    { folge: ['titi', 'halb', 'viertel'], silben: 'Titi Tao Ta' },
     { folge: ['p_halb', 'viertel', 'viertel'], silben: 'halbe Pause, Ta Ta' }
   ];
   const zufall = a => a[Math.floor(Math.random() * a.length)];

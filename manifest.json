@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-16-1915",
+  "version": "2026-11-17-1832",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -254,6 +254,8 @@
     "js/volldampf-modell.js",
     "js/volldampf-ton.js",
     "js/volldampf.js",
+    "js/zenit-daten.js",
+    "js/zenit-flug.js",
     "sounds/akku.wav",
     "sounds/benachrichtigung.wav",
     "sounds/laden.wav",
