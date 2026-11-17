@@ -687,7 +687,7 @@ const Heimatkunde = (function () {
     const offen = Storage.getOffeneSession(aktivitaet);
     if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length) {
       lkSession = {
-        thema: TAGESKARTEN_THEMA, titel: 'Radfahren – Tageskarten', bewertung: true, karten: offen.karten, index: offen.index,
+        thema: TAGESKARTEN_THEMA, titel: 'Radfahren – Tageskarten', bewertung: true, karten: mitAktuellenTexten(offen.karten, TAGESKARTEN_THEMA), index: offen.index,
         richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
       };
     } else {
@@ -698,6 +698,21 @@ const Heimatkunde = (function () {
     renderLernkarte();
   }
 
+  // Angefangener Stapel: beim Fortsetzen die AKTUELLEN Kartentexte nehmen, Fortschritt (Reihenfolge, Stelle, Sterne,
+  // Wiederholungen) bleibt (17.11.2026, Uli: nach der Korrektur „Taa“ -> „Tao“ zeigte der am selben Tag angefangene
+  // Musik-Stapel trotz Update und Neustart weiter die alten Texte, weil die offene Sitzung die Karten 1:1 speichert).
+  // Zuordnung: Karten aus gemischten Stapeln über _quellThema/_quellIdx, sonst über _idx im eigenen Stapel.
+  function mitAktuellenTexten(karten, thema) {
+    const quellen = {};
+    const quelle = t => quellen[t] || (quellen[t] = (LERNTHEMEN[t] ? LERNTHEMEN[t].karten() : []));
+    return karten.map(k => {
+      if (!k || typeof k !== 'object') return k;
+      const neu = k._quellThema !== undefined ? quelle(k._quellThema)[k._quellIdx]
+        : (k._idx !== undefined && thema !== 'rad_falsch' ? quelle(thema)[k._idx] : null);
+      return neu ? Object.assign({}, k, neu) : k;
+    });
+  }
+
   function starteLernkarten(thema) {
     if (thema === TAGESKARTEN_THEMA) { starteTagesLernkarten(); return; }
     const info = LERNTHEMEN[thema];
@@ -705,7 +720,7 @@ const Heimatkunde = (function () {
       const offen = Storage.getOffeneSession(aktivitaetFuerThema(thema));
       if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length) {
         lkSession = {
-          thema, titel: info.titel, bewertung: true, karten: offen.karten, index: offen.index,
+          thema, titel: info.titel, bewertung: true, karten: mitAktuellenTexten(offen.karten, thema), index: offen.index,
           richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
         };
       } else {
