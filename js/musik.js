@@ -26,7 +26,7 @@ const Musik = (function () {
 
   // breite = Platz auf der Linie; schlaege = Länge im 4/4-Takt; name/silbe für Texte
   const ZEICHEN = {
-    ganz: { breite: 48, schlaege: 4, name: 'ganze Note', silbe: 'Taooo',
+    ganz: { breite: 48, schlaege: 4, name: 'ganze Note', silbe: 'Taoao',
       svg: (x, y) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="7.2" fill="none" ${STRICH} stroke-width="3.4"/>` },
     halb: { breite: 46, schlaege: 2, name: 'halbe Note', silbe: 'Tao', svg: (x, y) => kopf(x, y, true) + hals(x, y) },
     viertel: { breite: 42, schlaege: 1, name: 'Viertelnote', silbe: 'Ta', svg: (x, y) => kopf(x, y) + hals(x, y) },
@@ -103,7 +103,7 @@ const Musik = (function () {
     belegung.forEach(([silbe, n]) => {
       const x = x0 + platz * w + 4, b = n * w - 8;
       s += `<rect x="${x}" y="${y0 + 6}" width="${b}" height="${h - 12}" rx="8" fill="${AKZENT}" fill-opacity=".22" stroke="${AKZENT}" stroke-width="2"/>` +
-        `<text x="${x + b / 2}" y="${y0 + h / 2 + 6}" text-anchor="middle" font-size="${silbe.length > 4 ? 15 : 18}" font-weight="800" fill="currentColor">${silbe}</text>`;
+        `<text x="${x + b / 2}" y="${y0 + h / 2 + 6}" text-anchor="middle" font-size="${silbe.length > 4 ? (n === 1 ? 13 : 15) : 18}" font-weight="800" fill="currentColor">${silbe}</text>`;
       platz += n;
     });
     return rahmen(s, 4 * w + 44, 112, 330);
@@ -190,7 +190,7 @@ const Musik = (function () {
       { front: 'Wie viele Sitzplätze braucht <b>Ta</b> (Viertelnote)?', back: '<b>1 Sitzplatz</b>' + wagen([['Ta', 1], ['Ta', 1], ['Ta', 1], ['Ta', 1]]) },
       { front: 'Wie viele Sitzplätze brauchen die <b>Titis</b> (zwei Achtelnoten)?', back: 'Zusammen <b>1 Sitzplatz</b>' + wagen([['Titi', 1], ['Ta', 1], ['Titi', 1], ['Ta', 1]]) },
       { front: 'Wie viele Sitzplätze braucht <b>Tao</b> (halbe Note)?', back: '<b>2 Sitzplätze</b>' + wagen([['Tao', 2], ['Ta', 1], ['Ta', 1]]) },
-      { front: 'Wie viele Sitzplätze braucht <b>Taooo</b> (ganze Note)?', back: '<b>4 Sitzplätze</b>: der ganze Wagen' + wagen([['Taooo', 4]]) },
+      { front: 'Wie viele Sitzplätze braucht <b>Taoao</b> (ganze Note)?', back: '<b>4 Sitzplätze</b>: der ganze Wagen' + wagen([['Taoao', 4]]) },
       { front: 'Wie viele Sitzplätze braucht die kleine Pause (<b>Viertelpause</b>)?', back: '<b>1 Sitzplatz</b>' + wagen([['Ta', 1], ['Pause', 1], ['Ta', 1], ['Ta', 1]]) },
       { front: 'Wie sprichst du eine <b>einzelne Achtelnote</b>?', back: '<b>Ti</b>: ½ Schlag. Zwei Achtelnoten zusammen sind Titi.' }
     ] },
@@ -215,14 +215,14 @@ const Musik = (function () {
         zaehl(['viertel', 'viertel', 'halb'], 'Ta Ta Tao'),
         zaehl(['titi', 'viertel', 'viertel', 'viertel'], 'Titi Ta Ta Ta'),
         zaehl(['halb', 'halb'], 'Tao Tao'),
-        zaehl(['ganz'], 'Taooo'),
+        zaehl(['ganz'], 'Taoao'),
         zaehl(['viertel', 'viertel', 'viertel'], 'Ta Ta Ta'),
         zaehl(['halb', 'viertel', 'titi'], 'Tao Ta Titi'),
         zaehl(['viertel', 'p_viertel', 'viertel', 'viertel'], 'Ta Pause Ta Ta'),
         zaehl(['halb', 'halb', 'viertel'], 'Tao Tao Ta'),
         zaehl(['p_halb', 'halb'], 'halbe Pause, Tao'),
         zaehl(['achtel', 'achtel', 'halb', 'viertel'], 'Ti Ti Tao Ta'),
-        { front: frage(zeile(['halb', 'viertel', 'viertel', 'ganz'], { takt: '4/4', max: 320 }), 'Immer 4 Schläge gehören in einen Takt. Wo kommt der <b>Taktstrich</b> hin?', 'Tao Ta Ta Taooo'),
+        { front: frage(zeile(['halb', 'viertel', 'viertel', 'ganz'], { takt: '4/4', max: 320 }), 'Immer 4 Schläge gehören in einen Takt. Wo kommt der <b>Taktstrich</b> hin?', 'Tao Ta Ta Taoao'),
           back: zeile(['halb', 'viertel', 'viertel', 'strich', 'ganz', 'schluss'], { takt: '4/4', max: 360 }) + 'Nach <b>Tao Ta Ta</b> sind 4 Schläge voll (2 + 1 + 1).' },
         { front: frage(zeile(['titi', 'titi', 'halb', 'viertel', 'viertel', 'halb'], { takt: '4/4', max: 360 }), 'Wo kommt der <b>Taktstrich</b> hin?', 'Titi Titi Tao Ta Ta Tao'),
           back: zeile(['titi', 'titi', 'halb', 'strich', 'viertel', 'viertel', 'halb', 'schluss'], { takt: '4/4', max: 400 }) + 'Nach <b>Titi Titi Tao</b> sind 4 Schläge voll (1 + 1 + 2).' }
