@@ -9,7 +9,7 @@
   @font-face { font-family: Lexend; src: url(fonts/lexend-latin-600-normal.woff2) format('woff2'); font-weight: 600; }
   /* Layout: Bühne 1280×800 – links Missionsspalte, oben Ressourcen, rechts oben Uhr/Tempo, unten Bau-Dock (Daumenzone). */
   :root {
-    --glas: rgba(12, 17, 31, .80); --glas-hell: rgba(255, 255, 255, .07); --glas-rand: rgba(255, 255, 255, .13);
+    --glas: rgba(12, 17, 31, .88); --glas-hell: rgba(255, 255, 255, .07); --glas-rand: rgba(255, 255, 255, .13);
     --text: #eef2f8; --text-2: #b4bed0; --akzent: #ffe7a3;
     --strom: #f2c14e; --wasser: #4fb3f0; --luft: #5fd0bd; --material: #d0784a;
     --gelb: #f2c14e; --rot: #ff6b5e; --rot-text: #ff8a7e; --gruen: #6fd39b;
@@ -26,7 +26,7 @@
   #hochkant { position: fixed; inset: 0; display: none; flex-direction: column; gap: 16px; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b0f1a; font-size: 20px; z-index: 10; }
   #hochkant .sym { width: 64px; height: 64px; }
   @media (orientation: portrait) { #hochkant { display: flex; } }
-  .glas { background: var(--glas); border: 1px solid var(--glas-rand); border-radius: var(--radius); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 6px 18px rgba(0, 0, 0, .28); }
+  .glas { background: var(--glas); border: 1px solid var(--glas-rand); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0, 0, 0, .28); }
   .feder { transition: transform .35s var(--feder); }
   .feder:active { transform: scale(.94); transition-duration: .08s; }
 
@@ -40,8 +40,10 @@
   .c-trend { color: var(--text-2); font-weight: 400; font-size: 17px; }
   .c-unten { font-size: 16px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .chip.gelb { border-color: var(--gelb); } .chip.gelb .c-unten { color: var(--gelb); }
-  .chip.rot { border-color: var(--rot); animation: puls 1.2s ease-in-out infinite; } .chip.rot .c-unten { color: var(--rot-text); }
-  @keyframes puls { 50% { box-shadow: 0 0 0 5px rgba(255, 107, 94, .35); } }
+  .chip.rot { border-color: var(--rot); position: relative; }
+  /* Pulsieren nur über die Deckkraft eines eigenen Rings: das schafft der Grafikchip allein, ohne Neuzeichnen */
+  .chip.rot::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; box-shadow: 0 0 0 5px rgba(255, 107, 94, .35); opacity: 0; pointer-events: none; will-change: opacity; animation: puls 1.2s ease-in-out infinite; } .chip.rot .c-unten { color: var(--rot-text); }
+  @keyframes puls { 50% { opacity: 1; } }
 
   /* rechts oben: Uhr und Tempo */
   #oben-rechts { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 212px; }
@@ -173,8 +175,8 @@
   #drehen .sym { width: 120px; height: 120px; color: var(--akzent); animation: drehen 2.4s var(--feder) infinite; }
   #drehen small { font-size: 19px; font-weight: 400; color: var(--text-2); }
   @keyframes drehen { 0%, 25% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0deg); } }
-  /* Messmodus: Glas ohne Unschärfe (deckender) */
-  body.ohne-glas .glas { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(12, 17, 31, .92); }
+  /* Messmodus: Bedienleiste ausgeblendet (nur die Spielwelt bleibt) */
+  body.ohne-leiste #buehne > :not(#welt) { display: none !important; }
   /* Weniger Bewegung (Einstellung; Standard folgt prefers-reduced-motion) */
   body.ruhig *, body.ruhig *::before { transition: none !important; animation: none !important; }
 </style>
