@@ -4,212 +4,55 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <title>Mission Neue Heimat</title>
+<link rel="stylesheet" href="schrift.css">
 <style>
-  @font-face { font-family: Lexend; src: url(fonts/lexend-latin-400-normal.woff2) format('woff2'); font-weight: 400; }
-  @font-face { font-family: Lexend; src: url(fonts/lexend-latin-600-normal.woff2) format('woff2'); font-weight: 600; }
-  /* Layout: Bühne 1280×800 – links Missionsspalte, oben Ressourcen, rechts oben Uhr/Tempo, unten Bau-Dock (Daumenzone). */
+  /* Leitstand (GLANZ): Graphit-Flächen, eine Akzentfarbe Bernstein, Barlow Condensed für Titel und Zahlen.
+     Bühne 1280×800, als Ganzes skaliert (main.ts). Abschnitt A: nur Kopf, Zoom, Bildrate, Beenden. */
   :root {
-    --glas: rgba(12, 17, 31, .88); --glas-hell: rgba(255, 255, 255, .07); --glas-rand: rgba(255, 255, 255, .13);
-    --text: #eef2f8; --text-2: #b4bed0; --akzent: #ffe7a3;
-    --strom: #f2c14e; --wasser: #4fb3f0; --luft: #5fd0bd; --material: #d0784a;
-    --gelb: #f2c14e; --rot: #ff6b5e; --rot-text: #ff8a7e; --gruen: #6fd39b;
-    --radius: 18px; --radius-klein: 14px;
-    --feder: cubic-bezier(.34, 1.56, .64, 1);
+    --bg0: #0a0c0f; --tafel: rgba(12, 14, 17, .86); --linie: rgba(255, 255, 255, .10); --linie2: rgba(255, 255, 255, .18);
+    --txt: #e6e9ed; --txt2: #a1a9b3; --txt3: #6f7883; --akzent: #e2a63b;
+    --titel: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", sans-serif;
+    --text: Roboto, "Segoe UI", system-ui, sans-serif;
   }
-  html, body { margin: 0; height: 100%; background: #0b0f1a; color: var(--text); font: 17px/1.35 Lexend, system-ui, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  button { font: inherit; color: inherit; cursor: pointer; }
-  button:focus-visible { outline: 3px solid var(--akzent); outline-offset: 2px; }
-  .sym { width: 1.4em; height: 1.4em; flex: none; display: block; }
-  /* Bühne 1280×800, als Ganzes auf den Bildschirm skaliert (main.ts: passeBuehneAn); position:fixed darin bezieht sich auf die Bühne */
+  html, body { margin: 0; height: 100%; background: var(--bg0); color: var(--txt); font: 400 16px/1.4 var(--text); overflow: hidden; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: none; }
   #buehne { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; transform-origin: 0 0; overflow: hidden; }
   #welt { position: absolute; inset: 0; }
-  #hochkant { position: fixed; inset: 0; display: none; flex-direction: column; gap: 16px; align-items: center; justify-content: center; text-align: center; padding: 24px; background: #0b0f1a; font-size: 20px; z-index: 10; }
-  #hochkant .sym { width: 64px; height: 64px; }
-  @media (orientation: portrait) { #hochkant { display: flex; } }
-  .glas { background: var(--glas); border: 1px solid var(--glas-rand); border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0, 0, 0, .28); }
-  .feder { transition: transform .35s var(--feder); }
-  .feder:active { transform: scale(.94); transition-duration: .08s; }
-
-  /* Ressourcen oben */
-  #leiste { position: fixed; top: 12px; left: 322px; display: flex; gap: 8px; }
-  .chip { width: 130px; box-sizing: border-box; padding: 7px 10px; display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: center; border-radius: var(--radius-klein); }
-  #chip-strom { width: 168px; }
-  .chip .sym { grid-row: span 2; width: 26px; height: 26px; }
-  .c-wert { font-weight: 600; font-size: 21px; line-height: 1.15; white-space: nowrap; }
-  .c-wert small { font-weight: 400; color: var(--text-2); font-size: 16px; }
-  .c-trend { color: var(--text-2); font-weight: 400; font-size: 17px; }
-  .c-unten { font-size: 16px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .chip.gelb { border-color: var(--gelb); } .chip.gelb .c-unten { color: var(--gelb); }
-  .chip.rot { border-color: var(--rot); position: relative; }
-  /* Pulsieren nur über die Deckkraft eines eigenen Rings: das schafft der Grafikchip allein, ohne Neuzeichnen */
-  .chip.rot::after { content: ''; position: absolute; inset: -1px; border-radius: inherit; box-shadow: 0 0 0 5px rgba(255, 107, 94, .35); opacity: 0; pointer-events: none; will-change: opacity; animation: puls 1.2s ease-in-out infinite; } .chip.rot .c-unten { color: var(--rot-text); }
-  @keyframes puls { 50% { opacity: 1; } }
-
-  /* rechts oben: Uhr und Tempo */
-  #oben-rechts { position: fixed; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; width: 212px; }
-  #oben-zeile { display: flex; gap: 8px; }
-  #uhr { flex: 1; padding: 6px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; border-radius: var(--radius-klein); }
-  #uhr .sym { grid-row: span 2; }
-  #menue { width: 60px; flex: none; border-radius: var(--radius-klein); display: flex; align-items: center; justify-content: center; color: var(--text-2); }
-  #menue .sym { width: 28px; height: 28px; }
-  #menue-panel { position: fixed; z-index: 12; top: 156px; right: 12px; width: 340px; box-sizing: border-box; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
-  .m-titel { font-size: 20px; font-weight: 600; }
-  .m-zeile { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 17px; }
-  .m-wahl { display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-klein); background: var(--glas-hell); }
-  .m-wahl button { min-width: 64px; min-height: 60px; border: 0; border-radius: 10px; background: transparent; color: var(--text-2); font-size: 16px; }
-  .m-wahl button.an { background: rgba(255, 231, 163, .2); color: var(--akzent); box-shadow: inset 0 0 0 1px rgba(255, 231, 163, .45); }
-  .m-schalter { width: 84px; height: 60px; border: 0; border-radius: 30px; background: var(--glas-hell); position: relative; }
-  .m-schalter i { position: absolute; left: 6px; top: 6px; width: 48px; height: 48px; border-radius: 50%; background: var(--text-2); transition: left .3s var(--feder), background .2s; }
-  .m-schalter.an { background: rgba(111, 211, 155, .3); } .m-schalter.an i { left: 30px; background: var(--gruen); }
-  .m-ende { min-height: 60px; border: 1px solid var(--glas-rand); border-radius: var(--radius-klein); background: var(--glas-hell); display: flex; gap: 10px; align-items: center; justify-content: center; font-size: 17px; }
-  .m-ende .sym { width: 24px; height: 24px; }
-  #uhr .sym { width: 30px; height: 30px; }
-  #uhr-sol { font-weight: 600; font-size: 21px; line-height: 1.15; white-space: nowrap; } #uhr-zeit { color: var(--text-2); font-size: 16px; font-variant-numeric: tabular-nums; }
-  #tempo { display: flex; gap: 4px; padding: 5px; border-radius: var(--radius-klein); }
-  #tempo button { flex: 1; border: 0; background: transparent; border-radius: 11px; min-height: 60px; display: flex; align-items: center; justify-content: center; color: var(--text-2); }
-  #tempo button .sym { width: 28px; height: 28px; }
-  #tempo button.an { background: rgba(255, 231, 163, .18); color: var(--akzent); box-shadow: inset 0 0 0 1px rgba(255, 231, 163, .45); }
-
-  /* linke Spalte */
-  #links { position: fixed; top: 12px; left: 12px; width: 300px; display: flex; flex-direction: column; gap: 8px; }
-  #missionslog { padding: 12px 16px 14px; }
-  #mission-zahl { font-size: 16px; color: var(--akzent); letter-spacing: .04em; }
-  #mission { font-weight: 600; font-size: 20px; line-height: 1.25; margin-top: 4px; text-wrap: balance; }
-  #berater-box { padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; }
-  #berater-box img { width: 46px; height: 46px; flex: none; margin-top: -2px; }
-  #berater { font-size: 17px; }
-  #lieferung { padding: 10px 14px; display: flex; gap: 12px; align-items: center; }
-  #lieferung .sym { width: 34px; height: 34px; }
-  #lieferung-text { font-size: 17px; } #lieferung-text small { display: block; color: var(--text-2); font-size: 16px; }
-
-  /* Meldungen (links unten über dem Dock) */
-  #meldungen { position: fixed; left: 12px; bottom: 196px; width: 300px; display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
-  .meldung { padding: 9px 12px; font-size: 16px; display: flex; gap: 10px; align-items: flex-start; background: var(--glas); border: 1px solid var(--glas-rand); border-radius: var(--radius-klein); transition: opacity .5s, transform .5s var(--feder); }
-  .meldung .sym { width: 24px; height: 24px; }
-  .meldung.neu { opacity: 0; transform: translateX(-24px); }
-  .meldung.gut { border-color: rgba(111, 211, 155, .55); } .meldung.warn { border-color: rgba(242, 193, 78, .7); }
-  .meldung.weg { opacity: 0; }
-
-  /* Bau-Dock unten */
-  #dock { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; padding: 8px; border-radius: 22px; }
-  .karte { width: 126px; height: 160px; box-sizing: border-box; border: 1px solid var(--glas-rand); border-radius: var(--radius-klein); background: var(--glas-hell); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 6px 8px; }
-  .k-bild { width: 96px; height: 78px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .3)); }
-  .k-name { font-size: 16px; line-height: 1.15; text-align: center; flex: 1; display: flex; align-items: center; }
-  .k-preis { font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
-  .k-preis .sym { width: 20px; height: 20px; }
-  .karte.gewaehlt { border-color: var(--akzent); background: rgba(255, 231, 163, .16); box-shadow: 0 0 0 3px rgba(255, 231, 163, .35); transform: translateY(-8px); }
-  .karte.teuer .k-bild { opacity: .4; filter: grayscale(.7); }
-  .karte.teuer .k-preis { color: var(--rot-text); }
-  #rueckgaengig { position: fixed; bottom: 12px; right: 12px; min-width: 150px; min-height: 72px; padding: 0 16px; display: flex; gap: 10px; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
-  #rueckgaengig .sym { width: 26px; height: 26px; }
-
-  /* Info zu einem Gebäude */
-  #info { position: fixed; right: 12px; top: 164px; width: 320px; padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
-  #info-kopf { display: flex; gap: 12px; align-items: center; }
-  #info-kopf > div { flex: 1; min-width: 0; }
-  #info-zu { width: 56px; height: 56px; flex: none; margin: -6px -6px 0 0; border: 0; border-radius: var(--radius-klein); background: var(--glas-hell); display: flex; align-items: center; justify-content: center; }
-  #info-zu .sym { width: 26px; height: 26px; }
-  #info-kopf img { width: 60px; height: 56px; object-fit: contain; flex: none; }
-  #info-titel { font-weight: 600; font-size: 21px; line-height: 1.2; }
-  #info-lage { font-size: 16px; color: var(--text-2); }
-  #info-text { font-size: 17px; }
-  #info-abriss { min-height: 64px; border: 1px solid rgba(255, 107, 94, .6); background: var(--glas-hell); border-radius: var(--radius-klein); display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 17px; color: #ffb3aa; }
-  #info-abriss .sym { width: 24px; height: 24px; }
-  #info-abriss small { font-size: 16px; color: var(--text-2); }
-  #info-abriss:disabled { border-color: var(--glas-rand); color: var(--text-2); cursor: default; }
-  /* Kuppel-Querschnitt */
-  #querschnitt { position: fixed; inset: 0; z-index: 15; background: rgba(4, 6, 14, .55); display: flex; align-items: center; justify-content: center; transition: background .25s; }
-  #querschnitt.zu { background: rgba(4, 6, 14, 0); }
-  .qs-panel { width: 820px; box-sizing: border-box; padding: 14px 30px 18px; display: flex; flex-direction: column; gap: 10px; transition: transform .45s var(--feder), opacity .25s; }
-  #querschnitt.zu .qs-panel { transform: scale(.12); opacity: 0; transition-timing-function: ease-in; transition-duration: .25s; }
-  .qs-kopf { display: flex; align-items: center; gap: 12px; }
-  .qs-kopf > div { flex: 1; }
-  .qs-titel { font-size: 24px; font-weight: 600; } .qs-unter { color: var(--text-2); font-size: 16px; }
-  .qs-zu { width: 60px; height: 60px; border: 0; border-radius: var(--radius-klein); background: var(--glas-hell); display: flex; align-items: center; justify-content: center; }
-  .qs-zu .sym { width: 28px; height: 28px; }
-  .qs-bild { position: relative; width: 760px; height: 400px; border-radius: var(--radius-klein); overflow: hidden; }
-  .qs-hinter { width: 100%; height: 100%; display: block; }
-  .qs-person { position: absolute; display: flex; flex-direction: column; align-items: center; }
-  .qs-person img { width: 100%; display: block; }
-  .qs-name { position: absolute; bottom: 100%; margin-bottom: 4px; white-space: nowrap; font-size: 16px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: rgba(12, 17, 31, .82); display: flex; gap: 5px; align-items: center; }
-  .qs-name .sym { width: 18px; height: 18px; }
-  .qs-name.muede { box-shadow: inset 0 0 0 1.5px var(--gelb); } .qs-name.krank { box-shadow: inset 0 0 0 1.5px var(--rot); }
-  .qs-fuss { display: flex; gap: 14px; align-items: flex-end; }
-  .qs-fakten { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 16px; }
-  .qs-fakten > div { display: flex; gap: 8px; align-items: flex-start; }
-  .qs-fakten .sym { width: 22px; height: 22px; } .qs-fakten .kalt { color: #ffd58a; }
-  .qs-abriss { min-height: 60px; padding: 0 16px; border: 1px solid rgba(255, 107, 94, .6); background: var(--glas-hell); border-radius: var(--radius-klein); display: flex; gap: 8px; align-items: center; color: #ffb3aa; font-size: 16px; }
-  .qs-abriss .sym { width: 22px; height: 22px; }
-  .qs-abriss:disabled { border-color: var(--glas-rand); color: var(--text-2); }
-  /* Tutorial: Ring um das Ziel, NOVA-Sprechblase */
-  #tut-ring { position: fixed; z-index: 10; border-radius: 22px; box-shadow: 0 0 0 3px var(--akzent), 0 0 24px 6px rgba(255, 231, 163, .55); pointer-events: none; animation: tutpuls 1.4s ease-in-out infinite; transition: all .45s var(--feder); }
-  @keyframes tutpuls { 50% { box-shadow: 0 0 0 5px var(--akzent), 0 0 34px 12px rgba(255, 231, 163, .35); } }
-  #tut-blase { position: fixed; z-index: 11; box-sizing: border-box; padding: 14px 16px; display: flex; gap: 14px; align-items: center; border-color: rgba(127, 224, 255, .5); transition: left .45s var(--feder), top .45s var(--feder); }
-  #tut-blase img { width: 58px; height: 58px; flex: none; animation: schweben 2.4s ease-in-out infinite; }
-  @keyframes schweben { 50% { transform: translateY(-4px); } }
-  .tut-text { font-size: 19px; font-weight: 600; line-height: 1.3; }
-  .tut-knopf { margin-top: 10px; min-height: 60px; padding: 0 22px; border: 0; border-radius: var(--radius-klein); background: var(--akzent); color: #1b1608; font-weight: 600; font-size: 18px; display: flex; gap: 8px; align-items: center; }
-  .tut-knopf .sym { width: 22px; height: 22px; }
-  /* Feierabend */
-  #feierabend { position: fixed; inset: 0; z-index: 20; background: rgba(4, 6, 14, .6); display: flex; align-items: center; justify-content: center; }
-  .fa-karte { width: 560px; box-sizing: border-box; padding: 22px 26px; display: flex; flex-direction: column; gap: 14px; animation: aufgehen .5s var(--feder); }
-  @keyframes aufgehen { from { transform: scale(.85) translateY(20px); opacity: 0; } }
-  .fa-kopf { display: flex; gap: 14px; align-items: center; }
-  .fa-kopf .sym { width: 44px; height: 44px; }
-  .fa-titel { font-size: 28px; font-weight: 600; } .fa-unter { color: var(--text-2); font-size: 16px; }
-  .fa-liste { display: flex; flex-direction: column; gap: 8px; }
-  .fa-zeile { display: flex; gap: 10px; align-items: center; font-size: 17px; min-height: 36px; }
-  .fa-zeile .sym { width: 26px; height: 26px; } .fa-zeile.warn { color: #ffd58a; }
-  .fa-bilder { display: flex; gap: 2px; flex-wrap: wrap; } .fa-bilder img { width: 52px; height: 44px; object-fit: contain; }
-  .fa-ziel { padding: 10px 14px; border-radius: var(--radius-klein); background: var(--glas-hell); font-size: 17px; }
-  .fa-ziel span { color: var(--akzent); font-weight: 600; }
-  .fa-knoepfe { display: flex; gap: 10px; }
-  .fa-weiter { flex: 1.4; min-height: 72px; border: 0; border-radius: var(--radius-klein); background: var(--akzent); color: #1b1608; font-weight: 600; font-size: 19px; display: flex; gap: 8px; align-items: center; justify-content: center; }
-  .fa-weiter .sym { width: 24px; height: 24px; }
-  .fa-schluss { flex: 1; min-height: 72px; border: 1px solid var(--glas-rand); border-radius: var(--radius-klein); background: var(--glas-hell); font-size: 17px; }
-  .fa-abschied { align-items: center; text-align: center; } .fa-abschied > .sym { width: 56px; height: 56px; } .fa-abschied .fa-weiter { flex: none; padding: 0 24px; width: 100%; }
+  #welt canvas { display: block; }
+  .tafel { position: absolute; background: var(--tafel); border: 1px solid var(--linie2); border-radius: 6px; }
+  .ue { font: 600 13px var(--titel); letter-spacing: 1.8px; text-transform: uppercase; color: var(--txt3); }
+  #kopf { left: 14px; top: 14px; width: 300px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 3px; }
+  #kopf .titel { font: 600 22px/1.1 var(--titel); letter-spacing: .3px; }
+  #kopf .klein { font-size: 14px; color: var(--txt2); }
+  #zoom { right: 14px; top: 14px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+  #zoom button { min-width: 112px; min-height: 60px; border: 0; background: transparent; color: var(--txt2); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
+  #zoom button + button { border-left: 1px solid var(--linie2); }
+  #zoom button[aria-pressed="true"] { background: var(--akzent); color: var(--bg0); }
+  #zoom button:focus-visible, #beenden:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+  #bps { right: 14px; bottom: 14px; padding: 6px 12px; display: flex; gap: 10px; align-items: baseline; }
+  #bps-wert { font: 600 22px var(--titel); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+  #beenden { left: 14px; bottom: 14px; min-width: 140px; min-height: 60px; color: var(--txt); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
+  body.messung #kopf, body.messung #zoom, body.messung #beenden { display: none; }
+  #drehen { position: fixed; inset: 0; z-index: 50; background: var(--bg0); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; font: 600 26px var(--titel); letter-spacing: .4px; }
+  #drehen small { font: 400 18px var(--text); color: var(--txt2); }
   [hidden] { display: none !important; }
-  /* Hochkant gehalten: Hinweis über allem (außerhalb der skalierten Bühne, damit er groß bleibt) */
-  #drehen { position: fixed; inset: 0; z-index: 50; background: #0b0f1a; color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; font-size: 26px; font-weight: 600; text-align: center; padding: 24px; }
-  #drehen[hidden] { display: none; }
-  #drehen .sym { width: 120px; height: 120px; color: var(--akzent); animation: drehen 2.4s var(--feder) infinite; }
-  #drehen small { font-size: 19px; font-weight: 400; color: var(--text-2); }
-  @keyframes drehen { 0%, 25% { transform: rotate(90deg); } 60%, 100% { transform: rotate(0deg); } }
-  /* Messmodus: Bedienleiste ausgeblendet (nur die Spielwelt bleibt) */
-  body.ohne-leiste #buehne > :not(#welt) { display: none !important; }
-  /* Weniger Bewegung (Einstellung; Standard folgt prefers-reduced-motion) */
-  body.ruhig *, body.ruhig *::before { transition: none !important; animation: none !important; }
 </style>
 </head>
 <body>
-<div id="hochkant"></div>
 <div id="buehne">
-<div id="welt"></div>
-<div id="leiste">
-  <div class="chip glas" id="chip-strom"></div>
-  <div class="chip glas" id="chip-wasser"></div>
-  <div class="chip glas" id="chip-luft"></div>
-  <div class="chip glas" id="chip-material"></div>
-  <div class="chip glas" id="chip-bewohner"></div>
+  <div id="welt"></div>
+  <div id="kopf" class="tafel">
+    <div class="ue">Mondbasis · Südpol</div>
+    <div class="titel">Vorschau Abschnitt A</div>
+    <div class="klein">Ziehen verschiebt die Karte. Doppeltipp oder zwei Finger wechseln die Zoomstufe.</div>
+  </div>
+  <div id="zoom" class="tafel" role="group" aria-label="Zoomstufe">
+    <button type="button" data-z="nah" aria-pressed="true">Nah</button>
+    <button type="button" data-z="uebersicht" aria-pressed="false">Übersicht</button>
+  </div>
+  <div id="bps" class="tafel"><span class="ue">Bilder/s</span><span id="bps-wert">–</span></div>
+  <button type="button" id="beenden" class="tafel" hidden>Beenden</button>
 </div>
-<div id="links">
-  <div id="missionslog" class="glas"><div id="mission-zahl"></div><div id="mission"></div></div>
-  <div id="berater-box" class="glas"><img id="nova-bild" alt=""><span id="berater"></span></div>
-  <div id="lieferung" class="glas"></div>
-</div>
-<div id="oben-rechts">
-  <div id="oben-zeile"><div id="uhr" class="glas"></div><button id="menue" class="glas feder" aria-label="Einstellungen"></button></div>
-  <div id="tempo" class="glas"><button id="tempo-pause" class="feder" aria-label="Pause"></button><button id="tempo-1" class="feder" aria-label="Normal"></button><button id="tempo-2" class="feder" aria-label="Doppelt so schnell"></button></div>
-</div>
-<div id="meldungen"></div>
-<button id="rueckgaengig" class="glas feder" hidden></button>
-<div id="info" class="glas" hidden>
-  <div id="info-kopf"><img id="info-bild" alt=""><div><div id="info-titel"></div><div id="info-lage"></div></div><button id="info-zu" class="feder" aria-label="Schließen"></button></div>
-  <div id="info-text"></div>
-  <button id="info-abriss" class="feder"></button>
-</div>
-<div id="dock" class="glas"></div>
-</div>
+<div id="drehen" hidden>Bitte dreh das Tablet.<small>Neue Heimat spielt man quer.</small></div>
 <script src="phaser.min.js"></script>
 <script src="spiel.js"></script>
 </body>
