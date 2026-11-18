@@ -273,6 +273,10 @@ const App = (function () {
           <span class="menu-icon icon-volldampf">${Icons.kat('volldampf')}</span>
           <span class="menu-text"><span class="menu-label">Volldampf</span><span class="menu-progress">${VolldampfLader.fortschrittText()}</span></span>
         </div>
+        ${NeueHeimatLader.fuerMax ? `<div class="menu-card accent-neueheimat" onclick="NeueHeimatLader.oeffnen()">
+          <span class="menu-icon icon-neueheimat">${Icons.kat('neueheimat')}</span>
+          <span class="menu-text"><span class="menu-label">Neue Heimat</span><span class="menu-progress">${NeueHeimatLader.fortschrittText()}</span></span>
+        </div>` : ''}
         <div class="menu-card accent-maumau" onclick="Maumau.renderMenu()">
           <span class="menu-icon icon-maumau">${Icons.kat('maumau')}</span>
           <span class="menu-text"><span class="menu-label">Mau-Mau</span><span class="menu-progress">${Maumau.fortschrittText()}</span></span>
@@ -568,8 +572,9 @@ const App = (function () {
       </div>
 
       <div class="welcome" style="margin-top:32px;">Technik</div>
-      <div class="lese-text">Leistungsprobe für das neue Weltraum-Spiel „Neue Heimat“: Das Tablet zeigt etwa 30 Sekunden lang eine Spielszene und misst, wie flüssig sie läuft. Das Ergebnis geht an den Server (Diagnose), damit das Spiel passend für dieses Tablet gebaut wird.</div>
-      <div class="regel-karte"><div class="btn-primary" onclick="App.starteNeueHeimatProbe()">Leistungsprobe starten (30 s)</div></div>
+      <div class="lese-text">Leistungsprobe für das neue Weltraum-Spiel „Neue Heimat“: Das Tablet spielt etwa 1½ Minuten lang eine volle Kolonie in sechs Grafik-Einstellungen und misst, wie flüssig sie läuft. Bitte quer halten und nicht berühren. Das Ergebnis geht an den Server (Diagnose), damit das Spiel passend für dieses Tablet gebaut wird.</div>
+      <div class="regel-karte"><div class="btn-primary" onclick="App.starteNeueHeimatProbe()">Leistungsprobe starten (ca. 1½ min)</div>
+        <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="NeueHeimatLader.oeffnen()">Neue Heimat öffnen (Test)</div></div>
 
       ${versionInfoHtml()}
     `);
@@ -582,7 +587,7 @@ const App = (function () {
     const box = document.createElement('div');
     box.id = 'nh-probe';
     box.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#05070d';
-    box.innerHTML = '<iframe src="neue-heimat/probe.html" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>' +
+    box.innerHTML = '<iframe src="neue-heimat/spiel.html?messung=0" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>' +
       '<div id="nh-probe-zu" style="position:absolute;right:16px;top:12px;z-index:2;padding:12px 20px;border-radius:10px;background:rgba(20,28,48,.9);color:#e8edf7;font:600 16px system-ui">Schließen</div>';
     document.body.appendChild(box);
     document.getElementById('nh-probe-zu').onclick = () => box.remove();

@@ -194,6 +194,8 @@ body.spielbuehne .accent-farm { border-color: rgba(120,200,90,.6); }
 body.spielbuehne .icon-farm { background: linear-gradient(150deg, #7CCB5A, #3F8F2F); --kat-dunkel: #2A6A1E; }
 body.spielbuehne .accent-volldampf { border-color: rgba(242,181,68,.6); }
 body.spielbuehne .icon-volldampf { background: linear-gradient(150deg, #FFC24D, #C0611F); --kat-dunkel: #7A3208; }
+body.spielbuehne .accent-neueheimat { border-color: rgba(214,120,74,.6); }
+body.spielbuehne .icon-neueheimat { background: linear-gradient(150deg, #E8935F, #8E3A1E); --kat-dunkel: #5A210E; }
 body.spielbuehne .icon-quartett { background: linear-gradient(150deg, #FFD966, #D99A00); --kat-dunkel: #A06D00; }
 body.spielbuehne .icon-maumau { background: linear-gradient(150deg, #FF8B8B, #C73B3B); --kat-dunkel: #96282B; }
 
