@@ -123,7 +123,7 @@ const VolldampfModell = (function () {
       strecken: {}, bahnhoefe: {}, loks: [], nextUid: 1,
       auftraege: [], nextAid: 1, laender: {}, album: { loks: {}, waren: {}, staedte: {}, laender: {}, bahnen: {} }, karten: { aktiv: null, fertig: {}, dreh: 0 },
       statistik: { fahrten: 0, km: 0, taler: 0, fahrgaeste: 0, kisten: 0, kohle: 0, auftraege: 0 },
-      lern: { datum: '', ids: {} }, hilfe: {}, ton: true, freiStrecke: 1
+      lern: { datum: '', ids: {} }, hilfe: {}, ton: true, freiStrecke: 1, projekte: { stand: {}, fertig: {}, bau: null }
     };
     bahnhofAnlegen(heimat, jetzt);
     landErreicht(D.STADT[heimat].land, jetzt, true);
@@ -138,7 +138,8 @@ const VolldampfModell = (function () {
     S = raw;
     if (!S.hilfe) S.hilfe = {};
     if (!S.album.bahnen) S.album.bahnen = {};
-    kartenStand();
+    kartenStand(); projStand();
+    if (S.projekte.bau && !D.PROJEKT[S.projekte.bau.id]) S.projekte.bau = null;
     if (S.karten.aktiv && !D.LINIE[S.karten.aktiv]) S.karten.aktiv = null;
     S.loks = S.loks.filter(l => D.LOK[l.id]);
     S.loks.forEach(l => { if (l.f == null) l.f = freieFarbe(); });
@@ -187,7 +188,7 @@ const VolldampfModell = (function () {
     return n.indexOf(Math.min.apply(null, n));
   }
   /** Plätze im Fuhrpark: wachsen mit der Stufe und mit jedem Betriebswerk */
-  function fuhrpark() { return maxLoks(S.level) + W.BW_PLAETZE * gebaeudeZahl('betriebswerk'); }
+  function fuhrpark() { return maxLoks(S.level) + W.BW_PLAETZE * gebaeudeZahl('betriebswerk') + projektPlaetze(); }
   function lokWerte(lok) {
     const L = D.LOK[lok.id];
     return { kmh: L.kmh * (1 + 0.15 * (lok.kessel || 0)), plaetze: runde(L.plaetze * (1 + 0.25 * (lok.wagen || 0))),
@@ -436,7 +437,15 @@ const VolldampfModell = (function () {
     if (!l) return;
     l.linie = null; l.fahrt = null; l.status = 'depot'; l.halt = 0;
   }
-  function fahrzeitMs(km, kmh) { return km / kmh * 60000; }
+  /** Fahrzeit in echten ms. Mit weg (Stadt-ids) und ohne Dampf: Abschnitte ausgebauter Schnellfahrstrecken (Großprojekt) zählen kürzer. */
+  function fahrzeitMs(km, kmh, weg, dampf) {
+    if (weg && !dampf && weg.length > 1) {
+      let roh = 0, eff = 0;
+      for (let i = 1; i < weg.length; i++) { const k = KANTE[schl(weg[i - 1], weg[i])] || 0; roh += k; eff += k / tempo(weg[i - 1], weg[i]); }
+      if (roh > 0 && eff < roh) km = km * eff / roh;
+    }
+    return km / kmh * 60000;
+  }
   /** Bonus der Museumsloks (Harz, Rügen, Nürnberg …) */
   function lokBonus(l, a, b) {
     const L = D.LOK[l.id];
@@ -461,7 +470,7 @@ const VolldampfModell = (function () {
     const menge = ware ? Math.floor(Math.min(w.ladung, bf.lager)) : 0;
     if (menge) bf.lager -= menge;
     const schnell = t < S.volldampf.bis ? 2 : 1;
-    const dauer = fahrzeitMs(lin.km, w.kmh) / schnell;
+    const dauer = fahrzeitMs(lin.km, w.kmh, lin.weg, istDampf(l)) / schnell;
     const weg = von === lin.von ? lin.weg : lin.weg.slice().reverse();
     l.fahrt = { von, nach, weg, km: lin.km, start: t, ende: t + dauer, pax, ware: menge ? ware : null, menge, volldampf: schnell > 1 };
     l.status = 'faehrt';
@@ -609,7 +618,7 @@ const VolldampfModell = (function () {
     if (dt <= 0) return;
     const min = dt / 60000;
     Object.keys(S.bahnhoefe).forEach(c => {
-      const b = S.bahnhoefe[c], f = W.BAHNHOF_FAKTOR[b.stufe];
+      const b = S.bahnhoefe[c], f = W.BAHNHOF_FAKTOR[b.stufe] * projektFaktor(c);
       const pr = paxRate(c) * f, wr = wareRate(c) * f * (hatGeb(c, 'gueterhalle') ? W.GUETERHALLE : 1);
       b.wartend = Math.min(pr * 12, b.wartend + pr * min);
       if (wr) b.lager = Math.min(wr * 20, b.lager + wr * min);
@@ -618,6 +627,7 @@ const VolldampfModell = (function () {
   function naechstesEreignis() {
     let best = null;
     Object.keys(S.strecken).forEach(k => { const s = S.strecken[k]; if (!s.fertig && (!best || s.ende < best.t)) best = { t: s.ende, art: 'bau', s }; });
+    if (S.projekte && S.projekte.bau && (!best || S.projekte.bau.ende < best.t)) best = { t: S.projekte.bau.ende, art: 'projekt' };
     S.loks.forEach(l => {
       if (!l.linie) return;
       let t = Infinity;
@@ -642,6 +652,7 @@ const VolldampfModell = (function () {
       const t = Math.max(e.t, S.zeit);
       zeitVergeht(t - S.zeit); S.zeit = t;
       if (e.art === 'bau') streckeVollenden(e.s, t);
+      else if (e.art === 'projekt') projektWeiter(t);
       else if (e.l.status === 'faehrt') ankommen(e.l, t);
       else if (!abfahren(e.l, t) && e.l.status === 'kohle' && kohleZufluss() <= 0) { /* wartet auf Kohle */ }
     }
@@ -670,7 +681,7 @@ const VolldampfModell = (function () {
     let v = 0;
     S.loks.forEach(l => {
       if (!l.linie) return;
-      const w = lokWerte(l), fahr = fahrzeitMs(l.linie.km, w.kmh);
+      const w = lokWerte(l), fahr = fahrzeitMs(l.linie.km, w.kmh, l.linie.weg, istDampf(l));
       v += (l.linie.km * w.kohle / 100) / ((fahr + W.HALT_MS) / 60000);
     });
     return v;
@@ -720,6 +731,72 @@ const VolldampfModell = (function () {
     S.bahnhoefe[c].geb[art] = jetzt;
     ereignis('gebaeude', { stadt: c, art });
     return { ok: true, preis: k.preis };
+  }
+  // ---------------------------------------------------------------- Großprojekte (D.PROJEKTE): Geld braucht ein großes Ziel
+  // Drei Bauabschnitte nacheinander, immer nur eine Großbaustelle. Wirkung (Bahnhof ×2, Fuhrpark, Tempo) nach dem letzten.
+  function projStand() { if (!S.projekte) S.projekte = { stand: {}, fertig: {}, bau: null }; return S.projekte; }
+  function projektFertig(id) { return !!(S.projekte && S.projekte.fertig[id]); }
+  const PROJ_KANTEN = {};   // Projekt-id -> Abschnitts-Schlüssel seiner Bahnstrecken
+  D.PROJEKTE.forEach(P => { PROJ_KANTEN[P.id] = []; (P.bahnen || []).forEach(n => { if (BAHN[n]) BAHN[n].teile.forEach(t => PROJ_KANTEN[P.id].push(schl(t.a, t.b))); }); });
+  /** So viel schneller fahren Züge auf diesem Abschnitt (fertige Schnellfahrstrecken-Projekte), sonst 1 */
+  function tempo(a, b) {
+    if (!S || !S.projekte) return 1;
+    const id = schl(a, b); let f = 1;
+    D.PROJEKTE.forEach(P => { if (P.art === 'tempo' && S.projekte.fertig[P.id] && PROJ_KANTEN[P.id].indexOf(id) >= 0) f = Math.max(f, P.faktor); });
+    return f;
+  }
+  function projektFaktor(c) { let f = 1; D.PROJEKTE.forEach(P => { if (P.art === 'bahnhof' && P.stadt === c && projektFertig(P.id)) f *= P.faktor; }); return f; }
+  function projektPlaetze() { let n = 0; D.PROJEKTE.forEach(P => { if (P.art === 'werk' && projektFertig(P.id)) n += P.plaetze; }); return n; }
+  function projektVoraus(P) {
+    if (P.stadt && !angebunden(P.stadt)) return { ok: false, grund: 'Verbinde zuerst ' + D.STADT[P.stadt].name + ' mit deinem Netz.', stadt: P.stadt };
+    const fehlen = (P.bahnen || []).filter(n => !BAHN[n] || !BAHN[n].teile.every(t => streckeFertig(t.a, t.b)));
+    if (fehlen.length) {
+      const teile = []; fehlen.forEach(n => BAHN[n].teile.forEach(t => { if (!streckeFertig(t.a, t.b)) teile.push(D.STADT[t.a].name + ' – ' + D.STADT[t.b].name); }));
+      return { ok: false, grund: 'Bau zuerst ' + (teile.length === 1 ? 'die Strecke ' + teile[0] : teile.length <= 3 ? 'die Strecken ' + teile.join(', ') : fehlen.map(n => 'die ' + n).join(' und ') + ' komplett (' + teile.length + ' Abschnitte fehlen)') + '.', bahnen: fehlen };
+    }
+    if (S.level < P.level) return { ok: false, grund: 'Ab Stufe ' + P.level, stufe: true };
+    return { ok: true };
+  }
+  /** Stand eines Großprojekts: { id, P, n (fertige Abschnitte), anzahl, fertig, bau {start, ende} | null, offen, grund, naechster, preis } */
+  function projekt(id) {
+    const P = D.PROJEKT[id]; if (!P) return null;
+    const ps = projStand(), n = ps.stand[id] || 0, v = projektVoraus(P), naechster = n < P.abschnitte.length ? P.abschnitte[n] : null;
+    return { id, P, n, anzahl: P.abschnitte.length, fertig: !!ps.fertig[id], bau: ps.bau && ps.bau.id === id ? { start: ps.bau.start, ende: ps.bau.ende } : null,
+      offen: v.ok, grund: v.grund || '', voraus: v, naechster, preis: naechster ? naechster.preis : 0 };
+  }
+  function projekte() { return D.PROJEKTE.map(P => projekt(P.id)); }
+  function projektBaubar(id) {
+    const p = projekt(id);
+    if (!p) return { ok: false, grund: '?' };
+    if (p.fertig) return { ok: false, steht: true, grund: 'Schon fertig.' };
+    if (grossbaustelle() && projStand().bau.id === id) return { ok: false, laeuft: true, grund: 'Hier wird gerade gebaut.' };
+    if (!p.offen) return { ok: false, grund: p.grund, preis: p.preis };
+    if (grossbaustelle()) return { ok: false, grund: 'Es gibt nur eine Großbaustelle: Erst wird ' + D.PROJEKT[projStand().bau.id].name + ' fertig.', preis: p.preis };
+    if (S.taler < p.preis) return { ok: false, grund: fehlt(p.preis), preis: p.preis };
+    return { ok: true, preis: p.preis };
+  }
+  function grossbaustelle() { return !!projStand().bau; }
+  function projektBauen(id, jetzt) {
+    simuliere(jetzt);
+    const k = projektBaubar(id);
+    if (!k.ok) return k;
+    const P = D.PROJEKT[id], n = projStand().stand[id] || 0;
+    let dauer = P.abschnitte[n].min * 60000;
+    dauer -= Math.min(Math.max(0, S.volldampf.bis - jetzt), dauer / 2);   // Volldampf: Bautrupps doppelt so schnell
+    S.taler -= k.preis;
+    projStand().bau = { id, start: jetzt, ende: jetzt + dauer };
+    ereignis('projektStart', { id, abschnitt: n });
+    return { ok: true, preis: k.preis, ende: jetzt + dauer };
+  }
+  function projektWeiter(t) {
+    const ps = projStand(), b = ps.bau, P = D.PROJEKT[b.id];
+    ps.bau = null;
+    const n = (ps.stand[b.id] || 0) + 1; ps.stand[b.id] = n;
+    if (n < P.abschnitte.length) { ereignis('projektAbschnitt', { id: b.id, abschnitt: n - 1 }); return; }
+    ps.fertig[b.id] = t;
+    S.gold += P.gold;
+    ereignis('projekt', { id: b.id, gold: P.gold, xp: P.xp });
+    xpPlus(P.xp, t);
   }
   function werkOffen() { return D.STAEDTE.some(s => s.werk && angebunden(s.id)); }
   function werkPreis(l, art) { const st = l[art] || 0; return st >= 2 ? null : runde(D.LOK[l.id].preis * W.WERK_PREIS[art] * (st + 1) + 400); }
@@ -951,7 +1028,7 @@ const VolldampfModell = (function () {
     S.loks.forEach(l => {
       if (!l.linie || (l.linie.von !== c && l.linie.nach !== c)) return;
       const w = lokWerte(l);
-      const dauer = fahrzeitMs(l.linie.km, w.kmh);
+      const dauer = fahrzeitMs(l.linie.km, w.kmh, l.linie.weg, istDampf(l));
       const gegen = l.linie.von === c ? l.linie.nach : l.linie.von;
       if (l.status === 'faehrt' && l.fahrt.nach === c) {
         r.push({ zeit: l.fahrt.ende, art: 'an', uid: l.uid, gegen, fahrzeit: dauer });
@@ -978,6 +1055,7 @@ const VolldampfModell = (function () {
     autoKohle, kohlePreis, kohleProMinute, kohleReichtMinuten,
     baubar, baue, sofortFertig, streckenPreis, bauDauer, baustellen, streckeFertig, angebunden, weg,
     kaufbar, kaufeLok, kaufePreis, lok, lokWerte, setzeLinie, insDepot, fahrzeitMs,
+    projekte, projekt, projektBaubar, projektBauen, projektFertig, projektFaktor, projektPlaetze, tempo,
     kaufeKohle, ausbau, bunkerGroesse, werkOffen, werkPreis, werkstatt, zechen,
     volldampfGeben, lernBonus, auftragAbholen, auftragTauschen, auftragHilfe, auftragBedienen,
     luftlinie, bahnzeit, uhr, zugPosition, tafel, xpFuer, paxRate, wareRate, einnahmenProMinute, schl, NACH

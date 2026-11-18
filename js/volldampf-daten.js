@@ -412,6 +412,60 @@ const VolldampfDaten = (function () {
       text: 'Ringlokschuppen mit Drehscheibe: Platz für 2 weitere Züge in deinem Fuhrpark. Höchstens drei, jedes weitere kostet das Doppelte.' }
   };
 
+  // --------------------------------------------------------------------------------------------
+  // Großprojekte (Uli 18.11.2026: Max hatte nach wenigen Stunden 90 Mio. € – Geld braucht ein Ziel, „er soll langfristig
+  // Spaß haben“). Echte Bauwerke, je drei Bauabschnitte (Preis in Spiel-Einheiten = 1000 €, Bauzeit in echten Minuten,
+  // läuft auch, wenn das Spiel zu ist). Wirkung erst nach dem letzten Abschnitt:
+  //   bahnhof: Fahrgäste und Waren in `stadt` × faktor · werk: `plaetze` mehr im Fuhrpark ·
+  //   tempo: Züge auf den Abschnitten der Bahnstrecken `bahnen` fahren × faktor so schnell (Dampf ausgenommen)
+  // Voraussetzung: Stufe + `stadt` angeschlossen bzw. alle Abschnitte von `bahnen` gebaut. Quellen: tools/volldampf/QUELLEN.md
+  // --------------------------------------------------------------------------------------------
+  const PROJEKTE = [
+    { id: 'erfurt', name: 'ICE-Knoten Erfurt', art: 'bahnhof', stadt: 'erfurt', faktor: 2, level: 6, gold: 2, xp: 60,
+      fakt: 'Seit 2017 kreuzen sich in Erfurt die schnellen ICE-Strecken von Berlin nach München und von Frankfurt nach Dresden. Hier steigen viele Reisende um.',
+      abschnitte: [
+        { name: 'Neuer Hauptbahnhof', preis: 15000, min: 20, text: 'Ab 2002 wird der Erfurter Hauptbahnhof ganz neu gebaut.' },
+        { name: 'Brücken und Gleise', preis: 20000, min: 30, text: 'Neue Eisenbahnbrücken führen die Schnellfahrstrecken bis an die Bahnsteige.' },
+        { name: 'Der Knoten geht in Betrieb', preis: 30000, min: 40, text: 'Die ICE kommen fast gleichzeitig an – so geht das Umsteigen schnell.' }] },
+    { id: 'vde8', name: 'Schnellfahrstrecke VDE 8', art: 'tempo', bahnen: ['Schnellfahrstrecke Nürnberg–Erfurt', 'Schnellfahrstrecke Erfurt–Leipzig/Halle'], faktor: 1.5, level: 9, gold: 3, xp: 90,
+      fakt: 'Das „Verkehrsprojekt Deutsche Einheit Nr. 8“ verbindet seit 2017 Nürnberg über Erfurt mit Halle und Leipzig. Seitdem fährt der schnellste ICE von Berlin nach München in rund vier Stunden.',
+      abschnitte: [
+        { name: 'Bleßbergtunnel', preis: 40000, min: 30, text: 'Rund 8 km lang: der längste Tunnel der Strecke, mitten durch den Thüringer Wald.' },
+        { name: 'Saale-Elster-Talbrücke', preis: 60000, min: 45, text: 'Rund 8,6 km lang: die längste Eisenbahnbrücke Deutschlands.' },
+        { name: 'Freigabe für 300 km/h', preis: 80000, min: 60, text: 'Probefahrten, dann dürfen die ICE mit 300 km/h fahren.' }] },
+    { id: 'leipzig', name: 'City-Tunnel Leipzig', art: 'bahnhof', stadt: 'leipzig', faktor: 2, level: 11, gold: 3, xp: 110,
+      fakt: 'Seit Dezember 2013 fahren S-Bahnen in einem Tunnel quer unter der Leipziger Innenstadt hindurch – vom Hauptbahnhof bis zum Bayerischen Bahnhof.',
+      abschnitte: [
+        { name: 'Tunnel unter der Altstadt', preis: 60000, min: 45, text: 'Zwei Tunnelröhren werden unter den Häusern der Innenstadt gegraben.' },
+        { name: 'Vier Stationen unter der Erde', preis: 90000, min: 60, text: 'Hauptbahnhof (tief), Markt, Wilhelm-Leuschner-Platz und Bayerischer Bahnhof.' },
+        { name: 'Die erste S-Bahn fährt', preis: 120000, min: 90, text: 'Das S-Bahn-Netz Mitteldeutschland startet.' }] },
+    { id: 'cottbus', name: 'ICE-Werk Cottbus', art: 'werk', stadt: 'cottbus', plaetze: 3, level: 13, gold: 3, xp: 130,
+      fakt: 'Das größte ICE-Werk der Bahn. Seit 2024 werden hier ICE 4 gewartet. Die erste Halle ist rund 445 m lang – da passt der längste ICE 4 mit 374 m ganz hinein.',
+      abschnitte: [
+        { name: 'Baufeld am alten Bahnwerk', preis: 80000, min: 45, text: 'In Cottbus werden schon seit über 100 Jahren Lokomotiven repariert.' },
+        { name: 'Die lange Werkhalle', preis: 120000, min: 60, text: 'Ein ganzer ICE passt hinein, Arbeitsbühnen reichen bis aufs Dach.' },
+        { name: 'Der erste ICE in der Halle', preis: 160000, min: 90, text: 'Weniger als zwei Jahre nach dem Baustart ist die erste Halle fertig.' }] },
+    { id: 'berlin', name: 'Berlin Hauptbahnhof', art: 'bahnhof', stadt: 'berlin', faktor: 2, level: 15, gold: 4, xp: 160,
+      fakt: 'Eröffnet 2006. Der größte Kreuzungsbahnhof Europas: Oben fahren die Züge von Osten nach Westen, tief unten im Tunnel von Norden nach Süden.',
+      abschnitte: [
+        { name: 'Tunnel unter dem Tiergarten', preis: 120000, min: 60, text: 'Die Nord-Süd-Strecke verschwindet unter Park, Spree und Regierungsviertel.' },
+        { name: 'Glashalle und Bügelbauten', preis: 160000, min: 90, text: 'Zwei Bürotürme überspannen die gläserne Halle wie Bügel.' },
+        { name: 'Eröffnung', preis: 220000, min: 120, text: 'Im Mai 2006, kurz vor der Fußball-WM, fahren die ersten Züge.' }] },
+    { id: 'koelnrm', name: 'Schnellfahrstrecke Köln–Rhein/Main', art: 'tempo', bahnen: ['Schnellfahrstrecke Köln–Rhein/Main'], faktor: 1.5, level: 17, gold: 4, xp: 190,
+      fakt: 'Seit 2002 fahren ICE von Köln nach Frankfurt in rund einer Stunde – auf der alten Strecke am Rhein entlang dauert es über zwei Stunden.',
+      abschnitte: [
+        { name: 'Tunnel und Talbrücken', preis: 160000, min: 60, text: 'Die Strecke führt fast schnurgerade durch Westerwald und Taunus.' },
+        { name: 'Steigungen bis 40 Promille', preis: 220000, min: 90, text: 'So steil wie keine andere Schnellfahrstrecke: Das schaffen nur starke ICE.' },
+        { name: 'Freigabe für 300 km/h', preis: 300000, min: 120, text: 'Die erste Strecke Deutschlands, die für 300 km/h gebaut wurde.' }] },
+    { id: 'hwue', name: 'Schnellfahrstrecke Hannover–Würzburg', art: 'tempo', bahnen: ['Schnellfahrstrecke Hannover–Würzburg'], faktor: 1.5, level: 20, gold: 5, xp: 240,
+      fakt: 'Eine der ersten Schnellfahrstrecken Deutschlands. Mit ihrer Eröffnung 1991 begann der ICE-Verkehr.',
+      abschnitte: [
+        { name: 'Landrückentunnel', preis: 220000, min: 90, text: 'Fast 11 km lang: der längste Eisenbahntunnel Deutschlands.' },
+        { name: 'Mündener Tunnel', preis: 300000, min: 120, text: 'Gut 10,5 km: der zweitlängste – er liegt an derselben Strecke.' },
+        { name: 'Der erste ICE', preis: 400000, min: 150, text: 'Im Juni 1991 fahren die ersten ICE im Liniendienst.' }] }
+  ];
+  const PROJEKT = {}; PROJEKTE.forEach(p => { PROJEKT[p.id] = p; });
+
 
   // --------------------------------------------------------------------------------------------
   // Linienkarten: echte Zuglinien als Ziel. halte = Weg über das Gleisnetz (jede Nachbarschaft ist eine Strecke der Karte),
@@ -478,6 +532,6 @@ const VolldampfDaten = (function () {
   ];
   const LINIE = {}; LINIEN.forEach(l => { LINIE[l.id] = l; });
 
-  return { LAENDER, WAREN, STAEDTE, STADT, LOKS, LOK, HEIMAT_AUSWAHL, NACHBARN, ANTRIEB, ABTEILUNG, GEBAEUDE, LINIEN, LINIE };
+  return { LAENDER, WAREN, STAEDTE, STADT, LOKS, LOK, HEIMAT_AUSWAHL, NACHBARN, ANTRIEB, ABTEILUNG, GEBAEUDE, PROJEKTE, PROJEKT, LINIEN, LINIE };
 })();
 if (typeof module !== 'undefined') module.exports = VolldampfDaten;

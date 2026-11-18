@@ -138,6 +138,8 @@ const Volldampf = (function () {
 .vd-geb-text b{display:block;margin-bottom:2px;font:600 16px/1.3 var(--gz-titel);letter-spacing:.2px;color:var(--gz-txt)}
 .vd-geb .gz-btn{flex:none;align-self:center}
 .vd-geb.vd-steht>.gz-i{color:var(--gz-ok)}
+.vd-proj-status{display:block;margin-top:4px;font:500 12px/1.3 var(--gz-text);letter-spacing:.3px;color:var(--gz-txt3)}
+.vd-steht .vd-proj-status{color:var(--gz-ok)}
 .vd-linienfarbe{display:inline-block;width:20px;height:5px;border-radius:3px;flex:none}
 .vd-aktionen{display:flex;flex-direction:column;gap:8px;margin-top:20px}
 .vd-wahl-text{font-size:15px;line-height:1.55;color:var(--gz-txt)}
@@ -319,6 +321,7 @@ const Volldampf = (function () {
     if (art === 'level') { buehneRein(() => stufeZeigen(d.level)); return; }
     if (art === 'bahn') { buehneRein(() => bahnZeigen(d.id, d.bonus)); return; }
     if (art === 'karte') { aufgabenSig = ''; A.linieZeigen(null); A.markieren([]); buehneRein(() => karteErfuellt(d)); return; }
+    if (art === 'projekt') { aufgabenSig = ''; A.zeichneNetz(); buehneRein(() => projektEroeffnet(d)); return; }
     if (stumm) return;
     if (art === 'ankunft') { if (guideAn) guideFlag.fahrt = true; plusAnzeigen(d); const la = M.lok(d.uid); if (la && !blattAkt) ton(D.LOK[la.id].antrieb === 'dampf' ? 'puff' : 'ding', null, { leise: true, pause: 6000 }); return; }
     if (art === 'gebaut') { A.zeichneNetz(); aufgabenSig = ''; ton('fertig'); return; }
@@ -328,9 +331,15 @@ const Volldampf = (function () {
       return;
     }
     if (art === 'auftragFertig') { aufgabenSig = ''; ton('fertig'); return; }
+    if (art === 'projektAbschnitt') {
+      const P = D.PROJEKT[d.id];
+      aufgabenSig = ''; ton('fertig');
+      G.toast(wurzel, '<b>' + esc(P.abschnitte[d.abschnitt].name) + '</b> ist fertig. Der nächste Bauabschnitt von ' + esc(P.name) + ' wartet.', { icon: 'kran', dauer: 5500, beiTipp: () => projektBlatt(d.id) });
+      return;
+    }
     if (art === 'kohleLeer') { kohleWarnung(); return; }
     if (art === 'notration') { G.toast(wurzel, '<b>Notration:</b> Kasse und Energielager waren leer. Für heute reicht es noch für ein paar Fahrten. Mehr Energie gibt es für Lernrunden.', { icon: 'blitz', dauer: 6500 }); return; }
-    if (['lok', 'linie', 'verkauft', 'ausbau', 'werk', 'volldampf', 'lernbonus', 'baustart', 'belohnung', 'gebaeude'].indexOf(art) >= 0) { aufgabenSig = ''; A.zeichneNetz(); }
+    if (['lok', 'linie', 'verkauft', 'ausbau', 'werk', 'volldampf', 'lernbonus', 'baustart', 'belohnung', 'gebaeude', 'projektStart'].indexOf(art) >= 0) { aufgabenSig = ''; A.zeichneNetz(); }
   }
   function kurzFakt(s) { return s.ware ? 'Von hier kommt: ' + D.WAREN[s.ware].name + '.' : s.fakt.split('. ')[0] + (s.fakt.indexOf('. ') > 0 ? '.' : ''); }
   let kohleWarnZeit = 0;
@@ -460,10 +469,10 @@ const Volldampf = (function () {
   }
   function auftraegeZeichnen() {
     const S = M.zustand();
-    const sig = JSON.stringify(S.auftraege.map(a => [a.aid, a.stand, a.fertig ? 1 : 0, M.auftragHilfe(a.aid).tun])) + '|' + Math.floor(S.taler / 50) + '|' + Object.keys(S.strecken).length + '|' + S.loks.length + '|' + JSON.stringify(M.kartenStand()) + S.loks.map(l => l.linie && l.linie.karte ? 1 : 0).join('') + Object.keys(S.strecken).filter(k => S.strecken[k].fertig).length + S.level;
+    const sig = JSON.stringify(S.auftraege.map(a => [a.aid, a.stand, a.fertig ? 1 : 0, M.auftragHilfe(a.aid).tun])) + '|' + Math.floor(S.taler / 50) + '|' + Object.keys(S.strecken).length + '|' + S.loks.length + '|' + JSON.stringify(M.kartenStand()) + S.loks.map(l => l.linie && l.linie.karte ? 1 : 0).join('') + Object.keys(S.strecken).filter(k => S.strecken[k].fertig).length + S.level + '|' + projektSig();
     if (sig === aufgabenSig) return;
     aufgabenSig = sig;
-    let h = kartePanel();
+    let h = projektPanel() + kartePanel();
     S.auftraege.forEach(a => {
       const t = auftragText(a), hilfe = M.auftragHilfe(a.aid);
       let knopf = '';
@@ -502,6 +511,15 @@ const Volldampf = (function () {
         break;
       }
       case 'album': albumBlatt(); break;
+      case 'projekte': projekteBlatt(); break;
+      case 'projektBlatt': projektBlatt(wert); break;
+      case 'projektZeigen': projektZeigen(wert); break;
+      case 'projektBauen': {
+        const r = M.projektBauen(wert, j), P = D.PROJEKT[wert];
+        if (r.ok) { ton('bau'); aufgabenSig = ''; projektBlatt(wert); G.toast(wurzel, 'Die Großbaustelle läuft: <b>' + esc(P.abschnitte[M.projekt(wert).n].name) + '</b>. Fertig in ' + dauerText(r.ende - j) + ' – auch wenn das Spiel zu ist.', { icon: 'kran', dauer: 5500 }); }
+        else G.toast(wurzel, esc(r.grund), { icon: 'info', dauer: 5000 });
+        break;
+      }
       case 'bahnBlatt': bahnBlatt(wert); break;
       case 'kartenWahl': kartenWahlBlatt(); break;
       case 'tonUm': { const S = M.zustand(); S.ton = S.ton === false; if (S.ton) ton('gong'); zielBlatt(); break; }
@@ -684,6 +702,10 @@ const Volldampf = (function () {
           : G.knopf(S.level < M.W.GLEIS2_LEVEL ? 'Zweites Gleis ab Stufe ' + M.W.GLEIS2_LEVEL : g2.grund, { aus: true, breit: true })) + '</div>';
     }
     h += bahnHinweis(a, b, false);
+    D.PROJEKTE.filter(P => P.art === 'tempo' && P.bahnen.indexOf(ki.name) >= 0).forEach(P => {
+      const fertig = M.projektFertig(P.id);
+      h += '<div style="margin-top:14px" data-aktion="projektBlatt" data-wert="' + P.id + '">' + G.notiz('volldampf', fertig ? '<b>' + esc(P.name) + '</b> ist ausgebaut: Deine Züge fahren hier ' + prozent(P.faktor) + ' schneller.' : 'Großprojekt <b>' + esc(P.name) + '</b>: Baust du es aus, fahren deine Züge hier ' + prozent(P.faktor) + ' schneller.', !fertig) + '</div>';
+    });
     if (ki.info) h += '<div style="margin-top:14px">' + G.notiz('info', esc(ki.info)) + '</div>';
     if (!strom) {
       const k = M.oberleitungBaubar(a, b), preis = M.oberleitungPreis(a, b);
@@ -732,6 +754,10 @@ const Volldampf = (function () {
         h += gebZeile('bahnhof', 'Ausbau zum ' + STUFE[b.stufe + 1], b.stufe === 1 ? 'Mehr Gleise und ein größeres Empfangsgebäude: 40 % mehr Fahrgäste.' : 'Vier Gleise unter einer Bahnhofshalle: 80 % mehr Fahrgäste als am Haltepunkt.',
           G.knopf(geld(p), { art: S.taler >= p ? 'primaer' : null, aus: S.taler < p, klein: true, aktion: 'ausbau', wert: 'bahnhof:' + c }));
       } else h += gebZeile('bahnhof', 'Hauptbahnhof', 'Größter Ausbau: vier Gleise unter einer Bahnhofshalle.', '', true);
+      D.PROJEKTE.filter(P => P.stadt === c).forEach(P => {
+        const p = M.projekt(P.id);
+        h += gebZeile('kran', 'Großprojekt: ' + esc(P.name) + (p.fertig ? ' · fertig' : ''), esc(p.fertig ? wirkungLang(P) : wirkungKurz(P) + ' · ' + (p.bau ? 'im Bau' : p.offen ? p.n + ' von ' + p.anzahl + ' Abschnitten' : p.grund)), G.knopf('Ansehen', { klein: true, aktion: 'projektBlatt', wert: P.id }), p.fertig);
+      });
       Object.keys(D.GEBAEUDE).forEach(art => {
         const GB = D.GEBAEUDE[art], k = M.gebaeudeBaubar(c, art);
         if (!k.zeigen) return;
@@ -986,6 +1012,10 @@ const Volldampf = (function () {
     let h = G.kopf('Sammlung', nL + '/16 Bundesländer · ' + nS + '/' + D.STAEDTE.length + ' Städte · ' + nK + '/' + D.LOKS.length + ' Züge', 'album', 'Archiv') + '<div class="gz-inhalt">';
     // Streckenalbum: angefangene zuerst (was fehlt noch?), dann komplette; unberührte nur als Zahl
     const bahnen = M.bahnen(), komplett = bahnen.filter(B => B.komplett), dran = bahnen.filter(B => !B.komplett && B.fertig > 0).sort((x, y) => y.fertig / y.anzahl - x.fertig / x.anzahl);
+    // Großprojekte zuerst (höchstens 7): angefangene und fertige als Zeile, Rest über die Liste
+    const proj = M.projekte(), projDran = proj.filter(p => p.fertig || p.n || p.bau);
+    h += '<div class="gz-abschnitt">Großprojekte · ' + proj.filter(p => p.fertig).length + ' von ' + proj.length + ' fertig</div>' + (projDran.length ? '<div class="vd-bahnen">' + projDran.map(projektZeile).join('') + '</div>' : '') +
+      '<div class="vd-aktionen" style="margin-top:8px">' + G.knopf('Alle Großprojekte', { icon: 'kran', aktion: 'projekte', breit: true }) + '</div>';
     h += '<div class="gz-abschnitt">Echte Bahnstrecken · ' + komplett.length + ' von ' + bahnen.length + ' komplett</div><div class="vd-bahnen">';
     dran.concat(komplett).forEach(B => { h += bahnZeile(B); });
     h += '</div>';
@@ -1117,6 +1147,121 @@ const Volldampf = (function () {
       .then(() => { if (M.kartenAngebot().length) kartenWahlBlatt(); });
   }
 
+  // ---------------------------------------------------------------- Großprojekte (echte Bauwerke, drei Bauabschnitte, eine Großbaustelle)
+  /** Echte Restzeit in Worten („12 Min.“, „1 Std. 20 Min.“) */
+  function dauerText(ms) {
+    const m = Math.max(0, Math.ceil(ms / 60000));
+    if (m < 1) return 'unter einer Minute';
+    if (m < 60) return m + ' Min.';
+    return Math.floor(m / 60) + ' Std.' + (m % 60 ? ' ' + (m % 60) + ' Min.' : '');
+  }
+  const prozent = f => Math.round((f - 1) * 100) + ' %';
+  function wirkungKurz(P) {
+    if (P.art === 'bahnhof') return 'Fahrgäste ×' + P.faktor + ' in ' + D.STADT[P.stadt].name;
+    if (P.art === 'werk') return '+' + P.plaetze + ' Plätze im Fuhrpark';
+    return 'Züge ' + prozent(P.faktor) + ' schneller';
+  }
+  function wirkungLang(P) {
+    if (P.art === 'bahnhof') return 'In ' + D.STADT[P.stadt].name + ' warten ' + (P.faktor === 2 ? 'doppelt so viele' : P.faktor + '-mal so viele') + ' Fahrgäste und Waren.';
+    if (P.art === 'werk') return 'In deinem Fuhrpark ist Platz für ' + P.plaetze + ' Züge mehr.';
+    return 'Auf der ' + P.bahnen.join(' und der ') + ' fahren deine Züge ' + prozent(P.faktor) + ' schneller. Dampfloks bleiben gemütlich.';
+  }
+  const wirkIcon = P => P.art === 'bahnhof' ? 'bahnhof' : P.art === 'werk' ? 'schuppen' : 'volldampf';
+  function projektStaedte(P) {
+    if (P.stadt) return [P.stadt];
+    const ids = {}; P.bahnen.forEach(n => { const B = M.bahn(n); if (B) B.teile.forEach(t => { ids[t.a] = 1; ids[t.b] = 1; }); });
+    return Object.keys(ids);
+  }
+  function projektOrt(P) {
+    if (P.stadt) return D.STADT[P.stadt].name + ' · ' + D.LAENDER[D.STADT[P.stadt].land].name;
+    const l = []; projektStaedte(P).forEach(c => { const n = D.LAENDER[D.STADT[c].land].name; if (l.indexOf(n) < 0) l.push(n); });
+    return l.join(' · ');
+  }
+  /** Für die Auftragsliste: ändert sich, wenn sich am Projekt etwas tut (und jede Minute, solange gebaut wird) */
+  function projektSig() {
+    const S = M.zustand(), ps = S.projekte || {};
+    return JSON.stringify([ps.stand, ps.fertig ? Object.keys(ps.fertig).length : 0, ps.bau ? ps.bau.id + Math.floor((jetzt() - ps.bau.start) / 60000) : '']);
+  }
+  /** Welches Projekt zeigt die Auftragsliste? Laufendes, dann angefangenes, dann das erste baubare, sonst das nächste gesperrte */
+  function projektAktuell() {
+    const alle = M.projekte(), offen = alle.filter(p => !p.fertig);
+    return offen.find(p => p.bau) || offen.find(p => p.offen && p.n > 0) || offen.find(p => p.offen) || offen[0] || null;
+  }
+  function projektPanel() {
+    const S = M.zustand();
+    if (guideAn ? !guideFlag.ziel : !S.hilfe.guide) return '';
+    const p = projektAktuell();
+    if (!p || (!p.offen && !p.n && S.level < p.P.level - 2)) return '';   // erst kurz vor der nötigen Stufe zeigen
+    const j = jetzt();
+    let text, anteil, knopf, lohn = '';
+    if (p.bau) {
+      text = 'Im Bau: ' + p.naechster.name + ' · fertig in ' + dauerText(p.bau.ende - j);
+      anteil = (j - p.bau.start) / Math.max(1, p.bau.ende - p.bau.start);
+      knopf = G.knopf('Ansehen', { klein: true, aktion: 'projektBlatt', wert: p.id });
+    } else if (p.offen) {
+      text = 'Nächster Abschnitt: ' + p.naechster.name;
+      anteil = p.n / p.anzahl;
+      lohn = '<span>' + G.icon('muenze') + geld(p.preis) + '</span>';
+      const k = M.projektBaubar(p.id);
+      knopf = G.knopf(k.ok ? 'Bauen' : 'Ansehen', { art: k.ok ? 'primaer' : null, klein: true, aktion: 'projektBlatt', wert: p.id });
+    } else {
+      text = p.grund;
+      knopf = G.knopf('Ansehen', { klein: true, aktion: 'projektBlatt', wert: p.id });
+    }
+    return '<div class="vd-auftrag vd-lkarte vd-projekt" style="--lf:var(--gz-akzent)"><div class="vd-auftrag-kopf"><span class="gz-ueber">Großprojekt' + (p.offen || p.n ? ' · Abschnitt ' + Math.min(p.n + 1, p.anzahl) + ' von ' + p.anzahl : '') + '</span>' +
+      '<span class="vd-mini" data-aktion="projekte" aria-label="Alle Großprojekte">' + G.icon('liste') + '</span></div>' +
+      '<div class="vd-auftrag-titel">' + esc(p.P.name) + '</div><div class="vd-auftrag-text">' + esc(text) + '</div>' +
+      (anteil != null ? G.balken(anteil) : '') +
+      '<div class="vd-auftrag-fuss"><span class="vd-lohn">' + (lohn || '<span>' + G.icon(wirkIcon(p.P)) + esc(wirkungKurz(p.P)) + '</span>') + '</span>' + knopf + '</div></div>';
+  }
+  function projektZeile(p) {
+    const status = p.fertig ? 'fertig · ' + wirkungKurz(p.P) : p.bau ? 'im Bau · Abschnitt ' + (p.n + 1) + ' von ' + p.anzahl
+      : p.offen ? (p.n ? p.n + ' von ' + p.anzahl + ' Abschnitten fertig' : 'bereit · erster Abschnitt ' + geld(p.preis)) : p.grund;
+    return '<button class="vd-bahn' + (p.fertig ? ' vd-bahn-ok' : '') + '" data-aktion="projektBlatt" data-wert="' + p.id + '"><span class="vd-bahn-name"><b>' + esc(p.P.name) + '</b>' +
+      '<small>' + esc(status) + '</small></span>' + G.balken(p.n / p.anzahl, false, p.fertig) + '</button>';
+  }
+  function projekteBlatt() {
+    const alle = M.projekte(), fertig = alle.filter(p => p.fertig).length;
+    let h = G.kopf('Großprojekte', fertig + ' von ' + alle.length + ' fertig · immer eine Großbaustelle zur Zeit', 'kran', 'Echte Bauwerke') + '<div class="gz-inhalt"><div class="vd-bahnen">';
+    alle.forEach(p => { h += projektZeile(p); });
+    h += '</div><div class="vd-leise" style="margin-top:12px">Jedes Großprojekt gibt es wirklich. Es hat drei Bauabschnitte – erst wenn der letzte fertig ist, wirkt es. Gebaut wird auch, wenn das Spiel zu ist.</div></div>';
+    blatt(h);
+  }
+  function projektBlatt(id) {
+    const p = M.projekt(id), S = M.zustand(), j = jetzt();
+    if (!p) return;
+    let h = G.kopf(p.P.name, esc(projektOrt(p.P)), 'kran', p.fertig ? 'Großprojekt · fertig' : 'Großprojekt · ' + p.n + ' von ' + p.anzahl + ' Abschnitten') + '<div class="gz-inhalt">';
+    h += G.notiz('info', esc(p.P.fakt));
+    h += '<div class="gz-abschnitt">Bauabschnitte</div>';
+    p.P.abschnitte.forEach((A, i) => {
+      const fertig = i < p.n, lauf = !!p.bau && i === p.n;
+      const status = fertig ? 'fertig' : lauf ? 'im Bau · fertig in ' + dauerText(p.bau.ende - j) : geld(A.preis) + ' · Bauzeit ' + dauerText(A.min * 60000);
+      h += gebZeile(lauf ? 'kran' : 'gleis', (i + 1) + '. ' + esc(A.name), esc(A.text) + '<small class="vd-proj-status">' + esc(status) + '</small>', '', fertig);
+      if (lauf) h += G.balken((j - p.bau.start) / Math.max(1, p.bau.ende - p.bau.start));
+    });
+    h += '<div class="gz-abschnitt">' + (p.fertig ? 'Wirkung' : 'Wenn alles fertig ist') + '</div>' + G.notiz(wirkIcon(p.P), esc(wirkungLang(p.P)), !p.fertig);
+    if (!p.fertig) h += '<div class="vd-kzreihe"><div><span>' + G.icon('ticket') + 'Goldtickets</span><b>+' + p.P.gold + '</b></div><div><span>' + G.icon('xp') + 'Erfahrung</span><b>+' + p.P.xp + '</b></div><div><span>' + G.icon('muenze') + 'Gesamtkosten</span><b>' + geld(p.P.abschnitte.reduce((a, x) => a + x.preis, 0)) + '</b></div></div>';
+    const k = M.projektBaubar(id);
+    h += '<div class="vd-aktionen">';
+    if (k.ok) h += G.knopf('Abschnitt ' + (p.n + 1) + ' bauen · ' + geld(k.preis), { art: 'primaer', icon: 'kran', aktion: 'projektBauen', wert: id, breit: true });
+    else if (!k.steht && !k.laeuft) h += G.knopf(k.grund, { aus: true, breit: true, icon: p.offen ? null : 'schloss' });
+    h += G.knopf('Auf der Karte zeigen', { icon: 'zentrieren', aktion: 'projektZeigen', wert: id, breit: true }) + G.knopf('Alle Großprojekte', { icon: 'liste', aktion: 'projekte', breit: true }) + '</div></div>';
+    blatt(h);
+  }
+  function projektZeigen(id) {
+    const P = D.PROJEKT[id], st = projektStaedte(P);
+    blattZu();
+    A.markieren(st);
+    A.zeige(st, { zMax: P.stadt ? 6 : 2.6, rechts: rechtsFrei() });
+  }
+  function projektEroeffnet(d) {
+    const P = D.PROJEKT[d.id], n = M.projekte().filter(p => p.fertig).length;
+    ton('land');
+    return G.buehne(wurzel, G.karte({ ueber: 'Großprojekt eröffnet', titel: esc(P.name), unter: esc(projektOrt(P)),
+      rumpf: G.notiz('info', esc(P.fakt)) + G.notiz(wirkIcon(P), '<b>Ab jetzt:</b> ' + esc(wirkungLang(P)), true) +
+        '<div class="vd-kzreihe"><div><span>' + G.icon('ticket') + 'Goldtickets</span><b>+' + d.gold + '</b></div><div><span>' + G.icon('xp') + 'Erfahrung</span><b>+' + d.xp + '</b></div><div><span>' + G.icon('kran') + 'Großprojekte</span><b>' + n + ' / ' + D.PROJEKTE.length + '</b></div></div>' }), 'Weiter');
+  }
+
   // ---------------------------------------------------------------- Streckenalbum (echte Bahnstrecken aus mehreren Abschnitten)
   function bahnZeile(B) {
     return '<button class="vd-bahn' + (B.komplett ? ' vd-bahn-ok' : '') + '" data-aktion="bahnBlatt" data-wert="' + esc(B.id) + '"><span class="vd-bahn-name"><b>' + esc(B.name) + '</b>' +
@@ -1181,7 +1326,9 @@ const Volldampf = (function () {
     neu.forEach(L => { r += G.notiz('lok', 'Neu im Angebot: <b>' + esc(L.reihe) + '</b> · ' + esc(D.ABTEILUNG[L.abt]) + (L.gold ? ' (für Goldtickets)' : '')); });
     geb.forEach(a => { r += G.notiz(D.GEBAEUDE[a].icon, 'Neues Gebäude: <b>' + esc(D.GEBAEUDE[a].name) + '</b>. Tippe auf einen Bahnhof, um es zu bauen.'); });
     if (level === M.W.OL_LEVEL) r += G.notiz('blitz', 'Neu: <b>Oberleitung nachrüsten</b>. Tippe auf eine Strecke ohne Oberleitung.');
-    if (!platz && !neu.length && !geb.length && level !== M.W.OL_LEVEL) r += '<div class="vd-leise">Deine Aufträge werden größer und bringen mehr Geld.</div>';
+    const proj = D.PROJEKTE.filter(P => P.level === level);
+    proj.forEach(P => { const p = M.projekt(P.id); r += G.notiz('kran', 'Neues Großprojekt: <b>' + esc(P.name) + '</b>' + (p.offen ? '. Du findest es oben in deinen Aufträgen.' : ' – ' + esc(p.grund))); });
+    if (!platz && !neu.length && !geb.length && !proj.length && level !== M.W.OL_LEVEL) r += '<div class="vd-leise">Deine Aufträge werden größer und bringen mehr Geld.</div>';
     return G.buehne(wurzel, G.karte({ ueber: 'Aufstieg', titel: 'Stufe ' + level, unter: 'Du hast genug Erfahrung gesammelt.', rumpf: r }), 'Weiter');
   }
   function berichtZeigen(b) {
@@ -1400,6 +1547,7 @@ const Volldampf = (function () {
       regel('dampf', 'Dampfloks', 'Dampfloks sind etwas Besonderes: Du bekommst sie für Goldtickets, jede nur einmal. Wie heute in echt fahren sie keine normalen Linien mehr, sondern Sonderfahrten und Museumsbahnen – zum Beispiel den Rodelblitz durch den Thüringer Wald. Dort zahlen die Ausflügler mehr.') +
       regel('album', 'Echte Strecken und Linien', 'Jede Strecke im Spiel gibt es wirklich. Mit einer Linienkarte baust du eine echte Zuglinie nach und schickst einen Zug auf Eröffnungsfahrt – mit dem Zug wie in echt gibt es ein Goldticket. Im Streckenalbum (Sammlung) siehst du, welche Bahnstrecken du schon komplett hast.') +
       regel('liste', 'Aufträge erfüllen', 'Aufträge bringen viel Geld und Erfahrung. Mit Erfahrung steigst du auf und bekommst neue Züge, Gebäude und mehr Platz im Fuhrpark.') +
+      regel('kran', 'Großprojekte', 'Wenn du genug Geld hast: Bau echte Bauwerke der Bahn nach – den ICE-Knoten Erfurt, Tunnel und Brücken für Schnellfahrstrecken, ein ICE-Werk. Jedes hat drei Bauabschnitte und braucht Zeit. Wenn es fertig ist, kommen mehr Fahrgäste, deine Züge fahren schneller oder dein Fuhrpark wird größer.') +
       regel('bahnhof', 'Bahnhöfe ausbauen', 'Tippe auf einen Bahnhof: Stellwerk, Gaststätte, Güterhalle und Betriebswerk machen ihn stärker. Zoome heran, dann siehst du sie.') +
       regel('blitz', 'Energie und Oberleitung', 'Dampfloks verbrennen Kohle, Dieselloks tanken Diesel, E-Loks und ICEs fahren mit Strom aus der Oberleitung. Welche Strecken eine haben, ist wie in echt (blaue Schiene, Masten) – ab Stufe ' + M.W.OL_LEVEL + ' kannst du fehlende nachrüsten: Strecke antippen. Der Wasserstoffzug macht seinen Strom selbst. Ohne dich reicht das Energielager nur eine Weile.') +
       regel('volldampf', 'Lernen', 'Jede Lernrunde in der Lern-App bringt Energie, Volldampf (doppeltes Tempo) und Goldtickets für besondere Züge.') +
