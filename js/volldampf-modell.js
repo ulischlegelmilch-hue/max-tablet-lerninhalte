@@ -123,7 +123,8 @@ const VolldampfModell = (function () {
       strecken: {}, bahnhoefe: {}, loks: [], nextUid: 1,
       auftraege: [], nextAid: 1, laender: {}, album: { loks: {}, waren: {}, staedte: {}, laender: {}, bahnen: {} }, karten: { aktiv: null, fertig: {}, dreh: 0 },
       statistik: { fahrten: 0, km: 0, taler: 0, fahrgaeste: 0, kisten: 0, kohle: 0, auftraege: 0 },
-      lern: { datum: '', ids: {} }, hilfe: {}, ton: true, freiStrecke: 1, projekte: { stand: {}, fertig: {}, bau: null }
+      lern: { datum: '', ids: {} }, hilfe: {}, ton: true, freiStrecke: 1, projekte: { stand: {}, fertig: {}, bau: null },
+      neuGesehen: D.NEUERUNGEN.length ? D.NEUERUNGEN[D.NEUERUNGEN.length - 1].id : ''   // neue Spieler: Einführung statt Neuigkeiten
     };
     bahnhofAnlegen(heimat, jetzt);
     landErreicht(D.STADT[heimat].land, jetzt, true);
@@ -798,6 +799,10 @@ const VolldampfModell = (function () {
     ereignis('projekt', { id: b.id, gold: P.gold, xp: P.xp });
     xpPlus(P.xp, t);
   }
+  // ---------------------------------------------------------------- Neuigkeiten nach einem Update (D.NEUERUNGEN)
+  /** Noch nicht gesehene Neuigkeiten (älteste zuerst). Alter Spielstand ohne neuGesehen: alle. */
+  function neuerungenOffen() { const L = D.NEUERUNGEN || [], i = L.findIndex(N => N.id === S.neuGesehen); return L.slice(i + 1); }
+  function neuerungGesehen(id) { S.neuGesehen = id; }
   function werkOffen() { return D.STAEDTE.some(s => s.werk && angebunden(s.id)); }
   function werkPreis(l, art) { const st = l[art] || 0; return st >= 2 ? null : runde(D.LOK[l.id].preis * W.WERK_PREIS[art] * (st + 1) + 400); }
   function werkstatt(uid, art, jetzt) {
@@ -1055,7 +1060,7 @@ const VolldampfModell = (function () {
     autoKohle, kohlePreis, kohleProMinute, kohleReichtMinuten,
     baubar, baue, sofortFertig, streckenPreis, bauDauer, baustellen, streckeFertig, angebunden, weg,
     kaufbar, kaufeLok, kaufePreis, lok, lokWerte, setzeLinie, insDepot, fahrzeitMs,
-    projekte, projekt, projektBaubar, projektBauen, projektFertig, projektFaktor, projektPlaetze, tempo,
+    projekte, projekt, projektBaubar, projektBauen, projektFertig, projektFaktor, projektPlaetze, tempo, neuerungenOffen, neuerungGesehen,
     kaufeKohle, ausbau, bunkerGroesse, werkOffen, werkPreis, werkstatt, zechen,
     volldampfGeben, lernBonus, auftragAbholen, auftragTauschen, auftragHilfe, auftragBedienen,
     luftlinie, bahnzeit, uhr, zugPosition, tafel, xpFuer, paxRate, wareRate, einnahmenProMinute, schl, NACH

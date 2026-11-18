@@ -466,6 +466,21 @@ const VolldampfDaten = (function () {
   ];
   const PROJEKT = {}; PROJEKTE.forEach(p => { PROJEKT[p.id] = p; });
 
+  // --------------------------------------------------------------------------------------------
+  // Neuigkeiten nach einem Update (Uli 18.11.2026: „Max soll eine Benachrichtigung über das Update und die Neuerungen bei
+  // Spielstart bekommen“). Neueste zuletzt. Wer schon spielt, sieht jede einmal beim Spielstart; neue Spieler nicht (Einführung).
+  // Bei jedem neuen Eintrag auch NEU in volldampf-lader.js anpassen (Hinweis auf der Kachel), der Modelltest prüft das.
+  // zeige: welches Blatt sich nach dem Knopf öffnet.
+  // --------------------------------------------------------------------------------------------
+  const NEUERUNGEN = [
+    { id: '2026-11-18-grossprojekte', titel: 'Großprojekte', unter: 'Neu bei Volldampf', knopf: 'Großprojekte ansehen', zeige: 'projekte',
+      punkte: [
+        { icon: 'kran', titel: 'Echte Bauwerke der Bahn.', text: 'Bau den ICE-Knoten Erfurt, Tunnel und Brücken für Schnellfahrstrecken, ein ICE-Werk und mehr – sieben Großprojekte, die es wirklich gibt.' },
+        { icon: 'uhr', titel: 'Drei Bauabschnitte.', text: 'Jeder Abschnitt kostet viel Geld und braucht Zeit. Gebaut wird auch, wenn das Spiel zu ist. Es gibt immer nur eine Großbaustelle.' },
+        { icon: 'stern', titel: 'Große Wirkung.', text: 'Ist ein Projekt fertig, kommen mehr Fahrgäste, deine Züge fahren schneller oder dein Fuhrpark wird größer. Dazu gibt es Goldtickets.' },
+        { icon: 'muenze', titel: 'Wofür sich Sparen lohnt.', text: 'Die Großprojekte kosten zwischen 65 Mio. € und 920 Mio. €. Du findest sie oben in deinen Aufträgen.' }] }
+  ];
+
 
   // --------------------------------------------------------------------------------------------
   // Linienkarten: echte Zuglinien als Ziel. halte = Weg über das Gleisnetz (jede Nachbarschaft ist eine Strecke der Karte),
@@ -532,6 +547,6 @@ const VolldampfDaten = (function () {
   ];
   const LINIE = {}; LINIEN.forEach(l => { LINIE[l.id] = l; });
 
-  return { LAENDER, WAREN, STAEDTE, STADT, LOKS, LOK, HEIMAT_AUSWAHL, NACHBARN, ANTRIEB, ABTEILUNG, GEBAEUDE, PROJEKTE, PROJEKT, LINIEN, LINIE };
+  return { LAENDER, WAREN, STAEDTE, STADT, LOKS, LOK, HEIMAT_AUSWAHL, NACHBARN, ANTRIEB, ABTEILUNG, GEBAEUDE, PROJEKTE, PROJEKT, NEUERUNGEN, LINIEN, LINIE };
 })();
 if (typeof module !== 'undefined') module.exports = VolldampfDaten;

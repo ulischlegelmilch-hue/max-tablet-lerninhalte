@@ -283,6 +283,7 @@ const Volldampf = (function () {
     if (gespeichert && weg > 120000 && S.statistik.fahrten > vor.fahrten) {
       buehneRein(() => berichtZeigen({ weg, taler: S.statistik.taler - vor.taler, fahrten: S.statistik.fahrten - vor.fahrten, fahrgaeste: S.statistik.fahrgaeste - vor.fahrgaeste, kisten: S.statistik.kisten - vor.kisten }), true);
     }
+    neuigkeitenZeigen();
     lernLieferung();
     laeuft = true; tSim = tHud = tSpeicher = tKohle = tLern = 0;
     raf = requestAnimationFrame(frame);
@@ -1145,6 +1146,20 @@ const Volldampf = (function () {
       rumpf: (k.L.info ? G.notiz('info', esc(k.L.info)) : '') + (d.passt ? '' : G.notiz('lok', 'In echt fährt hier: ' + esc(passendText(k.L)) + '.')) +
         '<div class="vd-kzreihe"><div><span>' + G.icon('muenze') + 'Belohnung</span><b>+' + geld(d.taler) + '</b></div><div><span>' + G.icon('ticket') + 'Goldtickets</span><b>' + (d.gold ? '+' + d.gold : '–') + '</b></div><div><span>' + G.icon('liste') + 'Linien</span><b>' + Object.keys(M.kartenStand().fertig).length + ' / ' + D.LINIEN.length + '</b></div></div>' }), 'Nächste Karte')
       .then(() => { if (M.kartenAngebot().length) kartenWahlBlatt(); });
+  }
+
+  // ---------------------------------------------------------------- Neuigkeiten nach einem Update (einmal beim Spielstart, nach dem Betriebsbericht)
+  function neuigkeitenZeigen() {
+    const S = M.zustand(), offen = M.neuerungenOffen();
+    if (!offen.length) return;
+    if (!S.hilfe.guide) { M.neuerungGesehen(offen[offen.length - 1].id); speichern(); return; }   // mitten in der Einführung: die erklärt alles
+    offen.forEach(N => buehneRein(() => neuZeigen(N)));
+  }
+  function neuZeigen(N) {
+    ton('land');
+    const rumpf = N.punkte.map(p => G.notiz(p.icon, '<b>' + esc(p.titel) + '</b> ' + esc(p.text))).join('');
+    return G.buehne(wurzel, G.karte({ ueber: esc(N.unter || 'Neu bei Volldampf'), titel: esc(N.titel), rumpf }), N.knopf || 'Weiter')
+      .then(() => { M.neuerungGesehen(N.id); speichern(); if (N.zeige === 'projekte') projekteBlatt(); });
   }
 
   // ---------------------------------------------------------------- Großprojekte (echte Bauwerke, drei Bauabschnitte, eine Großbaustelle)

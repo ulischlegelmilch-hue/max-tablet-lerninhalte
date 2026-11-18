@@ -3,6 +3,7 @@
 const VolldampfLader = (function () {
   const ALLE = ['glanz', 'volldampf-daten', 'volldampf-karte', 'volldampf-modell', 'volldampf-draufsicht', 'volldampf-ansicht', 'volldampf-bilder', 'volldampf-fotos', 'volldampf-ton', 'volldampf'];
   const SPEICHER = 'maxlernt_volldampf_v1';   // = VolldampfModell.SPEICHER (für die Kachel ohne geladenes Modell)
+  const NEU = { id: '2026-11-18-grossprojekte', text: 'Neu: Großprojekte' };   // = letzter Eintrag in VolldampfDaten.NEUERUNGEN (Kachel-Hinweis bis Max ihn gesehen hat)
   const geladen = {};
   let bereitP = null;
 
@@ -47,6 +48,7 @@ const VolldampfLader = (function () {
     try {
       const S = JSON.parse(localStorage.getItem(SPEICHER) || 'null');
       if (!S || !S.level) return 'Neu: Dampfbahn quer durch Deutschland';
+      if (S.neuGesehen !== NEU.id && S.hilfe && S.hilfe.guide) return NEU.text + ' · Stufe ' + S.level;
       return 'Stufe ' + S.level + ' · ' + Object.keys(S.laender || {}).length + ' von 16 Ländern';
     } catch (e) { return 'Neu: Dampfbahn quer durch Deutschland'; }
   }
