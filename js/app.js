@@ -587,7 +587,7 @@ const App = (function () {
     const box = document.createElement('div');
     box.id = 'nh-probe';
     box.style.cssText = 'position:fixed;inset:0;z-index:9500;background:#05070d';
-    box.innerHTML = '<iframe src="neue-heimat/spiel.html?messung=0" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>' +
+    box.innerHTML = '<iframe src="neue-heimat/spiel.html?messung=0&v=' + Date.now() + '" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>' +
       '<div id="nh-probe-zu" style="position:absolute;right:16px;top:12px;z-index:2;padding:12px 20px;border-radius:10px;background:rgba(20,28,48,.9);color:#e8edf7;font:600 16px system-ui">Schließen</div>';
     document.body.appendChild(box);
     document.getElementById('nh-probe-zu').onclick = () => box.remove();

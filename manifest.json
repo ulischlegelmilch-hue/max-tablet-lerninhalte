@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-19-0943",
+  "version": "2026-11-19-1037",
   "files": [
     "css/dunkel.css",
     "css/quartett.css",
@@ -291,8 +291,6 @@
     "neue-heimat/bilder/mond/boden/v_6_2.js",
     "neue-heimat/bilder/mond/boden/v_7_2.js",
     "neue-heimat/bilder/mond/tafel/mond.js",
-    "neue-heimat/fonts/lexend-latin-400-normal.woff2",
-    "neue-heimat/fonts/lexend-latin-600-normal.woff2",
     "neue-heimat/phaser.min.js",
     "neue-heimat/probe.html",
     "neue-heimat/probe.js",

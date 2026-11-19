@@ -7,10 +7,12 @@
 <link rel="stylesheet" href="schrift.css">
 <style>
   /* Leitstand (GLANZ): Graphit-Flächen, eine Akzentfarbe Bernstein, Barlow Condensed für Titel und Zahlen.
-     Bühne 1280×800, als Ganzes skaliert (main.ts). Abschnitt A: nur Kopf, Zoom, Bildrate, Beenden. */
+     Bühne 1280×800, als Ganzes skaliert (main.ts). C1/C2: Kopf mit Uhr, Tempo, Zoom, Bildrate, Beenden, Bauleiste, Tafel rechts, Meldung oben. */
   :root {
     --bg0: #0a0c0f; --tafel: rgba(12, 14, 17, .86); --linie: rgba(255, 255, 255, .10); --linie2: rgba(255, 255, 255, .18);
     --txt: #e6e9ed; --txt2: #a1a9b3; --txt3: #6f7883; --akzent: #e2a63b;
+    --schloss: 0px;
+    --ok: #43bf83; --warn: #e0a23b; --fehler: #e0574d; --bg2: #161a1f;
     --titel: "Barlow Condensed", "Roboto Condensed", "Arial Narrow", sans-serif;
     --text: Roboto, "Segoe UI", system-ui, sans-serif;
   }
@@ -18,20 +20,132 @@
   #buehne { position: absolute; left: 0; top: 0; width: 1280px; height: 800px; transform-origin: 0 0; overflow: hidden; }
   #welt { position: absolute; inset: 0; }
   #welt canvas { display: block; }
-  .tafel { position: absolute; background: var(--tafel); border: 1px solid var(--linie2); border-radius: 6px; }
+  .tafel { box-sizing: border-box; position: absolute; background: var(--tafel); border: 1px solid var(--linie2); border-radius: 6px; }
   .ue { font: 600 13px var(--titel); letter-spacing: 1.8px; text-transform: uppercase; color: var(--txt3); }
-  #kopf { left: 14px; top: 14px; width: 300px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 3px; }
+  #kopf { left: 14px; top: 14px; width: 252px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 3px; }
   #kopf .titel { font: 600 22px/1.1 var(--titel); letter-spacing: .3px; }
   #kopf .klein { font-size: 14px; color: var(--txt2); }
-  #zoom { right: 14px; top: 14px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
-  #zoom button { min-width: 112px; min-height: 60px; border: 0; background: transparent; color: var(--txt2); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
-  #zoom button + button { border-left: 1px solid var(--linie2); }
-  #zoom button[aria-pressed="true"] { background: var(--akzent); color: var(--bg0); }
-  #zoom button:focus-visible, #beenden:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
+  #kopf { cursor: pointer; }
+  .balken { height: 3px; margin-top: 5px; background: rgba(255, 255, 255, .1); border-radius: 2px; overflow: hidden; }
+  .balken i { display: block; height: 100%; background: var(--akzent); }
+  #seite .ziel { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--linie); font-size: 16px; color: var(--txt); }
+  #seite .ziel.ok { color: var(--txt2); }
+  #seite .ziel.ok .haken { background: var(--ok); border-color: var(--ok); color: var(--bg0); }
+  /* Dialog: Tagesbericht, Lagebericht */
+  #dialog { position: absolute; inset: 0; z-index: 20; background: rgba(5, 6, 7, .62); display: flex; align-items: center; justify-content: center; }
+  #dialog .karte { position: relative; width: 620px; max-height: 700px; overflow-y: auto; padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 10px; background: rgba(12, 14, 17, .96); }
+  #dialog h2 { margin: 0; font: 600 32px/1.05 var(--titel); letter-spacing: .3px; }
+  #dialog .text { margin: 0; font-size: 17px; line-height: 1.45; color: var(--txt); }
+  #dialog section { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--linie); }
+  #dialog section p { margin: 0; font-size: 16px; line-height: 1.4; color: var(--txt); }
+  #dialog .neu { margin: 0; padding: 10px 12px; border-left: 3px solid var(--akzent); background: rgba(226, 166, 59, .08); font-size: 16px; line-height: 1.4; }
+  #dialog .knoepfe-dialog { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  #dialog .knoepfe-dialog button { min-width: 150px; min-height: 60px; padding: 0 20px; border: 1px solid var(--linie2); border-radius: 4px; background: transparent; color: var(--txt); font: 600 18px var(--titel); letter-spacing: 1.3px; text-transform: uppercase; cursor: pointer; }
+  #dialog .knoepfe-dialog button.haupt { background: var(--akzent); border-color: var(--akzent); color: var(--bg0); }
+  #dialog .knoepfe-dialog button.gefahr { background: var(--fehler); border-color: var(--fehler); color: var(--bg0); }
+  /* Ressourcenleiste (Stilprobe: Überzeile, Wert, Trend) */
+  #ressourcen { left: 278px; top: 14px; width: 744px; height: 74px; display: grid; grid-template-columns: repeat(6, 1fr); }
+  #ressourcen .feld { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 0 12px; border: 0; border-left: 1px solid var(--linie); background: transparent; color: var(--txt); text-align: left; font: inherit; min-width: 0; }
+  #ressourcen .feld:first-child { border-left: 0; }
+  #ressourcen button.feld { cursor: pointer; }
+  #ressourcen .zeile { display: flex; align-items: center; gap: 6px; }
+  #ressourcen .sym { color: var(--txt2); }
+  #ressourcen .ue { font-size: 12px; }
+  #ressourcen .wert { font: 600 24px/1.05 var(--titel); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #ressourcen .klein { font-size: 13px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .warn { color: var(--warn) !important; } .fehler { color: var(--fehler) !important; } .ok { color: var(--ok) !important; }
+  #zeittafel { right: 14px; top: 14px; width: 238px; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  #uhr { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+  #uhr .sym { color: var(--akzent); }
+  #uhr .tag { font: 600 24px/1 var(--titel); font-variant-numeric: tabular-nums; }
+  #uhr .zeit { margin-left: auto; font: 600 20px/1 var(--titel); color: var(--txt2); font-variant-numeric: tabular-nums; }
+  #tempo { border: 1px solid var(--linie2); border-radius: 4px; }
+  #alarm { left: 278px; top: 98px; width: 744px; padding: 8px 14px; border-left: 3px solid var(--fehler); display: flex; flex-direction: column; gap: 4px; z-index: 3; }
+  #alarm .frist { display: flex; align-items: baseline; gap: 12px; font-size: 16px; }
+  #alarm .frist b { font: 600 19px var(--titel); letter-spacing: 1px; text-transform: uppercase; color: var(--fehler); }
+  #alarm .frist .rest { margin-left: auto; font: 600 19px var(--titel); font-variant-numeric: tabular-nums; }
+  #funk { left: 14px; bottom: 92px; width: 380px; padding: 9px 12px 10px; border-left: 3px solid var(--akzent); display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+  #funk[data-stufe="warn"] { border-left-color: var(--warn); }
+  #funk[data-stufe="alarm"] { border-left-color: var(--fehler); }
+  #funk .text { font-size: 16px; line-height: 1.35; }
+  #funk.neu { animation: funkneu 1.6s ease-out; }
+  @keyframes funkneu { from { background: rgba(226, 166, 59, .22); } to { background: var(--tafel); } }
+  #unten { left: 14px; bottom: 14px; }
+  #unten button { min-width: 0; padding: 0 18px; display: flex; align-items: center; gap: 9px; color: var(--txt); font-size: 18px; }
+  #unten .sym { color: var(--akzent); }
+  body.leiste-offen #unten, body.leiste-offen #funk, body.leiste-offen #zoom, body.leiste-offen #beenden { display: none; }
+  .knoepfe { display: grid; grid-auto-flow: column; overflow: hidden; }
+  .knoepfe button { min-width: 74px; min-height: 60px; border: 0; background: transparent; color: var(--txt2); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
+  .knoepfe button + button { border-left: 1px solid var(--linie2); }
+  .knoepfe button[aria-pressed="true"] { background: var(--akzent); color: var(--bg0); }
+  #zoom { right: calc(14px + var(--schloss)); bottom: 14px; }
+  #zoom button { min-width: 108px; }
+  #kopf .zahl { font-variant-numeric: tabular-nums; }
+  #zoom button:focus-visible, #tempo button:focus-visible, #beenden:focus-visible { outline: 2px solid var(--akzent); outline-offset: -2px; }
   #bps { right: 14px; bottom: 14px; padding: 6px 12px; display: flex; gap: 10px; align-items: baseline; }
   #bps-wert { font: 600 22px var(--titel); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
-  #beenden { left: 14px; bottom: 14px; min-width: 140px; min-height: 60px; color: var(--txt); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
-  body.messung #kopf, body.messung #zoom, body.messung #beenden { display: none; }
+  #beenden { right: calc(246px + var(--schloss)); bottom: 14px; min-width: 140px; min-height: 60px; color: var(--txt); font: 600 17px var(--titel); letter-spacing: 1.4px; text-transform: uppercase; cursor: pointer; }
+  body.messung #kopf, body.messung #zoom, body.messung #zeittafel, body.messung #beenden, body.messung #unten, body.messung #ressourcen, body.messung #funk, body.messung #alarm { display: none !important; }
+  body:not(.messung) #bps { display: none; }
+  button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+  /* Bauen (C2) */
+  #bauleiste { left: 14px; right: calc(14px + var(--schloss)); bottom: 14px; padding: 10px 10px 10px 14px; display: flex; align-items: stretch; gap: 12px; z-index: 5; }
+  #bauleiste .gruppe { display: flex; flex-direction: column; gap: 6px; }
+  #bauleiste .gruppe + .gruppe { border-left: 1px solid var(--linie); padding-left: 12px; }
+  #bauleiste .reihe { display: flex; gap: 2px; }
+  #bauleiste button { width: 88px; min-height: 96px; padding: 8px 2px 6px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--txt); display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+  #bauleiste button:active { background: var(--bg2); border-color: var(--linie2); }
+  #bauleiste button .sym { color: var(--akzent); }
+  #bauleiste .n { font: 600 15px/1.05 var(--titel); letter-spacing: 0; text-align: center; }
+  #bauleiste .k { font-size: 12px; line-height: 1.2; color: var(--txt3); text-align: center; }
+  #bauleiste .zu { width: 56px; margin-left: auto; color: var(--txt2); justify-content: center; }
+  #seite { right: 14px; top: 142px; width: 344px; max-height: 568px; overflow-y: auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; z-index: 4; }
+  #seite .x { position: absolute; top: 4px; right: 4px; width: 60px; height: 60px; display: grid; place-items: center; border: 0; background: transparent; color: var(--txt2); cursor: pointer; }
+  #seite .aktionen:empty { display: none; }
+  #seite > .ue, #seite > h2 { padding-right: 52px; }
+  #seite h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 600 27px/1.05 var(--titel); letter-spacing: .3px; }
+  #seite h2 .sym, #seite .schalter .sym { color: var(--akzent); flex: none; }
+  #seite p { margin: 0; font-size: 16px; line-height: 1.4; color: var(--txt2); }
+  #seite .live { display: flex; flex-direction: column; gap: 8px; }
+  #seite .live:empty { display: none; }
+  #seite .zeile { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-top: 6px; border-top: 1px solid var(--linie); font-size: 16px; color: var(--txt2); }
+  #seite .zeile b { font-weight: 500; color: var(--txt); text-align: right; font-variant-numeric: tabular-nums; }
+  #seite .hinweis { color: var(--txt); }
+  #seite .hinweis.warn, .zustand.warn { color: var(--warn); }
+  #seite .hinweis.fehler, .zustand.fehler { color: var(--fehler); }
+  .zustand { display: flex; align-items: center; gap: 8px; font: 600 17px var(--titel); letter-spacing: 1.2px; text-transform: uppercase; }
+  .zustand i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .zustand.ok { color: var(--ok); } .zustand.grau { color: var(--txt3); }
+  #seite .warum { padding-left: 10px; border-left: 2px solid var(--akzent); font-size: 16px; color: var(--txt); }
+  #seite .aktionen .breit, #seite .aktionen .ue, #seite .aktionen p, #seite .aktionen .stepper { grid-column: 1 / -1; }
+  #seite .aktionen button.gefahr { background: var(--fehler); border-color: var(--fehler); color: var(--bg0); }
+  #seite .liste { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  #seite .person { min-height: 60px; padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; text-align: left; border: 1px solid var(--linie2); border-radius: 4px; background: transparent; color: var(--txt); cursor: pointer; }
+  #seite .person .n { font: 600 19px/1.1 var(--titel); letter-spacing: .3px; }
+  #seite .person .k { grid-row: 2; font-size: 14px; color: var(--txt2); }
+  #seite .person .st { grid-column: 2; grid-row: 1 / 3; font: 600 15px var(--titel); letter-spacing: 1px; text-transform: uppercase; }
+  #seite .gedenk { padding: 10px 12px; border: 1px solid var(--linie2); border-radius: 4px; display: flex; flex-direction: column; gap: 6px; }
+  #seite .stepper { display: grid; grid-template-columns: 1fr 60px 92px 60px; align-items: center; gap: 6px; font-size: 16px; color: var(--txt2); }
+  #seite .stepper b { text-align: center; font: 600 21px var(--titel); color: var(--txt); font-variant-numeric: tabular-nums; }
+  #seite .aktionen .stepper button { min-height: 56px; font: 400 28px/1 var(--text); }
+  #seite .funkzeile { padding: 6px 0 6px 10px; border-left: 3px solid var(--akzent); }
+  #seite .funkzeile[data-stufe="leise"] { border-left-color: var(--linie2); }
+  #seite .funkzeile[data-stufe="warn"] { border-left-color: var(--warn); }
+  #seite .funkzeile[data-stufe="alarm"] { border-left-color: var(--fehler); }
+  #seite .funkzeile p { color: var(--txt); }
+  #seite .schalter { width: 100%; min-height: 56px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; text-align: left; border: 1px solid var(--linie2); border-radius: 4px; background: transparent; color: var(--txt2); font-size: 16px; cursor: pointer; }
+  #seite .schalter small { display: block; font-size: 13px; color: var(--txt3); }
+  #seite .schalter[aria-pressed="true"] { border-color: var(--akzent); color: var(--txt); }
+  #seite .haken { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border: 1.5px solid var(--txt3); border-radius: 3px; color: transparent; }
+  #seite .schalter[aria-pressed="true"] .haken { background: var(--akzent); border-color: var(--akzent); color: var(--bg0); }
+  #seite .aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+  #seite .aktionen button { min-height: 56px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--linie2); border-radius: 4px; background: transparent; color: var(--txt); font: 600 16px var(--titel); letter-spacing: 1.1px; text-transform: uppercase; cursor: pointer; }
+  #seite .aktionen button[aria-pressed="true"] { border-color: var(--akzent); color: var(--akzent); }
+  #seite .aktionen button.haupt { background: var(--akzent); border-color: var(--akzent); color: var(--bg0); }
+  #seite .aktionen button:disabled { opacity: .35; cursor: default; }
+  #seite button:focus-visible, #bauleiste button:focus-visible, #bauknopf:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+  #meldung { left: 50%; bottom: 100px; transform: translateX(-50%); padding: 12px 20px; font: 600 18px var(--titel); letter-spacing: .6px; border-left: 3px solid var(--akzent); z-index: 6; pointer-events: none; }
+  #meldung.fehler { border-left-color: var(--fehler); color: var(--txt); }
   #drehen { position: fixed; inset: 0; z-index: 50; background: var(--bg0); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; font: 600 26px var(--titel); letter-spacing: .4px; }
   #drehen small { font: 400 18px var(--text); color: var(--txt2); }
   [hidden] { display: none !important; }
@@ -40,20 +154,36 @@
 <body>
 <div id="buehne">
   <div id="welt"></div>
-  <div id="kopf" class="tafel">
-    <div class="ue">Mondbasis · Südpol</div>
-    <div class="titel">Vorschau Abschnitt A</div>
-    <div class="klein">Ziehen verschiebt die Karte. Doppeltipp oder zwei Finger wechseln die Zoomstufe.</div>
+  <div id="kopf" class="tafel" role="button" aria-label="Aktueller Auftrag"></div>
+  <div id="ressourcen" class="tafel" aria-label="Vorräte"></div>
+  <div id="zeittafel" class="tafel">
+    <div id="uhr"></div>
+    <div id="tempo" class="knoepfe" role="group" aria-label="Tempo">
+      <button type="button" data-t="0" aria-pressed="false">Halt</button>
+      <button type="button" data-t="1" aria-pressed="true">1×</button>
+      <button type="button" data-t="3" aria-pressed="false">3×</button>
+    </div>
   </div>
-  <div id="zoom" class="tafel" role="group" aria-label="Zoomstufe">
+  <div id="alarm" class="tafel" role="alert" hidden></div>
+  <div id="funk" class="tafel" role="status" hidden></div>
+  <div id="zoom" class="tafel knoepfe" role="group" aria-label="Zoomstufe">
     <button type="button" data-z="nah" aria-pressed="true">Nah</button>
     <button type="button" data-z="uebersicht" aria-pressed="false">Übersicht</button>
   </div>
   <div id="bps" class="tafel"><span class="ue">Bilder/s</span><span id="bps-wert">–</span></div>
   <button type="button" id="beenden" class="tafel" hidden>Beenden</button>
+  <div id="unten" class="tafel knoepfe" role="group" aria-label="Ansichten">
+    <button type="button" id="bauknopf"></button>
+    <button type="button" id="crewknopf"></button>
+    <button type="button" id="erdeknopf"></button>
+  </div>
+  <div id="bauleiste" class="tafel" hidden></div>
+  <div id="seite" class="tafel" hidden></div>
+  <div id="meldung" class="tafel" role="status" hidden></div>
+  <div id="dialog" hidden></div>
 </div>
 <div id="drehen" hidden>Bitte dreh das Tablet.<small>Neue Heimat spielt man quer.</small></div>
 <script src="phaser.min.js"></script>
-<script src="spiel.js"></script>
+<script src="spiel.js?v=202611190936"></script>
 </body>
 </html>
