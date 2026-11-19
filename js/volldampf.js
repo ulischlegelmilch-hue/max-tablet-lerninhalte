@@ -45,6 +45,10 @@ const Volldampf = (function () {
 .vd-seite-kopf{display:flex;align-items:baseline;justify-content:space-between;padding:16px 18px 12px 20px;border-bottom:1px solid var(--gz-linie)}
 .vd-anzahl{font:600 13px/1 var(--gz-titel);letter-spacing:.5px;color:var(--gz-txt3)}
 .vd-auftraege{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* Unten rechts liegt der Eltern-Knopf (🔒) der Tablet-App über allem (52 dp + 14 dp Rand, MainActivity.kt): dort nichts Bedienbares */
+.vd-seite:after{content:"";flex:none;height:76px;border-top:1px solid var(--gz-linie)}
+.vd-seite-zwischen{padding:22px 18px 10px 20px;border-bottom:1px solid var(--gz-linie);background:rgba(0,0,0,.18)}
+#vd .gz-inhalt{padding-bottom:96px}
 .vd-auftraege::-webkit-scrollbar{display:none}
 .vd-auftrag{position:relative;padding:15px 16px 16px 20px;border-bottom:1px solid var(--gz-linie)}
 .vd-auftrag:before{content:"";position:absolute;left:0;top:16px;width:3px;height:22px;border-radius:0 2px 2px 0;background:var(--lf)}
@@ -231,6 +235,8 @@ const Volldampf = (function () {
  .vd-seite-kopf{display:none}
  .vd-auftraege{display:flex;overflow-x:auto;overflow-y:hidden}
  .vd-auftrag{flex:none;width:300px;border-bottom:0;border-right:1px solid var(--gz-linie)}
+ .vd-seite:after{height:auto;width:76px;border-top:0;border-left:1px solid var(--gz-linie)}
+ .vd-seite-zwischen{display:none}
  .vd-mit-seite .vd-modus,.vd-mit-seite .vd-dock,.vd-mit-seite .gz-toasts{left:50%}
  .vd-mit-seite .vd-modus{max-width:92%}
  .vd-dock{bottom:232px}
@@ -400,6 +406,7 @@ const Volldampf = (function () {
         '<button class="vd-werkzeug vd-k-bauen" data-aktion="bauen">' + G.icon('gleis') + 'Bauen</button>' +
         '<button class="vd-werkzeug" data-aktion="loks">' + G.icon('schuppen') + 'Fuhrpark</button>' +
         '<button class="vd-werkzeug" data-aktion="album">' + G.icon('album') + 'Sammlung</button>' +
+        '<button class="vd-werkzeug" data-aktion="projekte">' + G.icon('kran') + 'Großprojekte</button>' +
         '<span class="vd-dock-trenner"></span>' +
         '<button class="vd-werkzeug vd-nur-icon" data-aktion="zoomRaus" aria-label="Herauszoomen">' + G.icon('minus') + '</button>' +
         '<button class="vd-werkzeug vd-nur-icon" data-aktion="zoomRein" aria-label="Heranzoomen">' + G.icon('plus') + '</button>' +
@@ -473,7 +480,7 @@ const Volldampf = (function () {
     const sig = JSON.stringify(S.auftraege.map(a => [a.aid, a.stand, a.fertig ? 1 : 0, M.auftragHilfe(a.aid).tun])) + '|' + Math.floor(S.taler / 50) + '|' + Object.keys(S.strecken).length + '|' + S.loks.length + '|' + JSON.stringify(M.kartenStand()) + S.loks.map(l => l.linie && l.linie.karte ? 1 : 0).join('') + Object.keys(S.strecken).filter(k => S.strecken[k].fertig).length + S.level + '|' + projektSig();
     if (sig === aufgabenSig) return;
     aufgabenSig = sig;
-    let h = projektPanel() + kartePanel();
+    let h = '';   // Aufträge zuerst (Uli 19.11.: „die bestehenden Aufträge findet man nur schwer“), langfristige Ziele darunter
     S.auftraege.forEach(a => {
       const t = auftragText(a), hilfe = M.auftragHilfe(a.aid);
       let knopf = '';
@@ -489,6 +496,8 @@ const Volldampf = (function () {
         (t.anteil != null && !a.fertig ? G.balken(t.anteil) : '') +
         '<div class="vd-auftrag-fuss"><span class="vd-lohn"><span>' + G.icon('muenze') + geld(a.taler) + '</span><span>' + G.icon('xp') + a.xp + '</span></span>' + knopf + '</div></div>';
     });
+    const ziele = kartePanel() + projektPanel();
+    if (ziele) h += '<div class="vd-seite-zwischen"><span class="gz-ueber">Weitere Ziele</span></div>' + ziele;
     hud.auftraege.innerHTML = h;
     setzeText(hud.anzahl, S.auftraege.length + (S.auftraege.length === 1 ? ' offen' : ' offen'));
   }
@@ -535,7 +544,7 @@ const Volldampf = (function () {
       case 'heimat': kameraAufNetz(false); break;
       case 'kohle': kohleBlatt(); break;
       case 'taler': G.toast(wurzel, '<b>Kasse.</b> Geld verdienen deine Züge mit Fahrgästen und Waren. Davon baust du Strecken, Gebäude und kaufst Züge.', { icon: 'muenze' }); break;
-      case 'gold': G.toast(wurzel, '<b>Goldtickets</b> gibt es für jede Lernrunde und jedes neue Bundesland. Damit holst du dir Dampfloks für Sonderfahrten, taufst Züge oder stellst Baustellen sofort fertig.', { icon: 'ticket', dauer: 5000 }); break;
+      case 'gold': G.toast(wurzel, '<b>Goldtickets</b> gibt es fürs Lernen (höchstens ' + M.W.LERN_GOLD_TAG + ' am Tag), für jedes neue Bundesland und für Großprojekte. Damit holst du dir Dampfloks für Sonderfahrten, taufst Züge oder stellst Baustellen sofort fertig.', { icon: 'ticket', dauer: 5000 }); break;
       case 'stufe': stufeInfo(); break;
       case 'uhr': uhrInfo(); break;
       case 'volldampf': { const r = M.volldampfGeben(j); if (r.ok) { ton('pfiff'); G.toast(wurzel, '<b>Volldampf aktiv.</b> Alle Züge und Bautrupps arbeiten doppelt so schnell.', { icon: 'volldampf' }); hud.letzt.kessel = ''; } break; }
@@ -1369,7 +1378,7 @@ const Volldampf = (function () {
       ton('land');
       const zeilen = runden.map(r => [r.titel, r.quote >= 0.999 ? '<span style="color:var(--gz-ok)">alles richtig</span>' : Math.round(r.quote * 100) + ' % richtig']);
       return G.buehne(wurzel, G.karte({ ueber: 'Lieferung', titel: 'Lieferung fürs Lernen', unter: erg.runden === 1 ? '1 Lernrunde abgeschlossen' : erg.runden + ' Lernrunden abgeschlossen',
-        rumpf: G.daten(zeilen) + '<div class="vd-kzreihe"><div><span>' + G.icon('blitz') + 'Energie</span><b>+' + G.zahl(erg.kohle) + '</b></div><div><span>' + G.icon('volldampf') + 'Volldampf</span><b>+' + erg.minuten + ' Min</b></div><div><span>' + G.icon('ticket') + 'Gold</span><b>+' + erg.gold + '</b></div></div>' }), 'Einladen')
+        rumpf: G.daten(zeilen) + '<div class="vd-kzreihe"><div><span>' + G.icon('blitz') + 'Energie</span><b>+' + G.zahl(erg.kohle) + '</b></div><div><span>' + G.icon('volldampf') + 'Volldampf</span><b>+' + erg.minuten + ' Min</b></div><div><span>' + G.icon('ticket') + 'Gold</span><b>+' + erg.gold + '</b></div></div>' + (erg.gedeckelt ? '<div style="margin-top:12px">' + G.notiz('ticket', 'Für heute hast du alle <b>' + erg.grenze + ' Goldtickets</b> fürs Lernen. Morgen gibt es neue. Energie und Volldampf bringt jede Lernrunde.') + '</div>' : '') }), 'Einladen')
         .then(() => { hud.letzt.kessel = ''; G.toast(wurzel, 'Volldampf ist geladen. Tippe unten links auf <b>Volldampf geben</b>.', { icon: 'volldampf' }); });
     });
   }
@@ -1565,7 +1574,7 @@ const Volldampf = (function () {
       regel('kran', 'Großprojekte', 'Wenn du genug Geld hast: Bau echte Bauwerke der Bahn nach – den ICE-Knoten Erfurt, Tunnel und Brücken für Schnellfahrstrecken, ein ICE-Werk. Jedes hat drei Bauabschnitte und braucht Zeit. Wenn es fertig ist, kommen mehr Fahrgäste, deine Züge fahren schneller oder dein Fuhrpark wird größer.') +
       regel('bahnhof', 'Bahnhöfe ausbauen', 'Tippe auf einen Bahnhof: Stellwerk, Gaststätte, Güterhalle und Betriebswerk machen ihn stärker. Zoome heran, dann siehst du sie.') +
       regel('blitz', 'Energie und Oberleitung', 'Dampfloks verbrennen Kohle, Dieselloks tanken Diesel, E-Loks und ICEs fahren mit Strom aus der Oberleitung. Welche Strecken eine haben, ist wie in echt (blaue Schiene, Masten) – ab Stufe ' + M.W.OL_LEVEL + ' kannst du fehlende nachrüsten: Strecke antippen. Der Wasserstoffzug macht seinen Strom selbst. Ohne dich reicht das Energielager nur eine Weile.') +
-      regel('volldampf', 'Lernen', 'Jede Lernrunde in der Lern-App bringt Energie, Volldampf (doppeltes Tempo) und Goldtickets für besondere Züge.') +
+      regel('volldampf', 'Lernen', 'Jede Lernrunde in der Lern-App bringt Energie und Volldampf (doppeltes Tempo). Dazu gibt es Goldtickets für besondere Züge – höchstens ' + M.W.LERN_GOLD_TAG + ' am Tag, damit sie etwas Besonderes bleiben.') +
       regel('uhr', 'Bahnzeit', 'Bei der Bahn vergeht die Zeit 60-mal schneller: 1 Sekunde ist 1 Minute, ein Tag dauert 24 Minuten.') +
       '</div><div class="vd-aktionen">' + G.knopf(M.zustand().ton === false ? 'Ton einschalten' : 'Ton ausschalten', { icon: 'ton', aktion: 'tonUm', breit: true }) + G.knopf('Einführung noch einmal', { aktion: 'guideNochmal', breit: true }) + '</div></div>';
     blatt(h, { art: 'ziel' });

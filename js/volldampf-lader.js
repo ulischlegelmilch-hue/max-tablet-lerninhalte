@@ -3,7 +3,7 @@
 const VolldampfLader = (function () {
   const ALLE = ['glanz', 'volldampf-daten', 'volldampf-karte', 'volldampf-modell', 'volldampf-draufsicht', 'volldampf-ansicht', 'volldampf-bilder', 'volldampf-fotos', 'volldampf-ton', 'volldampf'];
   const SPEICHER = 'maxlernt_volldampf_v1';   // = VolldampfModell.SPEICHER (für die Kachel ohne geladenes Modell)
-  const NEU = { id: '2026-11-18-grossprojekte', text: 'Neu: Großprojekte' };   // = letzter Eintrag in VolldampfDaten.NEUERUNGEN (Kachel-Hinweis bis Max ihn gesehen hat)
+  const NEU = { id: '2026-11-19-knopf-gold', text: 'Neuigkeiten' };   // = letzter Eintrag in VolldampfDaten.NEUERUNGEN (Kachel-Hinweis bis Max ihn gesehen hat)
   const geladen = {};
   let bereitP = null;
 

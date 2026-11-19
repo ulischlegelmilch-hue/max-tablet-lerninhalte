@@ -478,7 +478,12 @@ const VolldampfDaten = (function () {
         { icon: 'kran', titel: 'Echte Bauwerke der Bahn.', text: 'Bau den ICE-Knoten Erfurt, Tunnel und Brücken für Schnellfahrstrecken, ein ICE-Werk und mehr – sieben Großprojekte, die es wirklich gibt.' },
         { icon: 'uhr', titel: 'Drei Bauabschnitte.', text: 'Jeder Abschnitt kostet viel Geld und braucht Zeit. Gebaut wird auch, wenn das Spiel zu ist. Es gibt immer nur eine Großbaustelle.' },
         { icon: 'stern', titel: 'Große Wirkung.', text: 'Ist ein Projekt fertig, kommen mehr Fahrgäste, deine Züge fahren schneller oder dein Fuhrpark wird größer. Dazu gibt es Goldtickets.' },
-        { icon: 'muenze', titel: 'Wofür sich Sparen lohnt.', text: 'Die Großprojekte kosten zwischen 65 Mio. € und 920 Mio. €. Du findest sie oben in deinen Aufträgen.' }] }
+        { icon: 'muenze', titel: 'Wofür sich Sparen lohnt.', text: 'Die Großprojekte kosten zwischen 65 Mio. € und 920 Mio. €. Du findest sie unten über den Knopf „Großprojekte“ und rechts unter „Weitere Ziele“.' }] },
+    { id: '2026-11-19-knopf-gold', titel: 'Großprojekte-Knopf und Goldtickets', unter: 'Neu bei Volldampf', knopf: 'Großprojekte ansehen', zeige: 'projekte',
+      punkte: [
+        { icon: 'kran', titel: 'Eigener Knopf.', text: 'Unten neben „Sammlung“ findest du jetzt alle Großprojekte: was du schon gebaut hast, was als Nächstes geht und was es kostet.' },
+        { icon: 'liste', titel: 'Aufträge wieder oben.', text: 'Rechts stehen deine Aufträge jetzt wieder ganz oben. Linienkarte und Großprojekt findest du darunter bei „Weitere Ziele“.' },
+        { icon: 'ticket', titel: 'Goldtickets bleiben besonders.', text: 'Fürs Lernen gibt es jetzt höchstens 3 Goldtickets am Tag. Jede Lernrunde bringt weiter Energie und Volldampf. Goldtickets gibt es außerdem für neue Bundesländer, Linienkarten und Großprojekte.' }] }
   ];
 
 

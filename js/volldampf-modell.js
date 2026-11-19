@@ -30,6 +30,7 @@ const VolldampfModell = (function () {
     WERK_PREIS: { kessel: 0.35, wagen: 0.3 },    // Anteil vom Lokpreis je Stufe (Dampflokwerk Meiningen)
     LERN_KOHLE: [0.15, 0.4],   // Anteil der Bunkergröße je Lernrunde (darf über den Bunker hinaus)
     LERN_VOLLDAMPF_MIN: [4, 12], LAND_GOLD: 2,
+    LERN_GOLD_TAG: 3,                            // höchstens so viele Goldtickets am Tag fürs Lernen (Uli 19.11.: viele Lernstapel = zu viele Tickets)
     AUFTRAEGE: 3,
     BW_PLAETZE: 2, STELLWERK_HALT: 0.5, GASTSTAETTE: 1.25, GUETERHALLE: 2,   // Gebäude (D.GEBAEUDE)
     BAHN_TALER: 100, BAHN_KM: 3, BAHN_XP: 3, BAHN_GOLD_AB: 3,   // Streckenalbum: Bonus für eine komplette echte Bahnstrecke (Gold ab 3 Abschnitten)
@@ -836,8 +837,8 @@ const VolldampfModell = (function () {
   function lernBonus(rounds, jetzt) {
     simuliere(jetzt);
     const tag = heute(jetzt);
-    if (S.lern.datum !== tag) S.lern = { datum: tag, ids: {} };
-    const erg = { runden: 0, kohle: 0, minuten: 0, gold: 0, perfekt: 0 };
+    if (S.lern.datum !== tag) S.lern = { datum: tag, ids: {}, gold: 0 };
+    const erg = { runden: 0, kohle: 0, minuten: 0, gold: 0, perfekt: 0, gedeckelt: false, grenze: W.LERN_GOLD_TAG };
     rounds.forEach(r => {
       if (!r || !r.id || S.lern.ids[r.id]) return;
       const q = Math.max(0, Math.min(1, +r.quote || 0));
@@ -845,7 +846,9 @@ const VolldampfModell = (function () {
       const kohle = runde(bunkerGroesse() * (W.LERN_KOHLE[0] + (W.LERN_KOHLE[1] - W.LERN_KOHLE[0]) * q));
       const min = runde(W.LERN_VOLLDAMPF_MIN[0] + (W.LERN_VOLLDAMPF_MIN[1] - W.LERN_VOLLDAMPF_MIN[0]) * q);
       const perfekt = q >= 0.999;
-      const gold = 1 + (perfekt ? 1 : 0);
+      const verdient = 1 + (perfekt ? 1 : 0), gold = Math.min(verdient, Math.max(0, W.LERN_GOLD_TAG - (S.lern.gold || 0)));   // Tagesgrenze
+      S.lern.gold = (S.lern.gold || 0) + gold;
+      if (gold < verdient) erg.gedeckelt = true;
       S.kohle += kohle;                       // Sonderlieferung: darf über den Bunker hinaus
       S.volldampf.vorrat += min * 60000;
       S.gold += gold;
