@@ -574,7 +574,7 @@ const App = (function () {
       <div class="welcome" style="margin-top:32px;">Technik</div>
       <div class="lese-text">Leistungsprobe für das neue Weltraum-Spiel „Neue Heimat“: Das Tablet spielt etwa 1½ Minuten lang eine volle Kolonie in sechs Grafik-Einstellungen und misst, wie flüssig sie läuft. Bitte quer halten und nicht berühren. Das Ergebnis geht an den Server (Diagnose), damit das Spiel passend für dieses Tablet gebaut wird.</div>
       <div class="regel-karte"><div class="btn-primary" onclick="App.starteNeueHeimatProbe()">Leistungsprobe starten (ca. 1½ min)</div>
-        <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="NeueHeimatLader.oeffnen()">Neue Heimat öffnen (Test)</div></div>
+        <div class="btn-primary" style="background:var(--muted);color:var(--ink);" onclick="NeueHeimatLader.oeffnen('eltern')">Neue Heimat spielen (nur hier, ${NeueHeimatLader.fortschrittText()})</div></div>
 
       ${versionInfoHtml()}
     `);

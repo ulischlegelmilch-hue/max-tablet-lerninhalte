@@ -19,14 +19,20 @@ const NeueHeimatLader = (function () {
     } catch (e) { return 'Mondbasis'; }
   }
 
+  let vonEltern = false;
+
   function schliessen() {
     const box = document.getElementById('nh-spiel');
     if (box) box.remove();
-    if (typeof App !== 'undefined' && App.renderSpieleMenu) App.renderSpieleMenu();
+    if (typeof App === 'undefined') return;
+    if (vonEltern && App.oeffneEinstellungen) App.oeffneEinstellungen();
+    else if (App.renderSpieleMenu) App.renderSpieleMenu();
   }
 
-  function oeffnen() {
+  /** von = 'eltern': aus dem Eltern-Bereich geöffnet, „Beenden“ führt dorthin zurück */
+  function oeffnen(von) {
     if (document.getElementById('nh-spiel')) return;
+    vonEltern = von === 'eltern';
     const box = document.createElement('div');
     box.id = 'nh-spiel';
     box.style.cssText = 'position:fixed;inset:0;z-index:9400;background:#0b0f1a';
@@ -38,8 +44,8 @@ const NeueHeimatLader = (function () {
     if (e.data && e.data.art === 'nh-schliessen') schliessen();
   });
 
-  // Kachel im Spiele-Menü seit 19.11.2026 (Mondbasis spielbar; Messrunde 3 am Tablet: fest 30 Bilder/s)
-  const fuerMax = true;
+  // Kachel im Spiele-Menü noch aus (19.11.2026: Max soll es noch nicht haben); spielbar nur im Eltern-Bereich → Technik
+  const fuerMax = false;
 
   return { oeffnen, schliessen, fortschrittText, fuerMax };
 })();
