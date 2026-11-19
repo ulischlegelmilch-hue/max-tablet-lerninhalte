@@ -1399,6 +1399,17 @@ const Mathe = (function () {
     return ergebnis;
   }
 
+  // Wie oft eine Aufgabe in den Malfolgen-Deck kommt (19.11.2026, Uli: „jetzt kann er die Aufgaben, die Stapel sind aber immer noch so lang“):
+  // Das Gewicht zählt ALLE jemals falschen Antworten (3 + 2×falsch, Serie nur bis −4) – eine Aufgabe, die einmal 5× falsch war,
+  // steckte darum für immer 3× im Stapel, auch nachdem sie längst saß (6×8: 12× falsch, danach 31× in Folge richtig, trotzdem 5×).
+  // Jetzt: sitzt sie (2× in Folge richtig), kommt sie 1× dran; nach 1× richtig höchstens 2×; nur wackelige Aufgaben werden vervielfacht.
+  function malfolgenKopien(stat) {
+    const serie = (stat && stat.serie) || 0;
+    if (serie >= 2) return 1;
+    const roh = Math.min(5, Math.max(1, Math.round(gewichtFuerStat(stat) / 3)));
+    return serie === 1 ? Math.min(2, roh) : roh;
+  }
+
   function baueMalfolgenDeck() {
     const stats = Storage.getMalfolgenStats();
     const deck = [];
@@ -1409,7 +1420,7 @@ const Mathe = (function () {
       // Wiederholungen bei wenigen ausgewaehlten Reihen gar nicht mehr
       // vermeiden lassen (Schubfachprinzip: bei 5 Kopien unter mind. 9
       // Karten kein Problem, bei mehr Kopien in kleinen Decks schon).
-      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerStat(stats[fakt]) / 3)));
+      const kopien = malfolgenKopien(stats[fakt]);
       for (let i = 0; i < kopien; i++) deck.push(fakt);
     }
     return mischeOhneNachbarWiederholung(deck);
@@ -1422,6 +1433,10 @@ const Mathe = (function () {
   // Session (auch nach App-Neustart) an derselben Stelle im Deck weitermacht.
   function ziehMalfolgenFakten(anzahl) {
     let deck = Storage.getMalfolgenDeck();
+    // Rest-Deck an den heutigen Stand anpassen (19.11.2026): inzwischen gelernte Aufgaben verlieren ihre Extra-Kopien sofort,
+    // nicht erst, wenn das (bis zu 150 Karten lange) Deck aufgebraucht ist.
+    const stats = Storage.getMalfolgenStats(), schonDrin = {};
+    deck = deck.filter(f => (schonDrin[f] = (schonDrin[f] || 0) + 1) <= malfolgenKopien(stats[f]));
     const gezogen = [];
     let versuche = 0;
     while (gezogen.length < anzahl && versuche++ < 2000) {
@@ -3172,6 +3187,7 @@ const Mathe = (function () {
     renderMenu, starteTagesaufgabe, renderReihenwahl, speichereMalfolgenReihen,
     starteMalfolgenKarten, malfolgenAnzahl: anzahlMalfolgen, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
-    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText, aufbauInfo
+    renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText, aufbauInfo,
+    malfolgenKopien, ziehMalfolgenFakten   // für tests/pruefe_lernstand.js (Stapellänge)
   };
 })();

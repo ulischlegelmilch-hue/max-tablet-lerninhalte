@@ -396,6 +396,17 @@ const Heimatkunde = (function () {
     return Math.max(1, 3 + (stat.falsch || 0) * 2 - serieBonus);
   }
 
+  // Wie oft eine Karte in den Stapel kommt (19.11.2026, Uli: „jetzt kann er die Aufgaben, die Stapel sind aber immer noch so lang“):
+  // Das Gewicht zählt ALLE jemals falschen Antworten (3 + 2×falsch, Serie nur bis −4) – eine Karte, die einmal 5× falsch war,
+  // steckte darum für immer 3× im Stapel, auch nachdem sie längst saß (6×8: 12× falsch, danach 31× in Folge richtig, trotzdem 5×).
+  // Jetzt: sitzt sie (2× in Folge richtig), kommt sie 1× dran; nach 1× richtig höchstens 2×; nur wackelige Karten werden vervielfacht.
+  function kopienFuerStat(stat) {
+    const serie = (stat && stat.serie) || 0;
+    if (serie >= 2) return 1;
+    const roh = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stat) / 3)));
+    return serie === 1 ? Math.min(2, roh) : roh;
+  }
+
   function mischeOhneNachbarWiederholung(arr) {
     const gruppen = new Map();
     for (const x of arr) gruppen.set(x, (gruppen.get(x) || 0) + 1);
@@ -427,7 +438,7 @@ const Heimatkunde = (function () {
     const stats = Storage.getLernkartenStats(thema);
     const indexDeck = [];
     karten.forEach((karte, i) => {
-      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stats[i]) / 3)));
+      const kopien = kopienFuerStat(stats[i]);
       for (let n = 0; n < kopien; n++) indexDeck.push(i);
     });
     // geordnet: feste Reihenfolge (Sport-Erwaermung: so wird sie abgearbeitet)
@@ -481,7 +492,7 @@ const Heimatkunde = (function () {
     const indexDeck = [];
     karten.forEach((karte, i) => {
       const stat = Storage.getLernkartenStats(karte._quellThema)[karte._quellIdx];
-      const kopien = Math.min(5, Math.max(1, Math.round(gewichtFuerLernkartenStat(stat) / 3)));
+      const kopien = kopienFuerStat(stat);
       for (let n = 0; n < kopien; n++) indexDeck.push(i);
     });
     return mischeOhneNachbarWiederholung(indexDeck).map(i => Object.assign({ _idx: i }, karten[i]));
@@ -719,8 +730,15 @@ const Heimatkunde = (function () {
     if (info.bewertung) {
       const offen = Storage.getOffeneSession(aktivitaetFuerThema(thema));
       if (offen && Array.isArray(offen.karten) && offen.index > 0 && offen.index < offen.karten.length) {
+        // angefangene Runde: übrige Karten auf die heutige Kopienzahl kürzen (19.11.2026, sonst läuft ein alter langer Stapel weiter)
+        let karten = mitAktuellenTexten(offen.karten, thema);
+        if (thema !== 'rad_falsch') {
+          const stats = Storage.getLernkartenStats(thema), schonDrin = {};
+          const rest = karten.slice(offen.index).filter(k => typeof k._idx !== 'number' || (schonDrin[k._idx] = (schonDrin[k._idx] || 0) + 1) <= kopienFuerStat(stats[k._idx]));
+          if (rest.length) karten = karten.slice(0, offen.index).concat(rest);
+        }
         lkSession = {
-          thema, titel: info.titel, bewertung: true, karten: mitAktuellenTexten(offen.karten, thema), index: offen.index,
+          thema, titel: info.titel, bewertung: true, karten, index: offen.index,
           richtig: offen.richtig || 0, sterne: offen.sterne || 0, verlauf: offen.verlauf || []
         };
       } else {
@@ -1047,5 +1065,5 @@ const Heimatkunde = (function () {
       .map(k => ({ id: k, titel: LERNTHEMEN[k].titel, geordnet: !!LERNTHEMEN[k].geordnet, karten: LERNTHEMEN[k].karten().map(c => ({ front: c.front, back: c.back })) }));
   }
 
-  return { lernstandBericht, lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
+  return { kopienFuerStat, lernstandBericht, lernthemenFuerExport, renderMenu, starteVerkehrszeichen, starteQuiz, starteThemenwahl, starteLernkarten, karteUmdrehen, naechsteLernkarte, bewerteLernkarte, renderLernkartenUebersicht, starteTagesLernkarten, stapelText, aktiveStapel, aufbauInfo, TAGESKARTEN_ANZAHL };
 })();
