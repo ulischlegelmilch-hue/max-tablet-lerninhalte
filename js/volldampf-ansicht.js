@@ -792,7 +792,7 @@ const VolldampfAnsicht = (function () {
     const s = netzSkala();
     const volldampf = jetzt < S.volldampf.bis;
     S.loks.forEach(l => {
-      if (!l.linie) return;
+      if (!l.linie || l.status === 'werkstatt') return;   // in der Werkstatt: nicht auf der Karte
       da[l.uid] = 1;
       const geo = l.status === 'faehrt' ? zugGeometrie(l, l.fahrt.weg[0] === l.linie.weg[0]) : zugGeometrie(l, l.ort === l.linie.von);
       const platz = geo.ges * 0.5 / s;   // höchstens halbe Strecke lang, damit man ihn fahren sieht
@@ -816,7 +816,7 @@ const VolldampfAnsicht = (function () {
       setze(z.kopf, kopf.x, kopf.y, kopf.w, sz);
       let ab = z.kopfLen / 2 + 0.6;
       z.wagen.forEach((w, i) => { ab += z.laengen[i] / 2; const p = aufWeg(geo.pts, geo.len, d - ab * sz); setze(w, p.x, p.y, p.w, sz); ab += z.laengen[i] / 2 + 0.6; });
-      const op = l.status === 'kohle' ? '.55' : '1';
+      const op = l.status === 'kohle' || l.status === 'faellig' || l.status === 'stoerung' ? '.55' : '1';
       if (z.kopf.style.opacity !== op) { z.kopf.style.opacity = op; z.wagen.forEach(w => { w.style.opacity = op; }); }
       // Dampf: nur Dampfloks, nur wenn sie fahren, häufiger bei Volldampf
       const abstand = volldampf ? 260 : 520;

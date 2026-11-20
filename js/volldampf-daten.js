@@ -483,7 +483,13 @@ const VolldampfDaten = (function () {
       punkte: [
         { icon: 'kran', titel: 'Eigener Knopf.', text: 'Unten neben „Sammlung“ findest du jetzt alle Großprojekte: was du schon gebaut hast, was als Nächstes geht und was es kostet.' },
         { icon: 'liste', titel: 'Aufträge wieder oben.', text: 'Rechts stehen deine Aufträge jetzt wieder ganz oben. Linienkarte und Großprojekt findest du darunter bei „Weitere Ziele“.' },
-        { icon: 'ticket', titel: 'Goldtickets bleiben besonders.', text: 'Fürs Lernen gibt es jetzt höchstens 3 Goldtickets am Tag. Jede Lernrunde bringt weiter Energie und Volldampf. Goldtickets gibt es außerdem für neue Bundesländer, Linienkarten und Großprojekte.' }] }
+        { icon: 'ticket', titel: 'Goldtickets bleiben besonders.', text: 'Fürs Lernen gibt es jetzt höchstens 3 Goldtickets am Tag. Jede Lernrunde bringt weiter Energie und Volldampf. Goldtickets gibt es außerdem für neue Bundesländer, Linienkarten und Großprojekte.' }] },
+    { id: '2026-11-19-werkstatt', titel: 'Werkstatt', unter: 'Neu bei Volldampf', knopf: 'Zum Fuhrpark', zeige: 'fuhrpark',
+      punkte: [
+        { icon: 'werkstatt', titel: 'Züge nutzen sich ab.', text: 'Jeder Zug hat jetzt einen Zustand. Je länger er fährt, desto weiter sinkt er. Ab 25 % fährt er langsamer und muss in die Werkstatt.' },
+        { icon: 'signal', titel: 'Liegenbleiben.', text: 'Bei 0 % bleibt ein Zug liegen. Abschleppen kostet doppelt so viel wie eine Wartung zur rechten Zeit. Wenn du nicht spielst, wartet ein abgenutzter Zug im Bahnhof auf dich.' },
+        { icon: 'schuppen', titel: 'Betriebswerk lohnt sich.', text: 'Mit einem Betriebswerk in deinem Netz geht die Wartung doppelt so schnell und kostet weniger. Alte Züge erholen sich nicht mehr ganz – irgendwann lohnt ein neuer.' },
+        { icon: 'lok', titel: 'Wo?', text: 'Im Fuhrpark siehst du den Zustand jedes Zuges. Eine rote Zahl am Knopf „Fuhrpark“ zeigt, wie viele Züge in die Werkstatt müssen.' }] }
   ];
 
 

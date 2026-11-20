@@ -41,7 +41,18 @@ const VolldampfModell = (function () {
     TAUFE_GOLD: 1,                               // Zug taufen (Name einer angeschlossenen Stadt / eines erschlossenen Landes)
     KARTE_PASST: 1.3,                            // Linienkarte mit dem Zug des Vorbilds: 30 % mehr Geld (+ 1 Goldticket)
     OL_LEVEL: 5, OL_BASIS: 300, OL_KM: 15,       // Oberleitung nachrüsten (Strecken ohne echte Oberleitung)
-    FARBEN: 10                                   // Linienfarben auf der Karte (Index in VolldampfAnsicht.FARBEN)
+    FARBEN: 10,                                  // Linienfarben auf der Karte (Index in VolldampfAnsicht.FARBEN)
+    // Verschleiß (Uli 19.11.2026: „ich möchte, dass sich die Züge bei Max auch abnutzen“) – nur Züge von heute, keine Dampfloks
+    VERSCHLEISS_MIN: 180,      // echte Minuten Fahrt von 100 % bis 0 % (für jeden Zug gleich; schnelle Züge fahren dabei mehr km)
+    WARTUNG_AB: 25,            // ab hier „Wartung fällig“: Zug fährt langsamer; ist Max nicht da, bleibt er im Bahnhof stehen
+    WARTUNG_TEMPO: 0.85,       // so schnell fährt ein Zug mit fälliger Wartung noch
+    WARTUNG_ANTEIL: 0.15, WARTUNG_MIN: 0.05,   // Kosten: 15 % der Einnahmen seit der letzten Wartung, mindestens 5 % vom Zugpreis
+    WARTUNG_MS: 240000,        // 4 Bahn-Stunden in der Werkstatt
+    BW_WARTUNG_DAUER: 0.5, BW_WARTUNG_KOSTEN: 0.75,   // mit Betriebswerk im Netz: doppelt so schnell, ein Viertel billiger
+    STOERUNG_KOSTEN: 2, STOERUNG_DAUER: 1.5,         // liegengeblieben: abschleppen kostet doppelt und dauert länger
+    ALTERUNG: 4, ALT_MIN: 60,  // jede Wartung: der Zug erholt sich 4 Punkte weniger, nie unter 60 %
+    VERSCHLEISS_START_MIN: 50, // Züge aus der Zeit vor dem Verschleiß starten nach ihren km, aber nicht unter 50 %
+    WEG_MS: 30000              // springt simuliere weiter als 30 s, war Max nicht da (Spiel zu, Tablet aus)
   };
   // Fahrgäste je Minute an einem Bahnhof
   function paxRate(c) { const s = D.STADT[c]; return (1.5 + Math.sqrt(s.einw / 1000) * 0.9) * (s.tourist ? 1.4 : 1); }
@@ -145,6 +156,13 @@ const VolldampfModell = (function () {
     if (S.karten.aktiv && !D.LINIE[S.karten.aktiv]) S.karten.aktiv = null;
     S.loks = S.loks.filter(l => D.LOK[l.id]);
     S.loks.forEach(l => { if (l.f == null) l.f = freieFarbe(); });
+    // Verschleiß nachrüsten (19.11.2026): Zustand nach den bisher gefahrenen km, aber nicht unter 50 %
+    S.loks.forEach(l => {
+      if (istDampf(l) || l.zustand != null) return;
+      const km = (l.stat && l.stat.km) || 0, z = Math.max(W.VERSCHLEISS_START_MIN, 100 - km * verschleissJeKm(l));
+      const seitKm = (100 - z) / verschleissJeKm(l), jeKm = km > 0 ? l.stat.taler / km : 0;
+      Object.assign(l, { zustand: z, max: 100, seit: { km: seitKm, taler: runde(seitKm * jeKm) }, wartungen: 0 });
+    });
     Object.keys(S.bahnhoefe).forEach(c => { if (!S.bahnhoefe[c].geb) S.bahnhoefe[c].geb = {}; });
     // Karte geändert (neue Städte, z. B. Zella-Mehlis/Altenburg): Strecken, die es im Gleisnetz nicht mehr gibt, abbauen und
     // erstatten; Züge, deren Linie darüber lief, ins Depot
@@ -181,7 +199,9 @@ const VolldampfModell = (function () {
 
   function lokNeu(id) {
     S.album.loks[id] = 1;
-    return { uid: S.nextUid++, id, f: freieFarbe(), linie: null, fahrt: null, halt: 0, status: 'depot', kessel: 0, wagen: 0, stat: { fahrten: 0, km: 0, taler: 0 } };
+    const l = { uid: S.nextUid++, id, f: freieFarbe(), linie: null, fahrt: null, halt: 0, status: 'depot', kessel: 0, wagen: 0, stat: { fahrten: 0, km: 0, taler: 0 } };
+    if (D.LOK[id].antrieb !== 'dampf') Object.assign(l, { zustand: 100, max: 100, seit: { km: 0, taler: 0 }, wartungen: 0 });
+    return l;
   }
   /** Linienfarbe für einen neuen Zug: die am seltensten benutzte (bei Gleichstand die erste) */
   function freieFarbe() {
@@ -193,7 +213,7 @@ const VolldampfModell = (function () {
   function fuhrpark() { return maxLoks(S.level) + W.BW_PLAETZE * gebaeudeZahl('betriebswerk') + projektPlaetze(); }
   function lokWerte(lok) {
     const L = D.LOK[lok.id];
-    return { kmh: L.kmh * (1 + 0.15 * (lok.kessel || 0)), plaetze: runde(L.plaetze * (1 + 0.25 * (lok.wagen || 0))),
+    return { kmh: L.kmh * (1 + 0.15 * (lok.kessel || 0)) * (wartungFaellig(lok) ? W.WARTUNG_TEMPO : 1), plaetze: runde(L.plaetze * (1 + 0.25 * (lok.wagen || 0))),
       ladung: runde(L.ladung * (1 + 0.25 * (lok.wagen || 0))), kohle: L.kohle };
   }
   function bunkerGroesse() { return W.BUNKER[S.bunker]; }
@@ -412,6 +432,7 @@ const VolldampfModell = (function () {
     const l = lok(uid);
     if (!l) return { ok: false, grund: '?' };
     if (istDampf(l)) return { ok: false, dampf: true, grund: 'Dampfloks fahren heute nur noch Sonderfahrten. Öffne den Zug und wähle eine Sonderfahrt.' };
+    const wg = wartungGesperrt(l); if (wg) return { ok: false, grund: wg };
     const elektro = D.LOK[l.id].antrieb === 'elektro';
     const w = weg(von, nach, elektro, uid);
     if (!w) { const ohne = weg(von, nach, elektro); if (ohne) { const v = vollAuf(ohne.weg, uid); return { ok: false, voll: v, grund: vollText(v) }; } }
@@ -437,7 +458,8 @@ const VolldampfModell = (function () {
     simuliere(jetzt);
     const l = lok(uid);
     if (!l) return;
-    l.linie = null; l.fahrt = null; l.status = 'depot'; l.halt = 0;
+    if (l.status === 'werkstatt') { l.linie = null; return; }   // nach der Wartung ins Depot statt zurück auf die Linie
+    l.linie = null; l.fahrt = null; l.status = 'depot'; l.halt = 0; l.zurWartung = false;
   }
   /** Fahrzeit in echten ms. Mit weg (Stadt-ids) und ohne Dampf: Abschnitte ausgebauter Schnellfahrstrecken (Großprojekt) zählen kürzer. */
   function fahrzeitMs(km, kmh, weg, dampf) {
@@ -458,6 +480,11 @@ const VolldampfModell = (function () {
   // Abfahrt in a (Richtung b): Fahrgäste/Ware einladen, Kohle abziehen. false = Kohle reicht nicht.
   function abfahren(l, t) {
     const lin = l.linie;
+    if (verschleisst(l)) {
+      // Max ist da: der Zug fährt bis 0 % weiter (langsamer) und bleibt dann liegen. Max ist weg: Er wartet bei „fällig“ im Bahnhof.
+      if (weg_ && l.zustand <= W.WARTUNG_AB) { if (l.status !== 'faellig') { l.status = 'faellig'; ereignis('faellig', { uid: l.uid, ort: l.ort }); } return false; }
+      if (l.zustand <= 0) { l.status = 'stoerung'; S.statistik.stoerungen = (S.statistik.stoerungen || 0) + 1; ereignis('stoerung', { uid: l.uid, ort: l.ort }); return false; }
+    }
     const von = l.ort, nach = von === lin.von ? lin.nach : lin.von;
     const w = lokWerte(l);
     const bedarf = lin.km * w.kohle / 100;
@@ -490,7 +517,14 @@ const VolldampfModell = (function () {
     S.statistik.fahrten++; S.statistik.km += f.km; S.statistik.taler += taler; S.statistik.fahrgaeste += f.pax; S.statistik.kisten += f.menge;
     l.stat.fahrten++; l.stat.km += f.km; l.stat.taler += taler;
     l.ort = f.nach; l.fahrt = null; l.status = 'halt'; l.halt = t + haltMs(f.nach);
+    if (verschleisst(l)) {
+      const vor = l.zustand;
+      l.zustand = Math.max(0, l.zustand - f.km * verschleissJeKm(l));
+      l.seit.km += f.km; l.seit.taler += taler;
+      if (vor > W.WARTUNG_AB && l.zustand <= W.WARTUNG_AB) ereignis('verschleiss', { uid: l.uid, weg: weg_ });
+    }
     ereignis('ankunft', { uid: l.uid, von: f.von, nach: f.nach, taler, pax: f.pax, ware: f.ware, menge: f.menge, km: f.km });
+    if (l.zurWartung) { l.zurWartung = false; const r = wartungStarten(l, t); if (!r.ok) ereignis('wartungGeht', { uid: l.uid, grund: r.grund }); }
     karteAnkunft(l, t);
     auftragFortschritt(f, t);
     xpPlus(xp, t);
@@ -552,6 +586,7 @@ const VolldampfModell = (function () {
     const ks = kartenStand(), k = ks.aktiv ? karte(ks.aktiv) : null, l = lok(uid);
     if (!k || !l) return { ok: false, grund: 'Nimm zuerst eine Linienkarte.' };
     if (!k.gebaut) return { ok: false, grund: 'Es fehlen noch ' + (k.anzahl - k.fertig) + ' Abschnitte.' };
+    { const wg = wartungGesperrt(l); if (wg) return { ok: false, grund: wg }; }
     if (!karteErlaubt(k.L, l.id)) return { ok: false, grund: k.L.dampf ? 'Das ist eine Sonderfahrt – sie braucht eine Dampflok.' : 'Dampfloks fahren nur Sonderfahrten. Nimm einen Zug von heute.' };
     if (D.LOK[l.id].antrieb === 'elektro' && k.teile.some(t => !t.strom)) return { ok: false, strom: true, grund: 'Auf diesem Weg fehlt die Oberleitung. Nimm einen Zug ohne Stromabnehmer oder rüste die Strecke nach.' };
     if (k.km * lokWerte(l).kohle / 100 > bunkerGroesse()) return { ok: false, grund: 'So weit reicht dein Energielager nicht. Baue es aus!' };
@@ -631,6 +666,7 @@ const VolldampfModell = (function () {
     Object.keys(S.strecken).forEach(k => { const s = S.strecken[k]; if (!s.fertig && (!best || s.ende < best.t)) best = { t: s.ende, art: 'bau', s }; });
     if (S.projekte && S.projekte.bau && (!best || S.projekte.bau.ende < best.t)) best = { t: S.projekte.bau.ende, art: 'projekt' };
     S.loks.forEach(l => {
+      if (l.status === 'werkstatt') { if (l.werkstatt && (!best || l.werkstatt.ende < best.t)) best = { t: l.werkstatt.ende, art: 'werk', l }; return; }
       if (!l.linie) return;
       let t = Infinity;
       if (l.status === 'faehrt') t = l.fahrt.ende;
@@ -647,6 +683,7 @@ const VolldampfModell = (function () {
   function simuliere(jetzt) {
     if (!S) return;
     if (jetzt < S.zeit) jetzt = S.zeit;      // Uhr zurückgestellt: nichts rückwärts rechnen
+    weg_ = jetzt - S.zeit > W.WEG_MS;        // großer Sprung = Max war nicht da (Spiel zu, Tablet aus)
     let schutz = 200000;
     for (;;) {
       const e = naechstesEreignis();
@@ -655,10 +692,12 @@ const VolldampfModell = (function () {
       zeitVergeht(t - S.zeit); S.zeit = t;
       if (e.art === 'bau') streckeVollenden(e.s, t);
       else if (e.art === 'projekt') projektWeiter(t);
+      else if (e.art === 'werk') wartungFertig(e.l, t);
       else if (e.l.status === 'faehrt') ankommen(e.l, t);
       else if (!abfahren(e.l, t) && e.l.status === 'kohle' && kohleZufluss() <= 0) { /* wartet auf Kohle */ }
     }
     zeitVergeht(jetzt - S.zeit); S.zeit = jetzt;
+    weg_ = false;
   }
 
   // ---------------------------------------------------------------- Kohle, Bunker, Bahnhöfe, Bautrupps, Werk
@@ -682,7 +721,7 @@ const VolldampfModell = (function () {
   function kohleProMinute() {
     let v = 0;
     S.loks.forEach(l => {
-      if (!l.linie) return;
+      if (!l.linie || steht(l)) return;
       const w = lokWerte(l), fahr = fahrzeitMs(l.linie.km, w.kmh, l.linie.weg, istDampf(l));
       v += (l.linie.km * w.kohle / 100) / ((fahr + W.HALT_MS) / 60000);
     });
@@ -804,6 +843,67 @@ const VolldampfModell = (function () {
   /** Noch nicht gesehene Neuigkeiten (älteste zuerst). Alter Spielstand ohne neuGesehen: alle. */
   function neuerungenOffen() { const L = D.NEUERUNGEN || [], i = L.findIndex(N => N.id === S.neuGesehen); return L.slice(i + 1); }
   function neuerungGesehen(id) { S.neuGesehen = id; }
+  // ---------------------------------------------------------------- Verschleiß und Wartung (19.11.2026)
+  // Zustand 100 % -> sinkt je km (VERSCHLEISS_MIN echte Minuten Fahrt bis 0 %). Ab WARTUNG_AB „fällig“: langsamer; ist Max nicht da,
+  // bleibt der Zug im Bahnhof stehen (status 'faellig'). Bei 0 % bleibt er liegen ('stoerung', nur wenn Max spielt). Wartung: Zug
+  // fährt in die Werkstatt ('werkstatt'), danach zurück auf seine Linie. Jede Wartung bringt ihn auf einen etwas niedrigeren Neuzustand.
+  let weg_ = false;
+  function verschleisst(l) { return !!l && !istDampf(l) && l.zustand != null; }
+  function verschleissJeKm(l) { return 100 / (D.LOK[l.id].kmh * W.VERSCHLEISS_MIN); }
+  function wartungFaellig(l) { return verschleisst(l) && l.zustand <= W.WARTUNG_AB; }
+  function steht(l) { return l.status === 'werkstatt' || l.status === 'faellig' || l.status === 'stoerung'; }
+  function wartungGesperrt(l) {
+    if (l.status === 'werkstatt') return 'Der Zug ist gerade in der Werkstatt.';
+    if (l.status === 'stoerung') return 'Der Zug ist liegengeblieben. Lass ihn zuerst abschleppen und reparieren.';
+    return '';
+  }
+  /** Was eine Wartung jetzt kosten und dauern würde (und ob sie geht) */
+  function wartungInfo(uid) {
+    const l = typeof uid === 'object' ? uid : lok(uid);
+    if (!verschleisst(l)) return null;
+    const L = D.LOK[l.id], bw = gebaeudeZahl('betriebswerk') > 0, stoer = l.status === 'stoerung';
+    let kosten = Math.max(W.WARTUNG_MIN * L.preis, W.WARTUNG_ANTEIL * l.seit.taler) * (bw ? W.BW_WARTUNG_KOSTEN : 1) * (stoer ? W.STOERUNG_KOSTEN : 1);
+    kosten = Math.max(10, runde(kosten / 10) * 10);
+    const dauer = W.WARTUNG_MS * (bw ? W.BW_WARTUNG_DAUER : 1) * (stoer ? W.STOERUNG_DAUER : 1);
+    const nachher = Math.max(W.ALT_MIN, (l.max || 100) - W.ALTERUNG);
+    let grund = '';
+    if (l.status === 'werkstatt') grund = 'Der Zug ist gerade in der Werkstatt.';
+    else if (l.zurWartung) grund = 'Der Zug fährt nach der Ankunft in die Werkstatt.';
+    else if (!stoer && l.zustand >= nachher - 0.5) grund = 'Der Zug ist in gutem Zustand. Eine Wartung bringt ihn nur auf ' + nachher + ' %.';
+    else if (S.taler < kosten) grund = fehlt(kosten);
+    return { ok: !grund, grund, kosten, dauer, bw, stoerung: stoer, faellig: wartungFaellig(l), zustand: l.zustand, max: l.max, nachher,
+      geplant: !!l.zurWartung, werkstatt: l.status === 'werkstatt' ? l.werkstatt : null };
+  }
+  function wartungStarten(l, t) {
+    const i = wartungInfo(l);
+    if (!i.ok) return { ok: false, grund: i.grund };
+    S.taler -= i.kosten;
+    S.statistik.wartungen = (S.statistik.wartungen || 0) + 1; S.statistik.wartungKosten = (S.statistik.wartungKosten || 0) + i.kosten;
+    l.werkstatt = { start: t, ende: t + i.dauer, kosten: i.kosten, abschleppen: i.stoerung };
+    l.status = 'werkstatt'; l.fahrt = null; l.halt = 0; l.zurWartung = false;
+    ereignis('wartung', { uid: l.uid, kosten: i.kosten, ende: l.werkstatt.ende, abschleppen: i.stoerung });
+    return { ok: true, kosten: i.kosten, ende: l.werkstatt.ende };
+  }
+  /** Zug in die Werkstatt schicken. Fährt er gerade, fährt er nach der Ankunft hin. */
+  function wartung(uid, jetzt) {
+    simuliere(jetzt);
+    const l = lok(uid);
+    if (!verschleisst(l)) return { ok: false, grund: 'Dampfloks pflegt das Dampflokwerk Meiningen.' };
+    const i = wartungInfo(l);
+    if (!i.ok) return { ok: false, grund: i.grund };
+    if (l.status === 'faehrt') { l.zurWartung = true; ereignis('wartungGeplant', { uid }); return { ok: true, geplant: true, kosten: i.kosten }; }
+    return wartungStarten(l, jetzt);
+  }
+  function wartungFertig(l, t) {
+    l.max = Math.max(W.ALT_MIN, (l.max || 100) - W.ALTERUNG);
+    l.zustand = l.max;
+    l.seit = { km: 0, taler: 0 }; l.wartungen = (l.wartungen || 0) + 1; l.werkstatt = null;
+    if (l.linie) { l.status = 'halt'; l.halt = t + 1000; } else { l.status = 'depot'; l.halt = 0; }
+    ereignis('wartungFertig', { uid: l.uid, zustand: l.zustand });
+  }
+  /** Züge, die in die Werkstatt sollten: liegengeblieben, wartend oder fällig */
+  function wartungListe() { return S.loks.filter(l => verschleisst(l) && l.status !== 'werkstatt' && !l.zurWartung && (l.status === 'stoerung' || wartungFaellig(l))); }
+
   function werkOffen() { return D.STAEDTE.some(s => s.werk && angebunden(s.id)); }
   function werkPreis(l, art) { const st = l[art] || 0; return st >= 2 ? null : runde(D.LOK[l.id].preis * W.WERK_PREIS[art] * (st + 1) + 400); }
   function werkstatt(uid, art, jetzt) {
@@ -973,13 +1073,13 @@ const VolldampfModell = (function () {
   /** Lok, die für einen Auftrag umgesetzt würde: freie Lok zuerst, sonst die, die gerade am wenigsten einbringt
    *  und keinen anderen Auftrag bedient. */
   function lokFuerAuftrag(von, nach) {
-    const frei = S.loks.filter(l => !l.linie && !istDampf(l));
+    const frei = S.loks.filter(l => !l.linie && !istDampf(l) && !steht(l));
     const bedarfOk = l => { const w = weg(von, nach, D.LOK[l.id].antrieb === 'elektro', l.uid); return !!w && w.km * lokWerte(l).kohle / 100 <= bunkerGroesse(); };
     if (frei.length) return frei.filter(bedarfOk)[0] || null;
     const schuetzen = new Set();
     S.auftraege.forEach(a => { if (!a.fertig) { const h = auftragHilfe(a.aid); if (h.tun === 'laeuft') schuetzen.add(h.uid); } });
     S.loks.forEach(l => { if (l.linie && l.linie.karte) schuetzen.add(l.uid); });   // Zug auf Eröffnungsfahrt (Linienkarte) nicht abziehen
-    const kand = S.loks.filter(l => !schuetzen.has(l.uid) && !istDampf(l) && bedarfOk(l))
+    const kand = S.loks.filter(l => !schuetzen.has(l.uid) && !istDampf(l) && !steht(l) && bedarfOk(l))
       .sort((x, y) => (x.stat.taler / Math.max(1, x.stat.fahrten)) - (y.stat.taler / Math.max(1, y.stat.fahrten)));
     return kand[0] || null;
   }
@@ -1034,7 +1134,7 @@ const VolldampfModell = (function () {
   function tafel(c, jetzt) {
     const r = [];
     S.loks.forEach(l => {
-      if (!l.linie || (l.linie.von !== c && l.linie.nach !== c)) return;
+      if (!l.linie || (l.linie.von !== c && l.linie.nach !== c) || steht(l)) return;
       const w = lokWerte(l);
       const dauer = fahrzeitMs(l.linie.km, w.kmh, l.linie.weg, istDampf(l));
       const gegen = l.linie.von === c ? l.linie.nach : l.linie.von;
@@ -1065,6 +1165,7 @@ const VolldampfModell = (function () {
     kaufbar, kaufeLok, kaufePreis, lok, lokWerte, setzeLinie, insDepot, fahrzeitMs,
     projekte, projekt, projektBaubar, projektBauen, projektFertig, projektFaktor, projektPlaetze, tempo, neuerungenOffen, neuerungGesehen,
     kaufeKohle, ausbau, bunkerGroesse, werkOffen, werkPreis, werkstatt, zechen,
+    verschleisst, wartungFaellig, wartungInfo, wartung, wartungListe, steht,
     volldampfGeben, lernBonus, auftragAbholen, auftragTauschen, auftragHilfe, auftragBedienen,
     luftlinie, bahnzeit, uhr, zugPosition, tafel, xpFuer, paxRate, wareRate, einnahmenProMinute, schl, NACH
   };

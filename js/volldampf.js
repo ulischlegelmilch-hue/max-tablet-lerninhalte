@@ -111,6 +111,16 @@ const Volldampf = (function () {
 .vd-lokkarte-name small{font:500 13px/1 var(--gz-text);color:var(--gz-txt2);letter-spacing:0}
 .vd-lokkarte-info{font-size:13.5px;line-height:1.45;color:var(--gz-txt2);margin-top:4px}
 .vd-lokkarte-knoepfe{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+/* Verschleiß (19.11.2026) */
+.vd-zustand{display:flex;align-items:center;gap:10px;margin-top:8px}
+.vd-zustand .gz-ueber{flex:none}
+.vd-zustand b{flex:none;min-width:44px;font:600 14px/1 var(--gz-text);font-variant-numeric:tabular-nums;color:var(--gz-txt)}
+.vd-zustand .gz-balken{flex:1;max-width:180px}
+.vd-zustand.vd-mittel b{color:var(--gz-akzent)}
+.vd-zustand.vd-schlecht b{color:var(--gz-fehler)}
+.vd-zustand.vd-schlecht .gz-balken-fuell{background:var(--gz-fehler)}
+.vd-badge{margin-left:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--gz-fehler);color:#fff;font:600 11px/17px var(--gz-text);text-align:center;font-variant-numeric:tabular-nums}
+.vd-badge:empty{display:none}
 .vd-lokbild{width:150px;height:44px;flex:none;border-radius:6px;background:linear-gradient(180deg,#4F5862 0%,#3A424B 62%,#2B3138 100%);border:1px solid rgba(255,255,255,.07);display:block}
 .vd-lokbild.vd-gold{box-shadow:0 0 0 1px var(--gz-akzent)}
 .vd-lokbild-gross{width:100%!important;height:auto!important;aspect-ratio:190/56}
@@ -345,8 +355,19 @@ const Volldampf = (function () {
       return;
     }
     if (art === 'kohleLeer') { kohleWarnung(); return; }
+    if (art === 'verschleiss') { const l = M.lok(d.uid); if (l) werkHinweis('<b>' + esc(lokNummer(l)) + '</b> muss in die Werkstatt. Er fährt jetzt langsamer – bei 0 % bleibt er liegen.', l); return; }
+    if (art === 'stoerung') { const l = M.lok(d.uid); if (l) { ton('gong'); werkHinweis('<b>' + esc(lokNummer(l)) + '</b> ist in ' + esc(D.STADT[d.ort].name) + ' liegengeblieben. Lass ihn abschleppen.', l, true); } aufgabenSig = ''; return; }
+    if (art === 'wartungFertig') { const l = M.lok(d.uid); if (l) G.toast(wurzel, '<b>' + esc(lokNummer(l)) + '</b> ist aus der Werkstatt zurück: ' + Math.round(d.zustand) + ' %.', { icon: 'werkstatt', dauer: 3500, beiTipp: () => lokDetail(l) }); return; }
+    if (art === 'wartungGeht') { const l = M.lok(d.uid); if (l) G.toast(wurzel, '<b>' + esc(lokNummer(l)) + '</b> konnte nicht in die Werkstatt. ' + esc(d.grund), { icon: 'werkstatt', dauer: 5000 }); return; }
     if (art === 'notration') { G.toast(wurzel, '<b>Notration:</b> Kasse und Energielager waren leer. Für heute reicht es noch für ein paar Fahrten. Mehr Energie gibt es für Lernrunden.', { icon: 'blitz', dauer: 6500 }); return; }
     if (['lok', 'linie', 'verkauft', 'ausbau', 'werk', 'volldampf', 'lernbonus', 'baustart', 'belohnung', 'gebaeude', 'projektStart'].indexOf(art) >= 0) { aufgabenSig = ''; A.zeichneNetz(); }
+  }
+  // Werkstatt-Hinweise: höchstens alle 20 s einer (bei vielen Zügen sonst ein Hinweis nach dem anderen)
+  let werkHinweisZeit = 0;
+  function werkHinweis(html, l, dringend) {
+    if (!dringend && Date.now() - werkHinweisZeit < 20000) return;
+    werkHinweisZeit = Date.now();
+    G.toast(wurzel, html, { icon: 'werkstatt', dauer: dringend ? 6500 : 5000, beiTipp: () => lokDetail(l) });
   }
   function kurzFakt(s) { return s.ware ? 'Von hier kommt: ' + D.WAREN[s.ware].name + '.' : s.fakt.split('. ')[0] + (s.fakt.indexOf('. ') > 0 ? '.' : ''); }
   let kohleWarnZeit = 0;
@@ -404,7 +425,7 @@ const Volldampf = (function () {
         '<div class="vd-seite-kopf"><span class="gz-ueber">Aufträge</span><span class="vd-anzahl"></span></div><div class="vd-auftraege"></div></aside>' +
       '<div class="vd-dock">' +
         '<button class="vd-werkzeug vd-k-bauen" data-aktion="bauen">' + G.icon('gleis') + 'Bauen</button>' +
-        '<button class="vd-werkzeug" data-aktion="loks">' + G.icon('schuppen') + 'Fuhrpark</button>' +
+        '<button class="vd-werkzeug" data-aktion="loks">' + G.icon('schuppen') + 'Fuhrpark<span class="vd-badge vd-werk-zahl"></span></button>' +
         '<button class="vd-werkzeug" data-aktion="album">' + G.icon('album') + 'Sammlung</button>' +
         '<button class="vd-werkzeug" data-aktion="projekte">' + G.icon('kran') + 'Großprojekte</button>' +
         '<span class="vd-dock-trenner"></span>' +
@@ -421,7 +442,7 @@ const Volldampf = (function () {
       auftraege: wurzel.querySelector('.vd-auftraege'), anzahl: wurzel.querySelector('.vd-anzahl'),
       kessel: wurzel.querySelector('.vd-kessel'), kesselZahl: wurzel.querySelector('.vd-kessel-zahl'), kesselEinheit: wurzel.querySelector('.vd-kessel-einheit'),
       kesselBalken: wurzel.querySelector('.vd-kessel .gz-balken-fuell'), kesselKnopf: wurzel.querySelector('.vd-kessel-knopf'),
-      bauen: wurzel.querySelector('.vd-k-bauen'), letzt: {}
+      bauen: wurzel.querySelector('.vd-k-bauen'), werkZahl: wurzel.querySelector('.vd-werk-zahl'), letzt: {}
     };
     hudAktualisieren(jetzt());
   }
@@ -436,6 +457,7 @@ const Volldampf = (function () {
     setzeText(hud.gold, String(S.gold));
     setzeText(hud.laender, String(Object.keys(S.laender).length));
     setzeText(hud.stufe, String(S.level));
+    if (hud.werkZahl) { const n = M.wartungListe().length; setzeText(hud.werkZahl, n ? String(n) : ''); }
     const a = M.xpFuer(S.level), b = M.xpFuer(S.level + 1);
     const anteil = S.level >= M.W.LEVEL_MAX ? 1 : (S.xp - a) / Math.max(1, b - a);
     const tf = 'scaleX(' + Math.max(0, Math.min(1, anteil)).toFixed(3) + ')';
@@ -562,6 +584,23 @@ const Volldampf = (function () {
       case 'sonderBlatt': sonderBlatt(+wert); break;
       case 'sonderFahren': { const i = wert.indexOf(':'), uid = +wert.slice(0, i), id = wert.slice(i + 1); const r = M.sonderFahren(uid, id, j); if (r.ok) { blattZu(); ton('pfiff', M.lok(uid).id); const l = M.lok(uid); A.zeige(l.linie.weg, { rechts: istQuer() ? 340 : 0, zMax: 2.6 }); G.toast(wurzel, lokName(l) + ' dampft los: <b>' + esc(D.LINIE[id].name) + '</b>', { icon: 'dampf', dauer: 4500 }); } else G.toast(wurzel, esc(r.grund), { icon: 'info', dauer: 5000 }); aufgabenSig = ''; break; }
       case 'depot': M.insDepot(+wert, j); blattZu(); lokBlatt('meine'); break;
+      case 'wartung': {
+        const r = M.wartung(+wert, j), l = M.lok(+wert);
+        if (!r.ok) { G.toast(wurzel, esc(r.grund), { icon: 'werkstatt' }); break; }
+        ton('fertig');
+        G.toast(wurzel, '<b>' + esc(lokNummer(l)) + '</b> ' + (r.geplant ? 'fährt nach der Ankunft in die Werkstatt.' : 'ist in der Werkstatt bis ' + M.uhr(r.ende) + ' Uhr.') + ' Kosten: ' + geld(r.kosten) + '.', { icon: 'werkstatt', dauer: 4000 });
+        const offen = blattArt === 'loks';
+        blattZu(); if (offen) lokBlatt('meine'); else lokDetail(l);
+        break;
+      }
+      case 'wartungAlle': {
+        let n = 0, summe = 0, grund = '';
+        M.wartungListe().forEach(l => { const r = M.wartung(l.uid, j); if (r.ok) { n++; summe += r.kosten; } else if (!grund) grund = r.grund; });
+        if (n) { ton('fertig'); G.toast(wurzel, (n === 1 ? '1 Zug ist' : n + ' Züge sind') + ' auf dem Weg in die Werkstatt. Kosten: ' + geld(summe) + '.' + (grund ? ' Für den Rest reicht das Geld nicht.' : ''), { icon: 'werkstatt', dauer: 4500 }); }
+        else if (grund) G.toast(wurzel, esc(grund), { icon: 'werkstatt' });
+        blattZu(); lokBlatt('meine');
+        break;
+      }
       case 'verkaufen': { const r = M.verkaufeLok(+wert, j); blattZu(); if (r.ok) G.toast(wurzel, 'Verkauft für ' + geld(r.preis) + '.', { icon: 'muenze' }); else G.toast(wurzel, esc(r.grund), { icon: 'info' }); lokBlatt('meine'); break; }
       case 'werk': { const [uid, art] = wert.split(':'); const r = M.werkstatt(+uid, art, j); if (!r.ok) G.toast(wurzel, esc(r.grund), { icon: 'info' }); else { ton('bau'); blattZu(); lokBlatt('meine'); } break; }
       case 'tabMeine': blattZu(); lokBlatt('meine'); break;
@@ -815,16 +854,23 @@ const Volldampf = (function () {
         (bt.ausgewogen ? 'Dein Betrieb ist ausgewogen: alle Einnahmen <b>+' + Math.round((bt.bonus - 1) * 100) + ' %</b>.'
           : bt.fehlt === 'gueter' ? 'Dir fehlen Güterzüge – in den Lagern stapeln sich die Kisten. Mit einem Güterzug je drei Personenzüge gibt es <b>+' + Math.round((bt.bonus - 1) * 100) + ' %</b> auf alle Einnahmen.'
           : 'Du hast mehr Güter- als Personenzüge – an den Bahnhöfen warten Fahrgäste. Im Gleichgewicht gibt es <b>+' + Math.round((bt.bonus - 1) * 100) + ' %</b> auf alle Einnahmen.'), bt.ausgewogen) + '</div>';
+      const werk = M.wartungListe();
+      if (werk.length) {
+        const summe = werk.reduce((n, l) => n + M.wartungInfo(l).kosten, 0), liegen = werk.filter(l => l.status === 'stoerung').length;
+        h += '<div style="margin-bottom:12px">' + G.notiz('werkstatt', '<b>' + (werk.length === 1 ? '1 Zug braucht' : werk.length + ' Züge brauchen') + ' die Werkstatt' + (liegen ? ', ' + liegen + ' davon ' + (liegen === 1 ? 'ist' : 'sind') + ' liegengeblieben' : '') + '.</b> ' +
+          'Je länger ein Zug fährt, desto mehr nutzt er sich ab.' +
+          '<div style="margin-top:10px">' + G.knopf('Alle in die Werkstatt · ' + geld(summe), { art: 'primaer', klein: true, icon: 'werkstatt', aktion: 'wartungAlle' }) + '</div>', true) + '</div>';
+      }
       h += '<div class="vd-zeilen">';
       if (!S.loks.length) h += G.notiz('schuppen', 'Du hast noch keinen Zug. Unter <b>Züge kaufen</b> findest du deinen ersten.', true);
       S.loks.forEach(l => {
         const L = D.LOK[l.id], w = M.lokWerte(l);
         const lin = l.linie ? (l.linie.sonder ? 'Sonderfahrt · ' : '') + esc(D.STADT[l.linie.von].name) + ' ⇄ ' + esc(D.STADT[l.linie.nach].name) + ' · ' + l.linie.km + ' km · ' + minText(M.fahrzeitMs(l.linie.km, w.kmh)) : L.antrieb === 'dampf' ? 'Wartet im Lokschuppen auf eine Sonderfahrt' : 'Steht im Depot, keine Linie';
-        const st = !l.linie ? '' : l.status === 'kohle' ? ' · <span style="color:var(--gz-fehler)">Energie fehlt</span>' : l.status === 'faehrt' ? ' · fährt' : ' · hält';
+        const st = werkStatus(l) || (!l.linie ? '' : l.status === 'kohle' ? ' · <span style="color:var(--gz-fehler)">Energie fehlt</span>' : l.status === 'faehrt' ? ' · fährt' : ' · hält');
         const farbe = l.linie ? '<i class="vd-linienfarbe" style="background:' + A.FARBEN[(l.f || 0) % A.FARBEN.length] + '"></i>' : '';
         h += '<div class="vd-lokkarte">' + LOK_ZEICHNUNG(L) + '<div class="vd-lokkarte-text"><div class="vd-lokkarte-name">' + farbe + G.schild(lokNummer(l), !!L.gold) + (l.name ? '<small>„' + esc(l.name) + '“</small>' : L.spitzname ? '<small>„' + esc(L.spitzname) + '“</small>' : '') + '</div>' +
-          '<div class="vd-lokkarte-info">' + lin + st + '</div><div class="vd-lokkarte-info">' + esc(L.reihe) + ' · ' + l.stat.fahrten + ' Fahrten · ' + geld(l.stat.taler) + ' eingefahren</div>' +
-          '<div class="vd-lokkarte-knoepfe">' + G.knopf(L.antrieb === 'dampf' ? 'Sonderfahrt wählen' : l.linie ? 'Linie ändern' : 'Linie wählen', { art: 'primaer', klein: true, aktion: 'linie', wert: l.uid }) +
+          '<div class="vd-lokkarte-info">' + lin + st + '</div><div class="vd-lokkarte-info">' + esc(L.reihe) + ' · ' + l.stat.fahrten + ' Fahrten · ' + geld(l.stat.taler) + ' eingefahren</div>' + zustandHtml(l) +
+          '<div class="vd-lokkarte-knoepfe">' + wartungKnopf(l) + G.knopf(L.antrieb === 'dampf' ? 'Sonderfahrt wählen' : l.linie ? 'Linie ändern' : 'Linie wählen', { art: dringend(l) ? null : 'primaer', klein: true, aktion: 'linie', wert: l.uid }) +
           (l.linie ? G.knopf('Ins Depot', { klein: true, aktion: 'depot', wert: l.uid }) : '') +
           (!L.gold && S.loks.length > 1 ? G.knopf('Verkaufen · ' + geld(M.verkaufPreis(l)), { klein: true, aktion: 'verkaufen', wert: l.uid }) : '') +
           (M.werkOffen() && L.antrieb === 'dampf' ? ['kessel', 'wagen'].map(a => { const p = M.werkPreis(l, a); return p == null ? '' : G.knopf((a === 'kessel' ? 'Kessel +15 %' : 'Wagen +25 %') + ' · ' + geld(p), { aus: S.taler < p, klein: true, icon: 'werkstatt', aktion: 'werk', wert: l.uid + ':' + a }); }).join('') : '') +
@@ -875,6 +921,30 @@ const Volldampf = (function () {
     h += '</div>';
     blatt(h, { art: 'loks' });
   }
+  // ---------------------------------------------------------------- Verschleiß (19.11.2026)
+  function zustandHtml(l) {
+    if (!M.verschleisst(l)) return '';
+    const z = Math.round(l.zustand), kl = z <= M.W.WARTUNG_AB ? 'vd-schlecht' : z <= 50 ? 'vd-mittel' : 'vd-gut';
+    return '<div class="vd-zustand ' + kl + '"><span class="gz-ueber">Zustand</span><b>' + z + ' %</b>' + G.balken(z / 100, false, z > 50) + '</div>';
+  }
+  function werkStatus(l) {
+    if (!M.verschleisst(l)) return '';
+    const rot = t => ' · <span style="color:var(--gz-fehler)">' + t + '</span>';
+    if (l.status === 'werkstatt') return ' · <span style="color:var(--gz-info)">in der Werkstatt bis ' + M.uhr(l.werkstatt.ende) + ' Uhr</span>';
+    if (l.status === 'stoerung') return rot('liegengeblieben in ' + esc(D.STADT[l.ort].name));
+    if (l.status === 'faellig') return rot('wartet auf die Werkstatt');
+    if (l.zurWartung) return ' · fährt danach in die Werkstatt';
+    return '';
+  }
+  function dringend(l) { const i = M.wartungInfo(l); return !!(i && !i.werkstatt && !i.geplant && (i.stoerung || i.faellig)); }
+  function wartungKnopf(l, gross) {
+    const i = M.wartungInfo(l);
+    if (!i || i.werkstatt || i.geplant) return '';
+    const o = { klein: !gross, breit: !!gross, icon: 'werkstatt', aktion: 'wartung', wert: l.uid };
+    if (i.stoerung) return G.knopf('Abschleppen · ' + geld(i.kosten), Object.assign(o, { art: 'primaer' }));
+    if (i.faellig) return G.knopf('Zur Wartung · ' + geld(i.kosten), Object.assign(o, { art: 'primaer' }));
+    return i.ok ? G.knopf('Wartung · ' + geld(i.kosten), o) : '';
+  }
   function lokDetail(l) {
     const L = D.LOK[l.id];
     let h = G.kopf(lokNummer(l) + (l.name ? ' „' + l.name + '“' : L.spitzname ? ' „' + L.spitzname + '“' : ''), esc(L.reihe), 'lok', 'Zug im Einsatz') + '<div class="gz-inhalt">' + LOK_ZEICHNUNG(L, 'gross') +
@@ -884,7 +954,17 @@ const Volldampf = (function () {
     if (l.fahrt) { zeilen.push(['An Bord', l.fahrt.pax + ' Fahrgäste' + (l.fahrt.ware ? ' · ' + l.fahrt.menge + ' Kisten ' + esc(D.WAREN[l.fahrt.ware].name) : '')]); zeilen.push(['Ankunft', M.uhr(l.fahrt.ende) + ' Uhr in ' + esc(D.STADT[l.fahrt.nach].name)]); }
     zeilen.push(['Antrieb', D.ANTRIEB[L.antrieb].name + ' · ' + D.ANTRIEB[L.antrieb].stoff]);
     zeilen.push(['Bisher', l.stat.fahrten + ' Fahrten · ' + geld(l.stat.taler)]);
-    h += '<div style="margin-top:12px">' + G.daten(zeilen) + '</div><div class="vd-aktionen">' + G.knopf(L.antrieb === 'dampf' ? 'Sonderfahrt wählen' : 'Linie ändern', { art: 'primaer', aktion: 'linie', wert: l.uid, breit: true }) +
+    const wi = M.wartungInfo(l);
+    if (wi) {
+      zeilen.push(['Zustand', Math.round(l.zustand) + ' %' + (l.status === 'stoerung' ? ' · liegengeblieben' : wi.faellig ? ' · Wartung fällig' : '')]);
+      if (wi.werkstatt) zeilen.push(['Werkstatt', 'fertig um ' + M.uhr(wi.werkstatt.ende) + ' Uhr']);
+      else zeilen.push([wi.stoerung ? 'Abschleppen' : 'Wartung', geld(wi.kosten) + ' · ' + Math.round(wi.dauer / 60000) + ' Std. · danach ' + wi.nachher + ' %']);
+      zeilen.push(['Seit der Wartung', G.zahl(Math.round(l.seit.km)) + ' km' + (l.wartungen ? ' · ' + l.wartungen + '× gewartet' : '')]);
+    }
+    h += '<div style="margin-top:12px">' + G.daten(zeilen) + '</div>' +
+      (wi && l.status === 'stoerung' ? '<div style="margin-top:12px">' + G.notiz('werkstatt', 'Der Zug ist liegengeblieben. Abschleppen kostet doppelt so viel wie eine Wartung zur rechten Zeit.', true) + '</div>' : '') +
+      (wi && !wi.bw ? '<div style="margin-top:12px">' + G.notiz('schuppen', 'Mit einem <b>Betriebswerk</b> in deinem Netz geht die Wartung doppelt so schnell und kostet ein Viertel weniger.') + '</div>' : '') +
+      '<div class="vd-aktionen">' + wartungKnopf(l, true) + G.knopf(L.antrieb === 'dampf' ? 'Sonderfahrt wählen' : 'Linie ändern', { art: dringend(l) ? null : 'primaer', aktion: 'linie', wert: l.uid, breit: true }) +
       G.knopf(l.name ? 'Umtaufen · 1 Goldticket' : 'Zug taufen · 1 Goldticket', { icon: 'ticket', aktion: 'taufBlatt', wert: l.uid, breit: true }) + '</div></div>';
     blatt(h);
   }
@@ -1168,7 +1248,7 @@ const Volldampf = (function () {
     ton('land');
     const rumpf = N.punkte.map(p => G.notiz(p.icon, '<b>' + esc(p.titel) + '</b> ' + esc(p.text))).join('');
     return G.buehne(wurzel, G.karte({ ueber: esc(N.unter || 'Neu bei Volldampf'), titel: esc(N.titel), rumpf }), N.knopf || 'Weiter')
-      .then(() => { M.neuerungGesehen(N.id); speichern(); if (N.zeige === 'projekte') projekteBlatt(); });
+      .then(() => { M.neuerungGesehen(N.id); speichern(); if (N.zeige === 'projekte') projekteBlatt(); else if (N.zeige === 'fuhrpark') lokBlatt('meine'); });
   }
 
   // ---------------------------------------------------------------- Großprojekte (echte Bauwerke, drei Bauabschnitte, eine Großbaustelle)
@@ -1359,9 +1439,11 @@ const Volldampf = (function () {
     const S = M.zustand(), min = Math.round(b.weg / 60000);
     const wegTxt = min < 90 ? min + ' Minuten' : min < 60 * 36 ? Math.round(min / 60) + ' Stunden' : Math.round(min / 1440) + ' Tagen';
     const kohleLeer = S.loks.some(l => l.status === 'kohle');
+    const werk = M.wartungListe().length;
     return G.buehne(wurzel, G.karte({ ueber: 'Betriebsbericht', titel: 'Willkommen zurück', unter: 'Seit deinem letzten Besuch sind ' + wegTxt + ' vergangen.',
       rumpf: G.daten([['Fahrten', G.zahl(b.fahrten), { zahl: true }], ['Fahrgäste', G.zahl(b.fahrgaeste), { zahl: true }], b.kisten ? ['Kisten', G.zahl(b.kisten), { zahl: true }] : null, ['Einnahmen', geld(b.taler), { zahl: true }]]) +
-        (kohleLeer ? '<div style="margin-top:12px">' + G.notiz('blitz', 'Zwischendurch war die Energie alle. Ein größeres Energielager oder eine Lernrunde hilft.', true) + '</div>' : '') }), 'Weiter');
+        (kohleLeer ? '<div style="margin-top:12px">' + G.notiz('blitz', 'Zwischendurch war die Energie alle. Ein größeres Energielager oder eine Lernrunde hilft.', true) + '</div>' : '') +
+        (werk ? '<div style="margin-top:12px">' + G.notiz('werkstatt', '<b>' + (werk === 1 ? '1 Zug wartet' : werk + ' Züge warten') + ' auf die Werkstatt.</b> Ohne dich fahren abgenutzte Züge nicht weiter. Im <b>Fuhrpark</b> schickst du sie hin.', true) + '</div>' : '') }), 'Weiter');
   }
 
   // ---------------------------------------------------------------- Lernbonus (Ferientraining = dieselben Lernrunden wie beim Hof)
@@ -1575,6 +1657,7 @@ const Volldampf = (function () {
       regel('bahnhof', 'Bahnhöfe ausbauen', 'Tippe auf einen Bahnhof: Stellwerk, Gaststätte, Güterhalle und Betriebswerk machen ihn stärker. Zoome heran, dann siehst du sie.') +
       regel('blitz', 'Energie und Oberleitung', 'Dampfloks verbrennen Kohle, Dieselloks tanken Diesel, E-Loks und ICEs fahren mit Strom aus der Oberleitung. Welche Strecken eine haben, ist wie in echt (blaue Schiene, Masten) – ab Stufe ' + M.W.OL_LEVEL + ' kannst du fehlende nachrüsten: Strecke antippen. Der Wasserstoffzug macht seinen Strom selbst. Ohne dich reicht das Energielager nur eine Weile.') +
       regel('volldampf', 'Lernen', 'Jede Lernrunde in der Lern-App bringt Energie und Volldampf (doppeltes Tempo). Dazu gibt es Goldtickets für besondere Züge – höchstens ' + M.W.LERN_GOLD_TAG + ' am Tag, damit sie etwas Besonderes bleiben.') +
+      regel('werkstatt', 'Werkstatt', 'Jeder Zug nutzt sich beim Fahren ab. Ab ' + M.W.WARTUNG_AB + ' % muss er in die Werkstatt, sonst bleibt er liegen. Ein Betriebswerk macht die Wartung schneller und billiger. Alte Züge erholen sich nicht mehr ganz – irgendwann lohnt ein neuer.') +
       regel('uhr', 'Bahnzeit', 'Bei der Bahn vergeht die Zeit 60-mal schneller: 1 Sekunde ist 1 Minute, ein Tag dauert 24 Minuten.') +
       '</div><div class="vd-aktionen">' + G.knopf(M.zustand().ton === false ? 'Ton einschalten' : 'Ton ausschalten', { icon: 'ton', aktion: 'tonUm', breit: true }) + G.knopf('Einführung noch einmal', { aktion: 'guideNochmal', breit: true }) + '</div></div>';
     blatt(h, { art: 'ziel' });
