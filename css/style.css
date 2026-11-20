@@ -2086,3 +2086,38 @@ mark.fm-A { background: #E7DAF3; color: inherit; padding: 1px 5px; border-radius
 .fall-tipp { font-size: 14px; color: var(--ink-soft); }
 .fall-tabelle { border-collapse: collapse; width: 100%; font-size: 15px; text-align: center; }
 .fall-tabelle th, .fall-tabelle td { border: 1px solid var(--border); padding: 6px 8px; }
+
+/* =====================================================================
+   Zahlen bis 1 000 000 (Mathe-Test 23.11.2026) – Wunsch: „Zahlenstrahle sollten aber sichtbar sein.
+   mache alles nicht zu klein.“ Zahlen in Dreiergruppen mit schmalem Leerzeichen (bricht nie um).
+   ===================================================================== */
+.mio-zahl { display: inline-block; margin-top: 10px; font-size: 1.45em; font-weight: 800; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.mio-hilfe { font-size: 20px; line-height: 1.6; }
+.hilfe-box .mio-zahl { font-size: 1.45em; margin-top: 6px; }
+.mio-wort { display: inline-block; margin-top: 10px; font-size: 1.2em; font-weight: 800; color: var(--accent); overflow-wrap: anywhere; }
+.mio-klein { font-size: .72em; font-weight: 500; opacity: .8; }
+.mio-strahl { display: block; width: 100%; height: auto; margin: 14px auto 2px; }
+.mio-tafel { border-collapse: collapse; margin: 12px auto; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mio-tafel th, .mio-tafel td { border: 2px solid var(--border); padding: 6px 16px; text-align: center; }
+.mio-tafel th { font-size: 20px; opacity: .85; }
+.mio-karte { display: inline-block; margin: 0 6px; padding: 4px 16px; border: 2px solid var(--border); border-radius: 10px; background: var(--muted); }
+.mio-punkt { position: relative; color: var(--accent); }
+.mio-punkt::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: currentColor; }
+.mio-strich { text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 7px; color: #E0A552; }
+.mio-regel { margin-bottom: 16px; font-size: 19px; line-height: 1.6; }
+.mio-regel > div { margin-top: 8px; }
+.optionen-gross { grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 560px; margin: 0 auto; }
+.optionen-gross .option-btn { font-size: 46px; font-weight: 800; padding: 18px 0; }
+/* Ordnen: Karten antippen, sie wandern in die Reihe; Tipp auf eine gelegte Karte nimmt sie zurück */
+.ordnen-ziel { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; min-height: 84px; margin: 4px auto 18px; padding: 12px; border: 2px dashed var(--border); border-radius: 16px; }
+.ordnen-ziel.richtig { border: 2px solid #2FBF71; }
+.ordnen-ziel.falsch { border: 2px solid #E5484D; }
+.ordnen-platz { min-width: 118px; padding: 10px 14px; border-radius: 12px; border: 2px solid #E0A552; background: rgba(255,180,58,.16); font-size: 27px; font-weight: 800; text-align: center; cursor: pointer; font-variant-numeric: tabular-nums; }
+.ordnen-platz.leer { background: transparent; border-style: dashed; border-color: var(--border); opacity: .5; cursor: default; }
+.ordnen-zeichen { font-size: 32px; font-weight: 800; }
+.ordnen-karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.ordnen-karten .ordnen-karte { font-size: 30px; font-weight: 800; padding: 18px 8px; text-align: center; font-variant-numeric: tabular-nums; }
+.ordnen-karten .ordnen-weg { opacity: .15; pointer-events: none; }
+.ordnen-ok-zeile { display: flex; justify-content: center; margin-top: 18px; }
+.ordnen-ok-zeile .key-btn { min-width: 220px; padding: 16px 30px; font-size: 26px; text-align: center; }
+.ordnen-ok-zeile .key-btn.ordnen-gesperrt { opacity: .35; }

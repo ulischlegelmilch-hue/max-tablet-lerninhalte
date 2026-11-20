@@ -33,14 +33,36 @@ const Mathe = (function () {
     return idx;
   }
 
+  // 20.11.2026 (Papa: „die vorherigen matheaufgaben, außer natürlich einmaleins kannst du entfernen“): die alten
+  // Bereiche sind nur ausgeblendet, der Code bleibt – true holt sie zurück. Neu oben: Zahlen bis 1 000 000 (Test 23.11.).
+  // ACHTUNG nach dem Test (23.11.2026): Papa fragen, welche alten Bereiche zurückkommen sollen (Geometrie?).
+  const ALTE_AUFGABEN_ZEIGEN = false;
+  const TEST_TAG = '2026-11-23';
+
+  // „Test am Montag“ / „Test morgen“ / „Test heute“ – relativ statt Datum; nach dem Test nichts
+  function testHinweis() {
+    const heute = new Date(); heute.setHours(0, 0, 0, 0);
+    const tage = Math.round((new Date(TEST_TAG + 'T00:00:00') - heute) / 86400000);
+    return tage < 0 ? '' : tage === 0 ? ' – Test heute' : tage === 1 ? ' – Test morgen' : ' – Test am Montag';
+  }
+
+  function kategorieText() {
+    return ALTE_AUFGABEN_ZEIGEN ? 'Aufgaben, Malfolgen, Geometrie' : 'Zahlen bis 1 000 000, Malfolgen';
+  }
+
   function renderMenu() {
-    App.render(App.subMenuHtml('Mathe', [
+    const alte = ALTE_AUFGABEN_ZEIGEN ? [
       ...(typeof Grundbegriffe !== 'undefined' ? [Grundbegriffe.menueEintrag('mathe')] : []),
       { icon: 'tagesaufgabe', titel: 'Gemischte Aufgaben', onclick: 'Mathe.starteTagesaufgabe()' },
       { icon: 'tagesaufgabe', titel: 'Zahlen bis 10 000 & Rechenregeln', onclick: 'Mathe.starteFerienTraining()' },
       { icon: 'wortarten', titel: 'Rechenarten & Fachbegriffe', onclick: 'Mathe.renderFachbegriffeMenu()' },
       { icon: 'geometrie', titel: 'Geometrie-Lernkarten', onclick: "Heimatkunde.starteThemenwahl('geo')" },
-      { icon: 'geometrie', titel: 'Geometrie-Aufgaben', onclick: 'Geometrie.starteTraining()' },
+      { icon: 'geometrie', titel: 'Geometrie-Aufgaben', onclick: 'Geometrie.starteTraining()' }
+    ] : [];
+    App.render(App.subMenuHtml('Mathe', [
+      { icon: 'tagesaufgabe', titel: 'Zahlen bis 1 000 000' + testHinweis(), onclick: 'Mathe.starteMioTraining()' },
+      { icon: 'lesen', titel: 'So geht’s: Zahlen bis 1 000 000', onclick: 'Mathe.zeigeMioRegeln()' },
+      ...alte,
       { icon: 'malfolgen', titel: 'Malfolgen üben', onclick: 'Mathe.starteMalfolgenKarten()' },
       { icon: 'taktik', titel: 'Malfolgen-Fortschritt', onclick: 'Mathe.renderMalfolgenUebersicht()' },
       { icon: 'einstellungen', titel: 'Reihen wählen', onclick: 'Mathe.renderReihenwahl()' }
@@ -3018,6 +3040,517 @@ const Mathe = (function () {
     starter();
   }
 
+  // ============================================================
+  // Test „Zahlen bis 1 000 000“ (Mo 23.11.2026, 3. Stunde; Vorbereitung Buch S. 22–29, Arbeitsheft S. 6–15,
+  // Fotos 20.11.2026): Stellenwerte HT ZT T H Z E, Zahlwörter, vergleichen, ordnen, Vorgänger/Nachfolger,
+  // Nachbarzahlen (NZ … NHT), Zahlenstrahl, Zählen in Schritten (vor- UND rückwärts), Ergänzen, Runden.
+  // Im Heft fielen auf: rückwärts wie vorwärts gezählt (AH S. 10), Zehntausenderschritte mit krummem Start
+  // (AH S. 14), Runden (AH S. 13) - diese Arten kommen öfter dran (MIO_BASISGEWICHT).
+  // Generatoren heißen genMio*: der Schwierigkeits-Audit prüft sie mit der Grenze 1 000 000.
+  // Papa 20.11.: „Zahlenstrahle sollten aber sichtbar sein. mache alles nicht zu klein.“ -> große Zahlen
+  // (.mio-zahl), großer Zahlenstrahl (.mio-strahl), große Antwortknöpfe (grosseOptionen, typ 'ordnen').
+  // ============================================================
+  const NNBSP = ' ';
+  // Wie im Buch: Dreiergruppen mit schmalem Leerzeichen (357 269)
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, NNBSP); }
+  const gross = s => `<span class="mio-zahl">${s}</span>`;
+  const MIO_STELLEN = ['HT', 'ZT', 'T', 'H', 'Z', 'E'];
+  const MIO_NAMEN = ['Hunderttausender', 'Zehntausender', 'Tausender', 'Hunderter', 'Zehner', 'Einer'];
+  const MIO_WERTE = [100000, 10000, 1000, 100, 10, 1];
+
+  function mioZiffern(n) { return String(n).padStart(6, '0').split('').map(Number); }
+  function ausZiffern(z) { return z.reduce((s, a, i) => s + a * MIO_WERTE[i], 0); }
+  // Sechsstellige Zahl, mit Nullen (wie 705 026), wenn mitNull
+  function mioZahl(mitNull) {
+    const z = [rnd(1, 9)];
+    for (let i = 1; i < 6; i++) z.push(mitNull && Math.random() < 0.25 ? 0 : rnd(0, 9));
+    return ausZiffern(z);
+  }
+  function gewichtetWaehlen(liste) {
+    let ziel = Math.random() * liste.reduce((s, x) => s + x.gewicht, 0);
+    for (const x of liste) { ziel -= x.gewicht; if (ziel <= 0) return x; }
+    return liste[liste.length - 1];
+  }
+
+  function mioTafel(z) {
+    const kopf = MIO_STELLEN.map(s => `<th>${s}</th>`).join('');
+    const zellen = z.map(a => `<td>${a}</td>`).join('');
+    return `<table class="mio-tafel"><tr>${kopf}</tr><tr>${zellen}</tr></table>`;
+  }
+
+  // ---- Stellenwerttafel: „2 HT 3 ZT 8 T 4 H 1 Z 2 E“ (auch durcheinander, 0-Stellen fehlen) -> Zahl ----
+  function genMioStellenwertFrage() {
+    const n = mioZahl(true), z = mioZiffern(n);
+    const durcheinander = Math.random() < 0.5;
+    const idx = durcheinander ? shuffle([0, 1, 2, 3, 4, 5]) : [0, 1, 2, 3, 4, 5];
+    const nullZeigen = !durcheinander && Math.random() < 0.5;   // wie im Buch: „7 HT 1 ZT 0 T 5 H 0 Z 1 E“
+    const teile = idx.filter(i => z[i] !== 0 || nullZeigen).map(i => `${z[i]}${NNBSP}${MIO_STELLEN[i]}`);
+    return {
+      typ: 'numeric',
+      frage: `Trage in die Stellenwerttafel ein. Wie heißt die Zahl?<br>${gross(teile.join(' &nbsp; '))}`,
+      antwort: n,
+      hilfe: `Stellenwerttafel: <strong>HT ZT T H Z E</strong>. Jede Ziffer kommt an ihren Platz – egal, in welcher Reihenfolge sie genannt wird. Was nicht genannt wird, ist eine <strong>0</strong>.${mioTafel(z)}<strong>${fmt(n)}</strong>`
+    };
+  }
+
+  // ---- Zahl als Additionsaufgabe (Zerlegen) ----
+  function genMioZerlegenFrage() {
+    const n = mioZahl(true), z = mioZiffern(n);
+    const teile = z.map((a, i) => a * MIO_WERTE[i]);
+    const voll = teile.filter(t => t > 0);
+    const plus = arr => arr.map(fmt).join(' + ');
+    const hilfe = `Zerlege nach Stellen – jede Ziffer mal ihr Stellenwert:${mioTafel(z)}<strong>${fmt(n)} = ${plus(voll)}</strong><br>Steht an einer Stelle eine 0, fällt dieser Teil weg.`;
+    const kandidaten = teile.map((t, i) => i).filter(i => i > 0 && teile[i] > 0);
+    if (Math.random() < 0.5 && kandidaten.length) {
+      const l = kandidaten[rnd(0, kandidaten.length - 1)];
+      const anzeige = teile.map((t, i) => i === l ? '▢' : t > 0 ? fmt(t) : null).filter(Boolean).join(' + ');
+      return { typ: 'numeric', frage: `Welche Zahl gehört in das Kästchen?<br>${gross(`${fmt(n)} = ${anzeige}`)}`, antwort: teile[l], hilfe };
+    }
+    return { typ: 'numeric', frage: `Welche Zahl ist es?<br>${gross(`${plus(voll)} = ?`)}`, antwort: n, hilfe };
+  }
+
+  // ---- Zahlwort -> Zahl (bis 999 999) ----
+  function zahlwortBis999(n, amEnde) {
+    const h = Math.floor(n / 100), r = n % 100;
+    let w = h ? `${ZW_EINER[h]}hundert` : '';
+    if (r === 1) w += amEnde ? 'eins' : 'ein';
+    else if (r > 1) w += zahlwortBis99(r);
+    return w;
+  }
+  function zahlwortMio(n) {
+    if (n === 1000000) return 'eine Million';
+    const t = Math.floor(n / 1000), rest = n % 1000;
+    return (t ? zahlwortBis999(t, false) + 'tausend' : '') + (rest ? zahlwortBis999(rest, true) : '');
+  }
+  function genMioZahlwortFrage() {
+    const n = Math.random() < 0.3 ? rnd(10000, 99999) : mioZahl(true);
+    const t = Math.floor(n / 1000), rest = n % 1000;
+    return {
+      typ: 'numeric',
+      verlaufText: `Zahlwort: ${zahlwortMio(n)}`,
+      frage: `Schreibe die Zahl mit Ziffern:<br><span class="mio-wort">${zahlwortMio(n).replace(/(tausend|hundert)(?!$)/g, '$1<wbr>')}</span>`,
+      antwort: n,
+      hilfe: `Teile das Wort beim „tausend“: <strong>${zahlwortBis999(t, false)}</strong> | tausend | <strong>${rest ? zahlwortBis999(rest, true) : '(nichts mehr)'}</strong><br>` +
+        `Vor „tausend“ steht ${t}, danach kommen immer genau drei Stellen: ${String(rest).padStart(3, '0')}.<br>` +
+        `Fehlt hinten etwas, sind es Nullen (dreihunderttausendvierzig = 300${NNBSP}040).<br>${gross(fmt(n))}`
+    };
+  }
+
+  // ---- Vergleichen <, >, = ----
+  function hilfeVergleich(a, b) {
+    const la = String(a).length, lb = String(b).length;
+    const zeichen = a < b ? '<' : a > b ? '>' : '=';
+    let grund;
+    if (la !== lb) grund = `${fmt(la > lb ? a : b)} hat ${Math.max(la, lb)} Stellen, ${fmt(la > lb ? b : a)} nur ${Math.min(la, lb)}. Mehr Stellen heißt: größere Zahl.`;
+    else if (a === b) grund = 'Alle Ziffern sind gleich.';
+    else {
+      const za = mioZiffern(a), zb = mioZiffern(b);
+      const k = za.findIndex((x, i) => x !== zb[i]);
+      grund = `Von links sind die Ziffern gleich bis zu den <strong>${MIO_NAMEN[k]}n</strong>: ${za[k]} ${za[k] < zb[k] ? '<' : '>'} ${zb[k]}. Die Stellen danach zählen nicht mehr.`;
+    }
+    return `Vergleiche schrittweise von links: erst die Anzahl der Stellen, dann HT, ZT, T, H, Z, E.<br>${grund}<br>${gross(`${fmt(a)} ${zeichen} ${fmt(b)}`)}`;
+  }
+  // Zwei ähnliche Zahlen: gleich, verschieden lang oder gleicher Anfang mit Unterschied an einer Stelle
+  function mioPaar() {
+    const art = Math.random();
+    const a = Math.random() < 0.25 ? rnd(10000, 99999) : mioZahl(true);
+    if (art < 0.1) return [a, a];
+    if (art < 0.25) return shuffle([mioZahl(true), rnd(10000, 99999)]);
+    const z = mioZiffern(a), z2 = z.slice();
+    const k = rnd(String(a).length === 5 ? 2 : 1, 5);
+    do { z2[k] = rnd(0, 9); } while (z2[k] === z[k]);
+    for (let i = k + 1; i < 6; i++) z2[i] = rnd(0, 9);
+    return shuffle([a, ausZiffern(z2)]);
+  }
+  function genMioVergleichFrage() {
+    const optionen = ['<', '>', '='];
+    if (Math.random() < 0.2) {
+      // wie im Heft „4 576 ◯ 4 000 + 90“: rechts zwei Stellenwerte als Summe
+      // links eine sechsstellige Zahl, rechts derselbe Hunderttausender (oder einer daneben) plus ein kleinerer Stellenwert
+      const a = mioZahl(true), z = mioZiffern(a);
+      const ht = Math.min(9, Math.max(1, z[0] + (Math.random() < 0.35 ? rnd(-1, 1) : 0)));
+      const p1 = ht * 100000, p2 = rnd(1, 9) * MIO_WERTE[rnd(1, 5)];
+      const b = p1 + p2, rechts = Math.random() < 0.5 ? `${fmt(p1)} + ${fmt(p2)}` : `${fmt(p2)} + ${fmt(p1)}`;
+      const zeichen = a < b ? '<' : a > b ? '>' : '=';
+      return {
+        typ: 'mc', grosseOptionen: true,
+        frage: `Vergleiche: Welches Zeichen gehört in den Kreis?<br>${gross(`${fmt(a)} &nbsp;◯&nbsp; ${rechts}`)}`,
+        optionen, richtigIndex: optionen.indexOf(zeichen),
+        hilfe: `Rechne zuerst die rechte Seite aus: ${rechts} = ${fmt(b)}.<br>` + hilfeVergleich(a, b)
+      };
+    }
+    const [a, b] = mioPaar();
+    const zeichen = a < b ? '<' : a > b ? '>' : '=';
+    return {
+      typ: 'mc', grosseOptionen: true,
+      frage: `Vergleiche: Welches Zeichen gehört in den Kreis?<br>${gross(`${fmt(a)} &nbsp;◯&nbsp; ${fmt(b)}`)}`,
+      optionen, richtigIndex: optionen.indexOf(zeichen),
+      hilfe: hilfeVergleich(a, b)
+    };
+  }
+
+  // ---- Ordnen: Karten der Reihe nach antippen (typ 'ordnen', siehe App.renderOrdnen) ----
+  function genMioOrdnenFrage() {
+    const anzahl = rnd(4, 5);
+    const basis = mioZiffern(mioZahl(false));
+    const zahlen = new Set();
+    let versuche = 0;
+    while (zahlen.size < anzahl && versuche++ < 200) {
+      if (Math.random() < 0.15) { zahlen.add(rnd(10000, 99999)); continue; }
+      const z = basis.slice();
+      const k = rnd(1, 4);
+      z[k] = rnd(0, 9);
+      for (let i = k + 1; i < 6; i++) z[i] = rnd(0, 9);
+      zahlen.add(ausZiffern(z));
+    }
+    const liste = shuffle([...zahlen]);
+    const aufsteigend = Math.random() < 0.5;
+    const sortiert = liste.slice().sort((p, q) => aufsteigend ? p - q : q - p);
+    const zeichen = aufsteigend ? '<' : '>';
+    const text = sortiert.map(fmt).join(` ${zeichen} `);
+    return {
+      typ: 'ordnen',
+      frage: `Ordne die Zahlen. Beginne mit der <strong>${aufsteigend ? 'kleinsten' : 'größten'}</strong> Zahl.<br><span class="mio-klein">Tippe die Zahlen der Reihe nach an. Nochmal tippen nimmt eine Zahl zurück.</span>`,
+      karten: liste.map(fmt),
+      reihenfolge: sortiert.map(x => liste.indexOf(x)),
+      zeichen,
+      antwort: text,
+      verlaufText: `Ordnen (${aufsteigend ? 'kleinste' : 'größte'} zuerst): ${liste.map(fmt).join(', ')}`,
+      hilfe: `Vergleiche schrittweise von links: erst die Anzahl der Stellen, dann HT, ZT, T … Wo sich zwei Zahlen zuerst unterscheiden, entscheidet diese Stelle.<br>${gross(text)}`
+    };
+  }
+
+  // ---- Vorgänger / Nachfolger (auch an den Übergängen: 400 000 -> 399 999) ----
+  function genMioVorNachFrage() {
+    const nachfolger = Math.random() < 0.5;
+    let n;
+    if (Math.random() < 0.45) {
+      const rund = rnd(1, 99) * [1000, 10000][rnd(0, 1)];
+      n = Math.min(nachfolger ? rund - 1 : rund, 999999);
+    } else n = mioZahl(true);
+    if (n < 1000) n = 1000;
+    return {
+      typ: 'numeric',
+      frage: `Wie heißt der <strong>${nachfolger ? 'Nachfolger' : 'Vorgänger'}</strong> von ${gross(fmt(n))}?`,
+      antwort: nachfolger ? n + 1 : n - 1,
+      hilfe: `Der <strong>Vorgänger</strong> ist die Zahl direkt davor (1 weniger), der <strong>Nachfolger</strong> die Zahl direkt danach (1 mehr).<br>` +
+        `Vorsicht bei Nullen: Vorgänger von 400${NNBSP}000 ist 399${NNBSP}999, Nachfolger von 89${NNBSP}999 ist 90${NNBSP}000.<br>` +
+        `${gross(`${fmt(n - 1)} ← ${fmt(n)} → ${fmt(n + 1)}`)}`
+    };
+  }
+
+  // ---- Nachbarzahlen NZ, NH, NT, NZT, NHT ----
+  const MIO_NACHBARN = [
+    { kurz: 'NZ', name: 'Nachbarzehner', schritt: 10, wort: 'Zehner' },
+    { kurz: 'NH', name: 'Nachbarhunderter', schritt: 100, wort: 'Hunderter' },
+    { kurz: 'NT', name: 'Nachbartausender', schritt: 1000, wort: 'Tausender' },
+    { kurz: 'NZT', name: 'Nachbarzehntausender', schritt: 10000, wort: 'Zehntausender' },
+    { kurz: 'NHT', name: 'Nachbarhunderttausender', schritt: 100000, wort: 'Hunderttausender' }
+  ];
+  function genMioNachbarFrage() {
+    const art = MIO_NACHBARN[rnd(0, 4)];
+    let n;
+    do { n = Math.random() < 0.2 && art.schritt <= 10000 ? rnd(10001, 99999) : mioZahl(true); } while (n % art.schritt === 0);
+    const unten = Math.floor(n / art.schritt) * art.schritt, oben = unten + art.schritt;
+    const klein = Math.random() < 0.5;
+    return {
+      typ: 'numeric',
+      frage: `Wie heißt der <strong>${klein ? 'kleinere' : 'größere'} ${art.name}</strong> (${art.kurz}) von ${gross(fmt(n))}?`,
+      antwort: klein ? unten : oben,
+      hilfe: `Die ${art.name} sind die zwei vollen ${art.wort}, zwischen denen die Zahl liegt – einer davor, einer danach.<br>` +
+        `Kleinerer: alle Stellen rechts von den ${art.wort}n werden 0. Größerer: dann noch ${fmt(art.schritt)} dazu.<br>` +
+        `<table class="mio-tafel"><tr><th>${art.kurz}</th><th>Zahl</th><th>${art.kurz}</th></tr><tr><td>${fmt(unten)}</td><td>${fmt(n)}</td><td>${fmt(oben)}</td></tr></table>`
+    };
+  }
+
+  // ---- Zahlenstrahl (groß!) ----
+  // 10 kleine Abschnitte zwischen zwei beschrifteten Strichen, der 5. Strich etwas länger (wie im Heft).
+  function svgMioStrahl(start, schritt, grosse, marker) {
+    // viewBox so schmal, dass die Beschriftung in der Frage-Karte (~700 px) etwa 26 px groß erscheint
+    const striche = grosse * 10, x0 = 64, breite = 614, dx = breite / striche, farbe = '#E9ECF5', y = 98;
+    let s = `<svg viewBox="0 0 760 172" class="mio-strahl" xmlns="http://www.w3.org/2000/svg">`;
+    s += `<line x1="${x0 - 16}" y1="${y}" x2="${x0 + breite + 28}" y2="${y}" stroke="${farbe}" stroke-width="3.5"/>`;
+    s += `<polygon points="${x0 + breite + 46},${y} ${x0 + breite + 26},${y - 11} ${x0 + breite + 26},${y + 11}" fill="${farbe}"/>`;
+    for (let i = 0; i <= striche; i++) {
+      const x = x0 + i * dx, g = i % 10 === 0, m = i % 5 === 0;
+      const h = g ? 24 : m ? 16 : 10;
+      s += `<line x1="${x}" y1="${y - h}" x2="${x}" y2="${y + h}" stroke="${farbe}" stroke-width="${g ? 4 : m ? 3 : 2.2}"/>`;
+      if (g) s += `<text x="${x}" y="160" text-anchor="middle" font-size="28" font-weight="700" fill="${farbe}">${fmt(start + i * schritt)}</text>`;
+    }
+    (marker || []).forEach(mk => {
+      const x = x0 + mk.pos * dx;
+      s += `<line x1="${x}" y1="34" x2="${x}" y2="66" stroke="${mk.farbe}" stroke-width="4"/>` +
+        `<polygon points="${x},${y - 20} ${x - 11},${y - 38} ${x + 11},${y - 38}" fill="${mk.farbe}"/>` +
+        `<text x="${x}" y="28" text-anchor="middle" font-size="30" font-weight="800" fill="${mk.farbe}">${mk.text}</text>`;
+    });
+    return s + '</svg>';
+  }
+  function genMioZahlenstrahlFrage() {
+    const schritt = [1, 10, 100, 1000, 10000][rnd(0, 4)];
+    const grosse = rnd(2, 3), spanne = schritt * 10;   // höchstens 30 kleine Striche: gut zählbar
+    const start = rnd(schritt === 10000 ? 0 : Math.ceil(10000 / spanne), Math.floor((1000000 - grosse * spanne) / spanne)) * spanne;
+    const abstand = `Von ${fmt(start)} bis ${fmt(start + spanne)} sind es ${fmt(spanne)}. Dazwischen liegen 10 kleine Abschnitte, also ist <strong>jeder Abschnitt ${fmt(schritt)}</strong>.<br>Der etwas längere Strich in der Mitte ist ${fmt(start + 5 * schritt)}.`;
+    const bereich = `${fmt(start)}–${fmt(start + grosse * spanne)}`;
+    if (Math.random() < 0.25) {
+      return {
+        typ: 'numeric',
+        verlaufText: `Zahlenstrahl ${bereich}: Abstand der kleinen Striche`,
+        frage: `Wie groß ist der Abstand zwischen den kleinen Strichen?${svgMioStrahl(start, schritt, grosse)}`,
+        antwort: schritt,
+        hilfe: abstand
+      };
+    }
+    let pos;
+    do { pos = rnd(1, grosse * 10 - 1); } while (pos % 10 === 0);
+    const basis = start + Math.floor(pos / 10) * spanne, k = pos % 10, ziel = start + pos * schritt;
+    return {
+      typ: 'numeric',
+      verlaufText: `Zahlenstrahl ${bereich} (Abstand ${fmt(schritt)}): Zahl am Pfeil`,
+      frage: `Welche Zahl gehört zum Pfeil?${svgMioStrahl(start, schritt, grosse, [{ pos, text: '?', farbe: '#FF6B6B' }])}`,
+      antwort: ziel,
+      hilfe: abstand + `<br>Der Pfeil steht ${k} Abschnitte hinter ${fmt(basis)}: ${fmt(basis)} + ${fmt(k * schritt)} = <strong>${fmt(ziel)}</strong>.`
+    };
+  }
+
+  // ---- Zählen in Schritten, vorwärts UND rückwärts (Heft: rückwärts wurde vorwärts gezählt) ----
+  const MIO_SCHRITTE = [
+    { w: 100, name: 'Hunderterschritten', stelle: 'Hunderter' },
+    { w: 1000, name: 'Tausenderschritten', stelle: 'Tausender' },
+    { w: 10000, name: 'Zehntausenderschritten', stelle: 'Zehntausender' },
+    { w: 100000, name: 'Hunderttausenderschritten', stelle: 'Hunderttausender' }
+  ];
+  function genMioSchritteFrage() {
+    const s = MIO_SCHRITTE[rnd(0, 3)];
+    const rueck = Math.random() < 0.55;
+    let start;
+    do {
+      start = mioZahl(true);
+      if (s.w >= 1000 && Math.random() < 0.6) start = Math.floor(start / 100) * 100;   // wie 906 200 im Heft
+    } while (rueck ? start - 4 * s.w < 1000 : start + 4 * s.w > 1000000);
+    const d = rueck ? -s.w : s.w;
+    const gezeigt = Math.random() < 0.5 ? [start] : [start, start + d, start + 2 * d];
+    const antwort = gezeigt[gezeigt.length - 1] + d;
+    return {
+      typ: 'numeric',
+      frage: `Zähle <strong>${rueck ? 'rückwärts' : 'vorwärts'}</strong> in ${s.name}. Welche Zahl kommt als Nächstes?<br>${gross(gezeigt.map(fmt).join(', ') + ', ▢')}`,
+      antwort,
+      hilfe: (rueck
+        ? `<strong>Rückwärts</strong> heißt: jedes Mal ${fmt(s.w)} <strong>weniger</strong> (−).`
+        : `<strong>Vorwärts</strong> heißt: jedes Mal ${fmt(s.w)} <strong>mehr</strong> (+).`) +
+        `<br>Schau auf die ${s.stelle}stelle – meistens ändert sich nur sie, alle anderen Ziffern bleiben gleich.<br>${gross([...gezeigt, antwort].map(fmt).join(', '))}`
+    };
+  }
+
+  // ---- Ergänzen zum nächsten Tausender / Zehntausender / Hunderttausender ----
+  function genMioErgaenzenFrage() {
+    const z = [
+      { w: 1000, name: 'Tausender' }, { w: 10000, name: 'Zehntausender' }, { w: 100000, name: 'Hunderttausender' }
+    ][rnd(0, 2)];
+    let n;
+    do { n = Math.floor(mioZahl(true) / (z.w / 100)) * (z.w / 100); } while (n % z.w === 0);
+    const ziel = Math.ceil(n / z.w) * z.w;
+    return {
+      typ: 'numeric',
+      frage: `Ergänze zum nächsten ${z.name}.<br>${gross(`${fmt(n)} + ▢ = ${fmt(ziel)}`)}`,
+      antwort: ziel - n,
+      hilfe: `Wie viel fehlt von ${fmt(n)} bis ${fmt(ziel)}? Rechne in Schritten: erst bis zur nächsten vollen kleineren Stelle, dann weiter bis ${fmt(ziel)}.<br>` +
+        `${gross(`${fmt(n)} + ${fmt(ziel - n)} = ${fmt(ziel)}`)}`
+    };
+  }
+
+  // ---- Runden auf Vielfache von 10 … 100 000 ----
+  const MIO_RUNDEN = [
+    { w: 10, text: '10', achte: 'Einerstelle', gewicht: 1 },
+    { w: 100, text: '100', achte: 'Zehnerstelle', gewicht: 3 },
+    { w: 1000, text: `1${NNBSP}000`, achte: 'Hunderterstelle', gewicht: 3 },
+    { w: 10000, text: `10${NNBSP}000`, achte: 'Tausenderstelle', gewicht: 3 },
+    { w: 100000, text: `100${NNBSP}000`, achte: 'Zehntausenderstelle', gewicht: 2 }
+  ];
+  // Zahl mit Punkt unter der Rundungsstelle und Strich unter der Stelle rechts daneben (Buch S. 26)
+  function mioMarkiert(n, stellenwert) {
+    const s = String(n), L = s.length;
+    let out = '';
+    for (let i = 0; i < L; i++) {
+      const wert = Math.pow(10, L - 1 - i);
+      if (i > 0 && (L - i) % 3 === 0) out += NNBSP;
+      out += wert === stellenwert ? `<span class="mio-punkt">${s[i]}</span>`
+        : wert === stellenwert / 10 ? `<span class="mio-strich">${s[i]}</span>` : s[i];
+    }
+    return out;
+  }
+  function genMioRundenFrage() {
+    const r = gewichtetWaehlen(MIO_RUNDEN);
+    const stelle = MIO_WERTE.indexOf(r.w), dahinter = stelle + 1;
+    let z, n;
+    do {   // keine Zahl, die schon rund ist (470 510 auf Zehner)
+      z = mioZiffern(r.w <= 10000 && Math.random() < 0.3 ? rnd(10000, 99999) : mioZahl(true));
+      const fall = Math.random();
+      if (fall < 0.25) z[dahinter] = Math.random() < 0.5 ? 4 : 5;                     // genau an der Grenze
+      else if (fall < 0.4 && stelle > 0) {                                               // Übertrag: 96 641 ≈ 100 000
+        z[stelle] = 9; z[dahinter] = rnd(5, 9);
+        if (stelle > 1 && Math.random() < 0.5) z[stelle - 1] = 9;
+      }
+      n = ausZiffern(z);
+    } while (n % r.w === 0 || n < 10000);
+    const ergebnis = Math.round(n / r.w) * r.w, d = z[dahinter];
+    return {
+      typ: 'numeric',
+      frage: `Runde auf Vielfache von ${r.text}.<br>${gross(`${fmt(n)} ≈ ▢`)}`,
+      antwort: ergebnis,
+      hilfe: `Punkt unter die Stelle, auf die du rundest. Dann entscheidet die Stelle rechts daneben – die <strong>${r.achte}</strong> (unterstrichen):<br>${gross(mioMarkiert(n, r.w))}<br>` +
+        `Dort steht eine <strong>${d}</strong> → ${d < 5 ? '<strong>abrunden</strong> (bei 0, 1, 2, 3, 4)' : '<strong>aufrunden</strong> (bei 5, 6, 7, 8, 9)'}. Alle Stellen danach werden 0.<br>` +
+        `${gross(`${fmt(n)} ≈ ${fmt(ergebnis)}`)}`
+    };
+  }
+
+  // ---- Zahlenrätsel, Ziffernkarten, Bündeln ----
+  function genMioRaetselFrage() {
+    const arten = [
+      () => ({ f: 'Wie heißt die <strong>kleinste fünfstellige</strong> Zahl?', a: 10000, h: `Fünf Stellen, vorne eine 1, dann nur Nullen: <strong>10${NNBSP}000</strong>.` }),
+      () => ({ f: 'Wie heißt die <strong>größte fünfstellige</strong> Zahl?', a: 99999, h: `Fünf Stellen, überall die größte Ziffer 9: <strong>99${NNBSP}999</strong>.` }),
+      () => ({ f: 'Wie heißt die <strong>kleinste sechsstellige</strong> Zahl?', a: 100000, h: `Sechs Stellen, vorne eine 1, dann nur Nullen: <strong>100${NNBSP}000</strong>.` }),
+      () => ({ f: 'Wie heißt die <strong>größte sechsstellige</strong> Zahl?', a: 999999, h: `Sechs Stellen, überall eine 9: <strong>999${NNBSP}999</strong>.` }),
+      () => ({ f: 'Meine Zahl ist der <strong>Vorgänger der größten fünfstelligen</strong> Zahl.', a: 99998, h: `Die größte fünfstellige Zahl ist 99${NNBSP}999. Ihr Vorgänger ist 1 weniger: <strong>99${NNBSP}998</strong>.` }),
+      () => ({ f: 'Meine Zahl ist der <strong>Nachfolger der größten sechsstelligen</strong> Zahl.', a: 1000000, h: `999${NNBSP}999 und 1 mehr: <strong>1${NNBSP}000${NNBSP}000</strong> – eine Million.` }),
+      () => {
+        const a = Math.random() < 0.5 ? 0 : rnd(1, 4) * 100000;
+        const b = a + (a === 0 ? rnd(1, 4) * 20000 : rnd(1, 2) * 200000);
+        const m = (a + b) / 2;
+        return { f: `Meine Zahl liegt <strong>genau in der Mitte</strong> zwischen ${fmt(a)} und ${fmt(b)}.`, a: m, h: `Der Abstand von ${fmt(a)} bis ${fmt(b)} ist ${fmt(b - a)}. Die Hälfte davon ist ${fmt((b - a) / 2)}.<br>${fmt(a)} + ${fmt((b - a) / 2)} = <strong>${fmt(m)}</strong>` };
+      },
+      () => {
+        const ziffern = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 5);
+        const klein = Math.random() < 0.5;
+        const a = Number(ziffern.slice().sort((p, q) => klein ? p - q : q - p).join(''));
+        return {
+          f: `Lege mit diesen Ziffernkarten die <strong>${klein ? 'kleinstmögliche' : 'größtmögliche'}</strong> Zahl:<br>${gross(ziffern.map(x => `<span class="mio-karte">${x}</span>`).join(''))}`,
+          a, h: `Für die ${klein ? 'kleinste' : 'größte'} Zahl kommt die ${klein ? 'kleinste' : 'größte'} Ziffer nach vorne, dann immer die nächst${klein ? 'größere' : 'kleinere'}.<br><strong>${fmt(a)}</strong>`
+        };
+      },
+      () => {
+        const b = [
+          { g: 'HT', k: 'ZT', gn: 'Hunderttausender', kn: 'Zehntausender' },
+          { g: 'ZT', k: 'T', gn: 'Zehntausender', kn: 'Tausender' },
+          { g: 'T', k: 'H', gn: 'Tausender', kn: 'Hunderter' }
+        ][rnd(0, 2)];
+        const k = rnd(1, 9);
+        return { f: `Bündeln: Wie viele ${b.kn} sind es?<br>${gross(`${k} ${b.g} = ▢ ${b.k}`)}`, a: k * 10, h: `1 ${b.gn} = 10 ${b.kn}. Also: ${k} ${b.gn} = ${k * 10} ${b.kn}.` };
+      },
+      () => {
+        const k = rnd(2, 10);
+        return { f: `Eine Platte besteht aus 100${NNBSP}000 Würfeln. Wie viele Würfel sind es bei <strong>${k} Platten</strong>?`, a: k * 100000, h: `Jede Platte ist ein Hunderttausender. ${k} Hunderttausender sind <strong>${fmt(k * 100000)}</strong>.${k === 10 ? ' 10 Hunderttausender sind eine Million!' : ''}` };
+      }
+    ];
+    const r = arten[waehleOhneWiederholung('mio-raetsel', arten.length, 4)]();
+    return { typ: 'numeric', frage: r.f, antwort: r.a, hilfe: r.h };
+  }
+
+  const MIO_BEREICHE = [
+    { kategorie: 'mio_runden', gen: genMioRundenFrage },
+    { kategorie: 'mio_ordnen', gen: genMioOrdnenFrage },
+    { kategorie: 'mio_vergleich', gen: genMioVergleichFrage },
+    { kategorie: 'mio_strahl', gen: genMioZahlenstrahlFrage },
+    { kategorie: 'mio_nachbar', gen: genMioNachbarFrage },
+    { kategorie: 'mio_vornach', gen: genMioVorNachFrage },
+    { kategorie: 'mio_schritte', gen: genMioSchritteFrage },
+    { kategorie: 'mio_stellen', gen: genMioStellenwertFrage },
+    { kategorie: 'mio_stellen', gen: genMioZerlegenFrage },
+    { kategorie: 'mio_stellen', gen: genMioZahlwortFrage },
+    { kategorie: 'mio_ergaenzen', gen: genMioErgaenzenFrage },
+    { kategorie: 'mio_raetsel', gen: genMioRaetselFrage }
+  ];
+  // Schwerpunkte aus dem Heft (Runden, rückwärts zählen, Zahlenstrahl, Nachbarzahlen) öfter
+  const MIO_BASISGEWICHT = {
+    mio_runden: 3, mio_ordnen: 1.5, mio_vergleich: 1.5, mio_strahl: 2, mio_nachbar: 2, mio_vornach: 1,
+    mio_schritte: 2, mio_stellen: 1.5, mio_ergaenzen: 1, mio_raetsel: 0.7
+  };
+
+  // Eine 10er-Runde: 7 verschiedene Arten (nach Gewicht gezogen) + 3 weitere nach Gewicht - so kommen die
+  // Schwerpunkte und Arten, in denen Fehler passieren, öfter dran (gewichtFuerStat wie bei den Gemischten
+  // Aufgaben), und trotzdem ist jede Runde bunt gemischt.
+  function genMioUebung(anzahl) {
+    const stats = Storage.getMatheKategorienStats();
+    const proKat = {};
+    MIO_BEREICHE.forEach(b => (proKat[b.kategorie] = proKat[b.kategorie] || []).push(b.gen));
+    const kats = Object.keys(proKat);
+    const gewicht = k => gewichtFuerStat(stats[k]) * (MIO_BASISGEWICHT[k] || 1);
+    const ziehen = () => {
+      let ziel = Math.random() * kats.reduce((s, k) => s + gewicht(k), 0);
+      for (const k of kats) { ziel -= gewicht(k); if (ziel <= 0) return k; }
+      return kats[kats.length - 1];
+    };
+    const auswahl = [];
+    const rest = kats.slice();
+    const verschieden = Math.min(rest.length, Math.max(1, anzahl - 3));
+    while (auswahl.length < verschieden) {
+      let ziel = Math.random() * rest.reduce((s, k) => s + gewicht(k), 0);
+      let i = rest.findIndex(k => (ziel -= gewicht(k)) <= 0);
+      if (i < 0) i = rest.length - 1;
+      auswahl.push(rest.splice(i, 1)[0]);
+    }
+    while (auswahl.length < anzahl) auswahl.push(ziehen());
+    shuffle(auswahl);
+    for (let i = 1; i < auswahl.length; i++) {
+      if (auswahl[i] !== auswahl[i - 1]) continue;
+      const j = auswahl.findIndex((k, x) => x > i && k !== auswahl[i] && k !== auswahl[i - 1]);
+      if (j > 0) [auswahl[i], auswahl[j]] = [auswahl[j], auswahl[i]];
+    }
+    // Hilfe in größerer Schrift (.mio-hilfe) – gilt auch für die neue Version einer falsch gelösten Aufgabe
+    const mitGrosserHilfe = gen => () => { const f = gen(); f.hilfe = `<div class="mio-hilfe">${f.hilfe}</div>`; return f; };
+    return auswahl.map(k => { const gens = proKat[k]; return erzeugeFrage(k, mitGrosserHilfe(gens[rnd(0, gens.length - 1)])); });
+  }
+
+  const AKTIVITAET_MIO = 'mathe-mio';
+  function starteMioTraining() {
+    const starter = () => {
+      const anzahl = Storage.getTagesPensumAnzahl('mathe');
+      const offen = Storage.getOffeneSession(AKTIVITAET_MIO);
+      const config = { titel: 'Zahlen bis 1 000 000', wiederholeFalsche: true, aktivitaet: AKTIVITAET_MIO, pensumFach: 'mathe', ferienItem: 'mathe_mio' };
+      if (offen && offen.index > 0 && offen.index < anzahl) {
+        Object.assign(config, {
+          anzeigeOffset: offen.index, startRichtigCount: offen.richtigCount,
+          startSessionSterne: offen.sessionSterne, startVerlauf: offen.verlauf || []
+        });
+        App.startQuizSession('mathe', genMioUebung(anzahl - offen.index), config);
+      } else {
+        App.startQuizSession('mathe', genMioUebung(anzahl), config);
+      }
+    };
+    App.setLastStarter(starter);
+    starter();
+  }
+
+  // Lernseite: alles, was im Test drankommt, mit echt berechneten Beispielen
+  function zeigeMioRegeln() {
+    const karte = (titel, inhalt) => `<div class="regel-karte mio-regel"><strong>${titel}</strong><div>${inhalt}</div></div>`;
+    const bsp = 348411, z = mioZiffern(bsp);
+    const nachbarZeilen = MIO_NACHBARN.map(a => {
+      const u = Math.floor(bsp / a.schritt) * a.schritt;
+      return `<tr><td>${fmt(u)}</td><td>${a.kurz}</td><td>${fmt(u + a.schritt)}</td></tr>`;
+    }).join('');
+    const rundBsp = [[234529, 100], [96641, 1000], [76366, 10000], [356271, 100000]]
+      .map(([n, w]) => `${mioMarkiert(n, w)} ≈ ${fmt(Math.round(n / w) * w)} <span class="mio-klein">(auf ${fmt(w)})</span>`).join('<br>');
+    App.render(`
+      <div class="back-row"><span class="back-btn" onclick="Mathe.renderMenu()">${Icons.svg('zurueck')} Zurück</span></div>
+      <div class="welcome">So geht's: Zahlen bis 1 000 000</div>
+      ${karte('Stellenwerttafel', `${mioTafel(z)}${gross(`${fmt(bsp)} = ${z.map((a, i) => a * MIO_WERTE[i]).filter(Boolean).map(fmt).join(' + ')}`)}<br>
+        10 Einer = 1 Zehner, 10 Zehner = 1 Hunderter, 10 Hunderter = 1 Tausender, 10 Tausender = 1 Zehntausender,
+        10 Zehntausender = 1 Hunderttausender, <strong>10 Hunderttausender = 1 Million (1${NNBSP}000${NNBSP}000)</strong>.`)}
+      ${karte('Vorgänger und Nachfolger', `Vorgänger = 1 weniger, Nachfolger = 1 mehr.<br>${gross(`399${NNBSP}999 ← 400${NNBSP}000 → 400${NNBSP}001`)}`)}
+      ${karte(`Nachbarzahlen von ${fmt(bsp)}`, `Die vollen Zehner, Hunderter … direkt davor und danach:
+        <table class="mio-tafel"><tr><th>davor</th><th></th><th>danach</th></tr>${nachbarZeilen}</table>`)}
+      ${karte('Vergleichen und ordnen', `Erst die Stellen zählen: Mehr Stellen = größere Zahl.<br>Gleich viele Stellen: von links Ziffer für Ziffer vergleichen. Die erste Stelle, an der sie sich unterscheiden, entscheidet.<br>
+        ${gross(`461${NNBSP}0<u>2</u>8 &lt; 461${NNBSP}0<u>3</u>5`)} <span class="mio-klein">(bei den Zehnern: 2 &lt; 3)</span>`)}
+      ${karte('Zahlenstrahl', `Zwischen zwei beschrifteten Strichen liegen 10 kleine Abschnitte. Hier: von 520${NNBSP}000 bis 530${NNBSP}000 sind es 10${NNBSP}000, also ist jeder Abschnitt <strong>1${NNBSP}000</strong>. Der Pfeil A zeigt auf 534${NNBSP}000.
+        ${svgMioStrahl(520000, 1000, 3, [{ pos: 14, text: 'A', farbe: '#5EE59B' }])}`)}
+      ${karte('Zählen in Schritten', `<strong>Vorwärts</strong> = jedes Mal mehr (+), <strong>rückwärts</strong> = jedes Mal weniger (−).<br>
+        ${gross(`745${NNBSP}300, 744${NNBSP}300, 743${NNBSP}300, …`)} <span class="mio-klein">(rückwärts in Tausenderschritten)</span>`)}
+      ${karte('Runden', `Bei <strong>0, 1, 2, 3, 4</strong> wird <strong>abgerundet</strong>. Bei <strong>5, 6, 7, 8, 9</strong> wird <strong>aufgerundet</strong>.<br>
+        Punkt unter die Stelle, auf die du rundest. Die Stelle rechts daneben (unterstrichen) entscheidet. Alles danach wird 0.<br>${gross(rundBsp)}`)}
+      <div class="weiter-row"><span class="btn-primary" onclick="Mathe.starteMioTraining()">Jetzt üben ➜</span></div>
+    `);
+  }
+
   // ---- Tagespensum: Mix aus allen Aufgabenbereichen, keine Sparten-Auswahl durch
   // Max. Pro Bereich merkt sich Storage.getMatheKategorienStats(), wie oft er dort
   // falsch lag (gleiches Karteikarten-Prinzip wie bei den Malfolgen) - dadurch
@@ -3188,6 +3721,7 @@ const Mathe = (function () {
     starteMalfolgenKarten, malfolgenAnzahl: anzahlMalfolgen, karteUmdrehen, bewerteMalfolgenKarte, renderMalfolgenUebersicht,
     renderRechenregelnMenu, zeigeRechenregeln, starteRechenregelnUebung,
     renderFachbegriffeMenu, zeigeFachbegriffe, starteFachbegriffeUebung, starteFerienTraining, malfolgenText, aufbauInfo,
+    starteMioTraining, zeigeMioRegeln, kategorieText,
     malfolgenKopien, ziehMalfolgenFakten   // für tests/pruefe_lernstand.js (Stapellänge)
   };
 })();

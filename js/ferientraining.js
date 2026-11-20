@@ -15,6 +15,7 @@
 const Ferientraining = (function () {
   const PLAN = [
     // ziel = Rundengröße beim ersten Start am Tag (App.starteFerienQuiz holt nur den heute noch fehlenden Rest)
+    { id: 'mathe_mio', titel: 'Mathe: Zahlen bis 1 000 000', ziel: () => 10 },
     { id: 'mathe_tag', titel: 'Mathe: Zahlen bis 10 000', ziel: () => 10 },
     { id: 'mathe_gemischt', titel: 'Mathe: Übungen', ziel: () => 10 },
     { id: 'mathe_malfolgen', titel: 'Malfolgen', ziel: () => Math.min(40, Mathe.malfolgenAnzahl()) },

@@ -172,8 +172,8 @@ const App = (function () {
     // siehe ferientraining.js); runden = Lernarten-ids der Kategorie.
     const offen = Geschichten.naechsteOffene();
     const kategorien = [
-      { icon: 'mathe', label: 'Mathe', sub: 'Aufgaben, Malfolgen, Geometrie', onclick: 'Mathe.renderMenu()',
-        runden: ['mathe_tag', 'mathe_gemischt', 'mathe_malfolgen', 'geometrie_karten', 'geometrie', 'gb_mathe'] },
+      { icon: 'mathe', label: 'Mathe', sub: Mathe.kategorieText(), onclick: 'Mathe.renderMenu()',
+        runden: ['mathe_mio', 'mathe_tag', 'mathe_gemischt', 'mathe_malfolgen', 'geometrie_karten', 'geometrie', 'gb_mathe'] },
       { icon: 'deutsch', label: 'Deutsch', sub: 'Rechtschreibung, Fälle, Lesen', onclick: 'Deutsch.renderMenu()', runden: ['deutsch_gemischt', 'gb_deutsch', 'deutsch_tag', 'deutsch_lesen'] },
       { icon: 'musik', label: 'Musik', sub: 'Noten &amp; Pausen', onclick: 'Musik.renderMenu()', runden: ['musik_karten', 'musik_zeichnen', 'musik_taktstriche'] },
       { icon: 'sport', label: 'Sport', sub: 'Erwärmung lernen', onclick: "Heimatkunde.starteThemenwahl('sport')", runden: ['sport_karten'] },
@@ -813,6 +813,12 @@ const App = (function () {
         <div class="zahl-anzeige" id="zahl-anzeige">&nbsp;</div>
         <div class="keypad" id="keypad"></div>
       `;
+    } else if (f.typ === 'ordnen') {
+      bodyHtml += `
+        <div class="ordnen-ziel" id="ordnen-ziel"></div>
+        <div class="ordnen-karten" id="ordnen-karten"></div>
+        <div class="ordnen-ok-zeile"><div class="key-btn ok" id="ordnen-ok">OK</div></div>
+      `;
     } else if (f.typ === 'text') {
       bodyHtml += `
         <div class="text-eingabe-zeile">
@@ -838,6 +844,8 @@ const App = (function () {
 
     if (f.typ === 'numeric') {
       renderKeypad(f);
+    } else if (f.typ === 'ordnen') {
+      renderOrdnen(f);
     } else if (f.typ === 'text') {
       renderTextEingabe(f);
     } else if (f.typ === 'heft') {
@@ -897,6 +905,7 @@ const App = (function () {
   function renderOptionen(f) {
     const wrap = document.getElementById('optionen');
     wrap.innerHTML = '';
+    if (f.grosseOptionen) wrap.classList.add('optionen-gross');   // z. B. <, >, = beim Vergleichen (20.11.2026)
     f.optionen.forEach((opt, i) => {
       const btn = document.createElement('div');
       btn.className = 'option-btn';
@@ -904,6 +913,52 @@ const App = (function () {
       btn.onclick = () => beantworteMC(i, f);
       wrap.appendChild(btn);
     });
+  }
+
+  // Zahlen ordnen (Mathe-Test 23.11.2026): Karten der Reihe nach antippen, ein Tipp auf eine gelegte Karte nimmt sie
+  // zurück; OK erst, wenn alle liegen. f.karten = Texte, f.reihenfolge = richtige Indizes, f.zeichen = '<' oder '>'.
+  function renderOrdnen(f) {
+    const gelegt = [];
+    const ziel = document.getElementById('ordnen-ziel');
+    const vorrat = document.getElementById('ordnen-karten');
+    const ok = document.getElementById('ordnen-ok');
+    ziel.className = 'ordnen-ziel';
+    const zeichne = () => {
+      ziel.innerHTML = '';
+      f.karten.forEach((_, platz) => {
+        if (platz > 0) {
+          const z = document.createElement('span');
+          z.className = 'ordnen-zeichen';
+          z.textContent = f.zeichen;
+          ziel.appendChild(z);
+        }
+        const p = document.createElement('div');
+        const k = gelegt[platz];
+        p.className = 'ordnen-platz' + (k === undefined ? ' leer' : '');
+        p.textContent = k === undefined ? '?' : f.karten[k];
+        if (k !== undefined) p.onclick = () => { gelegt.splice(platz, 1); zeichne(); };
+        ziel.appendChild(p);
+      });
+      vorrat.innerHTML = '';
+      f.karten.forEach((text, i) => {
+        const b = document.createElement('div');
+        const weg = gelegt.includes(i);
+        b.className = 'option-btn ordnen-karte' + (weg ? ' ordnen-weg' : '');
+        b.textContent = text;
+        if (!weg) b.onclick = () => { gelegt.push(i); zeichne(); };
+        vorrat.appendChild(b);
+      });
+      ok.classList.toggle('ordnen-gesperrt', gelegt.length < f.karten.length);
+    };
+    ok.onclick = () => {
+      if (gelegt.length < f.karten.length) return;
+      ok.onclick = null;
+      document.querySelectorAll('#ordnen-ziel .ordnen-platz, #ordnen-karten .option-btn').forEach(el => { el.onclick = null; });
+      const korrekt = gelegt.every((k, platz) => k === f.reihenfolge[platz]);
+      ziel.classList.add(korrekt ? 'richtig' : 'falsch');
+      verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderOrdnen(f), gelegt.map(i => f.karten[i]).join(` ${f.zeichen} `));
+    };
+    zeichne();
   }
 
   // Heft-Aufgabe (Geometrie, 02.11.2026): Max zeichnet ins Heft, nicht aufs Tablet. Nach "Fertig" zeigt die App,
@@ -933,6 +988,9 @@ const App = (function () {
     verarbeiteQuizAntwort(f, korrekt, undefined, () => renderOptionen(f), f.optionen[i], i);
   }
 
+  // Zahlen ab vier Stellen in Dreiergruppen mit schmalem Leerzeichen (wie im Schulbuch: 357 269)
+  function gruppiert(x) { return String(x).replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f'); }
+
   function renderKeypad(f) {
     eingabe = '';
     const anzeige = document.getElementById('zahl-anzeige');
@@ -953,10 +1011,10 @@ const App = (function () {
           const korrekt = parseInt(eingabe, 10) === f.antwort;
           verarbeiteQuizAntwort(f, korrekt, f.antwort, () => renderKeypad(f), eingabe);
           return;
-        } else if (eingabe.length < 6) {
+        } else if (eingabe.length < 7) {   // 7 Stellen seit 20.11.2026 (Zahlen bis 1 000 000)
           eingabe += t;
         }
-        anzeige.textContent = eingabe === '' ? ' ' : eingabe;
+        anzeige.textContent = eingabe === '' ? ' ' : gruppiert(eingabe);
       };
       pad.appendChild(btn);
     });
@@ -1163,7 +1221,7 @@ const App = (function () {
     } else {
       fb.className = 'feedback nok';
       fb.textContent = richtigeAntwort !== undefined
-        ? '✘ Leider falsch. Richtig wäre: ' + richtigeAntwort
+        ? '✘ Leider falsch. Richtig wäre: ' + (typeof richtigeAntwort === 'number' ? gruppiert(richtigeAntwort) : richtigeAntwort)
         : '✘ Leider falsch.';
     }
     document.getElementById('hilfe-bereich').innerHTML = '';
