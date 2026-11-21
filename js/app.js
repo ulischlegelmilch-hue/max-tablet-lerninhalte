@@ -88,7 +88,7 @@ const App = (function () {
   let istAufHomeBildschirm = false;
 
   /** Startseite ist wirklich zu sehen (keine Aufgabe, kein Spiel, keine Hof-Farm darueber) - fuer Fuchs.tagesImpuls. */
-  function istStartSichtbar() { return istAufHomeBildschirm && !document.getElementById('farm'); }
+  function istStartSichtbar() { return istAufHomeBildschirm && !document.getElementById('farm') && !(typeof Testzeit !== 'undefined' && Testzeit.aktiv()); }
 
   function render(html) {
     istAufHomeBildschirm = false;
@@ -211,6 +211,7 @@ const App = (function () {
           ${smItem('musik', 'musik', 'Musik', 'Noten &amp; Pausen', 'Musik.renderMenu()')}
           ${smItem('sport', 'sport', 'Sport', 'Erwärmung lernen', "Heimatkunde.starteThemenwahl('sport')")}
           ${smItem('geschichten', 'geschichten', 'Geschichten', `${geschichtenFortschritt.fertig} von ${geschichtenFortschritt.gesamt} gelesen`, 'Geschichten.renderMenu()')}
+          ${typeof Testzeit !== 'undefined' ? smItem('testzeit', 'testzeit', 'Testzeit', Testzeit.kachelText(), 'Testzeit.oeffnen()') : ''}
           <div class="home-gruppe-titel">Spielen &amp; mehr</div>
           ${smItem('spiele', 'spielen', 'Spiele', 'Schach, Schiffe, Mau-Mau', 'App.renderSpieleMenu()')}
           ${smItem('chat', 'chat', 'Chat mit Papa', ungelesen ? '🔴 Neue Nachricht!' : 'Nachricht schreiben', 'Chat.starteAnsicht()', ungelesen)}
@@ -1356,6 +1357,8 @@ const App = (function () {
   function init() {
     document.getElementById('topbar-home').innerHTML = Icons.svg('home');
     gotoHome();
+    // Testzeit (21.11.2026): lief beim Neuladen (Inhalts-Update, App-Neustart) gerade eine, geht sie sofort wieder auf
+    try { if (typeof Testzeit !== 'undefined') Testzeit.fortsetzen(); } catch (e) { /* optional */ }
     updateAkkuAnzeige();
     setInterval(updateAkkuAnzeige, 15000);
     initDevElternSimulation();

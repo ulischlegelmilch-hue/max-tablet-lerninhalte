@@ -27,6 +27,7 @@ body.spielbuehne .sm-icon.icon-heimat { box-shadow: 0 4px 10px rgba(70,204,135,.
 body.spielbuehne .sm-icon.icon-sport { box-shadow: 0 4px 10px rgba(255,107,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-geschichten { box-shadow: 0 4px 10px rgba(179,139,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-spiele { box-shadow: 0 4px 10px rgba(46,211,183,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-testzeit { box-shadow: 0 4px 10px rgba(140,165,200,.40), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-chat { box-shadow: 0 4px 10px rgba(255,111,156,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-belohnung { box-shadow: 0 4px 10px rgba(255,201,60,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 
@@ -186,6 +187,7 @@ body.spielbuehne .icon-sport { background: linear-gradient(150deg, #FF8F7D, #D64
 body.spielbuehne .icon-musik { background: linear-gradient(150deg, #C6E85A, #7FA81C); --kat-dunkel: #5A7A0E; }
 body.spielbuehne .icon-geschichten { background: linear-gradient(150deg, #C9A8FF, #7A4FD8); --kat-dunkel: #5A32A8; }
 body.spielbuehne .icon-spiele { background: linear-gradient(150deg, #55E6CE, #13A58C); --kat-dunkel: #0B7766; }
+body.spielbuehne .icon-testzeit { background: linear-gradient(150deg, #A9BBD3, #4C6386); --kat-dunkel: #33465F; }
 body.spielbuehne .icon-chat { background: linear-gradient(150deg, #FF8DB0, #D93A72); --kat-dunkel: #A82855; }
 body.spielbuehne .icon-belohnung { background: linear-gradient(150deg, #FFD966, #E39A0B); --kat-dunkel: #A86A00; }
 body.spielbuehne .icon-schach { background: linear-gradient(150deg, #8A96B8, #3E4A6E); --kat-dunkel: #2B3552; }

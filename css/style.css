@@ -327,6 +327,7 @@ html, body {
 .icon-musik { background: #7FA81C; color: #fff; }
 .icon-schach { background: var(--schach); color: #fff; }
 .icon-chat { background: var(--chat); color: #fff; }
+.icon-testzeit { background: #4C6386; color: #fff; }
 .icon-belohnung { background: var(--belohnung); color: #fff; }
 .icon-schiffe { background: var(--schiffe); color: #fff; }
 .icon-spiele { background: var(--spiele); color: #fff; }

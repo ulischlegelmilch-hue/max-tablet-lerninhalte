@@ -52,5 +52,5 @@ const VolldampfLader = (function () {
       return 'Stufe ' + S.level + ' · ' + Object.keys(S.laender || {}).length + ' von 16 Ländern';
     } catch (e) { return 'Neu: Dampfbahn quer durch Deutschland'; }
   }
-  return { oeffnen, fortschrittText, bereit };
+  return { oeffnen, fortschrittText, bereit, skript };   // skript('glanz') nutzt auch die Testzeit (nie doppelt laden)
 })();
