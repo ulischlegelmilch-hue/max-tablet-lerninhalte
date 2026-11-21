@@ -149,6 +149,29 @@ const App = (function () {
       </div>`;
   }
 
+  // 3D-Drucker (21.11.2026): Bambu Handy als Zusatz-App. Die Tablet-App ab 2.13 installiert sie selbst und gibt sie für den
+  // Kiosk frei (ZusatzApps.kt); ältere App-Versionen und die Browser-Vorschau kennen zusatzStatus nicht → keine Kachel.
+  const DRUCKER_PAKET = 'bbl.intl.bambulab.com';
+  function druckerStatus() {
+    try {
+      if (typeof AndroidBridge !== 'undefined' && typeof AndroidBridge.zusatzStatus === 'function') return String(AndroidBridge.zusatzStatus(DRUCKER_PAKET));
+    } catch (e) { /* ältere App */ }
+    return null;
+  }
+  function druckerText(st) {
+    if (st === 'bereit') return 'Drucke suchen und starten';
+    if (st.indexOf('laedt') === 0) return 'Wird installiert' + (st.length > 6 ? ' · ' + st.slice(6) : ' …');
+    if (st.indexOf('fehler') === 0) return 'Installation hakt – sag Papa Bescheid';
+    return 'Wird bald installiert';
+  }
+  function oeffneDrucker() {
+    const st = druckerStatus();
+    if (st === 'bereit') {
+      try { if (AndroidBridge.oeffneZusatzApp(DRUCKER_PAKET)) return; } catch (e) { /* unten neu zeichnen */ }
+    }
+    gotoHome();   // Stand auf der Kachel auffrischen (z. B. „Wird installiert · 40 %“)
+  }
+
   function chatUngelesen() {
     const letzte = Storage.getLetzteChatVonPapa();
     return Storage.chatUngelesen();
@@ -214,6 +237,7 @@ const App = (function () {
           ${typeof Testzeit !== 'undefined' ? smItem('testzeit', 'testzeit', 'Testzeit', Testzeit.kachelText(), 'Testzeit.oeffnen()') : ''}
           <div class="home-gruppe-titel">Spielen &amp; mehr</div>
           ${smItem('spiele', 'spielen', 'Spiele', 'Schach, Schiffe, Mau-Mau', 'App.renderSpieleMenu()')}
+          ${druckerStatus() !== null ? smItem('drucker', 'drucker', '3D-Drucker', druckerText(druckerStatus()), 'App.oeffneDrucker()') : ''}
           ${smItem('chat', 'chat', 'Chat mit Papa', ungelesen ? '🔴 Neue Nachricht!' : 'Nachricht schreiben', 'Chat.starteAnsicht()', ungelesen)}
           ${smItem('belohnung', 'geschenk', 'Belohnungen', `${Storage.getGuthaben()} ⭐ gesammelt`, 'Belohnungen.renderMenu()')}
         </nav>
@@ -1379,6 +1403,6 @@ const App = (function () {
     oeffneEinstellungen, aktualisiereRegelFormular, fuegeAusnahmeHinzu, loescheAusnahme,
     speichereTagesregeln, fortschrittWirklichZuruecksetzen, starteNeueHeimatProbe,
     fuegeBelohnungHinzu, belohnungSpeichern, belohnungLoeschen, belohnungEinloesen,
-    aktualisiereHomeFallsAktiv, istStartSichtbar
+    aktualisiereHomeFallsAktiv, istStartSichtbar, oeffneDrucker
   };
 })();

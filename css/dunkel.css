@@ -27,6 +27,7 @@ body.spielbuehne .sm-icon.icon-heimat { box-shadow: 0 4px 10px rgba(70,204,135,.
 body.spielbuehne .sm-icon.icon-sport { box-shadow: 0 4px 10px rgba(255,107,87,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-geschichten { box-shadow: 0 4px 10px rgba(179,139,255,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-spiele { box-shadow: 0 4px 10px rgba(46,211,183,.45), inset 0 1px 0 rgba(255,255,255,.28); }
+body.spielbuehne .sm-icon.icon-drucker { box-shadow: 0 4px 10px rgba(80,180,235,.42), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-testzeit { box-shadow: 0 4px 10px rgba(140,165,200,.40), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-chat { box-shadow: 0 4px 10px rgba(255,111,156,.45), inset 0 1px 0 rgba(255,255,255,.28); }
 body.spielbuehne .sm-icon.icon-belohnung { box-shadow: 0 4px 10px rgba(255,201,60,.45), inset 0 1px 0 rgba(255,255,255,.28); }
@@ -178,7 +179,9 @@ body.spielbuehne .sm-icon::after, body.spielbuehne .menu-icon::after {
   background: linear-gradient(180deg, rgba(255,255,255,.34), rgba(255,255,255,0));
 }
 body.spielbuehne .sm-icon svg.kat-icon, body.spielbuehne .menu-icon svg.kat-icon { width: 78%; height: 78%; position: relative; z-index: 1; }
-body.spielbuehne .sm-icon { width: 46px; height: 46px; }
+/* 21.11.2026: 10 Einträge (Testzeit, 3D-Drucker) – etwas enger, damit das Menü auf 800 px Höhe ganz zu sehen ist */
+body.spielbuehne .sm-icon { width: 42px; height: 42px; }
+body.spielbuehne .home-seitenmenue .sm-item { padding-top: 7px; padding-bottom: 7px; }
 body.spielbuehne .menu-icon { width: 56px; height: 56px; }
 body.spielbuehne .icon-mathe { background: linear-gradient(150deg, #7DB4FF, #2C66D2); --kat-dunkel: #1F4FA8; }
 body.spielbuehne .icon-deutsch { background: linear-gradient(150deg, #FFAA77, #E0612A); --kat-dunkel: #A8421A; }
@@ -187,6 +190,7 @@ body.spielbuehne .icon-sport { background: linear-gradient(150deg, #FF8F7D, #D64
 body.spielbuehne .icon-musik { background: linear-gradient(150deg, #C6E85A, #7FA81C); --kat-dunkel: #5A7A0E; }
 body.spielbuehne .icon-geschichten { background: linear-gradient(150deg, #C9A8FF, #7A4FD8); --kat-dunkel: #5A32A8; }
 body.spielbuehne .icon-spiele { background: linear-gradient(150deg, #55E6CE, #13A58C); --kat-dunkel: #0B7766; }
+body.spielbuehne .icon-drucker { background: linear-gradient(150deg, #66C8F2, #1F6FB2); --kat-dunkel: #164F82; }
 body.spielbuehne .icon-testzeit { background: linear-gradient(150deg, #A9BBD3, #4C6386); --kat-dunkel: #33465F; }
 body.spielbuehne .icon-chat { background: linear-gradient(150deg, #FF8DB0, #D93A72); --kat-dunkel: #A82855; }
 body.spielbuehne .icon-belohnung { background: linear-gradient(150deg, #FFD966, #E39A0B); --kat-dunkel: #A86A00; }
